@@ -1,0 +1,144 @@
+from pathlib import Path
+import numpy as np
+from scipy.interpolate import griddata
+from lmfit import Model, Parameters
+
+import pyqtgraph as pg
+from PySide6 import QtWidgets
+from numba import jit
+
+
+# Define a rotated 2D Gaussian function
+@jit(nopython=True)
+def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
+    xo = float(xo)
+    yo = float(yo)    
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    g = amplitude * np.exp( - (a * ((x-xo)**2) + 2 * b * (x-xo) * (y-yo) + c * ((y-yo)**2)))
+    return g.ravel()
+
+
+def fast_do_fit_2d(z):
+    
+    n_columns, n_rows = z.shape[1], z.shape[0]
+
+    # x, y = np.meshgrid(np.linspace(0, n_columns, n_columns), np.linspace(0, n_rows, n_rows))
+    x, y =  np.meshgrid(np.arange(n_columns), np.arange(n_rows))
+
+    z_flat = z.ravel()
+    x_flat = x.ravel()
+    y_flat = y.ravel()
+
+    # Create a model from the Gaussian function
+    model = Model(gaussian2d_rotated, independent_vars=['x', 'y'])
+
+    # Create parameters with initial guesses
+    params = Parameters()
+    params.add('amplitude', value=1e3, min=0)
+    params.add('xo', value=n_columns//2)
+    params.add('yo', value=n_rows//2)
+    params.add('sigma_x', value=n_columns//12, min=1)
+    params.add('sigma_y', value=n_rows//12, min=1)
+    params.add('theta', value=0, min=-np.pi/2, max=np.pi/2)
+
+    # Fit the model to the data
+    result = model.fit(z_flat, x=x_flat, y=y_flat, params=params)
+    return model, result
+
+
+def do_fit_3d(images_3d):
+
+    images_2d = images_3d[0]
+    return do_fit_2d(images_2d)
+
+
+def do_fit_2d(z):
+    
+    n_columns = z.shape[1]
+    n_rows = z.shape[0]
+
+    x, y = np.meshgrid(np.linspace(0, n_columns, n_columns), np.linspace(0, n_rows, n_rows))
+
+    z = z.ravel()
+    x = x.ravel()
+    y = y.ravel()
+    
+    # image_data = griddata((x, y), z, (X, Y), method='linear', fill_value=0)
+    image_data = griddata((x, y), z, (x, y), method='linear', fill_value=0)
+
+    # Create a model from the Gaussian function
+    model = Model(gaussian2d_rotated, independent_vars=['x', 'y'])
+
+    # Create parameters with initial guesses
+    params = Parameters()
+    params.add('amplitude', value=np.max(image_data), min=0)
+    params.add('xo', value=n_columns//2)                                  #image_data.shape[1]//2)
+    params.add('yo', value=n_rows//2)                                 #image_data.shape[0]//2)
+    params.add('sigma_x', value=n_columns//4, min=1)                    #image_data.shape[1]//4, min=1)
+    params.add('sigma_y', value=n_rows//4, min=1)                    #image_data.shape[0]//4, min=1)
+    params.add('theta', value=0, min=-np.pi/2, max=np.pi/2)
+
+    # Fit the model to the data
+    result = model.fit(z, x=x, y=y, params=params)
+
+    # Print the fitting results
+    # print(result.fit_report())
+
+    return model, result, image_data, x, y
+
+# Start the Qt event loop
+if __name__ == '__main__':
+    # Importing data
+    path = Path("/home/l_khalil/GUI/viewer_2/")
+    images = np.load(path/"Image_data_0.npy")
+
+    model, result, image_data, X, Y = do_fit_3d(images)
+
+    # Initialize the Qt app
+    app = QtWidgets.QApplication([])
+
+    # Function to create a color map
+    def create_colormap(color):
+        colormap = pg.ColorMap(pos=np.linspace(0.0, 1.0, 3), color=[(0,0,0), color, (255,255,255)])
+        return colormap.getLookupTable(0.0, 1.0, 256)
+
+    # Choose your color
+    color = (255, 0, 0)  # Red color
+
+    # Create a window
+    win = pg.GraphicsLayoutWidget(show=True, title="Gaussian Fit Visualization")
+    win.resize(500, 900)
+
+    # Data Plot
+    dataPlot = win.addPlot(title="Data")
+    dataImage = pg.ImageItem(axisOrder='row-major')
+    dataImage.setLookupTable(create_colormap(color))
+    dataPlot.addItem(dataImage)
+    dataImage.setImage(image_data)  # Transpose to match row-major order
+    dataPlot.setLabels(left='y', bottom='x')
+    dataPlot.setRange(xRange=(0, 1024), yRange=(0, 512))
+
+    # Fit Plot
+    win.nextRow()  # Move to the next row for the next plot
+    fitPlot = win.addPlot(title="Fit")
+    fitImage = pg.ImageItem(axisOrder='row-major')
+    fitImage.setLookupTable(create_colormap(color))
+    fitPlot.addItem(fitImage)
+    fit = model.func(X, Y, **result.best_values).reshape(*X.shape)
+    fitImage.setImage(fit)  # Transpose to match row-major order
+    fitPlot.setLabels(left='y', bottom='x')
+    fitPlot.setRange(xRange=(0, 1024), yRange=(0, 512))
+
+    # Data - Fit Plot
+    win.nextRow()  # Move to the next row for the next plot
+    diffPlot = win.addPlot(title="Data - Fit")
+    diffImage = pg.ImageItem(axisOrder='row-major')
+    diffImage.setLookupTable(create_colormap(color))
+    diffPlot.addItem(diffImage)
+    diffImage.setImage(image_data - fit)  # Transpose to match row-major order
+    diffPlot.setLabels(left='y', bottom='x')
+    diffPlot.setRange(xRange=(0, 1024), yRange=(0, 512))
+
+    QtWidgets.QApplication.instance().exec()
