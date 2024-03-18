@@ -13,7 +13,7 @@ from overlay_pyqt import draw_overlay
 import reuss 
 from reuss import config as cfg
 
-from fit_beam_intensity import do_fit_3d, do_fit_2d, fast_do_fit_2d, gaussian2d_rotated
+from fit_beam_intensity import fit_2d_gaussian_roi
 
 import pyqtgraph as pg
 from pyqtgraph.dockarea import DockArea, Dock
@@ -21,13 +21,15 @@ from pyqtgraph.dockarea import DockArea, Dock
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
                                QLabel, QApplication, QHBoxLayout, QVBoxLayout, 
                                QWidget, QGraphicsEllipseItem, QGraphicsRectItem)
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QCoreApplication, QRectF
+from PySide6.QtCore import (Qt, QThread, Signal, QTimer, QCoreApplication, 
+                            QRectF)
 from PySide6.QtGui import QPalette, QColor, QTransform
 
 
 #Configuration
 nrow = cfg.nrows()
 ncol = cfg.ncols()
+
 
 # Define the available theme of the main window
 def get_palette(name):
@@ -49,6 +51,7 @@ def get_palette(name):
         return palette
     else:
         raise NotImplementedError("only dark theme is implemented")
+
 
 # Receiver of the ZMQ stream
 class ZmqReceiver:
@@ -83,28 +86,38 @@ class Reader(QThread):
         super(Reader, self).__init__()
         self.receiver = receiver
 
-    def run_reader(self):
+    def run(self):
         image, frame_nr = self.receiver.get_frame()  # Retrieve image and header
         self.finished.emit(image, frame_nr)  # Emit signal with results
 
 
-class Fitter(QThread):
+class Gaussian_Fitter(QThread):
     finished = Signal(object)
+    # progress = Signal(Arg)  # Use Signal with the argument type
 
-    def __init__(self, imageItem):
-        super(Fitter, self).__init__()
+    def __init__(self, imageItem, roi):
+        super(Gaussian_Fitter, self).__init__()
         self.imageItem = imageItem
+        self.roi = roi
         
-    def run_fitter(self):
+    def run(self):
         im = self.imageItem.image
-        # model, fit_result, data, X, Y = do_fit_2d(im)
-        model, fit_result = fast_do_fit_2d(im)
+        roiPos = self.roi.pos()
+        roiSize = self.roi.size()
+        roi_start_row = int(np.floor(roiPos.y()))
+        roi_end_row = int(np.ceil(roiPos.y() + roiSize.y()))
+        roi_start_col = int(np.floor(roiPos.x()))
+        roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
+        fit_result = fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col)
+        # self.progress.emit(smthing to inform about fitting status or...)
         self.finished.emit(fit_result.best_values)
+
 
 class ToggleButton(QPushButton):
     def __init__(self, label, window):
         super().__init__(label, window)
         self.started = False
+
 
 class ApplicationWindow(QMainWindow):
     def __init__(self, receiver):
@@ -133,30 +146,32 @@ class ApplicationWindow(QMainWindow):
         self.histogram.setImageItem(self.imageItem)
         self.histogram.gradient.loadPreset('viridis')
         self.glWidget.addItem(self.histogram)
+        self.histogram.setLevels(0,255)
+        self.plot.setAspectLocked(True)
 
+        # Create an ROI
+        self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        self.plot.addItem(self.roi)
+        self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
+        self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
+        
+        # Connect ROI changes to a method
+        self.roi.sigRegionChanged.connect(self.roiChanged)
+
+        # Create the fitting Ellipse
         self.ellipse_fit = QGraphicsEllipseItem()
-        #***************************************
         self.sigma_x_fit = QGraphicsRectItem()
         self.sigma_y_fit = QGraphicsRectItem()
-        #***************************************
-        self.fitter = Fitter(self.imageItem)
+
+        # Initial data
+        data = np.random.rand(nrow,ncol)
+
+        self.fitter = Gaussian_Fitter(self.imageItem, self.roi)
         self.fitter.finished.connect(self.updateFitParams)
-
-        # Initial data (Sample #1)
-        # data = np.random.rand(nrow,ncol)
-
-        # Initial data (Sample #2: Electron Beam)
-        path = Path("/home/l_khalil/GUI/viewer_2/")
-        images = np.load(path/"Image_data_0.npy")
-        # model, result, data = do_fit_3d(images) 
-        data = images[0]
 
         # Plot overlays from .reussrc          
         draw_overlay(self.plot)
-        self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = True)
-
-        self.histogram.setLevels(0,255)
-        self.plot.setAspectLocked(True)
+        self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
 
         self.imageItem.hoverEvent = self.imageHoverEvent
 
@@ -187,10 +202,12 @@ class ApplicationWindow(QMainWindow):
         self.sigma_x_spBx = QDoubleSpinBox()
         self.sigma_x_spBx.setSingleStep(0.1)
 
-        
+    
         label_sigma_y = QLabel()
         label_sigma_y.setText("Sigma_y (px)")
+        label_sigma_y.setStyleSheet('color: red;')
         self.sigma_y_spBx = QDoubleSpinBox()
+        self.sigma_y_spBx.setStyleSheet('color: red;')
         self.sigma_y_spBx.setSingleStep(0.1)
 
         label_rot_angle = QLabel()
@@ -232,6 +249,29 @@ class ApplicationWindow(QMainWindow):
         print('Exiting')
         app.quit()
     
+    def roiChanged(self):
+        # Get the current ROI position and size
+        roiPos = self.roi.pos()
+        roiSize = self.roi.size()
+        
+        imageShape = self.imageItem.image.shape
+        # Calculate the maximum allowed positions for the ROI
+        maxPosX = max(0, imageShape[1] - roiSize[0])  # image width - roi width
+        maxPosY = max(0, imageShape[0] - roiSize[1])  # image height - roi height
+        # Correct the ROI position if it's out of bounds
+        correctedPosX = min(max(roiPos[0], 0), maxPosX)
+        correctedPosY = min(max(roiPos[1], 0), maxPosY)
+        # If the ROI size is larger than the image, adjust the size as well
+        correctedSizeX = min(roiSize[0], imageShape[1])
+        correctedSizeY = min(roiSize[1], imageShape[0])
+        # Apply the corrections to the ROI
+        self.roi.setPos([correctedPosX, correctedPosY])
+        self.roi.setSize([correctedSizeX, correctedSizeY])
+        # Print ROI position
+        roiPos = self.roi.pos()
+        roiSize = self.roi.size()
+        print(f"ROI Position: {roiPos}, Size: {roiSize}")
+
     def imageHoverEvent(self, event):
         im = self.imageItem.image
         if event.isExit():
@@ -266,7 +306,20 @@ class ApplicationWindow(QMainWindow):
             self.timer.stop()
             # wait_flag.value = True
             # self.accumulate_button.setEnabled(False)
-    
+
+    def captureImage(self):
+        if not self.reader.isRunning():
+            self.reader.run()  # Start the Reader worker thread
+
+    def updateUI(self, image, frame_nr):
+        self.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False) ## .T)
+        # self.statusBar().showMessage(f'Frame: {frame_nr}')
+        # print(f'Total Number of Frames: {frame_nr}')
+
+    def getFitParams(self):
+        if not self.fitter.isRunning():
+            self.fitter.run()  # Start the Fitter worker thread
+
     def updateFitParams(self, fit_result_best_values):
         xo = float(fit_result_best_values['xo'])
         yo = float(fit_result_best_values['yo'])        
@@ -285,61 +338,41 @@ class ApplicationWindow(QMainWindow):
     def drawFittingEllipse(self, xo, yo, sigma_x, sigma_y, theta_deg):
         # p = 0.5 is equivalent to using the Full Width at Half Maximum (FWHM)
         # where FWHM = 2*sqrt(2*ln(2)) * sigma
-        p = 0.1
+        p = 0.15
         alpha = 2*np.sqrt(-2*math.log(p))
-        print(alpha)
+        print(f"Width/sigma_x = Height/sigma_y = {alpha}")
         width = alpha * sigma_x # Use 
         height = alpha * sigma_y # 
         # Check if the item is added to a scene, and remove it if so
         scene = self.ellipse_fit.scene() 
-
-        #***************************************
         scene_ = self.sigma_x_fit.scene() 
         scene__ = self.sigma_y_fit.scene() 
-        #***************************************
-
 
         if scene:  
             scene.removeItem(self.ellipse_fit)
-            
-            #***************************************
             scene_.removeItem(self.sigma_x_fit)
             scene__.removeItem(self.sigma_y_fit)
-            #***************************************
         
         # Create the ellipse item with its bounding rectangle
         self.ellipse_fit = QGraphicsEllipseItem(QRectF(xo-0.5*width, yo-0.5*height, width, height))
-        
-        #***************************************
         self.sigma_x_fit = QGraphicsRectItem(QRectF(xo-0.5*width, yo, width, 0))
         self.sigma_y_fit = QGraphicsRectItem(QRectF(xo, yo-0.5*height, 0, height))
-
-        #***************************************
 
         # First, translate the coordinate system to the center of the ellipse,
         # then rotate around this point and finally translate back to origin.
         rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo)
         
-        self.ellipse_fit.setPen(pg.mkPen('b', width=2))
+        self.ellipse_fit.setPen(pg.mkPen('b', width=3))
         self.ellipse_fit.setTransform(rotationTransform)
         self.plot.addItem(self.ellipse_fit)
 
-        #***************************************
-        self.sigma_x_fit.setPen(pg.mkPen('b', width=1))
+        self.sigma_x_fit.setPen(pg.mkPen('b', width=2))
         self.sigma_x_fit.setTransform(rotationTransform)
         self.plot.addItem(self.sigma_x_fit)
 
-        rotationTransform_90 = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo)
-
-        self.sigma_y_fit.setPen(pg.mkPen('r', width=1))
-        self.sigma_y_fit.setTransform(rotationTransform_90)
+        self.sigma_y_fit.setPen(pg.mkPen('r', width=2))
+        self.sigma_y_fit.setTransform(rotationTransform)
         self.plot.addItem(self.sigma_y_fit)
-        
-        #***************************************
-
-    def getFitParams(self):
-        if not self.fitter.isRunning():
-            self.fitter.run_fitter()  # Start the Fitter worker thread
 
     def createSpinBox(self, text, step_val, set_value):
         spBx = QLabel()
@@ -355,16 +388,7 @@ class ApplicationWindow(QMainWindow):
     def frameNbTakesChange(self, value):
         self.receiver.n_acc = value
         print(f'Number of Frames: {value}')
-    
-    def updateUI(self, image, frame_nr):
-        self.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = True) ## .T)
-        # self.statusBar().showMessage(f'Frame: {frame_nr}')
-        # print(f'Total Number of Frames: {frame_nr}')
 
-    def captureImage(self):
-        if not self.reader.isRunning():
-            self.reader.run_reader()  # Start the Reader worker thread
-            
 if __name__ == "__main__":
     t0 = time.time()
 

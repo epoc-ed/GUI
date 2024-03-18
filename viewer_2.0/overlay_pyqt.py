@@ -26,7 +26,6 @@ def draw_overlay(image_item):
         item.setPen(pg.mkPen('r', width=2))
 
         image_item.addItem(item)
-        break
 
 if __name__ == "__main__":
     app = pg.mkQApp()  # Ensure that a QApplication exists

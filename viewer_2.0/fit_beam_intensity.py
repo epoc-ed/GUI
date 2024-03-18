@@ -19,15 +19,47 @@ def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
     g = amplitude * np.exp( - (a * ((x-xo)**2) + 2 * b * (x-xo) * (y-yo) + c * ((y-yo)**2)))
     return g.ravel()
 
+# roi = [[156,355],[412,611]]
+# roi_start_row = 156
+# roi_end_row = 355
+# roi_start_col = 412
+# roi_end_col = 611
 
-def fast_do_fit_2d(z):
+def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col):
+
+    im_roi = im[roi_start_row:roi_end_row, roi_start_col:roi_end_col]
+    n_columns_roi, n_rows_roi = im_roi.shape[1], im_roi.shape[0]
+
+    x_roi, y_roi = np.meshgrid(np.arange(n_columns_roi), np.arange(n_rows_roi))
+    z_flat_roi = im_roi.ravel()
+    x_flat_roi = x_roi.ravel()
+    y_flat_roi = y_roi.ravel()
+
+     # Create model and parameters for ROI fitting
+    model_roi = Model(gaussian2d_rotated, independent_vars=['x', 'y'])
+    params_roi = Parameters()
+    params_roi.add('amplitude', value=np.max(im), min=0)
+    params_roi.add('xo', value=n_columns_roi//2)
+    params_roi.add('yo', value=n_rows_roi//2)
+    params_roi.add('sigma_x', value=n_columns_roi//4, min=1)  # Adjusted for likely ROI size
+    params_roi.add('sigma_y', value=n_rows_roi//4, min=1)    # Adjusted for likely ROI size
+    params_roi.add('theta', value=0, min=-np.pi/2, max=np.pi/2)
+
+    result_roi = model_roi.fit(z_flat_roi, x=x_flat_roi, y=y_flat_roi, params=params_roi)
+    fit_result = result_roi
+    fit_result.best_values['xo'] +=  roi_start_col
+    fit_result.best_values['yo'] +=  roi_start_row
+
+    return fit_result
+
+def fast_do_fit_2d(im):
     
-    n_columns, n_rows = z.shape[1], z.shape[0]
+    n_columns, n_rows = im.shape[1], im.shape[0]
 
     # x, y = np.meshgrid(np.linspace(0, n_columns, n_columns), np.linspace(0, n_rows, n_rows))
     x, y =  np.meshgrid(np.arange(n_columns), np.arange(n_rows))
 
-    z_flat = z.ravel()
+    z_flat = im.ravel()
     x_flat = x.ravel()
     y_flat = y.ravel()
 
@@ -36,11 +68,11 @@ def fast_do_fit_2d(z):
 
     # Create parameters with initial guesses
     params = Parameters()
-    params.add('amplitude', value=1e3, min=0)
+    params.add('amplitude', value=np.max(im), min=0)
     params.add('xo', value=n_columns//2)
     params.add('yo', value=n_rows//2)
-    params.add('sigma_x', value=n_columns//12, min=1)
-    params.add('sigma_y', value=n_rows//12, min=1)
+    params.add('sigma_x', value=n_columns//2, min=1)
+    params.add('sigma_y', value=n_rows//2, min=1)
     params.add('theta', value=0, min=-np.pi/2, max=np.pi/2)
 
     # Fit the model to the data
