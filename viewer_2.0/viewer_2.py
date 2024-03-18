@@ -21,7 +21,7 @@ from pyqtgraph.dockarea import DockArea, Dock
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
                                QLabel, QApplication, QHBoxLayout, QVBoxLayout, 
                                QWidget, QGraphicsEllipseItem, QGraphicsRectItem)
-from PySide6.QtCore import (Qt, QThread, Signal, QTimer, QCoreApplication, 
+from PySide6.QtCore import (Qt, QThread, QObject, Signal, QTimer, QCoreApplication, 
                             QRectF)
 from PySide6.QtGui import QPalette, QColor, QTransform
 
@@ -91,7 +91,7 @@ class Reader(QThread):
         self.finished.emit(image, frame_nr)  # Emit signal with results
 
 
-class Gaussian_Fitter(QThread):
+class Gaussian_Fitter(QObject):
     finished = Signal(object)
     # progress = Signal(Arg)  # Use Signal with the argument type
 
@@ -166,9 +166,6 @@ class ApplicationWindow(QMainWindow):
         # Initial data
         data = np.random.rand(nrow,ncol)
 
-        self.fitter = Gaussian_Fitter(self.imageItem, self.roi)
-        self.fitter.finished.connect(self.updateFitParams)
-
         # Plot overlays from .reussrc          
         draw_overlay(self.plot)
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
@@ -201,8 +198,7 @@ class ApplicationWindow(QMainWindow):
         label_sigma_x.setText("Sigma_x (px)")
         self.sigma_x_spBx = QDoubleSpinBox()
         self.sigma_x_spBx.setSingleStep(0.1)
-
-    
+        
         label_sigma_y = QLabel()
         label_sigma_y.setText("Sigma_y (px)")
         label_sigma_y.setStyleSheet('color: red;')
@@ -306,7 +302,7 @@ class ApplicationWindow(QMainWindow):
             self.timer.stop()
             # wait_flag.value = True
             # self.accumulate_button.setEnabled(False)
-
+    
     def captureImage(self):
         if not self.reader.isRunning():
             self.reader.run()  # Start the Reader worker thread
@@ -317,8 +313,27 @@ class ApplicationWindow(QMainWindow):
         # print(f'Total Number of Frames: {frame_nr}')
 
     def getFitParams(self):
-        if not self.fitter.isRunning():
-            self.fitter.run()  # Start the Fitter worker thread
+        # Step 1: Create a QThread object
+        self.thread = QThread()
+        # Step 2: Create a worker object
+        self.fitter = Gaussian_Fitter(self.imageItem, self.roi)
+        # Step 3: Move worker to the thread
+        self.fitter.moveToThread(self.thread)
+        # Step 4: Connect signals and slots
+        self.thread.started.connect(self.fitter.run)
+        self.fitter.finished.connect(self.updateFitParams) # LIVES IN MAIN THREAD? 
+        self.fitter.finished.connect(self.thread.quit)
+        self.fitter.finished.connect(self.fitter.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        # self.fitter.progress.connect(self.reportProgress)
+        # Step 5: Start the thread
+        self.thread.start()
+
+        # Final resets
+        self.btnBeamFocus.setEnabled(False)
+        self.thread.finished.connect(
+            lambda: self.btnBeamFocus.setEnabled(True)
+        )
 
     def updateFitParams(self, fit_result_best_values):
         xo = float(fit_result_best_values['xo'])
