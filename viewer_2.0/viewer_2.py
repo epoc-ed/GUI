@@ -21,8 +21,8 @@ from pyqtgraph.dockarea import DockArea, Dock
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
                                QLabel, QApplication, QHBoxLayout, QVBoxLayout, 
                                QWidget, QGraphicsEllipseItem, QGraphicsRectItem)
-from PySide6.QtCore import (Qt, QThread, QObject, Signal, QTimer, QCoreApplication, 
-                            QRectF)
+from PySide6.QtCore import (Qt, QThread, QObject, Signal, Slot, QTimer, QCoreApplication, 
+                            QRectF, QMetaObject, )
 from PySide6.QtGui import QPalette, QColor, QTransform
 
 
@@ -93,14 +93,24 @@ class Reader(QThread):
 
 class Gaussian_Fitter(QObject):
     finished = Signal(object)
-    # progress = Signal(Arg)  # Use Signal with the argument type
+    updateParamsSignal = Signal(object, object)
 
-    def __init__(self, imageItem, roi):
+    def __init__(self):
         super(Gaussian_Fitter, self).__init__()
+        self.imageItem = None
+        self.roi = None
+        self.updateParamsSignal.connect(self.updateParams)
+    
+    @Slot(object, object)
+    def updateParams(self, imageItem, roi):
+        # Thread-safe update of parameters
         self.imageItem = imageItem
         self.roi = roi
-        
+
     def run(self):
+        if not self.imageItem or not self.roi:
+            print("ImageItem or ROI not set.")
+            return
         im = self.imageItem.image
         roiPos = self.roi.pos()
         roiSize = self.roi.size()
@@ -109,7 +119,6 @@ class Gaussian_Fitter(QObject):
         roi_start_col = int(np.floor(roiPos.x()))
         roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
         fit_result = fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col)
-        # self.progress.emit(smthing to inform about fitting status or...)
         self.finished.emit(fit_result.best_values)
 
 
@@ -123,10 +132,8 @@ class ApplicationWindow(QMainWindow):
     def __init__(self, receiver):
         super().__init__()
         self.receiver = receiver
-        
-        self.reader = Reader(self.receiver)  # Create a Reader worker instance
-        self.reader.finished.connect(self.updateUI)  # Connect signal to slot
-
+        self.reader = Reader(self.receiver)
+        self.reader.finished.connect(self.updateUI)
         self.initUI()
 
     def initUI(self):
@@ -154,7 +161,6 @@ class ApplicationWindow(QMainWindow):
         self.plot.addItem(self.roi)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
-        
         # Connect ROI changes to a method
         self.roi.sigRegionChanged.connect(self.roiChanged)
 
@@ -190,15 +196,17 @@ class ApplicationWindow(QMainWindow):
         spBxFr_layout = QHBoxLayout()
         spBxFr_layout.addWidget(self.spBxFrame)
         spBxFr_layout.addWidget(self.integerSpinBox)
-        
-        self.btnBeamFocus = QPushButton("Beam Gaussian Fit", self)
-        self.btnBeamFocus.clicked.connect(self.getFitParams)
 
+        self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
+        self.timer_fit = QTimer()
+        self.timer_fit.timeout.connect(self.getFitParams)
+        self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
+        
         label_sigma_x = QLabel()
         label_sigma_x.setText("Sigma_x (px)")
         self.sigma_x_spBx = QDoubleSpinBox()
         self.sigma_x_spBx.setSingleStep(0.1)
-        
+
         label_sigma_y = QLabel()
         label_sigma_y.setText("Sigma_y (px)")
         label_sigma_y.setStyleSheet('color: red;')
@@ -238,8 +246,8 @@ class ApplicationWindow(QMainWindow):
         self.setCentralWidget(widget)
 
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.captureImage)
         self.stream_view_button.clicked.connect(self.toggle_viewStream)
+        self.timer.timeout.connect(self.captureImage)
     
     def do_exit(self):
         print('Exiting')
@@ -305,35 +313,70 @@ class ApplicationWindow(QMainWindow):
     
     def captureImage(self):
         if not self.reader.isRunning():
-            self.reader.run()  # Start the Reader worker thread
+            self.reader.run()
 
     def updateUI(self, image, frame_nr):
         self.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False) ## .T)
         # self.statusBar().showMessage(f'Frame: {frame_nr}')
         # print(f'Total Number of Frames: {frame_nr}')
 
-    def getFitParams(self):
-        # Step 1: Create a QThread object
-        self.thread = QThread()
-        # Step 2: Create a worker object
-        self.fitter = Gaussian_Fitter(self.imageItem, self.roi)
-        # Step 3: Move worker to the thread
-        self.fitter.moveToThread(self.thread)
-        # Step 4: Connect signals and slots
-        self.thread.started.connect(self.fitter.run)
-        self.fitter.finished.connect(self.updateFitParams) # LIVES IN MAIN THREAD? 
-        self.fitter.finished.connect(self.thread.quit)
-        self.fitter.finished.connect(self.fitter.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        # self.fitter.progress.connect(self.reportProgress)
-        # Step 5: Start the thread
-        self.thread.start()
+    def toggle_gaussianFit(self):
+        if not self.btnBeamFocus.started:
+            self.initializeWorker() # Initialize the worker thread and fitter
+            self.workerReady = True # Flag to indicate worker is ready
+            self.btnBeamFocus.setText("Stop Fitting")
+            self.btnBeamFocus.started = True
+            self.timer_fit.start(10)
+        else:
+            self.btnBeamFocus.setText("Beam Gaussian Fit")
+            self.btnBeamFocus.started = False
+            self.timer_fit.stop()  
+            self.stopWorker() # Properly stop and cleanup worker and thread
 
-        # Final resets
-        self.btnBeamFocus.setEnabled(False)
-        self.thread.finished.connect(
-            lambda: self.btnBeamFocus.setEnabled(True)
-        )
+    def initializeWorker(self):
+        self.thread = QThread()
+        self.fitter = Gaussian_Fitter()
+        self.fitter.moveToThread(self.thread)
+        self.thread.started.connect(self.fitter.run)
+        self.fitter.finished.connect(self.updateFitParams)
+        self.fitter.finished.connect(self.getFitterReady)
+        # Ensure proper cleanup when the thread finishes
+        self.thread.finished.connect(self.threadCleanup)
+        self.thread.start() # Start the thread's work
+
+    def getFitterReady(self):
+        self.workerReady = True
+
+    def threadCleanup(self):
+        self.thread.deleteLater()
+        self.thread = None
+        self.workerReady = False
+
+    def stopWorker(self):
+        if self.thread.isRunning():
+            self.thread.quit()
+            self.thread.wait() # Wait for the thread to finish
+        self.cleanUpWorker()
+
+    def cleanUpWorker(self):
+        if self.fitter is not None:
+            self.fitter.finished.disconnect(self.updateFitParams)
+            self.fitter.finished.disconnect(self.getFitterReady)
+            self.fitter.deleteLater()
+            self.fitter = None
+
+    def updateFitterParams(self, imageItem, roi):
+        if self.thread.isRunning():
+            # Emit the update signal with the new parameters
+            self.fitter.updateParamsSignal.emit(imageItem, roi)  
+
+    def getFitParams(self):
+        if self.workerReady:
+            self.workerReady = False # Prevent new tasks until the current one is finished
+            # Make sure to update the fitter's parameters right before starting the computation
+            self.updateFitterParams(self.imageItem, self.roi)
+            # Trigger the computation
+            QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
 
     def updateFitParams(self, fit_result_best_values):
         xo = float(fit_result_best_values['xo'])
@@ -355,7 +398,7 @@ class ApplicationWindow(QMainWindow):
         # where FWHM = 2*sqrt(2*ln(2)) * sigma
         p = 0.15
         alpha = 2*np.sqrt(-2*math.log(p))
-        print(f"Width/sigma_x = Height/sigma_y = {alpha}")
+        # print(f"Width/sigma_x = Height/sigma_y = {alpha}")
         width = alpha * sigma_x # Use 
         height = alpha * sigma_y # 
         # Check if the item is added to a scene, and remove it if so
