@@ -1,13 +1,12 @@
 import time
 import argparse
-import ctypes
-import zmq
 import numpy as np
 import sys
 from pathlib import Path
 import math
 
-import overlay_pyqt
+from ZmqReceiver import *
+
 from overlay_pyqt import draw_overlay
 
 import reuss 
@@ -51,32 +50,6 @@ def get_palette(name):
         return palette
     else:
         raise NotImplementedError("only dark theme is implemented")
-
-
-# Receiver of the ZMQ stream
-class ZmqReceiver:
-    def __init__(self, endpoint, 
-                 timeout_ms = 100, 
-                 dtype = np.float32,
-                 n_frames = 2, n_acc = 1):
-
-        self.dt = dtype
-        self.n_frames = n_frames
-        self.n_acc = n_acc
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.SUB)
-        self.socket.setsockopt(zmq.RCVTIMEO, timeout_ms)
-        self.socket.setsockopt(zmq.RCVHWM, self.n_frames)
-        self.socket.setsockopt(zmq.RCVBUF, self.n_frames*1024*1024*np.dtype(self.dt).itemsize)
-        self.socket.connect(endpoint)
-        self.socket.setsockopt(zmq.SUBSCRIBE, b"")
-
-    def get_frame(self):
-        for i in range(self.n_acc):
-            msgs = self.socket.recv_multipart()
-            frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
-            image = np.frombuffer(msgs[1], dtype = np.float32).reshape(512, 1024)
-        return image, frame_nr
 
 
 class Reader(QThread):
@@ -190,13 +163,6 @@ class ApplicationWindow(QMainWindow):
         time_interval_layout.addWidget(time_interval)
         time_interval_layout.addWidget(self.update_interval)
 
-        self.spBxFrame , self.integerSpinBox = self.createSpinBox("Accumulate frames:", 1, self.receiver.n_acc)
-        self.integerSpinBox.valueChanged.connect(self.frameNbTakesChange)
-
-        spBxFr_layout = QHBoxLayout()
-        spBxFr_layout.addWidget(self.spBxFrame)
-        spBxFr_layout.addWidget(self.integerSpinBox)
-
         self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.getFitParams)
@@ -237,7 +203,6 @@ class ApplicationWindow(QMainWindow):
         gen_layout.addWidget(self.dock)
         gen_layout.addWidget(self.stream_view_button)
         gen_layout.addLayout(time_interval_layout)
-        gen_layout.addLayout(spBxFr_layout)
         gen_layout.addLayout(BeamFocus_layout)
         gen_layout.addWidget(self.exit_button)
         
@@ -431,21 +396,6 @@ class ApplicationWindow(QMainWindow):
         self.sigma_y_fit.setPen(pg.mkPen('r', width=2))
         self.sigma_y_fit.setTransform(rotationTransform)
         self.plot.addItem(self.sigma_y_fit)
-
-    def createSpinBox(self, text, step_val, set_value):
-        spBx = QLabel()
-        spBx.setText(text)
-        
-        valSpinBox = QSpinBox()
-        valSpinBox.setMinimum(0)
-        valSpinBox.setMaximum(1000)
-        valSpinBox.setSingleStep(step_val)
-        valSpinBox.setValue(set_value)
-        return spBx, valSpinBox
-
-    def frameNbTakesChange(self, value):
-        self.receiver.n_acc = value
-        print(f'Number of Frames: {value}')
 
 if __name__ == "__main__":
     t0 = time.time()
