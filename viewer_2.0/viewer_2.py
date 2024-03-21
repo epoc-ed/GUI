@@ -2,26 +2,24 @@ import time
 import argparse
 import numpy as np
 import sys
-from pathlib import Path
 import math
 
 from ZmqReceiver import *
 
-from overlay_pyqt import draw_overlay
-
+from overlay_pyqt import draw_overlay 
 import reuss 
 from reuss import config as cfg
 
 from fit_beam_intensity import fit_2d_gaussian_roi
 
 import pyqtgraph as pg
-from pyqtgraph.dockarea import DockArea, Dock
+from pyqtgraph.dockarea import Dock
 
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
-                               QLabel, QApplication, QHBoxLayout, QVBoxLayout, 
+                               QLabel, QLineEdit, QApplication, QHBoxLayout, QVBoxLayout, 
                                QWidget, QGraphicsEllipseItem, QGraphicsRectItem)
 from PySide6.QtCore import (Qt, QThread, QObject, Signal, Slot, QTimer, QCoreApplication, 
-                            QRectF, QMetaObject, )
+                            QRectF, QMetaObject)
 from PySide6.QtGui import QPalette, QColor, QTransform
 
 
@@ -29,6 +27,8 @@ from PySide6.QtGui import QPalette, QColor, QTransform
 nrow = cfg.nrows()
 ncol = cfg.ncols()
 
+accframes = 0
+acc_image = np.zeros((nrow,ncol), dtype = np.float32)
 
 # Define the available theme of the main window
 def get_palette(name):
@@ -60,9 +60,39 @@ class Reader(QThread):
         self.receiver = receiver
 
     def run(self):
-        image, frame_nr = self.receiver.get_frame()  # Retrieve image and header
-        self.finished.emit(image, frame_nr)  # Emit signal with results
+        image, frame_nb = self.receiver.get_frame()  # Retrieve image and header      
+        global accframes 
+        global acc_image
+        if accframes > 0:
+                print(accframes)
+                tmp = np.copy(image)
+                acc_image += tmp
+                accframes -= 1                
+        self.finished.emit(image, frame_nb)  # Emit signal with results
 
+
+class Frame_Accumulator(QObject):
+    finished = Signal(object)
+
+    def __init__(self, nframes):
+        super(Frame_Accumulator, self).__init__()
+        self.nframes_to_capture = nframes
+
+    def run(self):
+        global acc_image
+        acc_image[:] = 0
+        global accframes 
+        accframes = self.nframes_to_capture
+        while accframes > 0: 
+            time.sleep(0.01) 
+
+        self.finished.emit(acc_image.copy()) 
+
+
+def save_captures(fname, data):
+    print(f'Saving: {fname}')
+    reuss.io.save_tiff(fname, data)
+    
 
 class Gaussian_Fitter(QObject):
     finished = Signal(object)
@@ -148,11 +178,15 @@ class ApplicationWindow(QMainWindow):
         # Plot overlays from .reussrc          
         draw_overlay(self.plot)
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
-
+        # Mouse Hovering
         self.imageItem.hoverEvent = self.imageHoverEvent
-
+        # General Layout
+        gen_layout = QVBoxLayout()
+        gen_layout.addWidget(self.dock)
+        # Start stream viewing
         self.stream_view_button = ToggleButton("View Stream", self)
-
+        gen_layout.addWidget(self.stream_view_button)
+        # Time Interval
         time_interval = QLabel("Interval (ms):", self)
         self.update_interval = QSpinBox(self)
         self.update_interval.setMaximum(5000)
@@ -163,6 +197,43 @@ class ApplicationWindow(QMainWindow):
         time_interval_layout.addWidget(time_interval)
         time_interval_layout.addWidget(self.update_interval)
 
+        gen_layout.addLayout(time_interval_layout)
+
+        # Accumulate
+        self.fname = QLabel("fname:", self)
+        self.fname_input = QLineEdit(self)
+        self.fname_input.setText('file')
+        
+        file_name_layout = QHBoxLayout()
+        file_name_layout.addWidget(self.fname)
+        file_name_layout.addWidget(self.fname_input)
+
+        gen_layout.addLayout(file_name_layout)
+
+        self.findex = QLabel("findex:", self)
+        self.findex_input = QSpinBox(self)
+
+        file_index_layout = QHBoxLayout()
+        file_index_layout.addWidget(self.findex)
+        file_index_layout.addWidget(self.findex_input)
+
+        gen_layout.addLayout(file_index_layout)
+
+        self.accumulate_button = QPushButton("Accumulate", self)
+        self.accumulate_button.setEnabled(False)
+        self.accumulate_button.clicked.connect(self.start_accumulate)
+
+        self.acc_spin = QSpinBox(self)
+        self.acc_spin.setValue(10)
+        self.acc_spin.setSuffix(' frames')
+
+        accumulate_layout = QHBoxLayout()
+        accumulate_layout.addWidget(self.accumulate_button)
+        accumulate_layout.addWidget(self.acc_spin)
+
+        gen_layout.addLayout(accumulate_layout)
+
+        # Gaussian Fit of the Beam intensity
         self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.getFitParams)
@@ -173,6 +244,7 @@ class ApplicationWindow(QMainWindow):
         self.sigma_x_spBx = QDoubleSpinBox()
         self.sigma_x_spBx.setSingleStep(0.1)
 
+        
         label_sigma_y = QLabel()
         label_sigma_y.setText("Sigma_y (px)")
         label_sigma_y.setStyleSheet('color: red;')
@@ -187,9 +259,6 @@ class ApplicationWindow(QMainWindow):
         self.angle_spBx.setMaximum(90)
         self.angle_spBx.setSingleStep(15)
 
-        self.exit_button = QPushButton("Exit", self)
-        self.exit_button.clicked.connect(self.do_exit)
-
         BeamFocus_layout = QHBoxLayout()
         BeamFocus_layout.addWidget(self.btnBeamFocus)
         BeamFocus_layout.addWidget(label_sigma_x)
@@ -199,13 +268,15 @@ class ApplicationWindow(QMainWindow):
         BeamFocus_layout.addWidget(label_rot_angle)
         BeamFocus_layout.addWidget(self.angle_spBx)
 
-        gen_layout = QVBoxLayout()
-        gen_layout.addWidget(self.dock)
-        gen_layout.addWidget(self.stream_view_button)
-        gen_layout.addLayout(time_interval_layout)
         gen_layout.addLayout(BeamFocus_layout)
+
+        # Exit
+        self.exit_button = QPushButton("Exit", self)
+        self.exit_button.clicked.connect(self.do_exit)
+
         gen_layout.addWidget(self.exit_button)
-        
+
+        # Set the central widget of the MainWindow
         widget = QWidget()
         widget.setLayout(gen_layout)
         self.setCentralWidget(widget)
@@ -267,14 +338,14 @@ class ApplicationWindow(QMainWindow):
             print(f"Timer interval: {self.timer.interval()}")
             # wait_flag.value = False
             self.timer.start(10)
-            # self.accumulate_button.setEnabled(True)
+            self.accumulate_button.setEnabled(True)
         else:
             self.stream_view_button.setText("View Stream")
             self.plot.setTitle("Stream stopped at the current Frame")
             self.stream_view_button.started = False
             self.timer.stop()
             # wait_flag.value = True
-            # self.accumulate_button.setEnabled(False)
+            self.accumulate_button.setEnabled(False)
     
     def captureImage(self):
         if not self.reader.isRunning():
@@ -282,16 +353,33 @@ class ApplicationWindow(QMainWindow):
 
     def updateUI(self, image, frame_nr):
         self.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False) ## .T)
-        # self.statusBar().showMessage(f'Frame: {frame_nr}')
+        self.statusBar().showMessage(f'Frame: {frame_nr}')
         # print(f'Total Number of Frames: {frame_nr}')
 
+    def start_accumulate(self):
+        file_index = self.findex_input.value()
+        f_name = self.fname_input.text()
+        nb_frames_to_take = self.acc_spin.value()
+
+        self.thread_two = QThread()
+        self.accumulator = Frame_Accumulator(nb_frames_to_take)
+        self.accumulator.moveToThread(self.thread_two)
+        self.thread_two.started.connect(self.accumulator.run)
+        self.accumulator.finished.connect(lambda x: save_captures(f'{f_name}_{file_index}', x)) 
+        self.accumulator.finished.connect(self.thread_two.quit)
+        self.accumulator.finished.connect(self.accumulator.deleteLater)
+        self.thread_two.finished.connect(self.thread_two.deleteLater)    
+        self.thread_two.start()
+
+        self.findex_input.setValue(file_index+1)
+        
     def toggle_gaussianFit(self):
         if not self.btnBeamFocus.started:
             self.initializeWorker() # Initialize the worker thread and fitter
             self.workerReady = True # Flag to indicate worker is ready
             self.btnBeamFocus.setText("Stop Fitting")
             self.btnBeamFocus.started = True
-            self.timer_fit.start(10)
+            self.timer_fit.start()
         else:
             self.btnBeamFocus.setText("Beam Gaussian Fit")
             self.btnBeamFocus.started = False
@@ -349,12 +437,10 @@ class ApplicationWindow(QMainWindow):
         sigma_x = float(fit_result_best_values['sigma_x'])
         sigma_y = float(fit_result_best_values['sigma_y'])
         theta_deg = 180*float(fit_result_best_values['theta'])/np.pi
-
         # Show fitting parameters 
         self.sigma_x_spBx.setValue(sigma_x)
         self.sigma_y_spBx.setValue(sigma_y)
         self.angle_spBx.setValue(theta_deg)
-
         # Draw the fitting line at the FWHM of the 2d-gaussian
         self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 
@@ -397,6 +483,7 @@ class ApplicationWindow(QMainWindow):
         self.sigma_y_fit.setTransform(rotationTransform)
         self.plot.addItem(self.sigma_y_fit)
 
+
 if __name__ == "__main__":
     t0 = time.time()
 
@@ -404,10 +491,15 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--stream', type=str, default="tcp://localhost:4545", help="zmq stream")
+    parser.add_argument("-d", "--dtype", help="Data type", type = np.dtype, default=np.float32)
+
     args = parser.parse_args()
     
     Rcv = ZmqReceiver(args.stream) 
-    
+
+    # accframes = 0
+    # acc_image = np.zeros((nrow,ncol), dtype = args.dtype)
+
     viewer = ApplicationWindow(Rcv)
     palette = get_palette("dark")
     viewer.setPalette(palette)
