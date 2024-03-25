@@ -15,9 +15,12 @@ from fit_beam_intensity import fit_2d_gaussian_roi
 import pyqtgraph as pg
 from pyqtgraph.dockarea import Dock
 
+from boost_histogram import Histogram
+from boost_histogram.axis import Regular
+
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
-                               QLabel, QLineEdit, QApplication, QHBoxLayout, QVBoxLayout, 
-                               QWidget, QGraphicsEllipseItem, QGraphicsRectItem)
+                               QMessageBox, QLabel, QLineEdit, QApplication, QHBoxLayout, 
+                               QVBoxLayout, QWidget, QGraphicsEllipseItem, QGraphicsRectItem)
 from PySide6.QtCore import (Qt, QThread, QObject, Signal, Slot, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
 from PySide6.QtGui import QPalette, QColor, QTransform
@@ -29,6 +32,7 @@ ncol = cfg.ncols()
 
 accframes = 0
 acc_image = np.zeros((nrow,ncol), dtype = np.float32)
+
 
 # Define the available theme of the main window
 def get_palette(name):
@@ -135,13 +139,14 @@ class ApplicationWindow(QMainWindow):
     def __init__(self, receiver):
         super().__init__()
         self.receiver = receiver
+        self.threadWorkerPairs = []
         self.reader = Reader(self.receiver)
         self.reader.finished.connect(self.updateUI)
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle("Viewer 2.0")
-        self.setGeometry(100, 100, 1100, 700)
+        self.setGeometry(100, 100, 1100, 750)
         
         pg.setConfigOptions(imageAxisOrder='row-major')
         pg.mkQApp()
@@ -183,9 +188,18 @@ class ApplicationWindow(QMainWindow):
         # General Layout
         gen_layout = QVBoxLayout()
         gen_layout.addWidget(self.dock)
+        # Auto-contrast button
+        self.autoContrastBtn = QPushButton('Auto Contrast', self)
+        self.autoContrastBtn.clicked.connect(self.applyAutoContrast)
+        # self.autoContrastBtn.clicked.connect(self.applyAutoContrast_bis)
         # Start stream viewing
         self.stream_view_button = ToggleButton("View Stream", self)
-        gen_layout.addWidget(self.stream_view_button)
+        # gen_layout.addWidget(self.stream_view_button)
+        #   Layout [           Start           ][Auto Contrast]
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.stream_view_button, 3)  # 3/4 of the space
+        hbox.addWidget(self.autoContrastBtn, 1)  # Remaining 1/4 of the space
+        gen_layout.addLayout(hbox)
         # Time Interval
         time_interval = QLabel("Interval (ms):", self)
         self.update_interval = QSpinBox(self)
@@ -284,11 +298,23 @@ class ApplicationWindow(QMainWindow):
         self.timer = QTimer(self)
         self.stream_view_button.clicked.connect(self.toggle_viewStream)
         self.timer.timeout.connect(self.captureImage)
+
+    def applyAutoContrast(self):
+        data_flat = self.imageItem.image.flatten()
+        histogram = Histogram(Regular(100000, data_flat.min(), data_flat.max()))
+        histogram.fill(data_flat)
+        
+        cumsum = np.cumsum(histogram.view())
+        total = cumsum[-1]
+        low_thresh = np.searchsorted(cumsum, total * 0.01)
+        high_thresh = np.searchsorted(cumsum, total * 0.99999)
+
+        self.histogram.setLevels(low_thresh, high_thresh)
     
-    def do_exit(self):
-        print('Exiting')
-        app.quit()
-    
+    # def applyAutoContrast_bis(self):
+    #     low, high = np.percentile(self.imageItem.image, (1, 99))
+    #     self.histogram.setLevels(low, high)
+
     def roiChanged(self):
         # Get the current ROI position and size
         roiPos = self.roi.pos()
@@ -361,22 +387,30 @@ class ApplicationWindow(QMainWindow):
         f_name = self.fname_input.text()
         nb_frames_to_take = self.acc_spin.value()
 
-        self.thread_two = QThread()
+        self.thread_acc = QThread()
         self.accumulator = Frame_Accumulator(nb_frames_to_take)
-        self.accumulator.moveToThread(self.thread_two)
-        self.thread_two.started.connect(self.accumulator.run)
-        self.accumulator.finished.connect(lambda x: save_captures(f'{f_name}_{file_index}', x)) 
-        self.accumulator.finished.connect(self.thread_two.quit)
-        self.accumulator.finished.connect(self.accumulator.deleteLater)
-        self.thread_two.finished.connect(self.thread_two.deleteLater)    
-        self.thread_two.start()
+        self.threadWorkerPairs.append((self.thread_acc, self.accumulator))
+        self.initializeWorker(self.thread_acc, self.accumulator)
+
+        self.accumulator.finished.connect(self.thread_acc.quit)
+        self.accumulator.finished.connect(lambda: self.stopWorker(self.thread_acc, self.accumulator))
+        # self.thread_acc.finished.connect(lambda : self.threadCleanup(self.thread_acc, self.accumulator))
+        self.thread_acc.start()
 
         self.findex_input.setValue(file_index+1)
         
     def toggle_gaussianFit(self):
         if not self.btnBeamFocus.started:
-            self.initializeWorker() # Initialize the worker thread and fitter
+            
+            self.thread_fit = QThread()
+            self.fitter = Gaussian_Fitter()
+            self.threadWorkerPairs.append((self.thread_fit, self.fitter))
+                                          
+            self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
+            # self.thread_fit.finished.connect(lambda : self.threadCleanup(self.thread_fit,self.fitter))
+            self.thread_fit.start()
             self.workerReady = True # Flag to indicate worker is ready
+            
             self.btnBeamFocus.setText("Stop Fitting")
             self.btnBeamFocus.started = True
             self.timer_fit.start()
@@ -384,42 +418,75 @@ class ApplicationWindow(QMainWindow):
             self.btnBeamFocus.setText("Beam Gaussian Fit")
             self.btnBeamFocus.started = False
             self.timer_fit.stop()  
-            self.stopWorker() # Properly stop and cleanup worker and thread
+            self.stopWorker(self.thread_fit, self.fitter) # Properly stop and cleanup worker and thread
 
-    def initializeWorker(self):
-        self.thread = QThread()
-        self.fitter = Gaussian_Fitter()
-        self.fitter.moveToThread(self.thread)
-        self.thread.started.connect(self.fitter.run)
-        self.fitter.finished.connect(self.updateFitParams)
-        self.fitter.finished.connect(self.getFitterReady)
-        # Ensure proper cleanup when the thread finishes
-        self.thread.finished.connect(self.threadCleanup)
-        self.thread.start() # Start the thread's work
+    def initializeWorker(self, thread, worker):
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        if isinstance(worker, Gaussian_Fitter):
+            worker.finished.connect(self.updateFitParams)
+            worker.finished.connect(self.getFitterReady)
+        if isinstance(worker, Frame_Accumulator):
+            worker.finished.connect(
+                lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x)
+                )
 
     def getFitterReady(self):
         self.workerReady = True
 
-    def threadCleanup(self):
-        self.thread.deleteLater()
-        self.thread = None
-        self.workerReady = False
+    def threadCleanup(self, thread, worker):
+        index_to_delete = None
+        for i, (t, worker) in enumerate(self.threadWorkerPairs):
+            if t == thread:
+                if worker is not None:
+                    print("Worker delete!")
+                    if isinstance(worker, Gaussian_Fitter):
+                        worker.finished.disconnect(self.updateFitParams)
+                        worker.finished.disconnect(self.getFitterReady)
+                    # if isinstance(worker, Frame_Accumulator):
+                    #     worker.finished.disconnect(
+                    #     lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x)
+                    #     )
+                    worker.deleteLater() # Schedule the worker for deletion
+                    worker = None
+                index_to_delete = i
+                break
+        
+        if index_to_delete is not None:
+            del self.threadWorkerPairs[index_to_delete]
+        
+        thread.deleteLater()  # Schedule the thread for deletion
+        thread = None
+        
+        if isinstance(worker, Gaussian_Fitter):
+            self.workerReady = False
 
-    def stopWorker(self):
-        if self.thread.isRunning():
-            self.thread.quit()
-            self.thread.wait() # Wait for the thread to finish
-        self.cleanUpWorker()
+    def stopWorker(self, thread, worker):
+        if thread.isRunning():
+            thread.quit()
+            thread.wait() # Wait for the thread to finish
 
-    def cleanUpWorker(self):
-        if self.fitter is not None:
-            self.fitter.finished.disconnect(self.updateFitParams)
-            self.fitter.finished.disconnect(self.getFitterReady)
-            self.fitter.deleteLater()
-            self.fitter = None
+        self.threadCleanup(thread, worker)
+        
+        # if isinstance(worker, Gaussian_Fitter):
+        #     self.cleanUpWorker(self.fitter) # Assuming that only the "thread_fit" uses the "fitter" worker
+        # if isinstance(worker, Frame_Accumulator):
+        #     self.cleanUpWorker(self.accumulator) # Assuming that only the "thread_acc" uses the "accumulator" worker
+
+    # def cleanUpWorker(self, worker):
+    #     if worker is not None:
+    #         if isinstance(worker, Gaussian_Fitter):
+    #             worker.finished.disconnect(self.updateFitParams)
+    #             worker.finished.disconnect(self.getFitterReady)
+    #         # if isinstance(worker, Frame_Accumulator):
+    #         #     worker.finished.disconnect(
+    #         #     lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x)
+    #         #     )
+    #         worker.deleteLater()
+    #         worker = None
 
     def updateFitterParams(self, imageItem, roi):
-        if self.thread.isRunning():
+        if self.thread_fit.isRunning():
             # Emit the update signal with the new parameters
             self.fitter.updateParamsSignal.emit(imageItem, roi)  
 
@@ -482,6 +549,25 @@ class ApplicationWindow(QMainWindow):
         self.sigma_y_fit.setPen(pg.mkPen('r', width=2))
         self.sigma_y_fit.setTransform(rotationTransform)
         self.plot.addItem(self.sigma_y_fit)
+
+    def do_exit(self):
+        running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
+        if running_threadWorkerPairs:
+            # Show warning dialog
+            reply = QMessageBox.question(self, 'Thread still running',
+                                        "A process is still running. Are you sure you want to exit?",
+                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+            if reply == QMessageBox.Yes:
+                for thread, worker in running_threadWorkerPairs:
+                    print(f'Stopped Thread-Worker pair = ({thread}-{worker}).')
+                    self.stopWorker(thread, worker)
+                print("Exiting app!") 
+                app.quit()  
+            else: 
+                pass
+        else:
+            app.quit()
 
 
 if __name__ == "__main__":
