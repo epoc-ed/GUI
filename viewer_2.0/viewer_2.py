@@ -3,14 +3,11 @@ import argparse
 import numpy as np
 import sys
 import math
-
 from ZmqReceiver import *
 
 from overlay_pyqt import draw_overlay 
 import reuss 
 from reuss import config as cfg
-
-from fit_beam_intensity import fit_2d_gaussian_roi
 
 import pyqtgraph as pg
 from pyqtgraph.dockarea import Dock
@@ -20,18 +17,12 @@ from boost_histogram.axis import Regular
 
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
                                QMessageBox, QLabel, QLineEdit, QApplication, QHBoxLayout, 
-                               QVBoxLayout, QWidget, QGraphicsEllipseItem, QGraphicsRectItem)
-from PySide6.QtCore import (Qt, QThread, QObject, Signal, Slot, QTimer, QCoreApplication, 
+                               QVBoxLayout, QWidget, QTabWidget, QGraphicsEllipseItem, 
+                               QGraphicsRectItem)
+from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
 from PySide6.QtGui import QPalette, QColor, QTransform
-
-
-#Configuration
-nrow = cfg.nrows()
-ncol = cfg.ncols()
-
-accframes = 0
-acc_image = np.zeros((nrow,ncol), dtype = np.float32)
+from workers import *
 
 
 # Define the available theme of the main window
@@ -56,77 +47,9 @@ def get_palette(name):
         raise NotImplementedError("only dark theme is implemented")
 
 
-class Reader(QThread):
-    finished = Signal(object, object)  # Signal to indicate completion and carry results
-
-    def __init__(self, receiver):
-        super(Reader, self).__init__()
-        self.receiver = receiver
-
-    def run(self):
-        image, frame_nb = self.receiver.get_frame()  # Retrieve image and header      
-        global accframes 
-        global acc_image
-        if accframes > 0:
-                print(accframes)
-                tmp = np.copy(image)
-                acc_image += tmp
-                accframes -= 1                
-        self.finished.emit(image, frame_nb)  # Emit signal with results
-
-
-class Frame_Accumulator(QObject):
-    finished = Signal(object)
-
-    def __init__(self, nframes):
-        super(Frame_Accumulator, self).__init__()
-        self.nframes_to_capture = nframes
-
-    def run(self):
-        global acc_image
-        acc_image[:] = 0
-        global accframes 
-        accframes = self.nframes_to_capture
-        while accframes > 0: 
-            time.sleep(0.01) 
-
-        self.finished.emit(acc_image.copy()) 
-
-
 def save_captures(fname, data):
     print(f'Saving: {fname}')
     reuss.io.save_tiff(fname, data)
-    
-
-class Gaussian_Fitter(QObject):
-    finished = Signal(object)
-    updateParamsSignal = Signal(object, object)
-
-    def __init__(self):
-        super(Gaussian_Fitter, self).__init__()
-        self.imageItem = None
-        self.roi = None
-        self.updateParamsSignal.connect(self.updateParams)
-    
-    @Slot(object, object)
-    def updateParams(self, imageItem, roi):
-        # Thread-safe update of parameters
-        self.imageItem = imageItem
-        self.roi = roi
-
-    def run(self):
-        if not self.imageItem or not self.roi:
-            print("ImageItem or ROI not set.")
-            return
-        im = self.imageItem.image
-        roiPos = self.roi.pos()
-        roiSize = self.roi.size()
-        roi_start_row = int(np.floor(roiPos.y()))
-        roi_end_row = int(np.ceil(roiPos.y() + roiSize.y()))
-        roi_start_col = int(np.floor(roiPos.x()))
-        roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
-        fit_result = fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col)
-        self.finished.emit(fit_result.best_values)
 
 
 class ToggleButton(QPushButton):
@@ -142,6 +65,7 @@ class ApplicationWindow(QMainWindow):
         self.threadWorkerPairs = []
         self.reader = Reader(self.receiver)
         self.reader.finished.connect(self.updateUI)
+        self.i_h5 = 0 # Indexing the outputted hdf5 files
         self.initUI()
 
     def initUI(self):
@@ -178,7 +102,7 @@ class ApplicationWindow(QMainWindow):
         self.sigma_y_fit = QGraphicsRectItem()
 
         # Initial data
-        data = np.random.rand(nrow,ncol)
+        data = np.random.rand(globals.nrow,globals.ncol)
 
         # Plot overlays from .reussrc          
         draw_overlay(self.plot)
@@ -191,15 +115,15 @@ class ApplicationWindow(QMainWindow):
         # Auto-contrast button
         self.autoContrastBtn = QPushButton('Auto Contrast', self)
         self.autoContrastBtn.clicked.connect(self.applyAutoContrast)
-        # self.autoContrastBtn.clicked.connect(self.applyAutoContrast_bis)
         # Start stream viewing
         self.stream_view_button = ToggleButton("View Stream", self)
-        # gen_layout.addWidget(self.stream_view_button)
+        
         #   Layout [           Start           ][Auto Contrast]
         hbox = QHBoxLayout()
-        hbox.addWidget(self.stream_view_button, 3)  # 3/4 of the space
-        hbox.addWidget(self.autoContrastBtn, 1)  # Remaining 1/4 of the space
+        hbox.addWidget(self.stream_view_button, 3)
+        hbox.addWidget(self.autoContrastBtn, 1) 
         gen_layout.addLayout(hbox)
+        
         # Time Interval
         time_interval = QLabel("Interval (ms):", self)
         self.update_interval = QSpinBox(self)
@@ -214,29 +138,23 @@ class ApplicationWindow(QMainWindow):
         gen_layout.addLayout(time_interval_layout)
 
         # Accumulate
-        self.fname = QLabel("fname:", self)
+        self.fname = QLabel("tiff_file_name:", self)
         self.fname_input = QLineEdit(self)
         self.fname_input.setText('file')
-        
-        file_name_layout = QHBoxLayout()
-        file_name_layout.addWidget(self.fname)
-        file_name_layout.addWidget(self.fname_input)
+        self.findex = QLabel("file_index:", self)
+        self.findex_input = QSpinBox(self)  
 
-        gen_layout.addLayout(file_name_layout)
+        tiff_file_layout = QHBoxLayout()
+        tiff_file_layout.addWidget(self.fname)
+        tiff_file_layout.addWidget(self.fname_input)
+        tiff_file_layout.addWidget(self.findex)
+        tiff_file_layout.addWidget(self.findex_input)
 
-        self.findex = QLabel("findex:", self)
-        self.findex_input = QSpinBox(self)
+        gen_layout.addLayout(tiff_file_layout)
 
-        file_index_layout = QHBoxLayout()
-        file_index_layout.addWidget(self.findex)
-        file_index_layout.addWidget(self.findex_input)
-
-        gen_layout.addLayout(file_index_layout)
-
-        self.accumulate_button = QPushButton("Accumulate", self)
+        self.accumulate_button = QPushButton("Accumulate in TIFF", self)
         self.accumulate_button.setEnabled(False)
         self.accumulate_button.clicked.connect(self.start_accumulate)
-
         self.acc_spin = QSpinBox(self)
         self.acc_spin.setValue(10)
         self.acc_spin.setSuffix(' frames')
@@ -246,6 +164,22 @@ class ApplicationWindow(QMainWindow):
         accumulate_layout.addWidget(self.acc_spin)
 
         gen_layout.addLayout(accumulate_layout)
+
+        # Stream Writer
+        self.streamWriterButton = ToggleButton("Write Stream in H5", self)
+        self.streamWriterButton.setEnabled(False)
+        self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
+
+        self.last_frame = QLabel("Last written Frame:", self)
+        self.last_frame_nb = QSpinBox(self)
+        self.last_frame_nb.setMaximum(5000)
+
+        hdf5_writer_layout = QHBoxLayout()
+        hdf5_writer_layout.addWidget(self.streamWriterButton, 3)
+        hdf5_writer_layout.addWidget(self.last_frame, 1)
+        hdf5_writer_layout.addWidget(self.last_frame_nb, 2)
+
+        gen_layout.addLayout(hdf5_writer_layout)
 
         # Gaussian Fit of the Beam intensity
         self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
@@ -301,7 +235,7 @@ class ApplicationWindow(QMainWindow):
 
     def applyAutoContrast(self):
         data_flat = self.imageItem.image.flatten()
-        histogram = Histogram(Regular(100000, data_flat.min(), data_flat.max()))
+        histogram = Histogram(Regular(1000000, data_flat.min(), data_flat.max()))
         histogram.fill(data_flat)
         
         cumsum = np.cumsum(histogram.view())
@@ -310,10 +244,6 @@ class ApplicationWindow(QMainWindow):
         high_thresh = np.searchsorted(cumsum, total * 0.99999)
 
         self.histogram.setLevels(low_thresh, high_thresh)
-    
-    # def applyAutoContrast_bis(self):
-    #     low, high = np.percentile(self.imageItem.image, (1, 99))
-    #     self.histogram.setLevels(low, high)
 
     def roiChanged(self):
         # Get the current ROI position and size
@@ -365,6 +295,7 @@ class ApplicationWindow(QMainWindow):
             # wait_flag.value = False
             self.timer.start(10)
             self.accumulate_button.setEnabled(True)
+            self.streamWriterButton.setEnabled(True)
         else:
             self.stream_view_button.setText("View Stream")
             self.plot.setTitle("Stream stopped at the current Frame")
@@ -372,6 +303,7 @@ class ApplicationWindow(QMainWindow):
             self.timer.stop()
             # wait_flag.value = True
             self.accumulate_button.setEnabled(False)
+            self.streamWriterButton.setEnabled(False)
     
     def captureImage(self):
         if not self.reader.isRunning():
@@ -398,7 +330,26 @@ class ApplicationWindow(QMainWindow):
         self.thread_acc.start()
 
         self.findex_input.setValue(file_index+1)
-        
+
+    def toggle_hdf5Writer(self):
+        if not self.streamWriterButton.started:
+            self.thread_h5 = QThread()
+            # self.streamWriter = Hdf5_Writer(filename="all_in_one_hdf5_file")
+            self.streamWriter = Hdf5_Writer(filename=f"hdf5_file_{self.i_h5}")
+            self.i_h5 += 1
+            self.threadWorkerPairs.append((self.thread_h5, self.streamWriter))              
+            self.initializeWorker(self.thread_h5, self.streamWriter) # Initialize the worker thread and fitter
+            self.thread_h5.start()
+            self.streamWriterButton.setText("Stop Writing")
+            self.streamWriterButton.started = True
+        else:
+            self.streamWriterButton.setText("Write Stream in H5")
+            self.streamWriterButton.started = False
+            self.stopWorker(self.thread_h5, self.streamWriter) # Properly stop and cleanup worker and thread
+
+    def update_last_frame_written(self, nb_of_frame):
+        self.last_frame_nb.setValue(nb_of_frame)
+
     def toggle_gaussianFit(self):
         if not self.btnBeamFocus.started:
             
@@ -407,7 +358,6 @@ class ApplicationWindow(QMainWindow):
             self.threadWorkerPairs.append((self.thread_fit, self.fitter))
                                           
             self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
-            # self.thread_fit.finished.connect(lambda : self.threadCleanup(self.thread_fit,self.fitter))
             self.thread_fit.start()
             self.workerReady = True # Flag to indicate worker is ready
             
@@ -430,6 +380,8 @@ class ApplicationWindow(QMainWindow):
             worker.finished.connect(
                 lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x)
                 )
+        if isinstance(worker, Hdf5_Writer):
+            worker.finished.connect(self.update_last_frame_written)
 
     def getFitterReady(self):
         self.workerReady = True
@@ -439,16 +391,15 @@ class ApplicationWindow(QMainWindow):
         for i, (t, worker) in enumerate(self.threadWorkerPairs):
             if t == thread:
                 if worker is not None:
-                    print("Worker delete!")
                     if isinstance(worker, Gaussian_Fitter):
+                        print("Stopping Gaussian fitter!")
                         worker.finished.disconnect(self.updateFitParams)
                         worker.finished.disconnect(self.getFitterReady)
-                    # if isinstance(worker, Frame_Accumulator):
-                    #     worker.finished.disconnect(
-                    #     lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x)
-                    #     )
+                    if isinstance(worker, Hdf5_Writer):
+                        print("Stopping Write process!")
                     worker.deleteLater() # Schedule the worker for deletion
                     worker = None
+                    print("Worker deleted!")
                 index_to_delete = i
                 break
         
@@ -462,28 +413,13 @@ class ApplicationWindow(QMainWindow):
             self.workerReady = False
 
     def stopWorker(self, thread, worker):
+        if isinstance(worker, Hdf5_Writer):
+            globals.write_hdf5 = False
         if thread.isRunning():
             thread.quit()
             thread.wait() # Wait for the thread to finish
 
         self.threadCleanup(thread, worker)
-        
-        # if isinstance(worker, Gaussian_Fitter):
-        #     self.cleanUpWorker(self.fitter) # Assuming that only the "thread_fit" uses the "fitter" worker
-        # if isinstance(worker, Frame_Accumulator):
-        #     self.cleanUpWorker(self.accumulator) # Assuming that only the "thread_acc" uses the "accumulator" worker
-
-    # def cleanUpWorker(self, worker):
-    #     if worker is not None:
-    #         if isinstance(worker, Gaussian_Fitter):
-    #             worker.finished.disconnect(self.updateFitParams)
-    #             worker.finished.disconnect(self.getFitterReady)
-    #         # if isinstance(worker, Frame_Accumulator):
-    #         #     worker.finished.disconnect(
-    #         #     lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x)
-    #         #     )
-    #         worker.deleteLater()
-    #         worker = None
 
     def updateFitterParams(self, imageItem, roi):
         if self.thread_fit.isRunning():
@@ -560,7 +496,7 @@ class ApplicationWindow(QMainWindow):
 
             if reply == QMessageBox.Yes:
                 for thread, worker in running_threadWorkerPairs:
-                    print(f'Stopped Thread-Worker pair = ({thread}-{worker}).')
+                    print(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker)
                 print("Exiting app!") 
                 app.quit()  
@@ -582,9 +518,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     Rcv = ZmqReceiver(args.stream) 
-
-    # accframes = 0
-    # acc_image = np.zeros((nrow,ncol), dtype = args.dtype)
 
     viewer = ApplicationWindow(Rcv)
     palette = get_palette("dark")
