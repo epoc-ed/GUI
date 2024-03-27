@@ -17,7 +17,7 @@ from boost_histogram.axis import Regular
 
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
                                QMessageBox, QLabel, QLineEdit, QApplication, QHBoxLayout, 
-                               QVBoxLayout, QWidget, QTabWidget, QGraphicsEllipseItem, 
+                               QVBoxLayout, QWidget, QGroupBox, QGraphicsEllipseItem, 
                                QGraphicsRectItem)
 from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
@@ -109,20 +109,30 @@ class ApplicationWindow(QMainWindow):
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         # Mouse Hovering
         self.imageItem.hoverEvent = self.imageHoverEvent
+        ################
         # General Layout
-        gen_layout = QVBoxLayout()
-        gen_layout.addWidget(self.dock)
+        ################
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(self.dock)
+
+        # Sections layout
+        sections_layout = QHBoxLayout()
+
+        # Section 1 GroupBox
+        group1 = QGroupBox("Streaming && Contrast")
+        section1 = QVBoxLayout()
+
+        # Start stream viewing
+        self.stream_view_button = ToggleButton("View Stream", self)
         # Auto-contrast button
         self.autoContrastBtn = QPushButton('Auto Contrast', self)
         self.autoContrastBtn.clicked.connect(self.applyAutoContrast)
-        # Start stream viewing
-        self.stream_view_button = ToggleButton("View Stream", self)
         
         #   Layout [           Start           ][Auto Contrast]
         hbox = QHBoxLayout()
         hbox.addWidget(self.stream_view_button, 3)
         hbox.addWidget(self.autoContrastBtn, 1) 
-        gen_layout.addLayout(hbox)
+        section1.addLayout(hbox)
         
         # Time Interval
         time_interval = QLabel("Interval (ms):", self)
@@ -135,51 +145,12 @@ class ApplicationWindow(QMainWindow):
         time_interval_layout.addWidget(time_interval)
         time_interval_layout.addWidget(self.update_interval)
 
-        gen_layout.addLayout(time_interval_layout)
+        section1.addLayout(time_interval_layout)
+        group1.setLayout(section1)
 
-        # Accumulate
-        self.fname = QLabel("tiff_file_name:", self)
-        self.fname_input = QLineEdit(self)
-        self.fname_input.setText('file')
-        self.findex = QLabel("file_index:", self)
-        self.findex_input = QSpinBox(self)  
-
-        tiff_file_layout = QHBoxLayout()
-        tiff_file_layout.addWidget(self.fname)
-        tiff_file_layout.addWidget(self.fname_input)
-        tiff_file_layout.addWidget(self.findex)
-        tiff_file_layout.addWidget(self.findex_input)
-
-        gen_layout.addLayout(tiff_file_layout)
-
-        self.accumulate_button = QPushButton("Accumulate in TIFF", self)
-        self.accumulate_button.setEnabled(False)
-        self.accumulate_button.clicked.connect(self.start_accumulate)
-        self.acc_spin = QSpinBox(self)
-        self.acc_spin.setValue(10)
-        self.acc_spin.setSuffix(' frames')
-
-        accumulate_layout = QHBoxLayout()
-        accumulate_layout.addWidget(self.accumulate_button)
-        accumulate_layout.addWidget(self.acc_spin)
-
-        gen_layout.addLayout(accumulate_layout)
-
-        # Stream Writer
-        self.streamWriterButton = ToggleButton("Write Stream in H5", self)
-        self.streamWriterButton.setEnabled(False)
-        self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
-
-        self.last_frame = QLabel("Last written Frame:", self)
-        self.last_frame_nb = QSpinBox(self)
-        self.last_frame_nb.setMaximum(5000)
-
-        hdf5_writer_layout = QHBoxLayout()
-        hdf5_writer_layout.addWidget(self.streamWriterButton, 3)
-        hdf5_writer_layout.addWidget(self.last_frame, 1)
-        hdf5_writer_layout.addWidget(self.last_frame_nb, 2)
-
-        gen_layout.addLayout(hdf5_writer_layout)
+        # Section 2 layout
+        group2 = QGroupBox("Beam Focus")
+        section2 = QVBoxLayout()
 
         # Gaussian Fit of the Beam intensity
         self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
@@ -207,27 +178,90 @@ class ApplicationWindow(QMainWindow):
         self.angle_spBx.setMaximum(90)
         self.angle_spBx.setSingleStep(15)
 
-        BeamFocus_layout = QHBoxLayout()
+        BeamFocus_layout = QVBoxLayout()
         BeamFocus_layout.addWidget(self.btnBeamFocus)
-        BeamFocus_layout.addWidget(label_sigma_x)
-        BeamFocus_layout.addWidget(self.sigma_x_spBx)
-        BeamFocus_layout.addWidget(label_sigma_y)
-        BeamFocus_layout.addWidget(self.sigma_y_spBx)
-        BeamFocus_layout.addWidget(label_rot_angle)
-        BeamFocus_layout.addWidget(self.angle_spBx)
+        sigma_x_layout = QHBoxLayout()
+        sigma_x_layout.addWidget(label_sigma_x)  
+        sigma_x_layout.addWidget(self.sigma_x_spBx)         
+        BeamFocus_layout.addLayout(sigma_x_layout)
+        sigma_y_layout = QHBoxLayout()
+        sigma_y_layout.addWidget(label_sigma_y)  
+        sigma_y_layout.addWidget(self.sigma_y_spBx)         
+        BeamFocus_layout.addLayout(sigma_y_layout)        
+        rot_angle_layout = QHBoxLayout()
+        rot_angle_layout.addWidget(label_rot_angle)  
+        rot_angle_layout.addWidget(self.angle_spBx)         
+        BeamFocus_layout.addLayout(rot_angle_layout)
+ 
 
-        gen_layout.addLayout(BeamFocus_layout)
+        section2.addLayout(BeamFocus_layout)
+        group2.setLayout(section2)
+
+        # Section 3 layout
+        group3 = QGroupBox("File Operations")
+        section3 = QVBoxLayout()
+
+        # Accumulate
+        self.fname = QLabel("tiff_file_name:", self)
+        self.fname_input = QLineEdit(self)
+        self.fname_input.setText('file')
+        self.findex = QLabel("file_index:", self)
+        self.findex_input = QSpinBox(self)  
+
+        tiff_file_layout = QHBoxLayout()
+        tiff_file_layout.addWidget(self.fname)
+        tiff_file_layout.addWidget(self.fname_input)
+        tiff_file_layout.addWidget(self.findex)
+        tiff_file_layout.addWidget(self.findex_input)
+
+        section3.addLayout(tiff_file_layout)
+
+        self.accumulate_button = QPushButton("Accumulate in TIFF", self)
+        self.accumulate_button.setEnabled(False)
+        self.accumulate_button.clicked.connect(self.start_accumulate)
+        self.acc_spin = QSpinBox(self)
+        self.acc_spin.setValue(10)
+        self.acc_spin.setSuffix(' frames')
+
+        accumulate_layout = QHBoxLayout()
+        accumulate_layout.addWidget(self.accumulate_button)
+        accumulate_layout.addWidget(self.acc_spin)
+
+        section3.addLayout(accumulate_layout)
+
+        # Stream Writer
+        self.streamWriterButton = ToggleButton("Write Stream in H5", self)
+        self.streamWriterButton.setEnabled(False)
+        self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
+
+        self.last_frame = QLabel("Last written Frame:", self)
+        self.last_frame_nb = QSpinBox(self)
+        self.last_frame_nb.setMaximum(5000)
+
+        hdf5_writer_layout = QHBoxLayout()
+        hdf5_writer_layout.addWidget(self.streamWriterButton, 3)
+        hdf5_writer_layout.addWidget(self.last_frame, 1)
+        hdf5_writer_layout.addWidget(self.last_frame_nb, 2)
+
+        section3.addLayout(hdf5_writer_layout)
+        group3.setLayout(section3)
+
+        sections_layout.addWidget(group1, 1)
+        sections_layout.addWidget(group2, 1)
+        sections_layout.addWidget(group3, 1)
+
+        main_layout.addLayout(sections_layout)
 
         # Exit
         self.exit_button = QPushButton("Exit", self)
         self.exit_button.clicked.connect(self.do_exit)
 
-        gen_layout.addWidget(self.exit_button)
+        main_layout.addWidget(self.exit_button)
 
         # Set the central widget of the MainWindow
-        widget = QWidget()
-        widget.setLayout(gen_layout)
-        self.setCentralWidget(widget)
+        central_widget = QWidget()
+        central_widget.setLayout(main_layout)
+        self.setCentralWidget(central_widget)
 
         self.timer = QTimer(self)
         self.stream_view_button.clicked.connect(self.toggle_viewStream)
@@ -386,6 +420,15 @@ class ApplicationWindow(QMainWindow):
     def getFitterReady(self):
         self.workerReady = True
 
+    def stopWorker(self, thread, worker):
+        if isinstance(worker, Hdf5_Writer):
+            globals.write_hdf5 = False
+        if thread.isRunning():
+            thread.quit()
+            thread.wait() # Wait for the thread to finish
+
+        self.threadCleanup(thread, worker)
+        
     def threadCleanup(self, thread, worker):
         index_to_delete = None
         for i, (t, worker) in enumerate(self.threadWorkerPairs):
@@ -411,15 +454,6 @@ class ApplicationWindow(QMainWindow):
         
         if isinstance(worker, Gaussian_Fitter):
             self.workerReady = False
-
-    def stopWorker(self, thread, worker):
-        if isinstance(worker, Hdf5_Writer):
-            globals.write_hdf5 = False
-        if thread.isRunning():
-            thread.quit()
-            thread.wait() # Wait for the thread to finish
-
-        self.threadCleanup(thread, worker)
 
     def updateFitterParams(self, imageItem, roi):
         if self.thread_fit.isRunning():
