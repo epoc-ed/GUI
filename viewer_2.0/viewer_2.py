@@ -4,6 +4,7 @@ import numpy as np
 import sys
 import math
 import reuss 
+from collections import deque
 from reuss import config as cfg
 from ZmqReceiver import *
 from overlay_pyqt import draw_overlay 
@@ -65,12 +66,14 @@ class PlotDialog(QDialog):
         self.plotWidget1.setTitle('<span style="font-size: 12pt">σ<sub>x</sub> = f(Time)</span>',) 
         self.plotWidget1.setLabel('bottom', 'Time', units='s')  
         self.plotWidget1.setLabel('left', 'σ<sub>x</sub>', units='pixels')
+        self.plotWidget1.setYRange(0,10)
         self.layout.addWidget(self.plotWidget1)
 
         self.plotWidget2 = pg.PlotWidget()
         self.plotWidget2.setTitle('<span style="font-size: 12pt">σ<sub>y</sub> = f(Time)</span>',)
         self.plotWidget2.setLabel('bottom', 'Time', units='s')  
         self.plotWidget2.setLabel('left', 'σ<sub>y</sub>', units='pixels')
+        self.plotWidget2.setYRange(0,10)
         self.layout.addWidget(self.plotWidget2)
 
         exit_buton = QPushButton("Quit", self)
@@ -79,17 +82,17 @@ class PlotDialog(QDialog):
         self.setLayout(self.layout)
 
         self.timeElapsed = QTime()
-        self.dataX = []  # Time
-        self.dataY1 = []  # Sigma_x values
-        self.dataY2 = []  # Sigma_y values
+        self.dataX = deque() # Time
+        self.dataY1 = deque() # Sigma_x values
+        self.dataY2 = deque() # Sigma_y values
 
     def close_window(self):
         self.close()
 
-    def startPlotting(self, initialValue_x, initialValue_y):
-        self.dataX = [0]  # Reset time
-        self.dataY1 = [initialValue_x]  # Reset sigma_x values
-        self.dataY2 = [initialValue_y]  # Reset sigma_y values
+    def startPlotting(self, initialValue_x, initialValue_y):                
+        self.dataX.append(0)  # Reset time
+        self.dataY1.append(initialValue_x)  # Reset sigma_x values
+        self.dataY2.append(initialValue_y)  # Reset sigma_y values
         self.timeElapsed = QTime.currentTime() # Start the timer
         # self.updatePlot(initialValue_x, initialValue_y)
 
@@ -100,10 +103,9 @@ class PlotDialog(QDialog):
             self.dataX.append(elapsed)
             self.dataY1.append(newValue_x)
             self.dataY2.append(newValue_y)
-            # TODO: Use queue for dataX , dataY1 & dataY2
-            self.dataX.pop(0) # O(N) 
-            self.dataY1.pop(0) # O(N) 
-            self.dataY2.pop(0) # O(N)
+            self.dataX.popleft() # O(1) 
+            self.dataY1.popleft() # O(1) 
+            self.dataY2.popleft() # O(1)
         else:
             self.dataX.append(elapsed)
             self.dataY1.append(newValue_x)
