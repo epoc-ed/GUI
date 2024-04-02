@@ -3,23 +3,19 @@ import argparse
 import numpy as np
 import sys
 import math
-from ZmqReceiver import *
-
-from overlay_pyqt import draw_overlay 
 import reuss 
 from reuss import config as cfg
-
+from ZmqReceiver import *
+from overlay_pyqt import draw_overlay 
 import pyqtgraph as pg
 from pyqtgraph.dockarea import Dock
-
 from boost_histogram import Histogram
 from boost_histogram.axis import Regular
-
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
                                QMessageBox, QLabel, QLineEdit, QApplication, QHBoxLayout, 
                                QVBoxLayout, QWidget, QGroupBox, QGraphicsEllipseItem, 
-                               QGraphicsRectItem)
-from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
+                               QGraphicsRectItem, QDialog)
+from PySide6.QtCore import (Qt, QThread, QTime, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
 from PySide6.QtGui import QPalette, QColor, QTransform
 from workers import *
@@ -58,6 +54,67 @@ class ToggleButton(QPushButton):
         self.started = False
 
 
+class PlotDialog(QDialog):
+    def __init__(self, parent=None):
+        super(PlotDialog, self).__init__(parent)
+        self.setWindowTitle('Fitting \u03C3 over Time')
+        self.setGeometry(800, 250, 700, 600)
+        self.layout = QVBoxLayout()
+
+        self.plotWidget1 = pg.PlotWidget()
+        self.plotWidget1.setTitle('<span style="font-size: 12pt">σ<sub>x</sub> = f(Time)</span>',) 
+        self.plotWidget1.setLabel('bottom', 'Time', units='s')  
+        self.plotWidget1.setLabel('left', 'σ<sub>x</sub>', units='pixels')
+        self.layout.addWidget(self.plotWidget1)
+
+        self.plotWidget2 = pg.PlotWidget()
+        self.plotWidget2.setTitle('<span style="font-size: 12pt">σ<sub>y</sub> = f(Time)</span>',)
+        self.plotWidget2.setLabel('bottom', 'Time', units='s')  
+        self.plotWidget2.setLabel('left', 'σ<sub>y</sub>', units='pixels')
+        self.layout.addWidget(self.plotWidget2)
+
+        exit_buton = QPushButton("Quit", self)
+        exit_buton.clicked.connect(self.close_window)
+        self.layout.addWidget(exit_buton)
+        self.setLayout(self.layout)
+
+        self.timeElapsed = QTime()
+        self.dataX = []  # Time
+        self.dataY1 = []  # Sigma_x values
+        self.dataY2 = []  # Sigma_y values
+
+    def close_window(self):
+        self.close()
+
+    def startPlotting(self, initialValue_x, initialValue_y):
+        self.dataX = [0]  # Reset time
+        self.dataY1 = [initialValue_x]  # Reset sigma_x values
+        self.dataY2 = [initialValue_y]  # Reset sigma_y values
+        self.timeElapsed = QTime.currentTime() # Start the timer
+        # self.updatePlot(initialValue_x, initialValue_y)
+
+    def updatePlot(self, newValue_x, newValue_y, width_max = 60):
+        elapsed = self.timeElapsed.msecsTo(QTime.currentTime()) / 1000.0  # Convert milliseconds to seconds
+        if elapsed > width_max:  # Shift time window
+            # Keep the plot window fixed at a 60-second width
+            self.dataX.append(elapsed)
+            self.dataY1.append(newValue_x)
+            self.dataY2.append(newValue_y)
+            # TODO: Use queue for dataX , dataY1 & dataY2
+            self.dataX.pop(0) # O(N) 
+            self.dataY1.pop(0) # O(N) 
+            self.dataY2.pop(0) # O(N)
+        else:
+            self.dataX.append(elapsed)
+            self.dataY1.append(newValue_x)
+            self.dataY2.append(newValue_y)
+
+        self.plotWidget1.clear()
+        self.plotWidget2.clear()
+        self.plotWidget1.plot(self.dataX, self.dataY1, symbol='o', symbolBrush='b')
+        self.plotWidget2.plot(self.dataX, self.dataY2, symbol='d', symbolBrush='r')
+
+
 class ApplicationWindow(QMainWindow):
     def __init__(self, receiver):
         super().__init__()
@@ -70,7 +127,7 @@ class ApplicationWindow(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle("Viewer 2.0")
-        self.setGeometry(100, 100, 1100, 750)
+        self.setGeometry(50, 50, 1050, 750)
         
         pg.setConfigOptions(imageAxisOrder='row-major')
         pg.mkQApp()
@@ -109,49 +166,43 @@ class ApplicationWindow(QMainWindow):
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         # Mouse Hovering
         self.imageItem.hoverEvent = self.imageHoverEvent
+
         ################
         # General Layout
         ################
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.dock)
-
         # Sections layout
         sections_layout = QHBoxLayout()
 
         # Section 1 GroupBox
         group1 = QGroupBox("Streaming && Contrast")
         section1 = QVBoxLayout()
-
         # Start stream viewing
         self.stream_view_button = ToggleButton("View Stream", self)
         # Auto-contrast button
         self.autoContrastBtn = QPushButton('Auto Contrast', self)
         self.autoContrastBtn.clicked.connect(self.applyAutoContrast)
-        
-        #   Layout [           Start           ][Auto Contrast]
+        #   Layout [           Stream View           ][Auto Contrast]
         hbox = QHBoxLayout()
         hbox.addWidget(self.stream_view_button, 3)
         hbox.addWidget(self.autoContrastBtn, 1) 
         section1.addLayout(hbox)
-        
         # Time Interval
         time_interval = QLabel("Interval (ms):", self)
         self.update_interval = QSpinBox(self)
         self.update_interval.setMaximum(5000)
         self.update_interval.setSuffix(' ms')
         self.update_interval.setValue(cfg.viewer.interval)
-
         time_interval_layout = QHBoxLayout()
         time_interval_layout.addWidget(time_interval)
         time_interval_layout.addWidget(self.update_interval)
-
         section1.addLayout(time_interval_layout)
         group1.setLayout(section1)
 
         # Section 2 layout
         group2 = QGroupBox("Beam Focus")
         section2 = QVBoxLayout()
-
         # Gaussian Fit of the Beam intensity
         self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
         self.timer_fit = QTimer()
@@ -163,7 +214,6 @@ class ApplicationWindow(QMainWindow):
         self.sigma_x_spBx = QDoubleSpinBox()
         self.sigma_x_spBx.setSingleStep(0.1)
 
-        
         label_sigma_y = QLabel()
         label_sigma_y.setText("Sigma_y (px)")
         label_sigma_y.setStyleSheet('color: red;')
@@ -193,14 +243,12 @@ class ApplicationWindow(QMainWindow):
         rot_angle_layout.addWidget(self.angle_spBx)         
         BeamFocus_layout.addLayout(rot_angle_layout)
  
-
         section2.addLayout(BeamFocus_layout)
         group2.setLayout(section2)
 
         # Section 3 layout
         group3 = QGroupBox("File Operations")
         section3 = QVBoxLayout()
-
         # Accumulate
         self.fname = QLabel("tiff_file_name:", self)
         self.fname_input = QLineEdit(self)
@@ -228,7 +276,6 @@ class ApplicationWindow(QMainWindow):
         accumulate_layout.addWidget(self.acc_spin)
 
         section3.addLayout(accumulate_layout)
-
         # Stream Writer
         self.streamWriterButton = ToggleButton("Write Stream in H5", self)
         self.streamWriterButton.setEnabled(False)
@@ -251,13 +298,10 @@ class ApplicationWindow(QMainWindow):
         sections_layout.addWidget(group3, 1)
 
         main_layout.addLayout(sections_layout)
-
         # Exit
         self.exit_button = QPushButton("Exit", self)
         self.exit_button.clicked.connect(self.do_exit)
-
         main_layout.addWidget(self.exit_button)
-
         # Set the central widget of the MainWindow
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
@@ -283,7 +327,6 @@ class ApplicationWindow(QMainWindow):
         # Get the current ROI position and size
         roiPos = self.roi.pos()
         roiSize = self.roi.size()
-        
         imageShape = self.imageItem.image.shape
         # Calculate the maximum allowed positions for the ROI
         maxPosX = max(0, imageShape[1] - roiSize[0])  # image width - roi width
@@ -360,49 +403,38 @@ class ApplicationWindow(QMainWindow):
 
         self.accumulator.finished.connect(self.thread_acc.quit)
         self.accumulator.finished.connect(lambda: self.stopWorker(self.thread_acc, self.accumulator))
-        # self.thread_acc.finished.connect(lambda : self.threadCleanup(self.thread_acc, self.accumulator))
         self.thread_acc.start()
 
         self.findex_input.setValue(file_index+1)
 
-    def toggle_hdf5Writer(self):
-        if not self.streamWriterButton.started:
-            self.thread_h5 = QThread()
-            # self.streamWriter = Hdf5_Writer(filename="all_in_one_hdf5_file")
-            self.streamWriter = Hdf5_Writer(filename=f"hdf5_file_{self.i_h5}")
-            self.i_h5 += 1
-            self.threadWorkerPairs.append((self.thread_h5, self.streamWriter))              
-            self.initializeWorker(self.thread_h5, self.streamWriter) # Initialize the worker thread and fitter
-            self.thread_h5.start()
-            self.streamWriterButton.setText("Stop Writing")
-            self.streamWriterButton.started = True
-        else:
-            self.streamWriterButton.setText("Write Stream in H5")
-            self.streamWriterButton.started = False
-            self.stopWorker(self.thread_h5, self.streamWriter) # Properly stop and cleanup worker and thread
-
-    def update_last_frame_written(self, nb_of_frame):
-        self.last_frame_nb.setValue(nb_of_frame)
-
     def toggle_gaussianFit(self):
         if not self.btnBeamFocus.started:
-            
             self.thread_fit = QThread()
             self.fitter = Gaussian_Fitter()
-            self.threadWorkerPairs.append((self.thread_fit, self.fitter))
-                                          
+            self.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
             self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
             self.thread_fit.start()
             self.workerReady = True # Flag to indicate worker is ready
             
             self.btnBeamFocus.setText("Stop Fitting")
             self.btnBeamFocus.started = True
+            # Pop-up Window
+            self.showPlotDialog()
+            # Timer started
             self.timer_fit.start()
         else:
             self.btnBeamFocus.setText("Beam Gaussian Fit")
             self.btnBeamFocus.started = False
             self.timer_fit.stop()  
-            self.stopWorker(self.thread_fit, self.fitter) # Properly stop and cleanup worker and thread
+            # Close Pop-up Window
+            self.plotDialog.close()
+            # Properly stop and cleanup worker and thread  
+            self.stopWorker(self.thread_fit, self.fitter)
+
+    def showPlotDialog(self):
+        self.plotDialog = PlotDialog(self)
+        self.plotDialog.startPlotting(self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
+        self.plotDialog.show() 
 
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
@@ -478,6 +510,8 @@ class ApplicationWindow(QMainWindow):
         self.sigma_x_spBx.setValue(sigma_x)
         self.sigma_y_spBx.setValue(sigma_y)
         self.angle_spBx.setValue(theta_deg)
+        # Update graph in pop-up Window
+        self.plotDialog.updatePlot(sigma_x, sigma_y)
         # Draw the fitting line at the FWHM of the 2d-gaussian
         self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 
@@ -486,24 +520,20 @@ class ApplicationWindow(QMainWindow):
         # where FWHM = 2*sqrt(2*ln(2)) * sigma
         p = 0.15
         alpha = 2*np.sqrt(-2*math.log(p))
-        # print(f"Width/sigma_x = Height/sigma_y = {alpha}")
         width = alpha * sigma_x # Use 
         height = alpha * sigma_y # 
         # Check if the item is added to a scene, and remove it if so
         scene = self.ellipse_fit.scene() 
         scene_ = self.sigma_x_fit.scene() 
         scene__ = self.sigma_y_fit.scene() 
-
         if scene:  
             scene.removeItem(self.ellipse_fit)
             scene_.removeItem(self.sigma_x_fit)
             scene__.removeItem(self.sigma_y_fit)
-        
         # Create the ellipse item with its bounding rectangle
         self.ellipse_fit = QGraphicsEllipseItem(QRectF(xo-0.5*width, yo-0.5*height, width, height))
         self.sigma_x_fit = QGraphicsRectItem(QRectF(xo-0.5*width, yo, width, 0))
         self.sigma_y_fit = QGraphicsRectItem(QRectF(xo, yo-0.5*height, 0, height))
-
         # First, translate the coordinate system to the center of the ellipse,
         # then rotate around this point and finally translate back to origin.
         rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo)
@@ -520,6 +550,25 @@ class ApplicationWindow(QMainWindow):
         self.sigma_y_fit.setTransform(rotationTransform)
         self.plot.addItem(self.sigma_y_fit)
 
+    def toggle_hdf5Writer(self):
+        if not self.streamWriterButton.started:
+            self.thread_h5 = QThread()
+            # self.streamWriter = Hdf5_Writer(filename="all_in_one_hdf5_file")
+            self.streamWriter = Hdf5_Writer(filename=f"hdf5_file_{self.i_h5}")
+            self.i_h5 += 1
+            self.threadWorkerPairs.append((self.thread_h5, self.streamWriter))              
+            self.initializeWorker(self.thread_h5, self.streamWriter) # Initialize the worker thread and fitter
+            self.thread_h5.start()
+            self.streamWriterButton.setText("Stop Writing")
+            self.streamWriterButton.started = True
+        else:
+            self.streamWriterButton.setText("Write Stream in H5")
+            self.streamWriterButton.started = False
+            self.stopWorker(self.thread_h5, self.streamWriter) # Properly stop and cleanup worker and thread
+
+    def update_last_frame_written(self, nb_of_frame):
+        self.last_frame_nb.setValue(nb_of_frame)
+
     def do_exit(self):
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
         if running_threadWorkerPairs:
@@ -527,7 +576,6 @@ class ApplicationWindow(QMainWindow):
             reply = QMessageBox.question(self, 'Thread still running',
                                         "A process is still running. Are you sure you want to exit?",
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-
             if reply == QMessageBox.Yes:
                 for thread, worker in running_threadWorkerPairs:
                     print(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
