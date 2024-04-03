@@ -3,21 +3,24 @@ import numpy as np
 from ZmqReceiver import *
 from Hdf5File import Hdf5File
 from fit_beam_intensity import fit_2d_gaussian_roi
-from PySide6.QtCore import (QThread, QObject, Signal, Slot)
+from PySide6.QtCore import (QObject, Signal, Slot)
 import globals
+from line_profiler import LineProfiler
 
 
-class Reader(QThread):
+class Reader(QObject):
     finished = Signal(object, object)  # Signal to indicate completion and carry results
 
     def __init__(self, receiver):
         super(Reader, self).__init__()
         self.receiver = receiver
-
+    
+    # @profile
+    @Slot()
     def run(self):
         image, frame_nb = self.receiver.get_frame()  # Retrieve image and header      
         if globals.write_hdf5:
-            print("In Reader")
+            # print("In Reader")
             np.copyto(globals.hdf5_im, image)
             globals.last_frame_written = frame_nb
             globals.image_updated = True
@@ -25,10 +28,13 @@ class Reader(QThread):
             print(globals.accframes)
             tmp = np.copy(image)
             globals.acc_image += tmp
-            globals.accframes -= 1                
+            globals.accframes -= 1  
+        # Emit signal at end of run / carry (image, frame) for connected slot           
         self.finished.emit(image, frame_nb)  # Emit signal with results
 
-
+    def __str__(self) -> str:
+        return "Stream Reader"
+    
 class Frame_Accumulator(QObject):
     finished = Signal(object)
 
@@ -37,13 +43,16 @@ class Frame_Accumulator(QObject):
         self.nframes_to_capture = nframes
 
     def run(self):
+        print("Starting write process" )
         globals.acc_image[:] = 0
         globals.accframes = self.nframes_to_capture
         while globals.accframes > 0: 
             time.sleep(0.01) 
 
         self.finished.emit(globals.acc_image.copy()) 
-    
+
+    def __str__(self) -> str:
+        return "Tiff Frame Accumulator"
 
 class Hdf5_Writer(QObject):
     finished = Signal(object)
@@ -72,15 +81,15 @@ class Hdf5_Writer(QObject):
             if globals.image_updated:
                 f.write(globals.hdf5_im)
                 globals.image_updated  = False
-                print("In Writer")
+                # print("In Writer")
             self.write_hdf5 = globals.write_hdf5
-        
-        print("OUT")
+        # print("OUT")
         f.close()
-
         self.finished.emit(globals.last_frame_written)
 
-
+    def __str__(self) -> str:
+        return "Hdf5 Stream Writer"
+    
 class Gaussian_Fitter(QObject):
     finished = Signal(object)
     updateParamsSignal = Signal(object, object)
@@ -97,6 +106,7 @@ class Gaussian_Fitter(QObject):
         self.imageItem = imageItem
         self.roi = roi
 
+    @Slot()
     def run(self):
         if not self.imageItem or not self.roi:
             print("ImageItem or ROI not set.")
@@ -110,3 +120,6 @@ class Gaussian_Fitter(QObject):
         roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
         fit_result = fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col)
         self.finished.emit(fit_result.best_values)
+
+    def __str__(self) -> str:
+        return "Gaussian Fitter"

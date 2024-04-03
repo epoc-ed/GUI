@@ -20,6 +20,7 @@ from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication,
 from PySide6.QtGui import QPalette, QColor, QTransform
 from workers import *
 from plot_dialog import *
+from line_profiler import LineProfiler
 
 
 # Define the available theme of the main window
@@ -59,9 +60,7 @@ class ApplicationWindow(QMainWindow):
     def __init__(self, receiver):
         super().__init__()
         self.receiver = receiver
-        self.threadWorkerPairs = []
-        self.reader = Reader(self.receiver)
-        self.reader.finished.connect(self.updateUI)
+        self.threadWorkerPairs = [] # List of constructed (thread, worker) pairs
         self.i_h5 = 0 # Indexing the outputted hdf5 files
         self.initUI()
 
@@ -71,7 +70,7 @@ class ApplicationWindow(QMainWindow):
         
         pg.setConfigOptions(imageAxisOrder='row-major')
         pg.mkQApp()
-
+        # Define Dock element and include relevant widgets and items 
         self.dock = Dock("Image", size=(1000, 350))
         self.glWidget = pg.GraphicsLayoutWidget(self)
         self.plot = self.glWidget.addPlot(title="")
@@ -84,7 +83,6 @@ class ApplicationWindow(QMainWindow):
         self.glWidget.addItem(self.histogram)
         self.histogram.setLevels(0,255)
         self.plot.setAspectLocked(True)
-
         # Create an ROI
         self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
         self.plot.addItem(self.roi)
@@ -92,15 +90,12 @@ class ApplicationWindow(QMainWindow):
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         # Connect ROI changes to a method
         self.roi.sigRegionChanged.connect(self.roiChanged)
-
         # Create the fitting Ellipse
         self.ellipse_fit = QGraphicsEllipseItem()
         self.sigma_x_fit = QGraphicsRectItem()
         self.sigma_y_fit = QGraphicsRectItem()
-
         # Initial data
         data = np.random.rand(globals.nrow,globals.ncol)
-
         # Plot overlays from .reussrc          
         draw_overlay(self.plot)
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
@@ -115,7 +110,7 @@ class ApplicationWindow(QMainWindow):
         # Sections layout
         sections_layout = QHBoxLayout()
 
-        # Section 1 GroupBox
+        # Section 1 layout
         group1 = QGroupBox("Streaming && Contrast")
         section1 = QVBoxLayout()
         # Start stream viewing
@@ -246,7 +241,7 @@ class ApplicationWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
-
+        # Timer to trigger continuous stream reading
         self.timer = QTimer(self)
         self.stream_view_button.clicked.connect(self.toggle_viewStream)
         self.timer.timeout.connect(self.captureImage)
@@ -255,12 +250,10 @@ class ApplicationWindow(QMainWindow):
         data_flat = self.imageItem.image.flatten()
         histogram = Histogram(Regular(1000000, data_flat.min(), data_flat.max()))
         histogram.fill(data_flat)
-        
         cumsum = np.cumsum(histogram.view())
         total = cumsum[-1]
         low_thresh = np.searchsorted(cumsum, total * 0.01)
         high_thresh = np.searchsorted(cumsum, total * 0.99999)
-
         self.histogram.setLevels(low_thresh, high_thresh)
 
     def roiChanged(self):
@@ -301,15 +294,21 @@ class ApplicationWindow(QMainWindow):
         self.plot.setTitle("pos: (%0.1f, %0.1f)  pixel: (%d, %d)  value: %.3g" % (x, y, i, j, val))      
 
     def toggle_viewStream(self):
-        global t0
-        t0 = time.time()
         if not self.stream_view_button.started:
+            self.thread_read = QThread()
+            self.streamReader = Reader(self.receiver)
+            self.threadWorkerPairs.append((self.thread_read, self.streamReader))                              
+            self.initializeWorker(self.thread_read, self.streamReader) # Initialize the worker thread and fitter
+            self.thread_read.start()
+            self.readerWorkerReady = True # Flag to indicate worker is ready
+            print("Starting reading process")
+            # Adjust button display according to ongoing state of process
             self.stream_view_button.setText("Stop")
             self.plot.setTitle("View of the Stream")
             self.timer.setInterval(self.update_interval.value())
             self.stream_view_button.started = True
             print(f"Timer interval: {self.timer.interval()}")
-            # wait_flag.value = False
+            # Start timer and enable file operation buttons
             self.timer.start(10)
             self.accumulate_button.setEnabled(True)
             self.streamWriterButton.setEnabled(True)
@@ -318,35 +317,56 @@ class ApplicationWindow(QMainWindow):
             self.plot.setTitle("Stream stopped at the current Frame")
             self.stream_view_button.started = False
             self.timer.stop()
-            # wait_flag.value = True
+            # Properly stop and cleanup worker and thread  
+            self.stopWorker(self.thread_read, self.streamReader)
+            # Disable buttons
             self.accumulate_button.setEnabled(False)
             self.streamWriterButton.setEnabled(False)
-    
+
+    def initializeWorker(self, thread, worker):
+        worker.moveToThread(thread)
+        print(f"{worker.__str__()} is Ready!")
+        thread.started.connect(worker.run)
+        if isinstance(worker, Reader):
+            worker.finished.connect(self.updateUI)
+            worker.finished.connect(self.getReaderReady)
+        if isinstance(worker, Gaussian_Fitter):
+            worker.finished.connect(self.updateFitParams)
+            worker.finished.connect(self.getFitterReady)
+        if isinstance(worker, Frame_Accumulator):
+            worker.finished.connect(
+                lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x))
+        if isinstance(worker, Hdf5_Writer):
+            worker.finished.connect(self.update_last_frame_written)
+
+    def getReaderReady(self):
+        self.readerWorkerReady = True
+
     def captureImage(self):
-        if not self.reader.isRunning():
-            self.reader.run()
+        if self.readerWorkerReady:
+            self.readerWorkerReady = False
+            QMetaObject.invokeMethod(self.streamReader, "run", Qt.QueuedConnection)
 
     def updateUI(self, image, frame_nr):
         self.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False) ## .T)
         self.statusBar().showMessage(f'Frame: {frame_nr}')
-        # print(f'Total Number of Frames: {frame_nr}')
 
     def start_accumulate(self):
         file_index = self.findex_input.value()
         f_name = self.fname_input.text()
         nb_frames_to_take = self.acc_spin.value()
-
+        # Construct the (thread, worker) pair
         self.thread_acc = QThread()
         self.accumulator = Frame_Accumulator(nb_frames_to_take)
         self.threadWorkerPairs.append((self.thread_acc, self.accumulator))
         self.initializeWorker(self.thread_acc, self.accumulator)
-
+        # Connect signals to relevant slots for operations
         self.accumulator.finished.connect(self.thread_acc.quit)
         self.accumulator.finished.connect(lambda: self.stopWorker(self.thread_acc, self.accumulator))
         self.thread_acc.start()
-
+        # Upadate file number for next take
         self.findex_input.setValue(file_index+1)
-
+    
     def toggle_gaussianFit(self):
         if not self.btnBeamFocus.started:
             self.thread_fit = QThread()
@@ -354,12 +374,13 @@ class ApplicationWindow(QMainWindow):
             self.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
             self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
             self.thread_fit.start()
-            self.workerReady = True # Flag to indicate worker is ready
-            
+            self.fitterWorkerReady = True # Flag to indicate worker is ready
+            print("Starting fitting process")
+
             self.btnBeamFocus.setText("Stop Fitting")
             self.btnBeamFocus.started = True
             # Pop-up Window
-            self.showPlotDialog()
+            self.showPlotDialog()    
             # Timer started
             self.timer_fit.start()
         else:
@@ -368,7 +389,6 @@ class ApplicationWindow(QMainWindow):
             self.timer_fit.stop()  
             # Close Pop-up Window
             self.plotDialog.close()
-            # Properly stop and cleanup worker and thread  
             self.stopWorker(self.thread_fit, self.fitter)
 
     def showPlotDialog(self):
@@ -376,68 +396,22 @@ class ApplicationWindow(QMainWindow):
         self.plotDialog.startPlotting(self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
         self.plotDialog.show() 
 
-    def initializeWorker(self, thread, worker):
-        worker.moveToThread(thread)
-        thread.started.connect(worker.run)
-        if isinstance(worker, Gaussian_Fitter):
-            worker.finished.connect(self.updateFitParams)
-            worker.finished.connect(self.getFitterReady)
-        if isinstance(worker, Frame_Accumulator):
-            worker.finished.connect(
-                lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x)
-                )
-        if isinstance(worker, Hdf5_Writer):
-            worker.finished.connect(self.update_last_frame_written)
-
     def getFitterReady(self):
-        self.workerReady = True
+        self.fitterWorkerReady = True
 
-    def stopWorker(self, thread, worker):
-        if isinstance(worker, Hdf5_Writer):
-            globals.write_hdf5 = False
-        if thread.isRunning():
-            thread.quit()
-            thread.wait() # Wait for the thread to finish
-
-        self.threadCleanup(thread, worker)
-        
-    def threadCleanup(self, thread, worker):
-        index_to_delete = None
-        for i, (t, worker) in enumerate(self.threadWorkerPairs):
-            if t == thread:
-                if worker is not None:
-                    if isinstance(worker, Gaussian_Fitter):
-                        print("Stopping Gaussian fitter!")
-                        worker.finished.disconnect(self.updateFitParams)
-                        worker.finished.disconnect(self.getFitterReady)
-                    if isinstance(worker, Hdf5_Writer):
-                        print("Stopping Write process!")
-                    worker.deleteLater() # Schedule the worker for deletion
-                    worker = None
-                    print("Worker deleted!")
-                index_to_delete = i
-                break
-        
-        if index_to_delete is not None:
-            del self.threadWorkerPairs[index_to_delete]
-        
-        thread.deleteLater()  # Schedule the thread for deletion
-        thread = None
-        
-        if isinstance(worker, Gaussian_Fitter):
-            self.workerReady = False
-
-    def updateFitterParams(self, imageItem, roi):
+    def updateWorkerParams(self, imageItem, roi):
         if self.thread_fit.isRunning():
             # Emit the update signal with the new parameters
             self.fitter.updateParamsSignal.emit(imageItem, roi)  
 
+    # @profile
     def getFitParams(self):
-        if self.workerReady:
-            self.workerReady = False # Prevent new tasks until the current one is finished
+        if self.fitterWorkerReady:
+            # Prevent new tasks until the current one is finished
+            self.fitterWorkerReady = False
             # Make sure to update the fitter's parameters right before starting the computation
-            self.updateFitterParams(self.imageItem, self.roi)
-            # Trigger the computation
+            self.updateWorkerParams(self.imageItem, self.roi)
+            # Trigger the "run" computation in the thread where self.fitter" lives
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
 
     def updateFitParams(self, fit_result_best_values):
@@ -451,7 +425,7 @@ class ApplicationWindow(QMainWindow):
         self.sigma_y_spBx.setValue(sigma_y)
         self.angle_spBx.setValue(theta_deg)
         # Update graph in pop-up Window
-        self.plotDialog.updatePlot(sigma_x, sigma_y)
+        self.plotDialog.updatePlot(sigma_x, sigma_y, 20)
         # Draw the fitting line at the FWHM of the 2d-gaussian
         self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 
@@ -489,6 +463,38 @@ class ApplicationWindow(QMainWindow):
         self.sigma_y_fit.setPen(pg.mkPen('r', width=2))
         self.sigma_y_fit.setTransform(rotationTransform)
         self.plot.addItem(self.sigma_y_fit)
+
+    def stopWorker(self, thread, worker):
+        if isinstance(worker, Hdf5_Writer):
+            globals.write_hdf5 = False
+        if thread.isRunning():
+            thread.quit()
+            thread.wait() # Wait for the thread to finish
+        self.threadCleanup(thread, worker)
+        
+    def threadCleanup(self, thread, worker):
+        index_to_delete = None
+        for i, (t, worker) in enumerate(self.threadWorkerPairs):
+            if t == thread:
+                if worker is not None:
+                    if isinstance(worker, Gaussian_Fitter):
+                        worker.finished.disconnect(self.updateFitParams)
+                        worker.finished.disconnect(self.getFitterReady)
+                    print(f"Stopping {worker.__str__()}!")
+                    worker.deleteLater() # Schedule the worker for deletion
+                    worker = None
+                    print("Process stopped!")
+                index_to_delete = i
+                break
+        if index_to_delete is not None:
+            del self.threadWorkerPairs[index_to_delete]
+        thread.deleteLater()  # Schedule the thread for deletion
+        thread = None
+        # Make sure that the destroyed workers are also disabled in the logic
+        if isinstance(worker, Gaussian_Fitter):
+            self.fitterWorkerReady = False
+        if isinstance(worker, Reader):
+            self.readerWorkerReady = False
 
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
@@ -529,7 +535,6 @@ class ApplicationWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    t0 = time.time()
 
     app = QApplication(sys.argv)
     
