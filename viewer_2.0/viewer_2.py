@@ -17,32 +17,10 @@ from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBo
                                QGraphicsRectItem)
 from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
-from PySide6.QtGui import QPalette, QColor, QTransform
+from PySide6.QtGui import QTransform
 from workers import *
 from plot_dialog import *
 from line_profiler import LineProfiler
-
-
-# Define the available theme of the main window
-def get_palette(name):
-    if name == "dark":
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(53, 53, 53))
-        palette.setColor(QPalette.WindowText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.Base, QColor(25, 25, 25))
-        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-        palette.setColor(QPalette.ToolTipBase, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ToolTipText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.Text, Qt.GlobalColor.white)
-        palette.setColor(QPalette.Button, QColor(53, 53, 53))
-        palette.setColor(QPalette.ButtonText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.BrightText, Qt.GlobalColor.red)
-        palette.setColor(QPalette.Link, QColor(42, 130, 218))
-        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-        palette.setColor(QPalette.HighlightedText, Qt.GlobalColor.black)
-        return palette
-    else:
-        raise NotImplementedError("only dark theme is implemented")
 
 
 def save_captures(fname, data):
@@ -101,10 +79,11 @@ class ApplicationWindow(QMainWindow):
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         # Mouse Hovering
         self.imageItem.hoverEvent = self.imageHoverEvent
-
-        ################
-        # General Layout
-        ################
+        """ 
+        ===============
+        General Layout
+        =============== 
+        """
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.dock)
         # Sections layout
@@ -147,6 +126,7 @@ class ApplicationWindow(QMainWindow):
         label_sigma_x = QLabel()
         label_sigma_x.setText("Sigma_x (px)")
         self.sigma_x_spBx = QDoubleSpinBox()
+        self.sigma_x_spBx.setValue(1)
         self.sigma_x_spBx.setSingleStep(0.1)
 
         label_sigma_y = QLabel()
@@ -154,6 +134,7 @@ class ApplicationWindow(QMainWindow):
         label_sigma_y.setStyleSheet('color: red;')
         self.sigma_y_spBx = QDoubleSpinBox()
         self.sigma_y_spBx.setStyleSheet('color: red;')
+        self.sigma_y_spBx.setValue(1)
         self.sigma_y_spBx.setSingleStep(0.1)
 
         label_rot_angle = QLabel()
@@ -246,14 +227,19 @@ class ApplicationWindow(QMainWindow):
         self.stream_view_button.clicked.connect(self.toggle_viewStream)
         self.timer.timeout.connect(self.captureImage)
 
-    def applyAutoContrast(self):
-        data_flat = self.imageItem.image.flatten()
-        histogram = Histogram(Regular(1000000, data_flat.min(), data_flat.max()))
-        histogram.fill(data_flat)
-        cumsum = np.cumsum(histogram.view())
-        total = cumsum[-1]
-        low_thresh = np.searchsorted(cumsum, total * 0.01)
-        high_thresh = np.searchsorted(cumsum, total * 0.99999)
+    # @profile
+    def applyAutoContrast(self, histo_boost = False):
+        if histo_boost:
+            data_flat = self.imageItem.image.flatten()
+            histogram = Histogram(Regular(1000000, data_flat.min(), data_flat.max()))
+            histogram.fill(data_flat)
+            cumsum = np.cumsum(histogram.view())
+            total = cumsum[-1]
+            low_thresh = np.searchsorted(cumsum, total * 0.01)
+            high_thresh = np.searchsorted(cumsum, total * 0.99999)
+        else:
+            low_thresh, high_thresh = np.percentile(self.imageItem.image, (1, 99.999))
+        
         self.histogram.setLevels(low_thresh, high_thresh)
 
     def roiChanged(self):
@@ -547,8 +533,8 @@ if __name__ == "__main__":
     Rcv = ZmqReceiver(args.stream) 
 
     viewer = ApplicationWindow(Rcv)
-    palette = get_palette("dark")
-    viewer.setPalette(palette)
+    app_palette = palette.get_palette("dark")
+    viewer.setPalette(app_palette)
 
     viewer.show()
     QCoreApplication.processEvents()
