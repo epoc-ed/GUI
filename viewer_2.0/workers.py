@@ -1,4 +1,5 @@
 import time
+import logging
 import numpy as np 
 from ZmqReceiver import *
 from Hdf5File import Hdf5File
@@ -21,16 +22,16 @@ class Reader(QObject):
     def run(self):
         image, frame_nb = self.receiver.get_frame()  # Retrieve image and header      
         if globals.write_hdf5:
-            # print("In Reader")
+            logging.debug("In Reader")
             np.copyto(globals.hdf5_im, image)
             globals.last_frame_written = frame_nb
             globals.image_updated = True
         if globals.accframes > 0:
-            print(globals.accframes)
+            logging.debug(globals.accframes)
             tmp = np.copy(image)
             globals.acc_image += tmp
             globals.accframes -= 1  
-        # Emit signal at end of run / carry (image, frame) for connected slot           
+        # Emit signal at end of run & carry (image, frame) for connected slot           
         self.finished.emit(image, frame_nb)  # Emit signal with results
 
     def __str__(self) -> str:
@@ -46,7 +47,7 @@ class Frame_Accumulator(QObject):
         self.nframes_to_capture = nframes
 
     def run(self):
-        print("Starting write process" )
+        logging.info("Starting write process of TIFF" )
         globals.acc_image[:] = 0
         globals.accframes = self.nframes_to_capture
         while globals.accframes > 0: 
@@ -74,7 +75,7 @@ class Hdf5_Writer(QObject):
         self.write_hdf5 = False
 
     def run(self):
-        print("Starting write process" )
+        logging.info("Starting write process of HDF5" )
         globals.hdf5_im[:] = 0 
         if self.fformat in ['h5','hdf5', 'hdf']:
             f = Hdf5File(self.filename, self.mode, self.image_size, self.dt, self.pixel_mask)
@@ -86,9 +87,9 @@ class Hdf5_Writer(QObject):
             if globals.image_updated:
                 f.write(globals.hdf5_im)
                 globals.image_updated  = False
-                # print("In Writer")
+                logging.debug("In Writer")
             self.write_hdf5 = globals.write_hdf5
-        # print("OUT")
+        logging.debug("OUT")
         f.close()
         self.finished.emit(globals.last_frame_written)
 
@@ -116,7 +117,7 @@ class Gaussian_Fitter(QObject):
     @Slot()
     def run(self):
         if not self.imageItem or not self.roi:
-            print("ImageItem or ROI not set.")
+            logging.warning("ImageItem or ROI not set.")
             return
         im = self.imageItem.image
         roiPos = self.roi.pos()

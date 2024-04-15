@@ -1,14 +1,15 @@
-from reuss import config as cfg
 import json
+import logging
 import numpy as np
 import pyqtgraph as pg
+from reuss import config as cfg
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
 from PySide6.QtCore import QRectF
 
 def draw_overlay(image_item):
     for key, value in cfg.parser['overlay'].items():
         s = json.loads(value)
-        # print(key," = ", s)
+        logging.debug(key," = ", s)
         if 'circle' in key:
             x, y = s['xy']
             r = s['radius']
@@ -28,6 +29,9 @@ def draw_overlay(image_item):
         image_item.addItem(item)
 
 if __name__ == "__main__":
+    format = "%(message)s"
+    logging.basicConfig(format=format, level=logging.INFO)
+
     app = pg.mkQApp()  # Ensure that a QApplication exists
     
     plotWidget = pg.PlotWidget()

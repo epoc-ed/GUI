@@ -1,5 +1,8 @@
+#!/usr/bin/env python3
+
 import os
 import time
+import logging
 import datetime
 import argparse
 import numpy as np
@@ -26,7 +29,7 @@ from line_profiler import LineProfiler
 
 
 def save_captures(fname, data):
-    print(f'Saving: {fname}')
+    logging.info(f'Saving: {fname}')
     reuss.io.save_tiff(fname, data)
 
 
@@ -41,7 +44,6 @@ class ApplicationWindow(QMainWindow):
         super().__init__()
         self.receiver = receiver
         self.threadWorkerPairs = [] # List of constructed (thread, worker) pairs
-        # self.i_h5 = 0 # Indexing the outputted hdf5 files
         self.initUI()
 
     def initUI(self):
@@ -257,6 +259,8 @@ class ApplicationWindow(QMainWindow):
         self.stream_view_button.clicked.connect(self.toggle_viewStream)
         self.timer.timeout.connect(self.captureImage)
 
+        logging.info("Viewer ready!")
+
     # @profile
     def applyAutoContrast(self, histo_boost = False):
         if histo_boost:
@@ -292,7 +296,7 @@ class ApplicationWindow(QMainWindow):
         # Print ROI position
         roiPos = self.roi.pos()
         roiSize = self.roi.size()
-        print(f"ROI Position: {roiPos}, Size: {roiSize}")
+        logging.debug(f"ROI Position: {roiPos}, Size: {roiSize}")
 
     def imageHoverEvent(self, event):
         im = self.imageItem.image
@@ -317,13 +321,13 @@ class ApplicationWindow(QMainWindow):
             self.initializeWorker(self.thread_read, self.streamReader) # Initialize the worker thread and fitter
             self.thread_read.start()
             self.readerWorkerReady = True # Flag to indicate worker is ready
-            print("Starting reading process")
+            logging.info("Starting reading process")
             # Adjust button display according to ongoing state of process
             self.stream_view_button.setText("Stop")
             self.plot.setTitle("View of the Stream")
             self.timer.setInterval(self.update_interval.value())
             self.stream_view_button.started = True
-            print(f"Timer interval: {self.timer.interval()}")
+            logging.info(f"Timer interval: {self.timer.interval()}")
             # Start timer and enable file operation buttons
             self.timer.start(10)
             self.accumulate_button.setEnabled(True)
@@ -341,7 +345,7 @@ class ApplicationWindow(QMainWindow):
 
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
-        print(f"{worker.__str__()} is Ready!")
+        logging.debug(f"{worker.__str__()} is Ready!")
         thread.started.connect(worker.run)
         if isinstance(worker, Reader):
             worker.finished.connect(self.updateUI)
@@ -391,7 +395,7 @@ class ApplicationWindow(QMainWindow):
             self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
             self.thread_fit.start()
             self.fitterWorkerReady = True # Flag to indicate worker is ready
-            print("Starting fitting process")
+            logging.info("Starting fitting process")
 
             self.btnBeamFocus.setText("Stop Fitting")
             self.btnBeamFocus.started = True
@@ -496,10 +500,10 @@ class ApplicationWindow(QMainWindow):
                     if isinstance(worker, Gaussian_Fitter):
                         worker.finished.disconnect(self.updateFitParams)
                         worker.finished.disconnect(self.getFitterReady)
-                    print(f"Stopping {worker.__str__()}!")
+                    logging.debug(f"Stopping {worker.__str__()}!")
                     worker.deleteLater() # Schedule the worker for deletion
                     worker = None
-                    print("Process stopped!")
+                    logging.info(f"{worker.__str__()} stopped!")
                 index_to_delete = i
                 break
         if index_to_delete is not None:
@@ -562,17 +566,20 @@ class ApplicationWindow(QMainWindow):
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 for thread, worker in running_threadWorkerPairs:
-                    print(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
+                    logging.debug(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker)
-                print("Exiting app!") 
+                logging.info("Exiting app!") 
                 app.quit()  
             else: 
                 pass
         else:
+            logging.info("Exiting app!") 
             app.quit()
 
 
 if __name__ == "__main__":
+    format = "%(message)s"
+    logging.basicConfig(format=format, level=logging.DEBUG)
 
     app = QApplication(sys.argv)
     

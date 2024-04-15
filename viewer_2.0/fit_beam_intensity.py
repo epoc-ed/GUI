@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 import numpy as np
 from scipy.interpolate import griddata
@@ -65,17 +66,18 @@ def do_fit_2d(z):
     
     X = np.copy(x)
     Y = np.copy(y)
-    # print(f'******* The shape of X is {X.shape}')
-    # print(X)
-    # print(f'******* The shape of Y is {Y.shape}')
-    # print(Y)
+
+    logging.debug(f'******* The shape of X is {X.shape}')
+    logging.debug(X)
+    logging.debug(f'******* The shape of Y is {Y.shape}')
+    logging.debug(Y)
 
     z = z.ravel()
     x = x.ravel()
     y = y.ravel()
     
     image_data = griddata((x, y), z, (X, Y), method='linear', fill_value=0)
-    # print(f'******* The shape of image_data is {image_data.shape}')
+    logging.debug(f'******* The shape of image_data is {image_data.shape}')
 
     # Create a model from the Gaussian function
     model = Model(gaussian2d_rotated, independent_vars=['x', 'y'])
@@ -93,12 +95,14 @@ def do_fit_2d(z):
     result = model.fit(z, x=x, y=y, params=params)
 
     # Print the fitting results
-    # print(result.fit_report())
+    logging.debug(result.fit_report())
 
     return model, result, image_data, X, Y
 
 # Start the Qt event loop
 if __name__ == '__main__':
+    format = "%(message)s"
+    logging.basicConfig(format=format, level=logging.INFO)
     # Importing data
     path = Path("/home/l_khalil/GUI/")
     images = np.load(path/"Image_data_0.npy")
