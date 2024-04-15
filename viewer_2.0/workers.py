@@ -8,6 +8,7 @@ import globals
 from line_profiler import LineProfiler
 
 
+
 class Reader(QObject):
     finished = Signal(object, object)  # Signal to indicate completion and carry results
 
@@ -34,7 +35,9 @@ class Reader(QObject):
 
     def __str__(self) -> str:
         return "Stream Reader"
-    
+
+
+
 class Frame_Accumulator(QObject):
     finished = Signal(object)
 
@@ -53,6 +56,8 @@ class Frame_Accumulator(QObject):
 
     def __str__(self) -> str:
         return "Tiff Frame Accumulator"
+
+
 
 class Hdf5_Writer(QObject):
     finished = Signal(object)
@@ -89,7 +94,9 @@ class Hdf5_Writer(QObject):
 
     def __str__(self) -> str:
         return "Hdf5 Stream Writer"
-    
+
+
+
 class Gaussian_Fitter(QObject):
     finished = Signal(object)
     updateParamsSignal = Signal(object, object)

@@ -8,8 +8,8 @@ import palette
 class PlotDialog(QDialog):
     def __init__(self, parent=None):
         super(PlotDialog, self).__init__(parent)
-        win_pal = palette.get_palette("dark")
-        self.setPalette(win_pal)
+        # win_pal = palette.get_palette("dark")
+        # self.setPalette(win_pal)
         self.setWindowTitle('Fitting \u03C3 over Time')
         self.setGeometry(800, 250, 700, 600)
         self.layout = QVBoxLayout()
@@ -18,7 +18,7 @@ class PlotDialog(QDialog):
         self.plotWidget1.setTitle('<span style="font-size: 16pt">σ<sub>x</sub> ; σ<sub>y</sub> = f(Time)</span>',) 
         self.plotWidget1.setLabel('bottom', '<span style="font-size: 13pt">Time<\span>', units='s')  
         self.plotWidget1.setLabel('left', '<span style="font-size: 13pt">σ</span>', units='<span style="font-size: 13pt">pixels</span>')
-        self.plotWidget1.setYRange(0,10)
+        self.plotWidget1.setYRange(0,12)
         self.layout.addWidget(self.plotWidget1)
         # Bottom plot of Sigma_y = f(t)
         self.plotWidget2 = pg.PlotWidget()

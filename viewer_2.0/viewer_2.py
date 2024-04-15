@@ -1,4 +1,6 @@
+import os
 import time
+import datetime
 import argparse
 import numpy as np
 import sys
@@ -14,7 +16,7 @@ from boost_histogram.axis import Regular
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
                                QMessageBox, QLabel, QLineEdit, QApplication, QHBoxLayout, 
                                QVBoxLayout, QWidget, QGroupBox, QGraphicsEllipseItem, 
-                               QGraphicsRectItem)
+                               QGraphicsRectItem, QFileDialog, QFrame)
 from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
 from PySide6.QtGui import QTransform
@@ -39,7 +41,7 @@ class ApplicationWindow(QMainWindow):
         super().__init__()
         self.receiver = receiver
         self.threadWorkerPairs = [] # List of constructed (thread, worker) pairs
-        self.i_h5 = 0 # Indexing the outputted hdf5 files
+        # self.i_h5 = 0 # Indexing the outputted hdf5 files
         self.initUI()
 
     def initUI(self):
@@ -166,10 +168,10 @@ class ApplicationWindow(QMainWindow):
         group3 = QGroupBox("File Operations")
         section3 = QVBoxLayout()
         # Accumulate
-        self.fname = QLabel("tiff_file_name:", self)
+        self.fname = QLabel("TIFF file name:", self)
         self.fname_input = QLineEdit(self)
         self.fname_input.setText('file')
-        self.findex = QLabel("file_index:", self)
+        self.findex = QLabel("index:", self)
         self.findex_input = QSpinBox(self)  
 
         tiff_file_layout = QHBoxLayout()
@@ -192,7 +194,35 @@ class ApplicationWindow(QMainWindow):
         accumulate_layout.addWidget(self.acc_spin)
 
         section3.addLayout(accumulate_layout)
+        
+        # Horizontal line separator
+        h_line = QFrame()
+        h_line.setFrameShape(QFrame.HLine)
+        h_line.setFrameShadow(QFrame.Plain)
+        h_line.setStyleSheet("""QFrame {border: none;border-top: 1px solid grey;}""")
+        section3.addWidget(h_line)
+
         # Stream Writer
+        # Initialize 
+        self.h5_file_index = 0
+        # Hdf5 file operations
+        h5_file_ops_layout = QHBoxLayout()
+        self.prefix = QLabel("HDF5 prefix", self)
+        self.prefix_input = QLineEdit(self)
+        self.prefix_input.setText('prefix')
+
+        self.index_label= QLabel("index")
+        self.index_box = QSpinBox(self)
+        self.index_box.setValue(self.h5_file_index)
+        self.index_box.valueChanged.connect(self.update_h5_file_index)
+
+        h5_file_ops_layout.addWidget(self.prefix) 
+        h5_file_ops_layout.addWidget(self.prefix_input)
+        h5_file_ops_layout.addWidget(self.index_label)
+        h5_file_ops_layout.addWidget(self.index_box)
+
+        section3.addLayout(h5_file_ops_layout)
+
         self.streamWriterButton = ToggleButton("Write Stream in H5", self)
         self.streamWriterButton.setEnabled(False)
         self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
@@ -484,10 +514,19 @@ class ApplicationWindow(QMainWindow):
 
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
+            folder_name = QFileDialog.getExistingDirectory(self, "Select Directory")
+            if not folder_name:
+                return  # User canceled folder selection
+            self.folder_name = folder_name
+
+            prefix = self.prefix_input.text().strip()
+            if not prefix:
+                # Handle error: Prefix is mandatory
+                return
+            
             self.thread_h5 = QThread()
-            # self.streamWriter = Hdf5_Writer(filename="all_in_one_hdf5_file")
-            self.streamWriter = Hdf5_Writer(filename=f"hdf5_file_{self.i_h5}")
-            self.i_h5 += 1
+            formatted_filename = self.generate_filename(prefix)
+            self.streamWriter = Hdf5_Writer(filename=formatted_filename)
             self.threadWorkerPairs.append((self.thread_h5, self.streamWriter))              
             self.initializeWorker(self.thread_h5, self.streamWriter) # Initialize the worker thread and fitter
             self.thread_h5.start()
@@ -497,7 +536,20 @@ class ApplicationWindow(QMainWindow):
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
             self.stopWorker(self.thread_h5, self.streamWriter) # Properly stop and cleanup worker and thread
-
+    
+    def update_h5_file_index(self, index):
+            self.h5_file_index = index
+            
+    def generate_filename(self, prefix):
+        now = datetime.datetime.now()
+        date_str = now.strftime("%d_%B_%Y_%I:%M%p")
+        index_str = f"{self.h5_file_index:03}"
+        self.h5_file_index += 1
+        self.index_box.setValue(self.h5_file_index)
+        filename = f"{prefix}_{index_str}_{date_str}.h5"
+        full_path = os.path.join(self.folder_name, filename)
+        return full_path
+    
     def update_last_frame_written(self, nb_of_frame):
         self.last_frame_nb.setValue(nb_of_frame)
 
