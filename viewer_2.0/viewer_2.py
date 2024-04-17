@@ -19,7 +19,7 @@ from boost_histogram.axis import Regular
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
                                QMessageBox, QLabel, QLineEdit, QApplication, QHBoxLayout, 
                                QVBoxLayout, QWidget, QGroupBox, QGraphicsEllipseItem, 
-                               QGraphicsRectItem, QFileDialog, QFrame)
+                               QGraphicsRectItem, QFileDialog, QFrame, QCheckBox)
 from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
 from PySide6.QtGui import QTransform
@@ -83,6 +83,7 @@ class ApplicationWindow(QMainWindow):
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         # Mouse Hovering
         self.imageItem.hoverEvent = self.imageHoverEvent
+        self.plotDialog = None
         """ 
         ===============
         General Layout
@@ -127,6 +128,10 @@ class ApplicationWindow(QMainWindow):
         self.timer_fit.timeout.connect(self.getFitParams)
         self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
         
+        # Create a checkbox
+        self.checkbox = QCheckBox("Enable pop-up Window", self)
+        self.checkbox.setChecked(False)
+
         label_sigma_x = QLabel()
         label_sigma_x.setText("Sigma_x (px)")
         self.sigma_x_spBx = QDoubleSpinBox()
@@ -150,6 +155,7 @@ class ApplicationWindow(QMainWindow):
 
         BeamFocus_layout = QVBoxLayout()
         BeamFocus_layout.addWidget(self.btnBeamFocus)
+        BeamFocus_layout.addWidget(self.checkbox)
         sigma_x_layout = QHBoxLayout()
         sigma_x_layout.addWidget(label_sigma_x)  
         sigma_x_layout.addWidget(self.sigma_x_spBx)         
@@ -400,7 +406,8 @@ class ApplicationWindow(QMainWindow):
             self.btnBeamFocus.setText("Stop Fitting")
             self.btnBeamFocus.started = True
             # Pop-up Window
-            self.showPlotDialog()    
+            if self.checkbox.isChecked():
+                self.showPlotDialog()   
             # Timer started
             self.timer_fit.start()
         else:
@@ -408,7 +415,8 @@ class ApplicationWindow(QMainWindow):
             self.btnBeamFocus.started = False
             self.timer_fit.stop()  
             # Close Pop-up Window
-            self.plotDialog.close()
+            if self.plotDialog != None:
+                self.plotDialog.close()
             self.stopWorker(self.thread_fit, self.fitter)
 
     def showPlotDialog(self):
@@ -445,7 +453,8 @@ class ApplicationWindow(QMainWindow):
         self.sigma_y_spBx.setValue(sigma_y)
         self.angle_spBx.setValue(theta_deg)
         # Update graph in pop-up Window
-        self.plotDialog.updatePlot(sigma_x, sigma_y, 20)
+        if self.plotDialog != None:
+            self.plotDialog.updatePlot(sigma_x, sigma_y, 20)
         # Draw the fitting line at the FWHM of the 2d-gaussian
         self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 
@@ -503,7 +512,7 @@ class ApplicationWindow(QMainWindow):
                     logging.debug(f"Stopping {worker.__str__()}!")
                     worker.deleteLater() # Schedule the worker for deletion
                     worker = None
-                    logging.info(f"{worker.__str__()} stopped!")
+                    logging.info("Process stopped!")
                 index_to_delete = i
                 break
         if index_to_delete is not None:
@@ -579,7 +588,7 @@ class ApplicationWindow(QMainWindow):
 
 if __name__ == "__main__":
     format = "%(message)s"
-    logging.basicConfig(format=format, level=logging.DEBUG)
+    logging.basicConfig(format=format, level=logging.INFO)
 
     app = QApplication(sys.argv)
     

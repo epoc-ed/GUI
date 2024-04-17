@@ -30,7 +30,7 @@ def draw_overlay(image_item):
 
 if __name__ == "__main__":
     format = "%(message)s"
-    logging.basicConfig(format=format, level=logging.INFO)
+    logging.basicConfig(format=format, level=logging.DEBUG)
 
     app = pg.mkQApp()  # Ensure that a QApplication exists
     
