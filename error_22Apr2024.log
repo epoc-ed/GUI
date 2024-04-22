@@ -1,0 +1,130 @@
+Viewer ready!
+Starting reading process
+Timer interval: 100
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+Starting write process of HDF5
+Process stopped!
+Process stopped!
+Starting reading process
+Timer interval: 100
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+qt.svg.draw: The requested buffer size is too big, ignoring
+Starting write process of HDF5
+Process stopped!
+Starting fitting process
+ImageItem or ROI not set.
+Traceback (most recent call last):
+  File "/home/psi/software/viewer_2.0/GUI/viewer_2.0/workers.py", line 129, in run
+    fit_result = fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/software/viewer_2.0/GUI/viewer_2.0/fit_beam_intensity.py", line 50, in fit_2d_gaussian_roi
+    result_roi = model_roi.fit(z_flat_roi, x=x_flat_roi, y=y_flat_roi, params=params_roi)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/lmfit/model.py", line 1103, in fit
+    output.fit(data=data, weights=weights)
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/lmfit/model.py", line 1466, in fit
+    self.init_fit = self.model.eval(params=self.params, **self.userkws)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/lmfit/model.py", line 930, in eval
+    return coerce_arraylike(self.func(**self.make_funcargs(params, kwargs)))
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/dispatcher.py", line 487, in _compile_for_args
+    raise e
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/dispatcher.py", line 420, in _compile_for_args
+    return_val = self.compile(tuple(argtypes))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/dispatcher.py", line 957, in compile
+    cres = self._compiler.compile(args, return_type)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/dispatcher.py", line 125, in compile
+    status, retval = self._compile_cached(args, return_type)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/dispatcher.py", line 139, in _compile_cached
+    retval = self._compile_core(args, return_type)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/dispatcher.py", line 152, in _compile_core
+    cres = compiler.compile_extra(self.targetdescr.typing_context,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler.py", line 751, in compile_extra
+    return pipeline.compile_extra(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler.py", line 445, in compile_extra
+    return self._compile_bytecode()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler.py", line 513, in _compile_bytecode
+    return self._compile_core()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler.py", line 492, in _compile_core
+    raise e
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler.py", line 479, in _compile_core
+    pm.run(self.state)
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler_machinery.py", line 368, in run
+    raise patched_exception
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler_machinery.py", line 356, in run
+    self._runPass(idx, pass_inst, state)
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler_lock.py", line 35, in _acquire_compile_lock
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler_machinery.py", line 311, in _runPass
+    mutated |= check(pss.run_pass, internal_state)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/compiler_machinery.py", line 273, in check
+    mangled = func(compiler_state)
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/typed_passes.py", line 468, in run_pass
+    lower.lower()
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/lowering.py", line 187, in lower
+    self.lower_normal_function(self.fndesc)
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/lowering.py", line 222, in lower_normal_function
+    self.setup_function(fndesc)
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/lowering.py", line 297, in setup_function
+    self.function = self.context.declare_function(self.module, fndesc)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/base.py", line 413, in declare_function
+    fnty = self.call_conv.get_function_type(fndesc.restype, fndesc.argtypes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/callconv.py", line 805, in get_function_type
+    arginfo = self._get_arg_packer(argtypes)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/callconv.py", line 165, in _get_arg_packer
+    return self.context.get_arg_packer(argtypes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/base.py", line 320, in get_arg_packer
+    return datamodel.ArgPacker(self.data_model_manager, fe_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/datamodel/packer.py", line 81, in __init__
+    dm = self._dmm.lookup(ty)
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/datamodel/manager.py", line 37, in lookup
+    model = self._cache[fetype] = handler(self, fetype)
+                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/psi/miniconda3/envs/viewer2/lib/python3.11/site-packages/numba/core/datamodel/models.py", line 370, in __init__
+    raise NotImplementedError(fe_type)
+NotImplementedError: Failed in nopython mode pipeline (step: native lowering)
+float16
+Process stopped!
+Process stopped!
+Exiting app!
