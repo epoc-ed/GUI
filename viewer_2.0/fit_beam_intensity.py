@@ -3,14 +3,12 @@ from pathlib import Path
 import numpy as np
 from scipy.interpolate import griddata
 from lmfit import Model, Parameters
-
+import globals
 import pyqtgraph as pg
 from PySide6 import QtWidgets
-from numba import jit
-# from line_profiler import LineProfiler
+from line_profiler import LineProfiler
 
 # Define a rotated 2D Gaussian function
-@jit(nopython=True)
 def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
     xo = float(xo)
     yo = float(yo)    
@@ -20,6 +18,7 @@ def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
     g = amplitude * np.exp( - (a * ((x-xo)**2) + 2 * b * (x-xo) * (y-yo) + c * ((y-yo)**2)))
     return g.ravel()
 
+# Example of ROI array
 # roi = [[156,355],[412,611]]
 # roi_start_row = 156
 # roi_end_row = 355
@@ -28,23 +27,29 @@ def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
 
 # @profile
 def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col):
+    
+    logging.debug(f"type(im) is {type(im[0,0])}")
 
     im_roi = im[roi_start_row:roi_end_row, roi_start_col:roi_end_col]
+    logging.debug(f"type(im_roi) is {type(im_roi[0,0])}")
+
     n_columns_roi, n_rows_roi = im_roi.shape[1], im_roi.shape[0]
 
+    diag_roi = np.sqrt(n_columns_roi*n_columns_roi+n_rows_roi*n_rows_roi)
+    
     x_roi, y_roi = np.meshgrid(np.arange(n_columns_roi), np.arange(n_rows_roi))
     z_flat_roi = im_roi.ravel()
     x_flat_roi = x_roi.ravel()
     y_flat_roi = y_roi.ravel()
 
-     # Create model and parameters for ROI fitting
-    model_roi = Model(gaussian2d_rotated, independent_vars=['x', 'y'])
+    # Create model and parameters for ROI fitting
+    model_roi = Model(gaussian2d_rotated, independent_vars=['x','y'], nan_policy='omit')
     params_roi = Parameters()
-    params_roi.add('amplitude', value=np.max(im), min=0)
-    params_roi.add('xo', value=n_columns_roi//2)
-    params_roi.add('yo', value=n_rows_roi//2)
-    params_roi.add('sigma_x', value=n_columns_roi//4, min=1)  # Adjusted for likely ROI size
-    params_roi.add('sigma_y', value=n_rows_roi//4, min=1)    # Adjusted for likely ROI size
+    params_roi.add('amplitude', value=np.max(im), min=1, max=2*np.max(im))
+    params_roi.add('xo', value=n_columns_roi//2, min=0, max=n_columns_roi)
+    params_roi.add('yo', value=n_rows_roi//2, min=0,max=n_rows_roi)
+    params_roi.add('sigma_x', value=n_columns_roi//4, min=1, max=diag_roi//2)  # Adjusted for likely ROI size
+    params_roi.add('sigma_y', value=n_rows_roi//4, min=1, max=diag_roi//2)    # Adjusted for likely ROI size
     params_roi.add('theta', value=0, min=-np.pi/2, max=np.pi/2)
 
     result_roi = model_roi.fit(z_flat_roi, x=x_flat_roi, y=y_flat_roi, params=params_roi)

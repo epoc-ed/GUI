@@ -1,6 +1,7 @@
 import zmq
 import numpy as np
 
+
 # Receiver of the ZMQ stream
 class ZmqReceiver:
     def __init__(self, endpoint, 
@@ -21,5 +22,5 @@ class ZmqReceiver:
     def get_frame(self):
         msgs = self.socket.recv_multipart()
         frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
-        image = np.frombuffer(msgs[1], dtype = np.float32).reshape(512, 1024)
+        image = np.frombuffer(msgs[1], dtype = self.dt).reshape(512, 1024)
         return image, frame_nr
