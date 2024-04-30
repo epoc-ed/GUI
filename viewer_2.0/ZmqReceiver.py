@@ -20,7 +20,7 @@ class ZmqReceiver:
         self.socket.setsockopt(zmq.SUBSCRIBE, b"")
 
     def get_frame(self):
-        msgs = self.socket.recv_multipart()
+        msgs = self.socket.recv_multipart() # len(msgs): 8 1048576
         frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
         image = np.frombuffer(msgs[1], dtype = self.dt).reshape(512, 1024)
         return image, frame_nr
