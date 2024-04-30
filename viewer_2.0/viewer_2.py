@@ -24,9 +24,10 @@ from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication,
                             QRectF, QMetaObject)
 from PySide6.QtGui import QTransform
 from workers import *
+from StreamWriter import StreamWriter
 from plot_dialog import *
 from line_profiler import LineProfiler
-
+import ctypes
 
 def save_captures(fname, data):
     logging.info(f'Saving: {fname}')
@@ -77,7 +78,8 @@ class ApplicationWindow(QMainWindow):
         self.sigma_x_fit = QGraphicsRectItem()
         self.sigma_y_fit = QGraphicsRectItem()
         # Initial data
-        data = np.random.rand(globals.nrow,globals.ncol)
+        data = np.random.rand(globals.nrow,globals.ncol).astype(globals.dtype)
+        logging.debug(f"type(data) is {type(data[0,0])}")
         # Plot overlays from .reussrc          
         draw_overlay(self.plot)
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
@@ -237,7 +239,7 @@ class ApplicationWindow(QMainWindow):
 
         self.last_frame = QLabel("Last written Frame:", self)
         self.last_frame_nb = QSpinBox(self)
-        self.last_frame_nb.setMaximum(5000)
+        self.last_frame_nb.setMaximum(100000)
 
         hdf5_writer_layout = QHBoxLayout()
         hdf5_writer_layout.addWidget(self.streamWriterButton, 3)
@@ -300,9 +302,9 @@ class ApplicationWindow(QMainWindow):
         self.roi.setPos([correctedPosX, correctedPosY])
         self.roi.setSize([correctedSizeX, correctedSizeY])
         # Print ROI position
-        roiPos = self.roi.pos()
-        roiSize = self.roi.size()
-        logging.debug(f"ROI Position: {roiPos}, Size: {roiSize}")
+        # roiPos = self.roi.pos()
+        # roiSize = self.roi.size()
+        logging.debug(f"ROI Position: {self.roi.pos()}, Size: {self.roi.size()}")
 
     def imageHoverEvent(self, event):
         im = self.imageItem.image
@@ -335,7 +337,7 @@ class ApplicationWindow(QMainWindow):
             self.stream_view_button.started = True
             logging.info(f"Timer interval: {self.timer.interval()}")
             # Start timer and enable file operation buttons
-            self.timer.start(10)
+            self.timer.start()
             self.accumulate_button.setEnabled(True)
             self.streamWriterButton.setEnabled(True)
         else:
@@ -362,8 +364,8 @@ class ApplicationWindow(QMainWindow):
         if isinstance(worker, Frame_Accumulator):
             worker.finished.connect(
                 lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x))
-        if isinstance(worker, Hdf5_Writer):
-            worker.finished.connect(self.update_last_frame_written)
+        # if isinstance(worker, Hdf5_Writer):
+        #     worker.finished.connect(self.update_last_frame_written)
 
     def getReaderReady(self):
         self.readerWorkerReady = True
@@ -494,8 +496,8 @@ class ApplicationWindow(QMainWindow):
         self.plot.addItem(self.sigma_y_fit)
 
     def stopWorker(self, thread, worker):
-        if isinstance(worker, Hdf5_Writer):
-            globals.write_hdf5 = False
+        # if isinstance(worker, Hdf5_Writer):
+        #     globals.write_hdf5 = False
         if thread.isRunning():
             thread.quit()
             thread.wait() # Wait for the thread to finish
@@ -525,6 +527,31 @@ class ApplicationWindow(QMainWindow):
         if isinstance(worker, Reader):
             self.readerWorkerReady = False
 
+    # def toggle_hdf5Writer(self):
+    #     if not self.streamWriterButton.started:
+    #         folder_name = QFileDialog.getExistingDirectory(self, "Select Directory")
+    #         if not folder_name:
+    #             return  # User canceled folder selection
+    #         self.folder_name = folder_name
+
+    #         prefix = self.prefix_input.text().strip()
+    #         if not prefix:
+    #             # Handle error: Prefix is mandatory
+    #             return
+            
+    #         self.thread_h5 = QThread()
+    #         formatted_filename = self.generate_filename(prefix)
+    #         self.streamWriter = Hdf5_Writer(filename=formatted_filename)
+    #         self.threadWorkerPairs.append((self.thread_h5, self.streamWriter))              
+    #         self.initializeWorker(self.thread_h5, self.streamWriter) # Initialize the worker thread and fitter
+    #         self.thread_h5.start()
+    #         self.streamWriterButton.setText("Stop Writing")
+    #         self.streamWriterButton.started = True
+    #     else:
+    #         self.streamWriterButton.setText("Write Stream in H5")
+    #         self.streamWriterButton.started = False
+    #         self.stopWorker(self.thread_h5, self.streamWriter) # Properly stop and cleanup worker and thread
+    
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
             folder_name = QFileDialog.getExistingDirectory(self, "Select Directory")
@@ -537,25 +564,29 @@ class ApplicationWindow(QMainWindow):
                 # Handle error: Prefix is mandatory
                 return
             
-            self.thread_h5 = QThread()
+            logging.debug("TCP address for Hdf5 writer to bind to is ", args.stream)
+            logging.debug("Data type to build the streamWriter object ", args.dtype)
+
             formatted_filename = self.generate_filename(prefix)
-            self.streamWriter = Hdf5_Writer(filename=formatted_filename)
-            self.threadWorkerPairs.append((self.thread_h5, self.streamWriter))              
-            self.initializeWorker(self.thread_h5, self.streamWriter) # Initialize the worker thread and fitter
-            self.thread_h5.start()
+            self.streamWriter = StreamWriter(filename=formatted_filename, 
+                                             endpoint=args.stream, 
+                                             dtype=args.dtype)
+            self.streamWriter.start()
             self.streamWriterButton.setText("Stop Writing")
             self.streamWriterButton.started = True
         else:
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
-            self.stopWorker(self.thread_h5, self.streamWriter) # Properly stop and cleanup worker and thread
+            self.streamWriter.stop()
+            self.last_frame_nb.setValue(self.streamWriter.last_frame)
+            
     
     def update_h5_file_index(self, index):
             self.h5_file_index = index
             
     def generate_filename(self, prefix):
         now = datetime.datetime.now()
-        date_str = now.strftime("%d_%B_%Y_%I:%M%p")
+        date_str = now.strftime("%d_%B_%Y_%H:%M:%S")
         index_str = f"{self.h5_file_index:03}"
         self.h5_file_index += 1
         self.index_box.setValue(self.h5_file_index)
@@ -563,8 +594,8 @@ class ApplicationWindow(QMainWindow):
         full_path = os.path.join(self.folder_name, filename)
         return full_path
     
-    def update_last_frame_written(self, nb_of_frame):
-        self.last_frame_nb.setValue(nb_of_frame)
+    # def update_last_frame_written(self, nb_of_frame):
+    #     self.last_frame_nb.setValue(nb_of_frame)
 
     def do_exit(self):
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
@@ -597,8 +628,20 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--dtype", help="Data type", type = np.dtype, default=np.float32)
 
     args = parser.parse_args()
-    
-    Rcv = ZmqReceiver(args.stream) 
+
+    # if args.dtype == np.float32:
+    #     cdtype = ctypes.c_float
+    # elif args.dtype == np.double:
+    #     cdtype = ctypes.c_double
+    # else:
+    #     raise ValueError("unknown data type")
+
+    # Update the type of global variables 
+    globals.dtype = args.dtype
+    globals.acc_image = np.zeros((globals.nrow,globals.ncol), dtype = args.dtype)
+    logging.debug(type(globals.acc_image[0,0]))
+
+    Rcv = ZmqReceiver(endpoint=args.stream, dtype=args.dtype) 
 
     viewer = ApplicationWindow(Rcv)
     app_palette = palette.get_palette("dark")

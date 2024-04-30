@@ -15,14 +15,12 @@ class PlotDialog(QDialog):
         self.layout = QVBoxLayout()
         # Upper plot of Sigma_x = f(t)
         self.plotWidget1 = pg.PlotWidget()
-        self.plotWidget1.setTitle('<span style="font-size: 16pt">σ<sub>x</sub> ; σ<sub>y</sub> = f(Time)</span>',) 
         self.plotWidget1.setLabel('bottom', '<span style="font-size: 13pt">Time<\span>', units='s')  
         self.plotWidget1.setLabel('left', '<span style="font-size: 13pt">σ</span>', units='<span style="font-size: 13pt">pixels</span>')
         self.plotWidget1.setYRange(0,12)
         self.layout.addWidget(self.plotWidget1)
         # Bottom plot of Sigma_y = f(t)
         self.plotWidget2 = pg.PlotWidget()
-        self.plotWidget2.setTitle('<span style="font-size: 16pt">σ<sub>x</sub>/σ<sub>y</sub> = f(Time)</span>',)
         self.plotWidget2.setLabel('bottom', '<span style="font-size: 13pt">Time<\span>', units='s')  
         self.plotWidget2.setLabel('left', '<span style="font-size: 13pt"> σ<sub>x</sub>/σ<sub>y</sub> </span>')
         self.plotWidget2.setYRange(0,2)
@@ -40,7 +38,7 @@ class PlotDialog(QDialog):
         self.dataX = deque() # Time
         self.dataY1 = deque() # Sigma_x values
         self.dataY2 = deque() # Sigma_y values
-        self.dataY3 = deque()
+        self.dataY3 = deque() # Sigma_x/Sigma_y values
 
     def close_window(self):
         self.close()
@@ -70,6 +68,11 @@ class PlotDialog(QDialog):
             self.dataY1.append(newValue_x)
             self.dataY2.append(newValue_y)
             self.dataY3.append(newValue_x/newValue_y)
+        
+        self.plotWidget1.setTitle(f'<span style="font-size: 16pt">σ<sub>x</sub> = {newValue_x:12.4f}   \
+                                        σ<sub>y</sub> = {newValue_y:12.4f} </span>',) 
+        
+        self.plotWidget2.setTitle(f'<span style="font-size: 16pt">σ<sub>x</sub>/σ<sub>y</sub> = {(newValue_x/newValue_y):12.4f}</span>',)
 
         self.plotWidget1.clear()
         self.plotWidget2.clear()
