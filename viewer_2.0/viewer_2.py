@@ -24,6 +24,7 @@ from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication,
                             QRectF, QMetaObject)
 from PySide6.QtGui import QTransform
 from workers import *
+import multiprocessing as mp
 from StreamWriter import StreamWriter
 from plot_dialog import *
 from line_profiler import LineProfiler
@@ -49,7 +50,7 @@ class ApplicationWindow(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle("Viewer 2.0")
-        self.setGeometry(50, 50, 1050, 750)
+        self.setGeometry(50, 50, 1500, 1000)
         
         pg.setConfigOptions(imageAxisOrder='row-major')
         pg.mkQApp()
@@ -233,6 +234,7 @@ class ApplicationWindow(QMainWindow):
 
         section3.addLayout(h5_file_ops_layout)
 
+        self.streamWriter = None
         self.streamWriterButton = ToggleButton("Write Stream in H5", self)
         self.streamWriterButton.setEnabled(False)
         self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
@@ -511,7 +513,7 @@ class ApplicationWindow(QMainWindow):
                     if isinstance(worker, Gaussian_Fitter):
                         worker.finished.disconnect(self.updateFitParams)
                         worker.finished.disconnect(self.getFitterReady)
-                    logging.debug(f"Stopping {worker.__str__()}!")
+                    logging.info(f"Stopping {worker.__str__()}!")
                     worker.deleteLater() # Schedule the worker for deletion
                     worker = None
                     logging.info("Process stopped!")
@@ -605,16 +607,18 @@ class ApplicationWindow(QMainWindow):
                                         "A process is still running. Are you sure you want to exit?",
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
+                if self.streamWriter is not None:
+                    if self.streamWriter.write_process.is_alive():
+                        self.streamWriter.stop()
+                globals.exit_flag.value = True
                 for thread, worker in running_threadWorkerPairs:
                     logging.debug(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
-                    self.stopWorker(thread, worker)
-                logging.info("Exiting app!") 
-                app.quit()  
+                    self.stopWorker(thread, worker) 
             else: 
-                pass
-        else:
-            logging.info("Exiting app!") 
-            app.quit()
+                return
+        
+        logging.info("Exiting app!") 
+        app.quit()
 
 
 if __name__ == "__main__":

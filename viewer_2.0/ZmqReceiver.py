@@ -1,5 +1,9 @@
+import sys
 import zmq
+import time
+import logging
 import numpy as np
+import globals
 
 
 # Receiver of the ZMQ stream
@@ -8,19 +12,61 @@ class ZmqReceiver:
                  timeout_ms = 100, 
                  dtype = np.float32,
                  hwm = 2):
-
+        self.endpoint = endpoint
+        self.timeout_ms = timeout_ms
         self.dt = dtype
         self.hwm = hwm
         self.context = zmq.Context()
+        self.socket = None
+        self.setup_socket()
+
+    def setup_socket(self):
+        """Setup or reset the ZMQ socket."""
+        if self.socket is not None:
+            self.socket.close()
         self.socket = self.context.socket(zmq.SUB)
-        self.socket.setsockopt(zmq.RCVTIMEO, timeout_ms)
+        self.socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
         self.socket.setsockopt(zmq.RCVHWM, self.hwm)
-        self.socket.setsockopt(zmq.RCVBUF, self.hwm*1024*1024*np.dtype(self.dt).itemsize)
-        self.socket.connect(endpoint)
+        self.socket.setsockopt(zmq.RCVBUF, self.hwm * 1024 * 1024 * np.dtype(self.dt).itemsize)
+        self.socket.connect(self.endpoint)
         self.socket.setsockopt(zmq.SUBSCRIBE, b"")
 
     def get_frame(self):
-        msgs = self.socket.recv_multipart()
-        frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
-        image = np.frombuffer(msgs[1], dtype = self.dt).reshape(512, 1024)
-        return image, frame_nr
+        if not globals.exit_flag.value:
+            try:
+                msgs = self.socket.recv_multipart()
+                # logging.info("Connection successful !")
+                # sys.stdout.write(f"\rConnection successful !")
+                # sys.stdout.flush()
+                frame_nr = np.frombuffer(msgs[0], dtype=np.int64)[0]
+                image = np.frombuffer(msgs[1], dtype=self.dt).reshape(512, 1024)
+                return image, frame_nr
+            except zmq.error.Again:
+                logging.warning("Timeout or no messages received, attempting to reconnect...")
+                self.reconnect()
+                return None, None
+
+    def reconnect(self):
+        """Attempt to reconnect to the server."""
+        max_retries = 10
+        for attempt in range(max_retries):
+            try:
+                logging.debug(f"Attempting to reconnect ({attempt+1}/{max_retries})...")
+                self.setup_socket()
+                # Test the connection by attempting to receive a message
+                test_msg = self.socket.recv(flags=zmq.NOBLOCK)
+                logging.info("Reconnection successful !")
+                return
+            except zmq.ZMQError as e:
+                logging.debug(f"Failed to reconnect due to a ZeroMQ error: {e}\n Trying again...")
+                time.sleep(0.5)
+        logging.info("Failed to reconnect after several attempts.")
+
+# Usage example (assuming proper management of globals.exit_flag)
+if __name__ == "__main__":
+    receiver = ZmqReceiver("tcp://localhost:4545")
+    while not globals.exit_flag.value:
+        time.sleep(0.1)
+        frame, frame_nr = receiver.get_frame()
+        if frame is not None:
+            print("Frame received:", frame_nr)
