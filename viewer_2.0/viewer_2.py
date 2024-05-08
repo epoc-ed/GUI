@@ -152,14 +152,20 @@ class ApplicationWindow(QMainWindow):
         self.checkbox = QCheckBox("Enable pop-up Window", self)
         self.checkbox.setChecked(False)
 
+        label_gauss_height = QLabel()
+        label_gauss_height.setText("Gaussian height")
+        self.gauss_height_spBx = QDoubleSpinBox()
+        self.gauss_height_spBx.setValue(1)
+        self.gauss_height_spBx.setMaximum(1e8)
+
         label_sigma_x = QLabel()
-        label_sigma_x.setText("Sigma_x (px)")
+        label_sigma_x.setText("Sigma x (px)")
         self.sigma_x_spBx = QDoubleSpinBox()
         self.sigma_x_spBx.setValue(1)
         self.sigma_x_spBx.setSingleStep(0.1)
 
         label_sigma_y = QLabel()
-        label_sigma_y.setText("Sigma_y (px)")
+        label_sigma_y.setText("Sigma y (px)")
         label_sigma_y.setStyleSheet('color: red;')
         self.sigma_y_spBx = QDoubleSpinBox()
         self.sigma_y_spBx.setStyleSheet('color: red;')
@@ -176,6 +182,10 @@ class ApplicationWindow(QMainWindow):
         BeamFocus_layout = QVBoxLayout()
         BeamFocus_layout.addWidget(self.btnBeamFocus)
         BeamFocus_layout.addWidget(self.checkbox)
+        gauss_H_layout = QHBoxLayout()
+        gauss_H_layout.addWidget(label_gauss_height)  
+        gauss_H_layout.addWidget(self.gauss_height_spBx)
+        BeamFocus_layout.addLayout(gauss_H_layout)
         sigma_x_layout = QHBoxLayout()
         sigma_x_layout.addWidget(label_sigma_x)  
         sigma_x_layout.addWidget(self.sigma_x_spBx)         
@@ -452,7 +462,7 @@ class ApplicationWindow(QMainWindow):
 
     def showPlotDialog(self):
         self.plotDialog = PlotDialog(self)
-        self.plotDialog.startPlotting(self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
+        self.plotDialog.startPlotting(self.gauss_height_spBx.value(), self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
         self.plotDialog.show() 
 
     def getFitterReady(self):
@@ -474,18 +484,21 @@ class ApplicationWindow(QMainWindow):
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
 
     def updateFitParams(self, fit_result_best_values):
+        amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
         yo = float(fit_result_best_values['yo'])        
         sigma_x = float(fit_result_best_values['sigma_x'])
         sigma_y = float(fit_result_best_values['sigma_y'])
         theta_deg = 180*float(fit_result_best_values['theta'])/np.pi
         # Show fitting parameters 
+        self.gauss_height_spBx.setValue(amplitude)
+        self.sigma_x_spBx.setValue(sigma_x)
         self.sigma_x_spBx.setValue(sigma_x)
         self.sigma_y_spBx.setValue(sigma_y)
         self.angle_spBx.setValue(theta_deg)
         # Update graph in pop-up Window
         if self.plotDialog != None:
-            self.plotDialog.updatePlot(sigma_x, sigma_y, 20)
+            self.plotDialog.updatePlot(amplitude, sigma_x, sigma_y, 20)
         # Draw the fitting line at the FWHM of the 2d-gaussian
         self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 
