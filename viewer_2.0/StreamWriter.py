@@ -23,12 +23,15 @@ class StreamWriter:
         self.stop_requested = mp.Value(ctypes.c_bool)
         self.stop_requested.value = False
 
-        self.last_frame_written = mp.Value(ctypes.c_int64)
-        self.last_frame_written.value = -1
+        self.first_frame_number = mp.Value(ctypes.c_int64)
+        self.first_frame_number.value = -1
+
+        self.last_frame_number = mp.Value(ctypes.c_int64)
+        self.last_frame_number.value = -1
 
     @property
-    def last_frame(self):
-        return self.last_frame_written.value
+    def number_frames_witten(self):
+        return self.last_frame_number.value - self.first_frame_number.value +1
 
     def start(self):
         self.write_process = mp.Process(target=self._write, args=[])
@@ -61,10 +64,13 @@ class StreamWriter:
             try:
                 msgs = socket.recv_multipart()
                 frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
+                if self.first_frame_number.value < 0:  # Set the first frame number if it's the first message
+                    self.first_frame_number.value = frame_nr
+                    logging.info(f"First written frame number is  {self.first_frame_number.value}")
                 image = np.frombuffer(msgs[1], dtype = self.dt).reshape(self.image_size)
                 f.write(image)
                 logging.debug("Hdf5 is being written...")
-                self.last_frame_written.value = frame_nr
+                self.last_frame_number.value = frame_nr
             except zmq.error.Again:
                 pass
         

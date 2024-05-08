@@ -196,7 +196,7 @@ class ApplicationWindow(QMainWindow):
         group3 = QGroupBox("File Operations")
         section3 = QVBoxLayout()
         # Accumulate
-        self.fname = QLabel("TIFF file name:", self)
+        self.fname = QLabel("TIFF file name", self)
         self.fname_input = QLineEdit(self)
         self.fname_input.setText('file')
         self.findex = QLabel("index:", self)
@@ -267,14 +267,14 @@ class ApplicationWindow(QMainWindow):
         self.streamWriterButton.setEnabled(False)
         self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
 
-        self.last_frame = QLabel("Last written Frame:", self)
-        self.last_frame_nb = QSpinBox(self)
-        self.last_frame_nb.setMaximum(100000)
+        self.nb_frame = QLabel("Number Written Frames:", self)
+        self.total_frame_nb = QSpinBox(self)
+        self.total_frame_nb.setMaximum(100000000)
 
         hdf5_writer_layout = QHBoxLayout()
         hdf5_writer_layout.addWidget(self.streamWriterButton, 3)
-        hdf5_writer_layout.addWidget(self.last_frame, 1)
-        hdf5_writer_layout.addWidget(self.last_frame_nb, 2)
+        hdf5_writer_layout.addWidget(self.nb_frame, 1)
+        hdf5_writer_layout.addWidget(self.total_frame_nb, 2)
 
         section3.addLayout(hdf5_writer_layout)
         group3.setLayout(section3)
@@ -594,7 +594,9 @@ class ApplicationWindow(QMainWindow):
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
             self.streamWriter.stop()
-            self.last_frame_nb.setValue(self.streamWriter.last_frame)
+            self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
+            logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
+            logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
             
     
     def update_h5_file_index(self, index):
