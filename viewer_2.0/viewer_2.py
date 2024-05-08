@@ -251,6 +251,17 @@ class ApplicationWindow(QMainWindow):
 
         section3.addLayout(h5_file_ops_layout)
 
+        output_folder_layout = QHBoxLayout()
+        self.outPath = QLabel("Output Path", self)
+        self.outPath_input = QLineEdit(self)
+        self.folder_name = None
+        self.outPath_input.setText(os.getcwd())
+
+        output_folder_layout.addWidget(self.outPath)
+        output_folder_layout.addWidget(self.outPath_input)
+
+        section3.addLayout(output_folder_layout)
+
         self.streamWriter = None
         self.streamWriterButton = ToggleButton("Write Stream in H5", self)
         self.streamWriterButton.setEnabled(False)
@@ -321,8 +332,8 @@ class ApplicationWindow(QMainWindow):
         correctedSizeX = min(roiSize[0], imageShape[1])
         correctedSizeY = min(roiSize[1], imageShape[0])
         # Apply the corrections to the ROI
-        self.roi.setPos([correctedPosX, correctedPosY])
-        self.roi.setSize([correctedSizeX, correctedSizeY])
+        self.roi.setPos([correctedPosX, correctedPosY], update=False)
+        self.roi.setSize([correctedSizeX, correctedSizeY], update=False)
         # Print ROI position
         logging.debug(f"ROI Position: {self.roi.pos()}, Size: {self.roi.size()}")
 
@@ -556,14 +567,17 @@ class ApplicationWindow(QMainWindow):
 
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
-            folder_name = QFileDialog.getExistingDirectory(self, "Select Directory")
+            initial_dir = self.folder_name or self.outPath_input.text()
+            folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
             if not folder_name:
                 return  # User canceled folder selection
             self.folder_name = folder_name
-
+            self.outPath_input.setText(self.folder_name)
+            logging.info(f"H5 output path set to: {self.folder_name}")
             prefix = self.prefix_input.text().strip()
             if not prefix:
-                # Handle error: Prefix is mandatory
+                logging.error("Error: Prefix is missing! Please specify prefix of the written file(s).")# Handle error: Prefix is mandatory
+                QMessageBox.critical(self, "Prefix Missing", "Prefix of written files is missing!\nPlease specify one under the field 'HDF5 prefix'.", QMessageBox.Ok)
                 return
             
             logging.debug("TCP address for Hdf5 writer to bind to is ", args.stream)

@@ -63,7 +63,7 @@ class StreamWriter:
                 frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
                 image = np.frombuffer(msgs[1], dtype = self.dt).reshape(self.image_size)
                 f.write(image)
-                logging.debug("In Writer")
+                logging.debug("Hdf5 is being written...")
                 self.last_frame_written.value = frame_nr
             except zmq.error.Again:
                 pass
