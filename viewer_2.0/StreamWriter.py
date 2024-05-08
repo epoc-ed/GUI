@@ -35,13 +35,13 @@ class StreamWriter:
         self.write_process.start()
 
     def stop(self):
-        print("Stopping write process")
+        logging.info("Stopping write process")
         self.stop_requested.value = True
         self.write_process.join()
 
 
     def _write(self):
-        print("Starting write process" )
+        logging.info("Starting write process" )
 
         if self.fformat in ['h5','hdf5', 'hdf']:
             f = Hdf5File(self.filename, self.mode, self.image_size, self.dt, self.pixel_mask)
@@ -54,7 +54,7 @@ class StreamWriter:
         socket.setsockopt(zmq.RCVHWM, self.buffer_size_in_frames)
         socket.setsockopt(zmq.RCVBUF, self.buffer_size_in_frames*1024**2*np.dtype(self.dt).itemsize)
         socket.connect(self.endpoint)
-        print(f"Connected to: {self.endpoint}")
+        logging.debug(f"Connected to: {self.endpoint}")
         socket.setsockopt(zmq.SUBSCRIBE, b"")
 
         while not self.stop_requested.value:
@@ -69,6 +69,3 @@ class StreamWriter:
                 pass
         
         f.close()
-  
-        
-

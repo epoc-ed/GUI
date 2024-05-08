@@ -45,7 +45,7 @@ def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_c
     # Create model and parameters for ROI fitting
     model_roi = Model(gaussian2d_rotated, independent_vars=['x','y'], nan_policy='omit')
     params_roi = Parameters()
-    params_roi.add('amplitude', value=np.max(im), min=1, max=2*np.max(im))
+    params_roi.add('amplitude', value=np.max(im), min=1, max=10*np.max(im))
     params_roi.add('xo', value=n_columns_roi//2, min=0, max=n_columns_roi)
     params_roi.add('yo', value=n_rows_roi//2, min=0,max=n_rows_roi)
     params_roi.add('sigma_x', value=n_columns_roi//4, min=1, max=diag_roi//2)  # Adjusted for likely ROI size

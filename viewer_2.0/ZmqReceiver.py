@@ -31,13 +31,22 @@ class ZmqReceiver:
         self.socket.connect(self.endpoint)
         self.socket.setsockopt(zmq.SUBSCRIBE, b"")
 
+    def log_first_success(func):
+        def wrapper(self, *args, **kwargs):
+            if not hasattr(self, 'first_success_logged'):
+                result = func(self, *args, **kwargs)
+                if result[0] is not None:
+                    logging.info("Connection successful!")
+                    self.first_success_logged = True
+                return result
+            return func(self, *args, **kwargs)
+        return wrapper
+
+    @log_first_success
     def get_frame(self):
         if not globals.exit_flag.value:
             try:
                 msgs = self.socket.recv_multipart()
-                # logging.info("Connection successful !")
-                # sys.stdout.write(f"\rConnection successful !")
-                # sys.stdout.flush()
                 frame_nr = np.frombuffer(msgs[0], dtype=np.int64)[0]
                 image = np.frombuffer(msgs[1], dtype=self.dt).reshape(512, 1024)
                 return image, frame_nr
@@ -58,11 +67,10 @@ class ZmqReceiver:
                 logging.info("Reconnection successful !")
                 return
             except zmq.ZMQError as e:
-                logging.debug(f"Failed to reconnect due to a ZeroMQ error: {e}\n Trying again...")
+                logging.debug(f"Failed to reconnect due to a ZeroMQ error: {e}\nTrying again...")
                 time.sleep(0.5)
         logging.info("Failed to reconnect after several attempts.")
 
-# Usage example (assuming proper management of globals.exit_flag)
 if __name__ == "__main__":
     receiver = ZmqReceiver("tcp://localhost:4545")
     while not globals.exit_flag.value:

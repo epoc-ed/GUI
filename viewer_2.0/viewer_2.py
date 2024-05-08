@@ -63,7 +63,8 @@ class ApplicationWindow(QMainWindow):
         self.plot.addItem(self.imageItem)
         self.histogram = pg.HistogramLUTItem()
         self.histogram.setImageItem(self.imageItem)
-        self.histogram.gradient.loadPreset('viridis')
+        logging.debug(pg.graphicsItems.GradientEditorItem.Gradients.keys())
+        # self.histogram.gradient.loadPreset('viridis')
         self.glWidget.addItem(self.histogram)
         self.histogram.setLevels(0,255)
         self.plot.setAspectLocked(True)
@@ -100,6 +101,22 @@ class ApplicationWindow(QMainWindow):
         # Section 1 layout
         group1 = QGroupBox("Streaming && Contrast")
         section1 = QVBoxLayout()
+        # Creating buttons for theme switching
+        colors_layout = QHBoxLayout()
+        self.color_buttons = {
+            'viridis': QPushButton('Viridis', self),
+            'inferno': QPushButton('Inferno', self),
+            'plasma': QPushButton('Plasma', self),
+            'grey': QPushButton('Grey', self)
+        }
+        # Add buttons to layout and connect signals
+        for name, button in self.color_buttons.items():
+            colors_layout.addWidget(button)
+            button.clicked.connect(lambda checked=False, b=name: self.change_theme(b))
+
+        # Set Initial theme
+        self.change_theme('viridis')
+        section1.addLayout(colors_layout)
         # Start stream viewing
         self.stream_view_button = ToggleButton("View Stream", self)
         # Auto-contrast button
@@ -271,6 +288,9 @@ class ApplicationWindow(QMainWindow):
 
         logging.info("Viewer ready!")
 
+    def change_theme(self, theme):
+        self.histogram.gradient.loadPreset(theme)
+
     # @profile
     def applyAutoContrast(self, histo_boost = False):
         if histo_boost:
@@ -304,8 +324,6 @@ class ApplicationWindow(QMainWindow):
         self.roi.setPos([correctedPosX, correctedPosY])
         self.roi.setSize([correctedSizeX, correctedSizeY])
         # Print ROI position
-        # roiPos = self.roi.pos()
-        # roiSize = self.roi.size()
         logging.debug(f"ROI Position: {self.roi.pos()}, Size: {self.roi.size()}")
 
     def imageHoverEvent(self, event):
@@ -355,7 +373,7 @@ class ApplicationWindow(QMainWindow):
 
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
-        logging.debug(f"{worker.__str__()} is Ready!")
+        logging.info(f"{worker.__str__()} is Ready!")
         thread.started.connect(worker.run)
         if isinstance(worker, Reader):
             worker.finished.connect(self.updateUI)
@@ -366,8 +384,6 @@ class ApplicationWindow(QMainWindow):
         if isinstance(worker, Frame_Accumulator):
             worker.finished.connect(
                 lambda x: save_captures(f'{self.fname_input.text()}_{self.findex_input.value()}', x))
-        # if isinstance(worker, Hdf5_Writer):
-        #     worker.finished.connect(self.update_last_frame_written)
 
     def getReaderReady(self):
         self.readerWorkerReady = True
@@ -406,7 +422,6 @@ class ApplicationWindow(QMainWindow):
             self.thread_fit.start()
             self.fitterWorkerReady = True # Flag to indicate worker is ready
             logging.info("Starting fitting process")
-
             self.btnBeamFocus.setText("Stop Fitting")
             self.btnBeamFocus.started = True
             # Pop-up Window
@@ -422,6 +437,7 @@ class ApplicationWindow(QMainWindow):
             if self.plotDialog != None:
                 self.plotDialog.close()
             self.stopWorker(self.thread_fit, self.fitter)
+            self.removeAxes()
 
     def showPlotDialog(self):
         self.plotDialog = PlotDialog(self)
@@ -464,19 +480,21 @@ class ApplicationWindow(QMainWindow):
 
     def drawFittingEllipse(self, xo, yo, sigma_x, sigma_y, theta_deg):
         # p = 0.5 is equivalent to using the Full Width at Half Maximum (FWHM)
-        # where FWHM = 2*sqrt(2*ln(2)) * sigma
-        p = 0.15
+        # where FWHM = 2*sqrt(2*ln(2))*sigma ~ 2.3548*sigma
+        p = 0.2
         alpha = 2*np.sqrt(-2*math.log(p))
         width = alpha * sigma_x # Use 
         height = alpha * sigma_y # 
         # Check if the item is added to a scene, and remove it if so
         scene = self.ellipse_fit.scene() 
-        scene_ = self.sigma_x_fit.scene() 
-        scene__ = self.sigma_y_fit.scene() 
+        scene_x = self.sigma_x_fit.scene() 
+        scene_y = self.sigma_y_fit.scene() 
         if scene:  
             scene.removeItem(self.ellipse_fit)
-            scene_.removeItem(self.sigma_x_fit)
-            scene__.removeItem(self.sigma_y_fit)
+        if scene_x:
+            scene_x.removeItem(self.sigma_x_fit)
+        if scene_y: 
+            scene_y.removeItem(self.sigma_y_fit)
         # Create the ellipse item with its bounding rectangle
         self.ellipse_fit = QGraphicsEllipseItem(QRectF(xo-0.5*width, yo-0.5*height, width, height))
         self.sigma_x_fit = QGraphicsRectItem(QRectF(xo-0.5*width, yo, width, 0))
@@ -497,9 +515,24 @@ class ApplicationWindow(QMainWindow):
         self.sigma_y_fit.setTransform(rotationTransform)
         self.plot.addItem(self.sigma_y_fit)
 
+    def removeAxes(self):
+        logging.info("removeAxes called")
+        if self.ellipse_fit.scene():
+            logging.info("Removing ellipse_fit from scene")
+            self.ellipse_fit.scene().removeItem(self.ellipse_fit)
+        if self.sigma_x_fit.scene():
+            logging.info("Removing sigma_x_fit from scene")
+            self.sigma_x_fit.scene().removeItem(self.sigma_x_fit)
+        if self.sigma_y_fit.scene():
+            logging.info("Removing sigma_y_fit from scene")
+            self.sigma_y_fit.scene().removeItem(self.sigma_y_fit)
+        # Optionally, update or refresh the scene if necessary
+        # if self.plot.scene():
+        #     self.plot.scene().update()
+
     def stopWorker(self, thread, worker):
-        # if isinstance(worker, Hdf5_Writer):
-        #     globals.write_hdf5 = False
+        if worker:
+            worker.finished.disconnect()
         if thread.isRunning():
             thread.quit()
             thread.wait() # Wait for the thread to finish
@@ -510,50 +543,17 @@ class ApplicationWindow(QMainWindow):
         for i, (t, worker) in enumerate(self.threadWorkerPairs):
             if t == thread:
                 if worker is not None:
-                    if isinstance(worker, Gaussian_Fitter):
-                        worker.finished.disconnect(self.updateFitParams)
-                        worker.finished.disconnect(self.getFitterReady)
                     logging.info(f"Stopping {worker.__str__()}!")
                     worker.deleteLater() # Schedule the worker for deletion
                     worker = None
                     logging.info("Process stopped!")
                 index_to_delete = i
-                break
+                break # because always only one instance of a thread/worker pair type
         if index_to_delete is not None:
             del self.threadWorkerPairs[index_to_delete]
         thread.deleteLater()  # Schedule the thread for deletion
         thread = None
-        # Make sure that the destroyed workers are also disabled in the logic
-        if isinstance(worker, Gaussian_Fitter):
-            self.fitterWorkerReady = False
-        if isinstance(worker, Reader):
-            self.readerWorkerReady = False
 
-    # def toggle_hdf5Writer(self):
-    #     if not self.streamWriterButton.started:
-    #         folder_name = QFileDialog.getExistingDirectory(self, "Select Directory")
-    #         if not folder_name:
-    #             return  # User canceled folder selection
-    #         self.folder_name = folder_name
-
-    #         prefix = self.prefix_input.text().strip()
-    #         if not prefix:
-    #             # Handle error: Prefix is mandatory
-    #             return
-            
-    #         self.thread_h5 = QThread()
-    #         formatted_filename = self.generate_filename(prefix)
-    #         self.streamWriter = Hdf5_Writer(filename=formatted_filename)
-    #         self.threadWorkerPairs.append((self.thread_h5, self.streamWriter))              
-    #         self.initializeWorker(self.thread_h5, self.streamWriter) # Initialize the worker thread and fitter
-    #         self.thread_h5.start()
-    #         self.streamWriterButton.setText("Stop Writing")
-    #         self.streamWriterButton.started = True
-    #     else:
-    #         self.streamWriterButton.setText("Write Stream in H5")
-    #         self.streamWriterButton.started = False
-    #         self.stopWorker(self.thread_h5, self.streamWriter) # Properly stop and cleanup worker and thread
-    
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
             folder_name = QFileDialog.getExistingDirectory(self, "Select Directory")
@@ -595,9 +595,6 @@ class ApplicationWindow(QMainWindow):
         filename = f"{prefix}_{index_str}_{date_str}.h5"
         full_path = os.path.join(self.folder_name, filename)
         return full_path
-    
-    # def update_last_frame_written(self, nb_of_frame):
-    #     self.last_frame_nb.setValue(nb_of_frame)
 
     def do_exit(self):
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
