@@ -103,12 +103,13 @@ class ApplicationWindow(QMainWindow):
         """
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.dock)
-        
+
         # Horizontal line separator
         h_line_1 = QFrame()
         h_line_1.setFrameShape(QFrame.HLine)
         h_line_1.setFrameShadow(QFrame.Plain)
-        h_line_1.setStyleSheet("""QFrame {border: none; border-top: 1px solid grey;}""")        
+        h_line_1.setStyleSheet("""QFrame {border: none; border-top: 1px solid grey;}""")
+
         # Sections layout
         sections_layout = QHBoxLayout()
 
@@ -126,12 +127,11 @@ class ApplicationWindow(QMainWindow):
             'plasma': QPushButton('Plasma', self),
             'grey': QPushButton('Grey', self)
         }
-
         # Add buttons to layout and connect signals
         for name, button in self.color_buttons.items():
             colors_layout.addWidget(button)
             button.clicked.connect(lambda checked=False, b=name: self.change_theme(b))
-        colors_group.addLayout(colors_layout)     
+        colors_group.addLayout(colors_layout)      
         # Set Initial theme
         self.change_theme('viridis')
         section1.addLayout(colors_group)
@@ -149,7 +149,7 @@ class ApplicationWindow(QMainWindow):
             """
         )
         self.stream_view_button.setMaximumHeight(50)
-        # Auto-contrast button
+        # Auto-contrast area (Button + Status)
         contrast_box = QVBoxLayout()
         self.autoContrastBtn = QPushButton('Auto Contrast', self)
         self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
@@ -172,7 +172,7 @@ class ApplicationWindow(QMainWindow):
 
         view_contrast_group.addLayout(hbox)
         section1.addLayout(view_contrast_group)
-        
+
         # Time Interval
         time_interval = QLabel("Acquisition Interval (ms):", self)
         self.update_interval = QSpinBox(self)
@@ -543,6 +543,13 @@ class ApplicationWindow(QMainWindow):
             # Disable buttons
             self.accumulate_button.setEnabled(False)
             self.streamWriterButton.setEnabled(False)
+            if self.thread_read is not None:
+                logging.info("** Main thread forced to sleep **")
+                time.sleep(0.1) 
+            self.autoContrastON = False
+            self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
+            self.contrast_status.setText("Auto Contrast is OFF")
+            self.contrast_status.setStyleSheet('color: red;')
 
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
