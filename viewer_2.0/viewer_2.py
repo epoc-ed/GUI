@@ -19,7 +19,8 @@ from boost_histogram.axis import Regular
 from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBox,
                                QMessageBox, QLabel, QLineEdit, QApplication, QHBoxLayout, 
                                QVBoxLayout, QWidget, QGroupBox, QGraphicsEllipseItem, 
-                               QGraphicsRectItem, QFileDialog, QFrame, QCheckBox)
+                               QGraphicsRectItem, QFileDialog, QFrame, QCheckBox, 
+                               QGridLayout, QSizePolicy)
 from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
 from PySide6.QtGui import QTransform
@@ -95,14 +96,24 @@ class ApplicationWindow(QMainWindow):
         """
         main_layout = QVBoxLayout()
         main_layout.addWidget(self.dock)
+
+        # Horizontal line separator
+        h_line_1 = QFrame()
+        h_line_1.setFrameShape(QFrame.HLine)
+        h_line_1.setFrameShadow(QFrame.Plain)
+        h_line_1.setStyleSheet("""QFrame {border: none; border-top: 1px solid grey;}""")
+
         # Sections layout
         sections_layout = QHBoxLayout()
 
         # Section 1 layout
-        group1 = QGroupBox("Streaming && Contrast")
+        group1 = QGroupBox("Visualization Controls")
         section1 = QVBoxLayout()
         # Creating buttons for theme switching
+        colors_group = QVBoxLayout()
         colors_layout = QHBoxLayout()
+        theme_label = QLabel("Color map", self)
+        colors_group.addWidget(theme_label)
         self.color_buttons = {
             'viridis': QPushButton('Viridis', self),
             'inferno': QPushButton('Inferno', self),
@@ -113,22 +124,50 @@ class ApplicationWindow(QMainWindow):
         for name, button in self.color_buttons.items():
             colors_layout.addWidget(button)
             button.clicked.connect(lambda checked=False, b=name: self.change_theme(b))
-
+        colors_group.addLayout(colors_layout)      
         # Set Initial theme
         self.change_theme('viridis')
-        section1.addLayout(colors_layout)
+        section1.addLayout(colors_group)
+        # Seperate subsections
+        section1.addWidget(h_line_1)
         # Start stream viewing
         self.stream_view_button = ToggleButton("View Stream", self)
-        # Auto-contrast button
+        self.stream_view_button.setStyleSheet(
+            """
+            ToggleButton {
+                color: #FFFFFF; 
+                font-size: 14pt;
+                background-color: #333333;
+            }
+            """
+        )
+        self.stream_view_button.setMaximumHeight(50)
+        # Auto-contrast area (Button + Status)
+        contrast_box = QVBoxLayout()
         self.autoContrastBtn = QPushButton('Auto Contrast', self)
+        self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
         self.autoContrastBtn.clicked.connect(self.applyAutoContrast)
+        self.autoContrastON = False
+        self.contrast_status = QLabel("Auto Contrast is OFF")
+        self.contrast_status.setAlignment(Qt.AlignCenter) 
+        self.contrast_status.setStyleSheet('color: red;')
+        contrast_box.addWidget(self.autoContrastBtn)
+        contrast_box.addWidget(self.contrast_status)
         #   Layout [           Stream View           ][Auto Contrast]
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.stream_view_button, 3)
-        hbox.addWidget(self.autoContrastBtn, 1) 
-        section1.addLayout(hbox)
+        view_contrast_group = QVBoxLayout()
+        view_contrast_label = QLabel("Streaming & Contrast")
+        view_contrast_group.addWidget(view_contrast_label)
+
+        hbox = QGridLayout()
+        hbox.addWidget(self.stream_view_button, 0, 0, 2, 2)  # Span two rows two columns
+        hbox.addWidget(self.autoContrastBtn, 0, 2)
+        hbox.addWidget(self.contrast_status, 1, 2)
+
+        view_contrast_group.addLayout(hbox)
+        section1.addLayout(view_contrast_group)
+
         # Time Interval
-        time_interval = QLabel("Interval (ms):", self)
+        time_interval = QLabel("Acquisition Interval (ms):", self)
         self.update_interval = QSpinBox(self)
         self.update_interval.setMaximum(5000)
         self.update_interval.setSuffix(' ms')
@@ -160,7 +199,9 @@ class ApplicationWindow(QMainWindow):
 
         label_sigma_x = QLabel()
         label_sigma_x.setText("Sigma x (px)")
+        label_sigma_x.setStyleSheet('color: cyan;')
         self.sigma_x_spBx = QDoubleSpinBox()
+        self.sigma_x_spBx.setStyleSheet('color: blue;')
         self.sigma_x_spBx.setValue(1)
         self.sigma_x_spBx.setSingleStep(0.1)
 
@@ -234,11 +275,11 @@ class ApplicationWindow(QMainWindow):
         section3.addLayout(accumulate_layout)
         
         # Horizontal line separator
-        h_line = QFrame()
-        h_line.setFrameShape(QFrame.HLine)
-        h_line.setFrameShadow(QFrame.Plain)
-        h_line.setStyleSheet("""QFrame {border: none;border-top: 1px solid grey;}""")
-        section3.addWidget(h_line)
+        h_line_3 = QFrame()
+        h_line_3.setFrameShape(QFrame.HLine)
+        h_line_3.setFrameShadow(QFrame.Plain)
+        h_line_3.setStyleSheet("""QFrame {border: none;border-top: 1px solid grey;}""")
+        section3.addWidget(h_line_3)
 
         # Stream Writer
         # Initialize 
@@ -314,6 +355,10 @@ class ApplicationWindow(QMainWindow):
 
     # @profile
     def applyAutoContrast(self, histo_boost = False):
+        self.autoContrastON = True
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.contrast_status.setText("Auto Contrast is ON")
+        self.contrast_status.setStyleSheet('color: green;')
         if histo_boost:
             data_flat = self.imageItem.image.flatten()
             histogram = Histogram(Regular(1000000, data_flat.min(), data_flat.max()))
@@ -391,6 +436,13 @@ class ApplicationWindow(QMainWindow):
             # Disable buttons
             self.accumulate_button.setEnabled(False)
             self.streamWriterButton.setEnabled(False)
+            if self.thread_read is not None:
+                logging.info("** Main thread forced to sleep **")
+                time.sleep(0.1) 
+            self.autoContrastON = False
+            self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
+            self.contrast_status.setText("Auto Contrast is OFF")
+            self.contrast_status.setStyleSheet('color: red;')
 
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
@@ -416,6 +468,8 @@ class ApplicationWindow(QMainWindow):
 
     def updateUI(self, image, frame_nr):
         self.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False) ## .T)
+        if self.autoContrastON:
+                self.applyAutoContrast()
         self.statusBar().showMessage(f'Frame: {frame_nr}')
 
     def start_accumulate(self):

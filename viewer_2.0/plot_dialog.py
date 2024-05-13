@@ -18,7 +18,7 @@ class PlotDialog(QDialog):
         self.plotWidget0.setLabel('bottom', '<span style="font-size: 13pt">Time</span>', units='s')  
         self.plotWidget0.setLabel('left', '<span style="font-size: 12pt">Amplitude</span>')
         # self.plotWidget0.getPlotItem().getAxis('left').setLogMode(False, True)
-        self.plotWidget0.setYRange(1e6,1e7)
+        # self.plotWidget0.setYRange(1e6,1e7)
         self.layout.addWidget(self.plotWidget0)
         # Middle plot of Sigma_x and Sigma_y = f(t)
         self.plotWidget1 = pg.PlotWidget()
@@ -43,7 +43,7 @@ class PlotDialog(QDialog):
 
         self.timeElapsed = QTime()
         self.dataX = deque() # Time
-        self.dataY0 = deque() # Sigma_x values
+        self.dataY0 = deque() # Amplitude values
         self.dataY1 = deque() # Sigma_x values
         self.dataY2 = deque() # Sigma_y values
         self.dataY3 = deque() # Sigma_x/Sigma_y values
@@ -53,7 +53,7 @@ class PlotDialog(QDialog):
 
     def startPlotting(self, initialValue_H, initialValue_x, initialValue_y):                
         self.dataX.append(0)  # Reset time
-        self.dataY0.append(initialValue_H)  # Reset sigma_x values
+        self.dataY0.append(initialValue_H)  # Reset Gaussian Height values
         self.dataY1.append(initialValue_x)  # Reset sigma_x values
         self.dataY2.append(initialValue_y)  # Reset sigma_y values
         self.dataY3.append(initialValue_x/initialValue_y)
@@ -66,6 +66,7 @@ class PlotDialog(QDialog):
             # Keep the plot window fixed at a 60-second width
             self.dataX.append(elapsed)
             self.dataY0.append(newValue_H)
+            # self.plotWidget0.setYRange(0.1*newValue_H,5*newValue_H)
             self.dataY1.append(newValue_x)
             self.dataY2.append(newValue_y)
             self.dataY3.append(newValue_x/newValue_y)
@@ -77,6 +78,7 @@ class PlotDialog(QDialog):
         else:
             self.dataX.append(elapsed)
             self.dataY0.append(newValue_H)
+            # self.plotWidget0.setYRange(0.1*newValue_H,5*newValue_H)
             self.dataY1.append(newValue_x)
             self.dataY2.append(newValue_y)
             self.dataY3.append(newValue_x/newValue_y)
