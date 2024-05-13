@@ -1,0 +1,36 @@
+# New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
+### Usage - This is a draft and should be updated -
+
+#### Activation
+**\*CameraPC (hodgkin)**
+1. When we login as 'psi', the environment has been setup.
+1.  ```$ p config ~/jf.config```
+1.  ```$ p start```
+1.  ```$ cd /home/psi/software/v2/reuss/build```
+1.  ```$ srecv -t 12```
+    what is '-t 12' ?
+1.  ```$ cd /home/ktakaba/PyJEM_lab/EPOC_git_GUI/GUI_KF/GUI/viewer_2.0```
+1.  ```$ ./viewer_2x.py```
+1.  start streaming in the viewer-GUI, without incident beam.
+1.  ```>>> r.record_pedestal(1)```
+
+**\*TEM-PC**
+1. Activate relay_server  
+Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI,
+```$ python relay_server_testKT.py```  
+*\*Will not correctly communicate with the previous version, 'relay_server.py'*  
+*\*When the sevrver is stuck, open another PowerShell console and kill the python process*  
+```$ Get-Process python```  
+```$ kill [pid]```  
+
+***
+#### Function
+ -
+ -
+ - 'Connect to TEM': Starts communication with TEM. Takes ~10 sec.
+ - 'Get TEM status': Updates the TEM information and shows in the console
+ - 'Click-on-Centring': Activates stage control by clicking the streaming image
+ - 'Start Rotation (+60)': Starts stage rotation until +60 deg., reports the setting parapemters, and resets the stage-tilt to zero when the rotation is stopped.
+ - 'Magnification', 'Distance': Indicates the current or just previous value of magnicication/distance
+ - 'Rotation Speed': Changes rotation speed settings and indicates the current value
+ - 'Start Focus-sweeping': Sweeps IL1 and ILstig values linearly, roughly and finely
