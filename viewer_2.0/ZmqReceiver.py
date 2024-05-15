@@ -68,7 +68,7 @@ class ZmqReceiver:
                 return
             except zmq.ZMQError as e:
                 logging.debug(f"Failed to reconnect due to a ZeroMQ error: {e}\nTrying again...")
-                time.sleep(0.5)
+                time.sleep(0.1)
         logging.info("Failed to reconnect after several attempts.")
 
 if __name__ == "__main__":
