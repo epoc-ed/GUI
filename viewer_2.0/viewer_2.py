@@ -23,10 +23,11 @@ from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBo
                                QGridLayout, QSizePolicy)
 from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
-from PySide6.QtGui import QTransform
+from PySide6.QtGui import QTransform, QIcon
 from workers import *
 import multiprocessing as mp
 from StreamWriter import StreamWriter
+import h5py
 from plot_dialog import *
 from line_profiler import LineProfiler
 import ctypes
@@ -158,12 +159,12 @@ class ApplicationWindow(QMainWindow):
         view_contrast_label = QLabel("Streaming & Contrast")
         view_contrast_group.addWidget(view_contrast_label)
 
-        hbox = QGridLayout()
-        hbox.addWidget(self.stream_view_button, 0, 0, 2, 2)  # Span two rows two columns
-        hbox.addWidget(self.autoContrastBtn, 0, 2)
-        hbox.addWidget(self.contrast_status, 1, 2)
+        grid_1 = QGridLayout()
+        grid_1.addWidget(self.stream_view_button, 0, 0, 2, 2)  # Span two rows two columns
+        grid_1.addWidget(self.autoContrastBtn, 0, 2)
+        grid_1.addWidget(self.contrast_status, 1, 2)
 
-        view_contrast_group.addLayout(hbox)
+        view_contrast_group.addLayout(grid_1)
         section1.addLayout(view_contrast_group)
 
         # Time Interval
@@ -303,29 +304,37 @@ class ApplicationWindow(QMainWindow):
         section3.addLayout(h5_file_ops_layout)
 
         output_folder_layout = QHBoxLayout()
-        self.outPath = QLabel("Output Path", self)
+        self.outPath = QLabel("H5 Output Path", self)
         self.outPath_input = QLineEdit(self)
-        self.folder_name = None
         self.outPath_input.setText(os.getcwd())
-
-        output_folder_layout.addWidget(self.outPath)
-        output_folder_layout.addWidget(self.outPath_input)
+        self.h5_folder_name = self.outPath_input.text()
+        self.folder_button = QPushButton()
+        self.folder_button.setIcon(QIcon("./extras/folder_icon.png"))
+        self.folder_button.clicked.connect(self.open_directory_dialog)
+        
+        output_folder_layout.addWidget(self.outPath, 2)
+        output_folder_layout.addWidget(self.outPath_input,7)
+        output_folder_layout.addWidget(self.folder_button,1)
 
         section3.addLayout(output_folder_layout)
 
+        hdf5_writer_layout = QGridLayout()        
         self.streamWriter = None
         self.streamWriterButton = ToggleButton("Write Stream in H5", self)
         self.streamWriterButton.setEnabled(False)
         self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
+        # Create a checkbox
+        self.xds_checkbox = QCheckBox("Prepare for XDS processing", self)
+        self.xds_checkbox.setChecked(True)
+        hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
+        hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
 
         self.nb_frame = QLabel("Number Written Frames:", self)
         self.total_frame_nb = QSpinBox(self)
         self.total_frame_nb.setMaximum(100000000)
 
-        hdf5_writer_layout = QHBoxLayout()
-        hdf5_writer_layout.addWidget(self.streamWriterButton, 3)
-        hdf5_writer_layout.addWidget(self.nb_frame, 1)
-        hdf5_writer_layout.addWidget(self.total_frame_nb, 2)
+        hdf5_writer_layout.addWidget(self.nb_frame, 0, 2)
+        hdf5_writer_layout.addWidget(self.total_frame_nb, 0, 3)
 
         section3.addLayout(hdf5_writer_layout)
         group3.setLayout(section3)
@@ -632,15 +641,17 @@ class ApplicationWindow(QMainWindow):
         thread.deleteLater()  # Schedule the thread for deletion
         thread = None
 
+    def open_directory_dialog(self):
+        initial_dir = self.h5_folder_name or self.outPath_input.text()
+        folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
+        if not folder_name:
+                return  # User canceled folder selection
+        self.h5_folder_name = folder_name
+        self.outPath_input.setText(self.h5_folder_name)
+        logging.info(f"H5 output path set to: {self.h5_folder_name}")
+        
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
-            initial_dir = self.folder_name or self.outPath_input.text()
-            folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
-            if not folder_name:
-                return  # User canceled folder selection
-            self.folder_name = folder_name
-            self.outPath_input.setText(self.folder_name)
-            logging.info(f"H5 output path set to: {self.folder_name}")
             prefix = self.prefix_input.text().strip()
             if not prefix:
                 logging.error("Error: Prefix is missing! Please specify prefix of the written file(s).")# Handle error: Prefix is mandatory
@@ -650,8 +661,8 @@ class ApplicationWindow(QMainWindow):
             logging.debug("TCP address for Hdf5 writer to bind to is ", args.stream)
             logging.debug("Data type to build the streamWriter object ", args.dtype)
 
-            formatted_filename = self.generate_filename(prefix)
-            self.streamWriter = StreamWriter(filename=formatted_filename, 
+            self.formatted_filename = self.generate_h5_filename(prefix)
+            self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                              endpoint=args.stream, 
                                              dtype=args.dtype)
             self.streamWriter.start()
@@ -664,20 +675,41 @@ class ApplicationWindow(QMainWindow):
             self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
-            
+            if self.xds_checkbox.isChecked():
+                self.generate_h5_master(self.formatted_filename)
     
     def update_h5_file_index(self, index):
             self.h5_file_index = index
             
-    def generate_filename(self, prefix):
+    def generate_h5_filename(self, prefix):
         now = datetime.datetime.now()
         date_str = now.strftime("%d_%B_%Y_%H:%M:%S")
         index_str = f"{self.h5_file_index:03}"
         self.h5_file_index += 1
         self.index_box.setValue(self.h5_file_index)
         filename = f"{prefix}_{index_str}_{date_str}.h5"
-        full_path = os.path.join(self.folder_name, filename)
+        full_path = os.path.join(self.h5_folder_name, filename)
         return full_path
+
+    def generate_h5_master(self, formatted_filename_original_h5):
+        logging.info("Generating HDF5 master file for XDS analysis...")
+        with h5py.File(formatted_filename_original_h5, 'r') as f:
+            data_shape = f['entry/data/data_000001'].shape
+
+        external_link = h5py.ExternalLink(
+            filename = formatted_filename_original_h5,
+            path = 'entry/data/data_000001'
+        )
+        # output = os.path.basename(args.path_input)[:-24] + '_master.h5'
+        output = formatted_filename_original_h5[:-24]  + '_master.h5'
+        with h5py.File(output, 'w') as f:
+            f['entry/data/data_000001'] = external_link
+            f.create_dataset('entry/instrument/detector/detectorSpecific/nimages', data = data_shape[0], dtype='uint64')
+            f.create_dataset('entry/instrument/detector/detectorSpecific/pixel_mask', data = np.zeros((data_shape[1], data_shape[2]), dtype='uint32')) ## 514, 1030, 512, 1024
+            f.create_dataset('entry/instrument/detector/detectorSpecific/x_pixels_in_detector', data = data_shape[1], dtype='uint64') # 512
+            f.create_dataset('entry/instrument/detector/detectorSpecific/y_pixels_in_detector', data = data_shape[2], dtype='uint64') # 1030
+
+        print('HDF5 Master file is ready at ', output)
 
     def do_exit(self):
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
