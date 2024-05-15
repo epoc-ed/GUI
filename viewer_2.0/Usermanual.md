@@ -8,7 +8,7 @@
 1.  ```$ p start```
 1.  ```$ cd /home/psi/software/v2/reuss/build```
 1.  ```$ srecv -t 12```
-    what is '-t 12' ?
+    Using 12 threads
 1.  ```$ cd /home/ktakaba/PyJEM_lab/EPOC_git_GUI/GUI_KF/GUI/viewer_2.0```
 1.  ```$ ./viewer_2x.py```
 1.  start streaming in the viewer-GUI, without incident beam.
