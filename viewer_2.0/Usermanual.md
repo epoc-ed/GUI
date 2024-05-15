@@ -25,12 +25,15 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI,
 
 ***
 #### Function
- -
- -
+ - 
+ - 'View Stream': Reads the stream of frames sent by the receiver.
+ - 'Auto Contrast': Dynamically adjusts the contrast of the displayed frames.
  - 'Connect to TEM': Starts communication with TEM. Takes ~10 sec.
  - 'Get TEM status': Updates the TEM information and shows in the console
  - 'Click-on-Centring': Activates stage control by clicking the streaming image
  - 'Start Rotation (+60)': Starts stage rotation until +60 deg., reports the setting parapemters, and resets the stage-tilt to zero when the rotation is stopped.
  - 'Magnification', 'Distance': Indicates the current or just previous value of magnicication/distance
  - 'Rotation Speed': Changes rotation speed settings and indicates the current value
+ - 'Beam Gaussian Fit': Starts the gaussian fitting of the beam elliptical spot shape.
  - 'Start Focus-sweeping': Sweeps IL1 and ILstig values linearly, roughly and finely
+ - 
