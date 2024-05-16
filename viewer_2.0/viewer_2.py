@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBo
                                QMessageBox, QLabel, QLineEdit, QApplication, QHBoxLayout, 
                                QVBoxLayout, QWidget, QGroupBox, QGraphicsEllipseItem, 
                                QGraphicsRectItem, QFileDialog, QFrame, QCheckBox, 
-                               QGridLayout, QSizePolicy)
+                               QGridLayout, QButtonGroup, QRadioButton)
 from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
                             QRectF, QMetaObject)
 from PySide6.QtGui import QTransform, QIcon
@@ -31,6 +31,9 @@ import h5py
 from plot_dialog import *
 from line_profiler import LineProfiler
 import ctypes
+
+# from task.control_worker import ControlWorker
+# from task.control_worker import *
 
 def save_captures(fname, data):
     logging.info(f'Saving: {fname}')
@@ -49,6 +52,10 @@ class ApplicationWindow(QMainWindow):
         self.receiver = receiver
         self.threadWorkerPairs = [] # List of constructed (thread, worker) pairs
         self.initUI()
+
+        # self.control = ControlWorker()
+        # self.control.tem_socket_status.connect(self.on_sockstatus_change)
+        # self.control.updated.connect(self.on_tem_update)
 
     def initUI(self):
         self.setWindowTitle("Viewer 2.0")
@@ -108,7 +115,7 @@ class ApplicationWindow(QMainWindow):
         sections_layout = QHBoxLayout()
 
         # Section 1 layout
-        group1 = QGroupBox("Visualization Controls")
+        group1 = QGroupBox("Visualization Panel")
         section1 = QVBoxLayout()
         # Creating buttons for theme switching
         colors_group = QVBoxLayout()
@@ -137,7 +144,7 @@ class ApplicationWindow(QMainWindow):
             """
             ToggleButton {
                 color: #FFFFFF; 
-                font-size: 14pt;
+                font-size: 10pt;
                 background-color: #333333;
             }
             """
@@ -180,14 +187,16 @@ class ApplicationWindow(QMainWindow):
         group1.setLayout(section1)
 
         # Section 2 layout
-        group2 = QGroupBox("Beam Focus")
+        group2 = QGroupBox("TEM Controls")
         section2 = QVBoxLayout()
         # Gaussian Fit of the Beam intensity
         self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.getFitParams)
         self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
-        
+        # self.btnBeamSweep = QPushButton('Start Focus-sweeping', self)
+        # self.btnBeamSweep.clicked.connect(self.callBeamFitTask)
+        # self.btnBeamSweep.setEnabled(False)
         # Create a checkbox
         self.checkbox = QCheckBox("Enable pop-up Window", self)
         self.checkbox.setChecked(False)
@@ -222,6 +231,10 @@ class ApplicationWindow(QMainWindow):
         self.angle_spBx.setSingleStep(15)
 
         BeamFocus_layout = QVBoxLayout()
+        # focus_layout = QHBoxLayout()
+        # focus_layout.addWidget(self.btnBeamFocus)
+        # focus_layout.addWidget(self.btnBeamSweep)
+        # BeamFocus_layout.addLayout(focus_layout)
         BeamFocus_layout.addWidget(self.btnBeamFocus)
         BeamFocus_layout.addWidget(self.checkbox)
         gauss_H_layout = QHBoxLayout()
@@ -242,6 +255,73 @@ class ApplicationWindow(QMainWindow):
         BeamFocus_layout.addLayout(rot_angle_layout)
  
         section2.addLayout(BeamFocus_layout)
+
+        # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # ##### communication with TEM
+        # hbox_mag = QHBoxLayout()
+        # magn_label = QLabel("Magnification:", self)
+        # dist_label = QLabel("Distance:", self)
+        # self.input_magnification = QLineEdit(self)
+        # self.input_magnification.setText("")
+        # self.input_magnification.setReadOnly(True)
+        # self.input_det_distance = QLineEdit(self)
+        # self.input_det_distance.setText("")
+        # self.input_det_distance.setReadOnly(True)
+        # hbox_mag.addWidget(magn_label, 1)
+        # hbox_mag.addWidget(self.input_magnification, 2)
+        # hbox_mag.addWidget(dist_label, 1)
+        # hbox_mag.addWidget(self.input_det_distance, 2)
+        # section1.addLayout(hbox_mag)
+       
+        # hbox_rot = QHBoxLayout()
+        # rot_label = QLabel("Rotation Speed:", self)
+        # self.rb_speeds = QButtonGroup()
+        # self.rb_speed_05 = QRadioButton('0.5 deg/s', self)
+        # self.rb_speed_1 = QRadioButton('1 deg/s', self)
+        # self.rb_speed_2 = QRadioButton('2 deg/s', self)
+        # self.rb_speed_10 = QRadioButton('10 deg/s', self)
+        # self.rb_speeds.addButton(self.rb_speed_05, 3)
+        # self.rb_speeds.addButton(self.rb_speed_1, 1)
+        # self.rb_speeds.addButton(self.rb_speed_2, 2)
+        # self.rb_speeds.addButton(self.rb_speed_10, 0)
+        # self.rb_speeds.button(1).setChecked(True)
+        # self.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
+        # hbox_rot.addWidget(rot_label, 1)
+        # for i in self.rb_speeds.buttons():
+        #     hbox_rot.addWidget(i, 1)
+        #     i.setEnabled(False)        
+        # section1.addLayout(hbox_rot)
+
+        # hbox_move = QHBoxLayout()
+        # move_label = QLabel("Stage Ctrl:", self)
+        # self.movestages = QButtonGroup()
+        # self.movex10ump = QPushButton('+10 µm', self)
+        # self.movex10umn = QPushButton('-10 µm', self)
+        # self.move10degp = QPushButton('+10 deg', self)
+        # self.move10degn = QPushButton('-10 deg', self)
+        # self.move0deg = QPushButton('0 deg', self)
+        # self.movestages.addButton(self.movex10ump, 2)
+        # self.movestages.addButton(self.movex10umn, -2)
+        # self.movestages.addButton(self.move10degp, 10)
+        # self.movestages.addButton(self.move10degn, -10)
+        # self.movestages.addButton(self.move0deg, 0)
+        # self.movex10ump.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(10000)"))
+        # self.movex10umn.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(-10000)"))
+        # self.move10degp.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(10)"))
+        # self.move10degn.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(-10)"))
+        # self.move0deg.clicked.connect(lambda: self.control.send.emit("stage.SetTiltXAngle(0)"))
+        # hbox_move.addWidget(move_label, 1)
+        # for i in self.movestages.buttons():
+        #     hbox_move.addWidget(i, 1)
+        #     i.setEnabled(False)
+        # section1.addLayout(hbox_move)
+        # ##### END of communication with TEM
+        # # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # # ^^^^^^^^^^^^^^^^^^
+
         group2.setLayout(section2)
 
         # Section 3 layout
@@ -347,6 +427,43 @@ class ApplicationWindow(QMainWindow):
         # Exit
         self.exit_button = QPushButton("Exit", self)
         self.exit_button.clicked.connect(self.do_exit)
+
+        # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+        # self.connecttem_button = ToggleButton('Connect to TEM', self)
+        # self.connecttem_button.clicked.connect(self.toggle_connectTEM)
+        # self.gettem_button = QPushButton("Get TEM status", self)
+        # self.gettem_checkbox = QCheckBox("recording", self)
+        # self.gettem_checkbox.setChecked(False)
+        # self.gettem_checkbox.setEnabled(False)
+        # self.gettem_button.clicked.connect(self.callGetInfoTask)
+        # self.centering_button = ToggleButton("Click-on-Centering", self)
+        # self.centering_button.clicked.connect(self.toggle_centering)
+        # self.rotation_button = ToggleButton("Start Rotation (+60)", self)
+        # self.rotation_button.clicked.connect(self.toggle_rotation)
+        # self.gettem_button.setEnabled(False)
+        # self.centering_button.setEnabled(False)
+        # self.rotation_button.setEnabled(False)
+        # # self.gettem_button.clicked.connect(self.do_exit)
+        # gettem_layout = QHBoxLayout()
+        # gettem_layout.addWidget(self.gettem_button)
+        # gettem_layout.addWidget(self.gettem_checkbox)
+        # bottom_layout = QHBoxLayout()
+        # bottom_layout.addWidget(self.connecttem_button)
+        # bottom_layout.addLayout(gettem_layout)
+        # bottom_layout.addWidget(self.centering_button)
+        # bottom_layout.addWidget(self.rotation_button)
+        # bottom_layout.addWidget(self.exit_button)
+        # # main_layout.addWidget(self.exit_button)
+        # main_layout.addLayout(bottom_layout)
+
+        # # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
         main_layout.addWidget(self.exit_button)
         # Set the central widget of the MainWindow
         central_widget = QWidget()
@@ -414,6 +531,23 @@ class ApplicationWindow(QMainWindow):
         val = im[i, j]
         ppos = self.imageItem.mapToParent(pos)
         x, y = ppos.x(), ppos.y()
+
+        # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        
+        # #### click-on-centering
+        # if event.buttons() == Qt.LeftButton:
+        #     if self.centering_button.started:
+        #         self.control.trigger_centering.emit(True, "%0.1f, %0.1f" % (x, y))
+        #     else:
+        #         QApplication.clipboard().setText("%0.1f, %0.1f" % (x, y))
+        # ####
+
+        # # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        # # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
         self.plot.setTitle("pos: (%0.1f, %0.1f)  pixel: (%d, %d)  value: %.3g" % (x, y, i, j, val))      
 
     def toggle_viewStream(self):
@@ -445,8 +579,9 @@ class ApplicationWindow(QMainWindow):
             # Disable buttons
             self.accumulate_button.setEnabled(False)
             self.streamWriterButton.setEnabled(False)
+            # Wait for thread to actually stop
             if self.thread_read is not None:
-                logging.info("** Main thread forced to sleep **")
+                logging.info("** Read-thread forced to sleep **")
                 time.sleep(0.1) 
             self.autoContrastON = False
             self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
@@ -603,15 +738,15 @@ class ApplicationWindow(QMainWindow):
         self.plot.addItem(self.sigma_y_fit)
 
     def removeAxes(self):
-        logging.info("removeAxes called")
+        logging.info("Removing gaussian fitting ellipse.")
         if self.ellipse_fit.scene():
-            logging.info("Removing ellipse_fit from scene")
+            logging.debug("Removing ellipse_fit from scene")
             self.ellipse_fit.scene().removeItem(self.ellipse_fit)
         if self.sigma_x_fit.scene():
-            logging.info("Removing sigma_x_fit from scene")
+            logging.debug("Removing sigma_x_fit from scene")
             self.sigma_x_fit.scene().removeItem(self.sigma_x_fit)
         if self.sigma_y_fit.scene():
-            logging.info("Removing sigma_y_fit from scene")
+            logging.debug("Removing sigma_y_fit from scene")
             self.sigma_y_fit.scene().removeItem(self.sigma_y_fit)
         # Optionally, update or refresh the scene if necessary
         # if self.plot.scene():
@@ -664,6 +799,7 @@ class ApplicationWindow(QMainWindow):
             self.formatted_filename = self.generate_h5_filename(prefix)
             self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                              endpoint=args.stream, 
+                                             image_size = (globals.nrow,globals.ncol),
                                              dtype=args.dtype)
             self.streamWriter.start()
             self.streamWriterButton.setText("Stop Writing")
@@ -732,7 +868,108 @@ class ApplicationWindow(QMainWindow):
         logging.info("Exiting app!") 
         app.quit()
 
+    # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+    # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+    # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
+    # def callBeamFitTask(self):
+    #     if self.connecttem_button.started:
+    #         self.control.actionFit_Beam.emit()
+
+    # def callGetInfoTask(self):
+    #     if self.connecttem_button.started:
+    #         if not os.access(self.outPath_input.text(), os.W_OK):
+    #             self.gettem_checkbox.setChecked(False)
+    #             logging.error(f'Writing in {self.outPath_input.text()} is not permitted!')
+    #         if self.gettem_checkbox.isChecked():
+    #             self.control.trigger_getteminfo.emit('Y')
+    #         else:
+    #             self.control.trigger_getteminfo.emit('N')
+
+    # def toggle_rotation(self):
+    #     if not self.rotation_button.started:
+    #         self.control.trigger_record.emit()
+    #         self.rotation_button.setText("Rotating")
+    #         self.rotation_button.started = True
+    #     else:
+    #         self.rotation_button.setText("Start Rotation (+60)")
+    #         self.rotation_button.started = False
+
+    # def toggle_centering(self):
+    #     if not self.centering_button.started:
+    #         self.centering_button.setText("Deactivate centering")
+    #         self.centering_button.started = True
+    #     else:
+    #         self.centering_button.setText("Click-on-Centering")
+    #         self.centering_button.started = False
+
+    # def on_tem_update(self):
+    #     if self.control.tem_status["eos.GetFunctionMode"][0] in [0, 1, 2]:
+    #         magnification = self.control.tem_status["eos.GetMagValue"][2]
+    #         self.input_magnification.setText(magnification)
+    #     if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
+    #         detector_distance = self.control.tem_status["eos.GetMagValue"][2]
+    #         self.input_det_distance.setText(detector_distance)
+            
+    #     rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
+    #     self.rb_speeds.button(rotation_speed_index).setChecked(True)
+
+    # def toggle_rb_speeds(self):
+    #     if self.connecttem_button.started:
+    #         self.control.send.emit("stage.Setf1OverRateTxNum("+ str(self.rb_speeds.checkedId()) +")")
+            
+    # # @Slot(int, str)
+    # def on_sockstatus_change(self, state, error_msg):
+    #     if state == QAbstractSocket.SocketState.ConnectedState:
+    #         message, color = "Connected", "green"
+    #         self.connecttem_button.started = True
+    #     elif state == QAbstractSocket.SocketState.ConnectingState:
+    #         message, color = "Connecting", "orange"
+    #         self.connecttem_button.started = True
+    #     elif error_msg:
+    #         message = "Error (" + error_msg + ")"
+    #         color = "red"
+    #         self.connecttem_button.started = False
+    #     else:
+    #         message, color = "Disconnected", "red"
+    #         self.connecttem_button.started = False
+    #     self.connecttem_button.setText(message)
+    #     self.gettem_button.setEnabled(self.connecttem_button.started)
+    #     self.centering_button.setEnabled(self.connecttem_button.started)
+    #     self.rotation_button.setEnabled(self.connecttem_button.started)
+    #     self.btnBeamSweep.setEnabled(self.connecttem_button.started)
+    #     self.gettem_checkbox.setChecked(self.connecttem_button.started)
+    #     for i in self.rb_speeds.buttons():
+    #         i.setEnabled(self.connecttem_button.started)
+    #     for i in self.movestages.buttons():
+    #         i.setEnabled(self.connecttem_button.started)
+        
+    #     # return message, color
+            
+    # def toggle_connectTEM(self):
+    #     if not self.connecttem_button.started:
+    #         self.control.init.emit()
+    #         self.connecttem_button.setText("Disconnect")
+    #         self.connecttem_button.started = True
+    #         self.control.trigger_getteminfo.emit('N')
+    #     else:
+    #         self.control.trigger_shutdown.emit()
+    #         self.connecttem_button.setText("Connect to TEM")
+    #         self.connecttem_button.started = False
+    #     self.gettem_button.setEnabled(self.connecttem_button.started)
+    #     self.centering_button.setEnabled(self.connecttem_button.started)
+    #     self.rotation_button.setEnabled(self.connecttem_button.started)
+    #     self.btnBeamSweep.setEnabled(self.connecttem_button.started)
+    #     self.gettem_checkbox.setEnabled(self.connecttem_button.started)
+    #     for i in self.rb_speeds.buttons():
+    #         i.setEnabled(self.connecttem_button.started)
+    #     for i in self.movestages.buttons():
+    #         i.setEnabled(self.connecttem_button.started)
+    
+    # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+    # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+    # # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        
 if __name__ == "__main__":
     format = "%(message)s"
     logging.basicConfig(format=format, level=logging.INFO)

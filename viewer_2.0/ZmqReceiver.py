@@ -9,7 +9,7 @@ import globals
 # Receiver of the ZMQ stream
 class ZmqReceiver:
     def __init__(self, endpoint, 
-                 timeout_ms = 100, 
+                 timeout_ms = 10, 
                  dtype = np.float32,
                  hwm = 2):
         self.endpoint = endpoint
@@ -48,16 +48,19 @@ class ZmqReceiver:
             try:
                 msgs = self.socket.recv_multipart()
                 frame_nr = np.frombuffer(msgs[0], dtype=np.int64)[0]
-                image = np.frombuffer(msgs[1], dtype=self.dt).reshape(512, 1024)
+                image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
                 return image, frame_nr
             except zmq.error.Again:
                 logging.warning("Timeout or no messages received, attempting to reconnect...")
                 self.reconnect()
                 return None, None
+            except Exception as e:
+                logging.error(f"An unexpected error occurred: {e}")
+                return None, None
 
     def reconnect(self):
         """Attempt to reconnect to the server."""
-        max_retries = 10
+        max_retries = 1
         for attempt in range(max_retries):
             try:
                 logging.debug(f"Attempting to reconnect ({attempt+1}/{max_retries})...")
