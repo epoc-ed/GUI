@@ -811,8 +811,8 @@ class ApplicationWindow(QMainWindow):
             self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
-            if self.xds_checkbox.isChecked():
-                self.generate_h5_master(self.formatted_filename)
+            # if self.xds_checkbox.isChecked():
+            #     self.generate_h5_master(self.formatted_filename)
     
     def update_h5_file_index(self, index):
             self.h5_file_index = index
@@ -824,6 +824,8 @@ class ApplicationWindow(QMainWindow):
         self.h5_file_index += 1
         self.index_box.setValue(self.h5_file_index)
         filename = f"{prefix}_{index_str}_{date_str}.h5"
+        if self.xds_checkbox.isChecked():
+            filename = f"{prefix}_{index_str}_{date_str}_master.h5" # for XDS
         full_path = os.path.join(self.h5_folder_name, filename)
         return full_path
 

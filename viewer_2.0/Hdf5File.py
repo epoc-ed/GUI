@@ -38,13 +38,14 @@ def check_write(func):
 
 
 class Hdf5File:
-    def __init__(self, filename, mode='r', image_size = (512,1024), dtype = np.float32, pixel_mask = None):
+    def __init__(self, filename, mode='r', image_size = (512,1024), dtype = np.float32, pixel_mask = None, pixel_size = (0.075, 0.075)):
         filename = Path(filename)
         self.filename = filename
         self.mode = mode
 
         #shape and data type only matters for writing
         self._image_size = image_size 
+        self._pixel_size = pixel_size
         self.dt = dtype
         self.frame_index = 0
 
@@ -71,11 +72,13 @@ class Hdf5File:
 
             #Pixel mask for albula, respected by other applications? 
             if pixel_mask is None:
-                pixel_mask = np.zeros(self._image_size, dtype = np.uint8) 
+                pixel_mask = np.zeros(self._image_size, dtype = np.uint8)
+            nxentry.create_dataset('instrument/detector/x_pixel_size', data=self._pixel_size[0], dtype='float32')
+            nxentry.create_dataset('instrument/detector/y_pixel_size', data=self._pixel_size[1], dtype='float32')
             inst = nxentry.create_group("instrument/detector/detectorSpecific")
-            inst.create_dataset("pixel_mask", data=pixel_mask.astype(np.uint8), **compression)
-            
-            
+            inst.create_dataset("pixel_mask", data=pixel_mask.astype(np.uint8)) #, **compression)
+            inst.create_dataset('x_pixels_in_detector', data = self._image_size[0], dtype='uint64')
+            inst.create_dataset('y_pixels_in_detector', data = self._image_size[1], dtype='uint64')            
 
         elif self.mode == 'r':
             self.file = h5py.File(self.filename, self.mode)
@@ -120,3 +123,6 @@ class Hdf5File:
     def close(self):
         self.file.close()
 
+    def add_nimages(self):
+        self.file.create_dataset('entry/instrument/detector/detectorSpecific/nimages', data=self.n_frames, dtype='uint64')
+        
