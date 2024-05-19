@@ -406,6 +406,10 @@ class ApplicationWindow(QMainWindow):
         # Create a checkbox
         self.xds_checkbox = QCheckBox("Prepare for XDS processing", self)
         self.xds_checkbox.setChecked(True)
+        ### hidden option
+        self.int_checkbox = QCheckBox("Convert output type to int", self)
+        self.int_checkbox.setChecked(False)
+        ###
         hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
         hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
 
@@ -797,10 +801,15 @@ class ApplicationWindow(QMainWindow):
             logging.debug("Data type to build the streamWriter object ", args.dtype)
 
             self.formatted_filename = self.generate_h5_filename(prefix)
+            if self.xds_checkbox.isChecked():
+                self.dtype_w = np.float32
+            else:
+                self.dtype_w = args.dtype
             self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                              endpoint=args.stream, 
                                              image_size = (globals.nrow,globals.ncol),
-                                             dtype=args.dtype)
+                                             dtype=args.dtype,
+                                             dtype_w=self.dtype_w)
             self.streamWriter.start()
             self.streamWriterButton.setText("Stop Writing")
             self.streamWriterButton.started = True
