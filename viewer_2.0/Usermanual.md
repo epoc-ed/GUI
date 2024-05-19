@@ -7,21 +7,31 @@
 1.  ```$ p config ~/jf.config```
 1.  ```$ p start```
 1.  ```$ cd /home/psi/software/v2/reuss/build```
-1.  ```$ srecv -t 12``` \
+1.  ```$ ./srecv -t 12``` \
     *Using 12 threads*
 1.  ```$ cd /home/psi/software/viewer_2.0/GUI/viewer_2.0```
 1.  ```$ ./viewer_2.py```
 1.  start streaming in the viewer-GUI, without incident beam.
 1.  ```>>> r.record_pedestal(1)```
 
-**\*TEM-PC, not needed when you only use the TEM console**
-1. Activate relay_server
+**\*TEM-PC, NOT needed when you ONLY use the TEM console**
+1. Activate relay_server \
 Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI,
 ```$ python relay_server_testKT.py```  
 *\*Will not correctly communicate with the previous version, 'relay_server.py'*  
 *\*When the sevrver is stuck, open another PowerShell console and kill the python process*  
 ```$ Get-Process python```  
 ```$ kill [pid]```  
+
+#### Deactivation
+**\*CameraPC (hodgkin)**
+1. Stop streaming and Exit the viewer
+1. Stop the receiver from the terminal window. This takes several tens of seconds.
+    ```>>> r.record_pedestal(1)```
+1. ```$ p stop```
+
+**\*TEM-PC**
+1. When disconnected from the viewer-GUI, relay_server.py automatically terminates.
 
 ***
 #### Function
