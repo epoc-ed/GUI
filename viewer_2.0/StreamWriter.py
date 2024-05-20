@@ -7,12 +7,11 @@ import ctypes
 import logging
 
 class StreamWriter:
-    def __init__(self, filename, endpoint, mode='w', image_size = (512,1024), dtype = np.float32, pixel_mask = None, fformat = 'h5', dtype_w = np.float32):
+    def __init__(self, filename, endpoint, mode='w', image_size = (512,1024), dtype = np.float32, pixel_mask = None, fformat = 'h5'):
         self.timeout_ms = 100
         self.buffer_size_in_frames = 10
         self.endpoint = endpoint
         self.dt = dtype
-        self.dt_w = dtype_w
         self.filename = Path(filename)
         self.image_size = image_size
 
@@ -46,9 +45,9 @@ class StreamWriter:
 
     def _write(self):
         logging.info("Starting write process" )
+        
         if self.fformat in ['h5','hdf5', 'hdf']:
-            # f = Hdf5File(self.filename, self.mode, self.image_size, self.dt, self.pixel_mask)
-            f = Hdf5File(self.filename, self.mode, self.image_size, self.dt_w, self.pixel_mask)
+            f = Hdf5File(self.filename, self.mode, self.image_size, self.dt, self.pixel_mask)
         else:
             raise ValueError(f"Unknown file format: {self.fformat}")
 
@@ -69,10 +68,7 @@ class StreamWriter:
                     self.first_frame_number.value = frame_nr
                     logging.info(f"First written frame number is  {self.first_frame_number.value}")
                 image = np.frombuffer(msgs[1], dtype = self.dt).reshape(self.image_size)
-                if self.dt_w != self.dt:
-                    f.write(image.astype(self.dt_w))
-                else:
-                    f.write(image)
+                f.write(image)
                 logging.debug("Hdf5 is being written...")
                 self.last_frame_number.value = frame_nr
             except zmq.error.Again:
