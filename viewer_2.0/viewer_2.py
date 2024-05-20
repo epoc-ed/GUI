@@ -406,7 +406,6 @@ class ApplicationWindow(QMainWindow):
         # Create a checkbox
         self.xds_checkbox = QCheckBox("Prepare for XDS processing", self)
         self.xds_checkbox.setChecked(True)
-        ###
         hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
         hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
 
