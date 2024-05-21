@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 import zmq
 import multiprocessing as mp
-from Hdf5File2 import Hdf5File
+from Hdf5File import Hdf5File
 import ctypes
 import logging
 
