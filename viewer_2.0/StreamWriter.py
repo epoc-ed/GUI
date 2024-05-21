@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 import zmq
 import multiprocessing as mp
-from Hdf5File import Hdf5File
+from Hdf5File2 import Hdf5File
 import ctypes
 import logging
 
@@ -68,7 +68,7 @@ class StreamWriter:
                     self.first_frame_number.value = frame_nr
                     logging.info(f"First written frame number is  {self.first_frame_number.value}")
                 image = np.frombuffer(msgs[1], dtype = self.dt).reshape(self.image_size)
-                f.write(image)
+                f.write(image, frame_nr)
                 logging.debug("Hdf5 is being written...")
                 self.last_frame_number.value = frame_nr
             except zmq.error.Again:
