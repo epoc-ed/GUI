@@ -76,8 +76,9 @@ class ControlWorker(QObject):
         self.tem_socket.errorOccurred.connect(
             lambda state: self.tem_socket_status.emit(self.tem_socket.state(), self.tem_socket.errorString()))        
         self.tcpconnect()
-
-        # self.send.emit("stage.Setf1OverTateTxNum(2)")
+        
+        # self.send.emit("stage.Setf1OverRateTxNum(2)")
+        logging.info("initialized control thread")
 
     def start_task(self, task):
         self.last_task = self.task
@@ -132,9 +133,10 @@ class ControlWorker(QObject):
 
     @Slot()
     def shutdown(self):
-        # logging.info("shutting down control")
+        logging.info("shutting down control")
         try:
             self.send_to_tem("#quit")
+            time.sleep(0.12)
             self.tem_socket.close()
             logging.info("disconnected")
             # self.timer.stop()

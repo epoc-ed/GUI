@@ -11,7 +11,7 @@ def string_dt(s):
     return h5py.Datatype(tid)
 
 def create_string_attr(obj, key, value):
-    # Albula requires null terminated strings
+    #Albula requires null terminated strings
     if value[-1] != "\x00":
         value += "\x00"
     obj.attrs.create(key, value, dtype=string_dt(value))

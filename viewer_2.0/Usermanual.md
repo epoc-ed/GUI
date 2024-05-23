@@ -65,7 +65,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI,
 ***
 #### Data-processing workflow, 21 May 2024
 - Read with DIALS:\
-    When the Format Class [https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE01.py] installed, dials can read the HDF directly;\
+    When the Format Class [https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE01.py] is installed, dials can read the HDF directly;\
     ```dials.import ******_master.h5```
 - Read with XDS:\
     To be confirmed...
