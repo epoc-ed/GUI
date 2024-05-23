@@ -23,16 +23,19 @@ from PySide6.QtWidgets import (QMainWindow, QPushButton, QSpinBox, QDoubleSpinBo
                                QGridLayout, QSizePolicy, QButtonGroup, QRadioButton)
 from PySide6.QtCore import (Qt, QThread, QTimer, QCoreApplication, 
                             QRectF, QMetaObject, Signal, QObject)
-from PySide6.QtGui import QTransform
+from PySide6.QtGui import QTransform, QIcon
 from workers import *
 import multiprocessing as mp
 from StreamWriter import StreamWriter
+import h5py
 from plot_dialog import *
 from line_profiler import LineProfiler
 import ctypes
 
 # from task.control_worker import ControlWorker
 from task.control_worker import *
+from toolbox.tool import *
+from ui.main_window_ui_temctrl import *
 
 def save_captures(fname, data):
     logging.info(f'Saving: {fname}')
@@ -45,16 +48,18 @@ class ToggleButton(QPushButton):
         self.started = False
 
 
-class ApplicationWindow(QMainWindow):
+class ApplicationWindow(QMainWindow, Ui_TEMctrl):
     def __init__(self, receiver):
         super().__init__()
         self.receiver = receiver
         self.threadWorkerPairs = [] # List of constructed (thread, worker) pairs
+        if globals.tem_mode: self.setupUI_temctrl(self)
         self.initUI()
         
-        self.control = ControlWorker()
-        self.control.tem_socket_status.connect(self.on_sockstatus_change)
-        self.control.updated.connect(self.on_tem_update)
+        if globals.tem_mode:
+            self.control = ControlWorker()
+            self.control.tem_socket_status.connect(self.on_sockstatus_change)
+            self.control.updated.connect(self.on_tem_update)
 
     def initUI(self):
         self.setWindowTitle("Viewer 2.x")
@@ -114,7 +119,7 @@ class ApplicationWindow(QMainWindow):
         sections_layout = QHBoxLayout()
 
         # Section 1 layout
-        group1 = QGroupBox("Visualization Controls")
+        group1 = QGroupBox("Visualization Panel")
         section1 = QVBoxLayout()
         # Creating buttons for theme switching
         colors_group = QVBoxLayout()
@@ -143,7 +148,7 @@ class ApplicationWindow(QMainWindow):
             """
             ToggleButton {
                 color: #FFFFFF; 
-                font-size: 14pt;
+                font-size: 10pt;
                 background-color: #333333;
             }
             """
@@ -165,12 +170,12 @@ class ApplicationWindow(QMainWindow):
         view_contrast_label = QLabel("Streaming & Contrast")
         view_contrast_group.addWidget(view_contrast_label)
 
-        hbox = QGridLayout()
-        hbox.addWidget(self.stream_view_button, 0, 0, 2, 2)  # Span two rows two columns
-        hbox.addWidget(self.autoContrastBtn, 0, 2)
-        hbox.addWidget(self.contrast_status, 1, 2)
+        grid_1 = QGridLayout()
+        grid_1.addWidget(self.stream_view_button, 0, 0, 2, 2)  # Span two rows two columns
+        grid_1.addWidget(self.autoContrastBtn, 0, 2)
+        grid_1.addWidget(self.contrast_status, 1, 2)
 
-        view_contrast_group.addLayout(hbox)
+        view_contrast_group.addLayout(grid_1)
         section1.addLayout(view_contrast_group)
 
         # Time Interval
@@ -185,79 +190,32 @@ class ApplicationWindow(QMainWindow):
         section1.addLayout(time_interval_layout)
         
         ##### communication with TEM
-        hbox_mag = QHBoxLayout()
-        magn_label = QLabel("Magnification:", self)
-        dist_label = QLabel("Distance:", self)
-        self.input_magnification = QLineEdit(self)
-        self.input_magnification.setText("")
-        self.input_magnification.setReadOnly(True)
-        self.input_det_distance = QLineEdit(self)
-        self.input_det_distance.setText("")
-        self.input_det_distance.setReadOnly(True)
-        hbox_mag.addWidget(magn_label, 1)
-        hbox_mag.addWidget(self.input_magnification, 1)
-        hbox_mag.addWidget(dist_label, 1)
-        hbox_mag.addWidget(self.input_det_distance, 1)
-        section1.addLayout(hbox_mag)
-       
-        hbox_rot = QHBoxLayout()
-        rot_label = QLabel("Rotation Speed:", self)
-        self.rb_speeds = QButtonGroup()
-        self.rb_speed_05 = QRadioButton('0.5 deg/s', self)
-        self.rb_speed_1 = QRadioButton('1 deg/s', self)
-        self.rb_speed_2 = QRadioButton('2 deg/s', self)
-        self.rb_speed_10 = QRadioButton('10 deg/s', self)
-        self.rb_speeds.addButton(self.rb_speed_05, 3)
-        self.rb_speeds.addButton(self.rb_speed_1, 1)
-        self.rb_speeds.addButton(self.rb_speed_2, 2)
-        self.rb_speeds.addButton(self.rb_speed_10, 0)
-        self.rb_speeds.button(1).setChecked(True)
-        self.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
-        hbox_rot.addWidget(rot_label, 1)
-        for i in self.rb_speeds.buttons():
-            hbox_rot.addWidget(i, 1)
-            i.setEnabled(False)        
-        section1.addLayout(hbox_rot)
-
-        hbox_move = QHBoxLayout()
-        move_label = QLabel("Stage Ctrl:", self)
-        self.movestages = QButtonGroup()
-        self.movex10ump = QPushButton('+10 µm', self)
-        self.movex10umn = QPushButton('-10 µm', self)
-        self.move10degp = QPushButton('+10 deg', self)
-        self.move10degn = QPushButton('-10 deg', self)
-        self.move0deg = QPushButton('0 deg', self)
-        self.movestages.addButton(self.movex10ump, 2)
-        self.movestages.addButton(self.movex10umn, -2)
-        self.movestages.addButton(self.move10degp, 10)
-        self.movestages.addButton(self.move10degn, -10)
-        self.movestages.addButton(self.move0deg, 0)
-        self.movex10ump.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(10000)"))
-        self.movex10umn.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(-10000)"))
-        self.move10degp.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(10)"))
-        self.move10degn.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(-10)"))
-        self.move0deg.clicked.connect(lambda: self.control.send.emit("stage.SetTiltXAngle(0)"))
-        hbox_move.addWidget(move_label, 1)
-        for i in self.movestages.buttons():
-            hbox_move.addWidget(i, 1)
-            i.setEnabled(False)
-        section1.addLayout(hbox_move)
+        if globals.tem_mode:
+            section1.addLayout(self.hbox_mag)
+            self.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
+            section1.addLayout(self.hbox_rot)
+            self.movex10ump.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(10000)"))
+            self.movex10umn.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(-10000)"))
+            self.move10degp.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(10)"))
+            self.move10degn.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(-10)"))
+            self.move0deg.clicked.connect(lambda: self.control.send.emit("stage.SetTiltXAngle(0)"))
+            section1.addLayout(self.hbox_move)
         ##### END of communication with TEM
         
         group1.setLayout(section1)
 
         # Section 2 layout
-        group2 = QGroupBox("Beam Focus")
+        group2 = QGroupBox("TEM Controls")
         section2 = QVBoxLayout()
         # Gaussian Fit of the Beam intensity
-        self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
+        if globals.tem_mode:
+            self.btnBeamSweep.clicked.connect(self.callBeamFitTask)
+        else:
+            self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.getFitParams)
         self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
-        self.btnBeamSweep = QPushButton('Start Focus-sweeping', self)
-        self.btnBeamSweep.clicked.connect(self.callBeamFitTask)
-        self.btnBeamSweep.setEnabled(False)
-        
+            
         # Create a checkbox
         self.checkbox = QCheckBox("Enable pop-up Window", self)
         self.checkbox.setChecked(False)
@@ -292,11 +250,10 @@ class ApplicationWindow(QMainWindow):
         self.angle_spBx.setSingleStep(15)
 
         BeamFocus_layout = QVBoxLayout()
-        focus_layout = QHBoxLayout()
-        focus_layout.addWidget(self.btnBeamFocus)
-        focus_layout.addWidget(self.btnBeamSweep)
-#        BeamFocus_layout.addWidget(self.btnBeamFocus)
-        BeamFocus_layout.addLayout(focus_layout)
+        if globals.tem_mode:
+            BeamFocus_layout.addLayout(self.focus_layout)
+        else:
+            BeamFocus_layout.addWidget(self.btnBeamFocus)
         BeamFocus_layout.addWidget(self.checkbox)
         gauss_H_layout = QHBoxLayout()
         gauss_H_layout.addWidget(label_gauss_height)  
@@ -378,29 +335,39 @@ class ApplicationWindow(QMainWindow):
         section3.addLayout(h5_file_ops_layout)
 
         output_folder_layout = QHBoxLayout()
-        self.outPath = QLabel("Output Path", self)
+        self.outPath = QLabel("H5 Output Path", self)
         self.outPath_input = QLineEdit(self)
-        self.folder_name = None
         self.outPath_input.setText(os.getcwd())
 
-        output_folder_layout.addWidget(self.outPath)
         output_folder_layout.addWidget(self.outPath_input)
+        self.h5_folder_name = self.outPath_input.text()
+        self.folder_button = QPushButton()
+        self.folder_button.setIcon(QIcon("./extras/folder_icon.png"))
+        self.folder_button.clicked.connect(self.open_directory_dialog)
+
+        output_folder_layout.addWidget(self.outPath, 2)
+        output_folder_layout.addWidget(self.outPath_input,7)
+        output_folder_layout.addWidget(self.folder_button,1)
 
         section3.addLayout(output_folder_layout)
 
+        hdf5_writer_layout = QGridLayout()
         self.streamWriter = None
         self.streamWriterButton = ToggleButton("Write Stream in H5", self)
         self.streamWriterButton.setEnabled(False)
         self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
+        # Create a checkbox
+        self.xds_checkbox = QCheckBox("Prepare for XDS processing", self)
+        self.xds_checkbox.setChecked(True)
+        hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
+        hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)        
 
         self.nb_frame = QLabel("Number Written Frames:", self)
         self.total_frame_nb = QSpinBox(self)
         self.total_frame_nb.setMaximum(100000000)
 
-        hdf5_writer_layout = QHBoxLayout()
-        hdf5_writer_layout.addWidget(self.streamWriterButton, 3)
-        hdf5_writer_layout.addWidget(self.nb_frame, 1)
-        hdf5_writer_layout.addWidget(self.total_frame_nb, 2)
+        hdf5_writer_layout.addWidget(self.nb_frame, 0, 2)
+        hdf5_writer_layout.addWidget(self.total_frame_nb, 0, 3)
 
         section3.addLayout(hdf5_writer_layout)
         group3.setLayout(section3)
@@ -411,34 +378,17 @@ class ApplicationWindow(QMainWindow):
 
         main_layout.addLayout(sections_layout)
         # Exit
-        self.exit_button = QPushButton("Exit", self)
-        self.exit_button.clicked.connect(self.do_exit)
-        self.connecttem_button = ToggleButton('Connect to TEM', self)
-        self.connecttem_button.clicked.connect(self.toggle_connectTEM)
-        self.gettem_button = QPushButton("Get TEM status", self)
-        self.gettem_checkbox = QCheckBox("recording", self)
-        self.gettem_checkbox.setChecked(False)
-        self.gettem_checkbox.setEnabled(False)
-        self.gettem_button.clicked.connect(self.callGetInfoTask)
-        self.centering_button = ToggleButton("Click-on-Centering", self)
-        self.centering_button.clicked.connect(self.toggle_centering)
-        self.rotation_button = ToggleButton("Start Rotation (+60)", self)
-        self.rotation_button.clicked.connect(self.toggle_rotation)
-        self.gettem_button.setEnabled(False)
-        self.centering_button.setEnabled(False)
-        self.rotation_button.setEnabled(False)
-        # self.gettem_button.clicked.connect(self.do_exit)
-        gettem_layout = QHBoxLayout()
-        gettem_layout.addWidget(self.gettem_button)
-        gettem_layout.addWidget(self.gettem_checkbox)
-        bottom_layout = QHBoxLayout()
-        bottom_layout.addWidget(self.connecttem_button)
-        bottom_layout.addLayout(gettem_layout)
-        bottom_layout.addWidget(self.centering_button)
-        bottom_layout.addWidget(self.rotation_button)
-        bottom_layout.addWidget(self.exit_button)
-        # main_layout.addWidget(self.exit_button)
-        main_layout.addLayout(bottom_layout)
+        if globals.tem_mode:
+            self.exit_button.clicked.connect(self.do_exit)
+            self.connecttem_button.clicked.connect(self.toggle_connectTEM)
+            self.gettem_button.clicked.connect(self.callGetInfoTask)
+            self.centering_button.clicked.connect(self.toggle_centering)
+            self.rotation_button.clicked.connect(self.toggle_rotation)
+            main_layout.addLayout(self.bottom_layout)
+        else:
+            self.exit_button = QPushButton("Exit", self)
+            self.exit_button.clicked.connect(self.do_exit)
+            main_layout.addWidget(self.exit_button)
         # Set the central widget of the MainWindow
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
@@ -507,7 +457,7 @@ class ApplicationWindow(QMainWindow):
         x, y = ppos.x(), ppos.y()
         #### click-on-centering
         if event.buttons() == Qt.LeftButton:
-            if self.centering_button.started:
+            if self.centering_button.started and globals.tem_mode:
                 self.control.trigger_centering.emit(True, "%0.1f, %0.1f" % (x, y))
             else:
                 QApplication.clipboard().setText("%0.1f, %0.1f" % (x, y))
@@ -543,8 +493,9 @@ class ApplicationWindow(QMainWindow):
             # Disable buttons
             self.accumulate_button.setEnabled(False)
             self.streamWriterButton.setEnabled(False)
+            # Wait for thread to actually stop            
             if self.thread_read is not None:
-                logging.info("** Main thread forced to sleep **")
+                logging.info("** Read-thread forced to sleep **")
                 time.sleep(0.1) 
             self.autoContrastON = False
             self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
@@ -701,15 +652,15 @@ class ApplicationWindow(QMainWindow):
         self.plot.addItem(self.sigma_y_fit)
 
     def removeAxes(self):
-        logging.info("removeAxes called")
+        logging.info("Removing gaussian fitting ellipse.")
         if self.ellipse_fit.scene():
-            logging.info("Removing ellipse_fit from scene")
+            logging.debug("Removing ellipse_fit from scene")
             self.ellipse_fit.scene().removeItem(self.ellipse_fit)
         if self.sigma_x_fit.scene():
-            logging.info("Removing sigma_x_fit from scene")
+            logging.debug("Removing sigma_x_fit from scene")
             self.sigma_x_fit.scene().removeItem(self.sigma_x_fit)
         if self.sigma_y_fit.scene():
-            logging.info("Removing sigma_y_fit from scene")
+            logging.debug("Removing sigma_y_fit from scene")
             self.sigma_y_fit.scene().removeItem(self.sigma_y_fit)
         # Optionally, update or refresh the scene if necessary
         # if self.plot.scene():
@@ -739,15 +690,17 @@ class ApplicationWindow(QMainWindow):
         thread.deleteLater()  # Schedule the thread for deletion
         thread = None
 
+    def open_directory_dialog(self):
+        initial_dir = self.h5_folder_name or self.outPath_input.text()
+        folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
+        if not folder_name:
+                return  # User canceled folder selection
+        self.h5_folder_name = folder_name
+        self.outPath_input.setText(self.h5_folder_name)
+        logging.info(f"H5 output path set to: {self.h5_folder_name}")
+
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
-            initial_dir = self.folder_name or self.outPath_input.text()
-            folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
-            if not folder_name:
-                return  # User canceled folder selection
-            self.folder_name = folder_name
-            self.outPath_input.setText(self.folder_name)
-            logging.info(f"H5 output path set to: {self.folder_name}")
             prefix = self.prefix_input.text().strip()
             if not prefix:
                 logging.error("Error: Prefix is missing! Please specify prefix of the written file(s).")# Handle error: Prefix is mandatory
@@ -757,9 +710,10 @@ class ApplicationWindow(QMainWindow):
             logging.debug("TCP address for Hdf5 writer to bind to is ", args.stream)
             logging.debug("Data type to build the streamWriter object ", args.dtype)
 
-            formatted_filename = self.generate_filename(prefix)
-            self.streamWriter = StreamWriter(filename=formatted_filename, 
+            self.formatted_filename = self.generate_h5_filename(prefix)
+            self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                              endpoint=args.stream, 
+                                             image_size = (globals.nrow,globals.ncol),
                                              dtype=args.dtype)
             self.streamWriter.start()
             self.streamWriterButton.setText("Stop Writing")
@@ -771,20 +725,44 @@ class ApplicationWindow(QMainWindow):
             self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
-            
-    
+
+            # if self.xds_checkbox.isChecked():
+            #     self.generate_h5_master(self.formatted_filename)
+
     def update_h5_file_index(self, index):
             self.h5_file_index = index
             
-    def generate_filename(self, prefix):
+    def generate_h5_filename(self, prefix):
         now = datetime.datetime.now()
         date_str = now.strftime("%d_%B_%Y_%H:%M:%S")
         index_str = f"{self.h5_file_index:03}"
         self.h5_file_index += 1
         self.index_box.setValue(self.h5_file_index)
         filename = f"{prefix}_{index_str}_{date_str}.h5"
-        full_path = os.path.join(self.folder_name, filename)
+        if self.xds_checkbox.isChecked():
+            filename = f"{prefix}_{index_str}_{date_str}_master.h5" # for XDS
+        full_path = os.path.join(self.h5_folder_name, filename)
         return full_path
+
+    def generate_h5_master(self, formatted_filename_original_h5):
+        logging.info("Generating HDF5 master file for XDS analysis...")
+        with h5py.File(formatted_filename_original_h5, 'r') as f:
+            data_shape = f['entry/data/data_000001'].shape
+
+        external_link = h5py.ExternalLink(
+            filename = formatted_filename_original_h5,
+            path = 'entry/data/data_000001'
+        )
+        # output = os.path.basename(args.path_input)[:-24] + '_master.h5'
+        output = formatted_filename_original_h5[:-24]  + '_master.h5'
+        with h5py.File(output, 'w') as f:
+            f['entry/data/data_000001'] = external_link
+            f.create_dataset('entry/instrument/detector/detectorSpecific/nimages', data = data_shape[0], dtype='uint64')
+            f.create_dataset('entry/instrument/detector/detectorSpecific/pixel_mask', data = np.zeros((data_shape[1], data_shape[2]), dtype='uint32')) ## 514, 1030, 512, 1024
+            f.create_dataset('entry/instrument/detector/detectorSpecific/x_pixels_in_detector', data = data_shape[1], dtype='uint64') # 512
+            f.create_dataset('entry/instrument/detector/detectorSpecific/y_pixels_in_detector', data = data_shape[2], dtype='uint64') # 1030
+
+        print('HDF5 Master file is ready at ', output)
 
     def do_exit(self):
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
@@ -838,13 +816,27 @@ class ApplicationWindow(QMainWindow):
             self.centering_button.setText("Click-on-Centering")
             self.centering_button.started = False
 
+    def drawDebyeRing(self, xo=0, yo=0, d_draw=1, draw=True):
+        if draw:
+            detector_distance_cm = self.control.tem_status["eos.GetMagValue"][0] # in cm
+            radius_in_px = tool.d2radius_in_px(d_draw, camlen=detector_distance_cm*10)
+            self.debyering = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
+            self.debyering.setPen(pg.mkPen('b', width=3))
+            self.plot.addItem(self.debyering)
+        else:
+            self.plot.removeItem(self.debyering)
+
     def on_tem_update(self):
         if self.control.tem_status["eos.GetFunctionMode"][0] in [0, 1, 2]:
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.input_magnification.setText(magnification)
+            # self.drawDebyeRing(draw=False)
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.input_det_distance.setText(detector_distance)
+            if self.gettem_checkbox.isChecked():
+                pass
+                # self.drawDebyeRing(xo=self.imageItem.image.shape[0]/2, yo=self.imageItem.image.shape[1]/2, draw=True)
             
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
         self.rb_speeds.button(rotation_speed_index).setChecked(True)
@@ -869,16 +861,16 @@ class ApplicationWindow(QMainWindow):
             message, color = "Disconnected", "red"
             self.connecttem_button.started = False
         self.connecttem_button.setText(message)
-        self.gettem_button.setEnabled(self.connecttem_button.started)
-        self.centering_button.setEnabled(self.connecttem_button.started)
-        self.rotation_button.setEnabled(self.connecttem_button.started)
-        self.btnBeamSweep.setEnabled(self.connecttem_button.started)
-        self.gettem_checkbox.setChecked(self.connecttem_button.started)
-        for i in self.rb_speeds.buttons():
-            i.setEnabled(self.connecttem_button.started)
-        for i in self.movestages.buttons():
-            i.setEnabled(self.connecttem_button.started)
-        
+        # self.gettem_button.setEnabled(self.connecttem_button.started)
+        # self.centering_button.setEnabled(self.connecttem_button.started)
+        # self.rotation_button.setEnabled(self.connecttem_button.started)
+        # self.btnBeamSweep.setEnabled(self.connecttem_button.started)
+        # self.gettem_checkbox.setChecked(self.connecttem_button.started)
+        # for i in self.rb_speeds.buttons():
+        #     i.setEnabled(self.connecttem_button.started)
+        # for i in self.movestages.buttons():
+        #     i.setEnabled(self.connecttem_button.started)
+        print(message, color)
         # return message, color
             
     def toggle_connectTEM(self):
@@ -896,6 +888,7 @@ class ApplicationWindow(QMainWindow):
         self.rotation_button.setEnabled(self.connecttem_button.started)
         self.btnBeamSweep.setEnabled(self.connecttem_button.started)
         self.gettem_checkbox.setEnabled(self.connecttem_button.started)
+        self.scale_checkbox.setEnabled(self.connecttem_button.started)
         for i in self.rb_speeds.buttons():
             i.setEnabled(self.connecttem_button.started)
         for i in self.movestages.buttons():
@@ -910,6 +903,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--stream', type=str, default="tcp://localhost:4545", help="zmq stream")
     parser.add_argument("-d", "--dtype", help="Data type", type = np.dtype, default=np.float32)
+    parser.add_argument("-t", "--tem", action="store_true", help="Activate tem-control functions")
 
     args = parser.parse_args()
 
@@ -923,6 +917,7 @@ if __name__ == "__main__":
     # Update the type of global variables 
     globals.dtype = args.dtype
     globals.acc_image = np.zeros((globals.nrow,globals.ncol), dtype = args.dtype)
+    globals.tem_mode = args.tem
     logging.debug(type(globals.acc_image[0,0]))
 
     Rcv = ZmqReceiver(endpoint=args.stream, dtype=args.dtype) 

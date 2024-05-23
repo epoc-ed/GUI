@@ -45,7 +45,7 @@ class StreamWriter:
 
     def _write(self):
         logging.info("Starting write process" )
-
+        
         if self.fformat in ['h5','hdf5', 'hdf']:
             f = Hdf5File(self.filename, self.mode, self.image_size, self.dt, self.pixel_mask)
         else:
@@ -68,10 +68,11 @@ class StreamWriter:
                     self.first_frame_number.value = frame_nr
                     logging.info(f"First written frame number is  {self.first_frame_number.value}")
                 image = np.frombuffer(msgs[1], dtype = self.dt).reshape(self.image_size)
-                f.write(image)
+                f.write(image, frame_nr)
                 logging.debug("Hdf5 is being written...")
                 self.last_frame_number.value = frame_nr
             except zmq.error.Again:
                 pass
         
+        f.add_nimages()
         f.close()

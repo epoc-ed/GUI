@@ -130,7 +130,7 @@ if __name__ == '__main__':
     dataPlot.addItem(dataImage)
     dataImage.setImage(image_data)
     dataPlot.setLabels(left='y', bottom='x')
-    dataPlot.setRange(xRange=(0, 1024), yRange=(0, 512))
+    dataPlot.setRange(xRange=(0, globals.ncol), yRange=(0, globals.nrow))
     # Fit Plot
     win.nextRow()  # Move to the next row for the next plot
     fitPlot = win.addPlot(title="Fit")
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     fit = model.func(X, Y, **result.best_values).reshape(*X.shape)
     fitImage.setImage(fit) 
     fitPlot.setLabels(left='y', bottom='x')
-    fitPlot.setRange(xRange=(0, 1024), yRange=(0, 512))
+    fitPlot.setRange(xRange=(0, globals.ncol), yRange=(0, globals.nrow))
     # Data - Fit Plot
     win.nextRow()  # Move to the next row for the next plot
     diffPlot = win.addPlot(title="Data - Fit")
@@ -149,6 +149,6 @@ if __name__ == '__main__':
     diffPlot.addItem(diffImage)
     diffImage.setImage(image_data - fit)
     diffPlot.setLabels(left='y', bottom='x')
-    diffPlot.setRange(xRange=(0, 1024), yRange=(0, 512))
+    diffPlot.setRange(xRange=(0, globals.ncol), yRange=(0, globals.nrow))
 
     QtWidgets.QApplication.instance().exec()
