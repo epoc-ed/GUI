@@ -28,6 +28,7 @@ class StreamWriter:
 
         self.last_frame_number = mp.Value(ctypes.c_int64)
         self.last_frame_number.value = -1
+        
 
     @property
     def number_frames_witten(self):
@@ -41,7 +42,6 @@ class StreamWriter:
         logging.info("Stopping write process")
         self.stop_requested.value = True
         self.write_process.join()
-
 
     def _write(self):
         logging.info("Starting write process" )

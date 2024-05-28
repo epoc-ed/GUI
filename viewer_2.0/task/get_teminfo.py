@@ -2,8 +2,7 @@ import time
 import numpy as np
 from task.task import Task
 import subprocess
-
-import os
+import logging
 
 class GetInfoTask(Task):
     def __init__(self, control_worker, command=''):
@@ -16,11 +15,13 @@ class GetInfoTask(Task):
             if self.control.tem_status['eos.GetMagValue'][0] != 0:
                 prev_timestamp = self.control.tem_update_times['stage.GetPos'][0]
                 break
-            self.control.send_to_tem("#more")
+            # self.control.send_to_tem("#more")
+            self.tem_moreinfo()
             time.sleep(0.5)
 
         while True:
-            self.control.send_to_tem("#more")
+            # self.control.send_to_tem("#more")
+            self.tem_moreinfo()
             if prev_timestamp != self.control.tem_update_times['stage.GetPos'][0]: break
             time.sleep(0.5)
         
@@ -45,7 +46,7 @@ class GetInfoTask(Task):
         # STAGE
         buffer += f"# stage_position (nm/deg.):{self.control.tem_status['stage.GetPos']}\n"
 
-        print(buffer)
+        logging.info(buffer)
         
         # x = input(f'Write TEM status on a file? If YES, give a filename or "Y" ({filename}_[timecode].log). [N]\n')
         # if x != 'N' and x != '':
@@ -60,4 +61,4 @@ class GetInfoTask(Task):
             logfile.write(buffer)
             logfile.close()
             
-        print("GetInfo task stopped.")
+        logging.info("End of GetInfo task")

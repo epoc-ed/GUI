@@ -53,13 +53,17 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         super().__init__()
         self.receiver = receiver
         self.threadWorkerPairs = [] # List of constructed (thread, worker) pairs
-        if globals.tem_mode: self.setupUI_temctrl(self)
+        if globals.tem_mode:
+            self.setupUI_temctrl(self)
+            self.setupUI_temctrl_ready(self, False)
         self.initUI()
         
         if globals.tem_mode:
-            self.control = ControlWorker()
+            self.control = ControlWorker(self)
             self.control.tem_socket_status.connect(self.on_sockstatus_change)
             self.control.updated.connect(self.on_tem_update)
+            self.formatted_filename = ''
+            self.temtools = TEMTools(self)
 
     def initUI(self):
         self.setWindowTitle("Viewer 2.x")
@@ -136,7 +140,7 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         for name, button in self.color_buttons.items():
             colors_layout.addWidget(button)
             button.clicked.connect(lambda checked=False, b=name: self.change_theme(b))
-        colors_group.addLayout(colors_layout)      
+        colors_group.addLayout(colors_layout)
         # Set Initial theme
         self.change_theme('viridis')
         section1.addLayout(colors_group)
@@ -196,9 +200,9 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             section1.addLayout(self.hbox_rot)
             self.movex10ump.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(10000)"))
             self.movex10umn.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(-10000)"))
-            self.move10degp.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(10)"))
-            self.move10degn.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(-10)"))
-            self.move0deg.clicked.connect(lambda: self.control.send.emit("stage.SetTiltXAngle(0)"))
+            self.move10degp.clicked.connect(lambda: self.control.with_max_speed("stage.SetTXRel(10)"))
+            self.move10degn.clicked.connect(lambda: self.control.with_max_speed("stage.SetTXRel(-10)"))
+            self.move0deg.clicked.connect(lambda: self.control.with_max_speed("stage.SetTiltXAngle(0)"))
             section1.addLayout(self.hbox_move)
         ##### END of communication with TEM
         
@@ -338,8 +342,6 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         self.outPath = QLabel("H5 Output Path", self)
         self.outPath_input = QLineEdit(self)
         self.outPath_input.setText(os.getcwd())
-
-        output_folder_layout.addWidget(self.outPath_input)
         self.h5_folder_name = self.outPath_input.text()
         self.folder_button = QPushButton()
         self.folder_button.setIcon(QIcon("./extras/folder_icon.png"))
@@ -360,7 +362,11 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         self.xds_checkbox = QCheckBox("Prepare for XDS processing", self)
         self.xds_checkbox.setChecked(True)
         hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
-        hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)        
+        if globals.tem_mode:
+            hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
+            hdf5_writer_layout.addWidget(self.writer_for_rotation, 1, 2)
+        else:
+            hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
 
         self.nb_frame = QLabel("Number Written Frames:", self)
         self.total_frame_nb = QSpinBox(self)
@@ -699,6 +705,16 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         self.outPath_input.setText(self.h5_folder_name)
         logging.info(f"H5 output path set to: {self.h5_folder_name}")
 
+    def toggle_hdf5Writer_dummy(self):
+        if not self.streamWriterButton.started:
+            prefix = self.prefix_input.text().strip()
+            self.streamWriterButton.setText("Stop Writing")
+            self.streamWriterButton.started = True
+        else:
+            self.streamWriterButton.setText("Write Stream in H5")
+            self.streamWriterButton.started = False
+        
+        
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
             prefix = self.prefix_input.text().strip()
@@ -713,7 +729,7 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             self.formatted_filename = self.generate_h5_filename(prefix)
             self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                              endpoint=args.stream, 
-                                             image_size = (globals.nrow,globals.ncol),
+                                             image_size = (globals.nrow, globals.ncol),
                                              dtype=args.dtype)
             self.streamWriter.start()
             self.streamWriterButton.setText("Stop Writing")
@@ -782,6 +798,9 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             else: 
                 return
         
+        if self.connecttem_button.started:
+            self.control.trigger_shutdown.emit()
+
         logging.info("Exiting app!") 
         app.quit()
 
@@ -798,15 +817,22 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
                 self.control.trigger_getteminfo.emit('Y')
             else:
                 self.control.trigger_getteminfo.emit('N')
+            if os.path.isfile(self.formatted_filename):
+                self.temtools.addinfo_to_hdf()
 
     def toggle_rotation(self):
         if not self.rotation_button.started:
-            self.control.trigger_record.emit()
-            self.rotation_button.setText("Rotating")
+            self.rotation_button.setText("Stop")
             self.rotation_button.started = True
+            self.streamWriterButton.setEnabled(False)
+            self.control.trigger_record.emit()
         else:
-            self.rotation_button.setText("Start Rotation (+60)")
+            self.rotation_button.setText("Rotation")
             self.rotation_button.started = False
+            if self.streamWriterButton.started:
+                self.toggle_hdf5Writer_dummy()
+            self.streamWriterButton.setEnabled(True)
+            self.control.stop()
 
     def toggle_centering(self):
         if not self.centering_button.started:
@@ -827,6 +853,9 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             self.plot.removeItem(self.debyering)
 
     def on_tem_update(self):
+        angle_x = self.control.tem_status["stage.GetPos"][3]
+        self.input_start_angle.setValue(angle_x)
+        
         if self.control.tem_status["eos.GetFunctionMode"][0] in [0, 1, 2]:
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.input_magnification.setText(magnification)
@@ -837,7 +866,7 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             if self.gettem_checkbox.isChecked():
                 pass
                 # self.drawDebyeRing(xo=self.imageItem.image.shape[0]/2, yo=self.imageItem.image.shape[1]/2, draw=True)
-            
+        
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
         self.rb_speeds.button(rotation_speed_index).setChecked(True)
 
@@ -861,15 +890,7 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             message, color = "Disconnected", "red"
             self.connecttem_button.started = False
         self.connecttem_button.setText(message)
-        # self.gettem_button.setEnabled(self.connecttem_button.started)
-        # self.centering_button.setEnabled(self.connecttem_button.started)
-        # self.rotation_button.setEnabled(self.connecttem_button.started)
-        # self.btnBeamSweep.setEnabled(self.connecttem_button.started)
-        # self.gettem_checkbox.setChecked(self.connecttem_button.started)
-        # for i in self.rb_speeds.buttons():
-        #     i.setEnabled(self.connecttem_button.started)
-        # for i in self.movestages.buttons():
-        #     i.setEnabled(self.connecttem_button.started)
+        # self.setupUI_temctrl_ready(self, self.connecttem_button.started)
         print(message, color)
         # return message, color
             
@@ -883,16 +904,7 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             self.control.trigger_shutdown.emit()
             self.connecttem_button.setText("Connect to TEM")
             self.connecttem_button.started = False
-        self.gettem_button.setEnabled(self.connecttem_button.started)
-        self.centering_button.setEnabled(self.connecttem_button.started)
-        self.rotation_button.setEnabled(self.connecttem_button.started)
-        self.btnBeamSweep.setEnabled(self.connecttem_button.started)
-        self.gettem_checkbox.setEnabled(self.connecttem_button.started)
-        self.scale_checkbox.setEnabled(self.connecttem_button.started)
-        for i in self.rb_speeds.buttons():
-            i.setEnabled(self.connecttem_button.started)
-        for i in self.movestages.buttons():
-            i.setEnabled(self.connecttem_button.started)
+        self.setupUI_temctrl_ready(self, self.connecttem_button.started)
         
 if __name__ == "__main__":
     format = "%(message)s"

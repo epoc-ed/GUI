@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QLineEdit, QButtonGroup, 
-                               QRadioButton, QPushButton, QCheckBox)
+                               QRadioButton, QSpinBox, QPushButton, QCheckBox,
+                               QDoubleSpinBox)
 
 class ToggleButton(QPushButton):
     def __init__(self, label, window):
@@ -7,7 +8,7 @@ class ToggleButton(QPushButton):
         self.started = False
 
 class Ui_TEMctrl(object):
-    def setupUI_temctrl(self, MainWindow):
+    def setupUI_temctrl(self, main_window):
         self.hbox_mag = QHBoxLayout()
         magn_label = QLabel("Magnification:", self)
         dist_label = QLabel("Distance:", self)
@@ -19,7 +20,6 @@ class Ui_TEMctrl(object):
         self.input_det_distance.setReadOnly(True)
         self.scale_checkbox = QCheckBox("scale", self)
         self.scale_checkbox.setChecked(False)
-        self.scale_checkbox.setEnabled(False)
         self.hbox_mag.addWidget(magn_label, 1)
         self.hbox_mag.addWidget(self.input_magnification, 1)
         self.hbox_mag.addWidget(dist_label, 1)
@@ -40,9 +40,6 @@ class Ui_TEMctrl(object):
         self.rb_speeds.button(1).setChecked(True)
         # self.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
         self.hbox_rot.addWidget(rot_label, 1)
-        for i in self.rb_speeds.buttons():
-            self.hbox_rot.addWidget(i, 1)
-            i.setEnabled(False)        
 
         self.hbox_move = QHBoxLayout()
         move_label = QLabel("Stage Ctrl:", self)
@@ -63,21 +60,34 @@ class Ui_TEMctrl(object):
         # self.move10degn.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(-10)"))
         # self.move0deg.clicked.connect(lambda: self.control.send.emit("stage.SetTiltXAngle(0)"))
         self.hbox_move.addWidget(move_label, 1)
-        for i in self.movestages.buttons():
-            self.hbox_move.addWidget(i, 1)
-            i.setEnabled(False)
 
         self.exit_button = QPushButton("Exit", self)
         self.connecttem_button = ToggleButton('Connect to TEM', self)
         self.gettem_button = QPushButton("Get TEM status", self)
         self.gettem_checkbox = QCheckBox("recording", self)
         self.gettem_checkbox.setChecked(False)
-        self.gettem_checkbox.setEnabled(False)
         self.centering_button = ToggleButton("Click-on-Centering", self)
-        self.rotation_button = ToggleButton("Start Rotation (+60)", self)
-        self.gettem_button.setEnabled(False)
-        self.centering_button.setEnabled(False)
-        self.rotation_button.setEnabled(False)
+        self.rotation_button = ToggleButton("Rotation/Record", self)
+        input_start_angle = QLabel("Start angle:", self) # current value
+        self.input_start_angle = QDoubleSpinBox(self)
+        self.input_start_angle.setMaximum(70)
+        self.input_start_angle.setMinimum(-70)
+        self.input_start_angle.setSuffix('°')
+        self.input_start_angle.setDecimals(1)
+        # self.input_start_angle.setValue("")
+        self.input_start_angle.setReadOnly(True)
+        end_angle = QLabel("Target angle:", self)
+        self.update_end_angle = QDoubleSpinBox(self)
+        self.update_end_angle.setMaximum(70)
+        self.update_end_angle.setMinimum(-70)
+        self.update_end_angle.setSuffix('°')
+        self.update_end_angle.setDecimals(1)
+        self.update_end_angle.setValue(10) # will be replaced with configuration file
+        stagectrl_layout = QHBoxLayout()
+        stagectrl_layout.addWidget(self.centering_button)
+        stagectrl_layout.addWidget(self.rotation_button)
+        stagectrl_layout.addWidget(self.input_start_angle)
+        stagectrl_layout.addWidget(self.update_end_angle)
         # self.gettem_button.clicked.connect(self.do_exit)
         gettem_layout = QHBoxLayout()
         gettem_layout.addWidget(self.gettem_button)
@@ -85,15 +95,33 @@ class Ui_TEMctrl(object):
         self.bottom_layout = QHBoxLayout()
         self.bottom_layout.addWidget(self.connecttem_button)
         self.bottom_layout.addLayout(gettem_layout)
-        self.bottom_layout.addWidget(self.centering_button)
-        self.bottom_layout.addWidget(self.rotation_button)
+        # self.bottom_layout.addWidget(self.centering_button)
+        self.bottom_layout.addLayout(stagectrl_layout)
         self.bottom_layout.addWidget(self.exit_button)
 
         self.focus_layout = QHBoxLayout()
         self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
         self.btnBeamSweep = QPushButton('Start Focus-sweeping', self)
-        self.btnBeamSweep.setEnabled(False)
         self.focus_layout.addWidget(self.btnBeamFocus)
         self.focus_layout.addWidget(self.btnBeamSweep)
         
+        self.writer_for_rotation = QCheckBox("Write during rotation", self)
+        self.writer_for_rotation.setChecked(False) #True
+        
+    def setupUI_temctrl_ready(self, main_window, enables=True):
+        for i in self.rb_speeds.buttons():
+            self.hbox_rot.addWidget(i, 1)
+            i.setEnabled(enables)
+        for i in self.movestages.buttons():
+            self.hbox_move.addWidget(i, 1)
+            i.setEnabled(enables)
+        self.scale_checkbox.setEnabled(enables)
+        self.gettem_button.setEnabled(enables)
+        self.gettem_checkbox.setEnabled(enables)
+        self.centering_button.setEnabled(enables)
+        self.update_end_angle.setEnabled(enables)
+        self.rotation_button.setEnabled(enables)
+        self.input_start_angle.setEnabled(enables)
+        self.update_end_angle.setEnabled(enables)
+        self.btnBeamSweep.setEnabled(enables)
         

@@ -2,6 +2,7 @@ import logging
 import time
 from datetime import datetime as dt
 import traceback
+import threading
 
 from PySide6.QtCore import Signal, Slot, QObject
 from PySide6.QtNetwork import QTcpSocket, QAbstractSocket
@@ -16,29 +17,31 @@ class Task(QObject):
         super().__init__()
 
         self.running = False
+        self.estimated_duration_s = 1e10
+        self.setObjectName(name)
         self.task_name = name
         self.control = control_worker
         self.send_tem_command.connect(control_worker.send_to_tem)
         self.start.connect(self._start)
+        threading.current_thread().setName(name + "Thread")
 
     def run(self):
         pass
 
     @Slot()
     def _start(self):
-        # logging.info("Starting task {self.task_name} ...")
-        print(f"Starting task {self.task_name} ...")
+        logging.info(f"Starting task {self.task_name} ...")
         self.running = True
         self.start_time = time.monotonic()
         try:
             self.run()
         except Exception as exc:
-            # logging.error(f"Exception occured in task {self.task_name}: {traceback.format_exc()}")
+            logging.error(f"Exception occured in task {self.task_name}: {traceback.format_exc()}")
             # ...
-            print(exc)
+            # print(exc)
             pass
         self.running = False
-        # logging.info(f"Finished task {self.task_name}")
+        logging.info(f"Finished task {self.task_name}")
         self.finished.emit()
 
     def tem_command(self, module, cmd, args):
@@ -48,5 +51,19 @@ class Task(QObject):
         #     return response
         # else:
         #     return re.sub('[\[\],]', '', response).split()
-    
 
+    def get_progress(self):
+        if not self.running:
+            return 0
+        percentage = abs(self.start_time - time.monotonic()) / self.estimated_duration_s
+        return max(0.0, min(percentage, 1.0))
+
+    # def on_tem_receive(self):
+    #     pass
+        
+    def tem_info(self):
+        self.send_tem_command.emit("#info")
+
+    def tem_moreinfo(self):
+        self.send_tem_command.emit("#more")
+        
