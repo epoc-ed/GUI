@@ -844,8 +844,8 @@ class ApplicationWindow(QMainWindow):
             f['entry/data/data_000001'] = external_link
             f.create_dataset('entry/instrument/detector/detectorSpecific/nimages', data = data_shape[0], dtype='uint64')
             f.create_dataset('entry/instrument/detector/detectorSpecific/pixel_mask', data = np.zeros((data_shape[1], data_shape[2]), dtype='uint32')) ## 514, 1030, 512, 1024
-            f.create_dataset('entry/instrument/detector/detectorSpecific/x_pixels_in_detector', data = data_shape[1], dtype='uint64') # 512
-            f.create_dataset('entry/instrument/detector/detectorSpecific/y_pixels_in_detector', data = data_shape[2], dtype='uint64') # 1030
+            f.create_dataset('entry/instrument/detector/detectorSpecific/x_pixels_in_detector', data = data_shape[2], dtype='uint64') # 512
+            f.create_dataset('entry/instrument/detector/detectorSpecific/y_pixels_in_detector', data = data_shape[1], dtype='uint64') # 1030
 
         print('HDF5 Master file is ready at ', output)
 
