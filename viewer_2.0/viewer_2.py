@@ -404,10 +404,7 @@ class ApplicationWindow(QMainWindow):
         self.streamWriterButton.setEnabled(False)
         self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
         # Create a checkbox
-        self.xds_checkbox = QCheckBox("Prepare for XDS processing", self)
-        self.xds_checkbox.setChecked(True)
         hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
-        hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
 
         self.nb_frame = QLabel("Number Written Frames:", self)
         self.total_frame_nb = QSpinBox(self)
@@ -811,8 +808,6 @@ class ApplicationWindow(QMainWindow):
             self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
-            # if self.xds_checkbox.isChecked():
-            #     self.generate_h5_master(self.formatted_filename)
     
     def update_h5_file_index(self, index):
             self.h5_file_index = index
@@ -824,30 +819,8 @@ class ApplicationWindow(QMainWindow):
         self.h5_file_index += 1
         self.index_box.setValue(self.h5_file_index)
         filename = f"{prefix}_{index_str}_{date_str}.h5"
-        if self.xds_checkbox.isChecked():
-            filename = f"{prefix}_{index_str}_{date_str}_master.h5" # for XDS
         full_path = os.path.join(self.h5_folder_name, filename)
         return full_path
-
-    def generate_h5_master(self, formatted_filename_original_h5):
-        logging.info("Generating HDF5 master file for XDS analysis...")
-        with h5py.File(formatted_filename_original_h5, 'r') as f:
-            data_shape = f['entry/data/data_000001'].shape
-
-        external_link = h5py.ExternalLink(
-            filename = formatted_filename_original_h5,
-            path = 'entry/data/data_000001'
-        )
-        # output = os.path.basename(args.path_input)[:-24] + '_master.h5'
-        output = formatted_filename_original_h5[:-24]  + '_master.h5'
-        with h5py.File(output, 'w') as f:
-            f['entry/data/data_000001'] = external_link
-            f.create_dataset('entry/instrument/detector/detectorSpecific/nimages', data = data_shape[0], dtype='uint64')
-            f.create_dataset('entry/instrument/detector/detectorSpecific/pixel_mask', data = np.zeros((data_shape[1], data_shape[2]), dtype='uint32')) ## 514, 1030, 512, 1024
-            f.create_dataset('entry/instrument/detector/detectorSpecific/x_pixels_in_detector', data = data_shape[2], dtype='uint64') # 512
-            f.create_dataset('entry/instrument/detector/detectorSpecific/y_pixels_in_detector', data = data_shape[1], dtype='uint64') # 1030
-
-        print('HDF5 Master file is ready at ', output)
 
     def do_exit(self):
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
