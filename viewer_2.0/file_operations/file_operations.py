@@ -180,14 +180,10 @@ class FileOperations(QGroupBox):
             
     def generate_h5_filename(self, prefix):
         now = datetime.datetime.now()
-        date_str = now.strftime("%d_%B_%Y_%H_%M_%S")
+        date_str = now.strftime("D%Y_%m_%d_T%H%M%S")
         index_str = f"{self.h5_file_index:03}"
         self.h5_file_index += 1
         self.index_box.setValue(self.h5_file_index)
         filename = f"{prefix}_{index_str}_{date_str}.h5"
-        # if self.xds_checkbox.isChecked():
-        #     filename = f"{prefix}_{index_str}_{date_str}_master.h5" # for XDS
         full_path = os.path.join(self.h5_folder_name, filename)
         return full_path
-
-    
