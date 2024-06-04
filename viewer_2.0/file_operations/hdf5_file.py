@@ -1,8 +1,8 @@
-import hdf5plugin
 import h5py
-from pathlib import Path
-import numpy as np
+import hdf5plugin
 import functools
+import numpy as np
+from pathlib import Path
 
 
 def string_dt(s):
@@ -66,19 +66,19 @@ class Hdf5File:
                 dtype=self.dt,
                 maxshape=(None, *self._image_size),
                 chunks=(1, *self._image_size),
-                **compression,
+                #**compression,
             )
             self.ds.attrs["image_nr_low"] = np.int32(0)
 
             # Pixel mask for albula, respected by other applications?
             if pixel_mask is None:
                 pixel_mask = np.zeros(self._image_size, dtype=np.uint8)
-            nxentry.create_dataset('instrument/detector/x_pixel_size', data=self._pixel_size[0], dtype='float32')
-            nxentry.create_dataset('instrument/detector/y_pixel_size', data=self._pixel_size[1], dtype='float32')
+            nxentry.create_dataset('instrument/detector/x_pixel_size', data=self._pixel_size[1], dtype='float32')
+            nxentry.create_dataset('instrument/detector/y_pixel_size', data=self._pixel_size[0], dtype='float32')
             inst = nxentry.create_group("instrument/detector/detectorSpecific")
             inst.create_dataset("pixel_mask", data=pixel_mask.astype(np.uint8))  # , **compression)
-            inst.create_dataset('x_pixels_in_detector', data=self._image_size[0], dtype='uint64')
-            inst.create_dataset('y_pixels_in_detector', data=self._image_size[1], dtype='uint64')
+            inst.create_dataset('x_pixels_in_detector', data=self._image_size[1], dtype='uint64')
+            inst.create_dataset('y_pixels_in_detector', data=self._image_size[0], dtype='uint64')
 
             # Create a dataset for storing frame numbers
             self.frame_nb_ds = nxdata.create_dataset(
@@ -87,7 +87,7 @@ class Hdf5File:
                 dtype='int64',
                 maxshape=(None,),
                 chunks=(1,),
-                **compression,
+                #**compression,
             )
 
         elif self.mode == 'r':

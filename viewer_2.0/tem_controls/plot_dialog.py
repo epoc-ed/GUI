@@ -2,14 +2,15 @@ import pyqtgraph as pg
 from collections import deque
 from PySide6.QtWidgets import QPushButton, QVBoxLayout, QDialog
 from PySide6.QtCore import QTime
+
 import palette
 
 
 class PlotDialog(QDialog):
     def __init__(self, parent=None):
         super(PlotDialog, self).__init__(parent)
-        # win_pal = palette.get_palette("dark")
-        # self.setPalette(win_pal)
+        win_pal = palette.get_palette("dark")
+        self.setPalette(win_pal)
         self.setWindowTitle('Fitting \u03C3 over Time')
         self.setGeometry(800, 250, 800, 700)
         self.layout = QVBoxLayout()
