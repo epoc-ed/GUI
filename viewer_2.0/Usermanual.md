@@ -14,7 +14,7 @@
 1.  ```$ ./viewer_2.py```\
     *\*To use TEM controling functions with Development version, ```$ ./viewer_2.py -t```*
 1. Start streaming in the viewer-GUI, without incident beam.
-1.  ```>>> r.record_pedestal(1)```
+1.  ```>>> r.record_pedestal(1)``` *at the terminal window working on the receiver (srecv)
 1. 'Acquisition Interval (ms)' in GUI should be changed to '20' to reduce the dealy.
 
 **\*TEM-PC, NOT needed when you ONLY use the TEM console**
@@ -61,7 +61,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 ***
 #### Data-recording workflow with Development version, 4 Jul 2024
 1. Setup the beam and stage of TEM for data collection.
-1. Define the data output path on the 'H5 Output Path' lineedit.
+1. Define the data output path on the 'H5 Output Path' lineedit. *a '/' at the last part of the path may cause an error.
 1. Check 'Write during rotaion'
 1. Define the end angle
 1. Click 'Rotation/Record' to start the rotation and recording.
