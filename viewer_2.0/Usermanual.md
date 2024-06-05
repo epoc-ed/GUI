@@ -19,7 +19,7 @@
 
 **\*TEM-PC, NOT needed when you ONLY use the TEM console**
 1. Activate relay_server \
-Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI,
+Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay server;
 ```$ python relay_server_testKT.py```  
 *\*Will not correctly communicate with the previous version, 'relay_server.py'*  
 *\*When the sevrver is stuck, open another PowerShell console and kill the python process*  
@@ -45,19 +45,30 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI,
  - 'Exit': Exits the GUI. The connection to TEM is disconnected before exiting.
  -
  
-##### *[Function in Development version](screenshot/ver_26May2024.png)*
+##### *[Function in Development version](screenshot/ver_4Jul2024.png)*
 
  - 'Magnification', 'Distance': Indicates the current or just previous value of magnification/distance
-     - 'scale' for displaying a scale bar for imaging or the Debye-ring for diffraction (not implemented yet)
+     - 'scale' for displaying a scale bar for imaging (1 um length) or the Debye-ring for diffraction (1 A circle)
  - 'Rotation Speed': Changes rotation speed settings and indicates the current value
  - 'Start Focus-sweeping': Sweeps IL1 and ILstig values linearly, roughly and finely
  - 'Connect to TEM': Starts communication with TEM.
- - 'Get TEM status': Updates the TEM information and shows in the console. If there is a hdf file, the information will be added to the header.
- - 'Click-on-Centring': Activates stage control by clicking the streaming image
- - 'Rotation/Record': Starts stage rotation until the input tilt degree (value on the right), reports the setting parapemters, and resets the stage-tilt to zero when the rotation is stopped.
+ - 'Get TEM status': Updates the TEM information and shows in the console. If an hdf file with the defined filename exists, the information will be added to the header.
+ - 'Click-on-Centring': Activates stage control by clicking the streaming image (now deactivated)
+ - 'Rotation/Record': Starts stage rotation until the input tilt degree (value on the right), reports the setting parapemters, and resets the stage-tilt to 0 deg. when the rotation is stopped.
      - The HDF writer is synchronized when 'Write during rotation' is checked.
  - 
  
+***
+#### Data-recording workflow with Development version, 4 Jul 2024
+1. Setup the beam and stage of TEM for data collection.
+1. Define the data output path on the 'H5 Output Path' lineedit.
+1. Check 'Write during rotaion'
+1. Define the end angle
+1. Click 'Rotation/Record' to start the rotation and recording.
+1. Rotation/recording can be stopped by clicking 'Stop' (the same button) or interrupption by TEM console. Otherwise the recording will continue until tilted to the end angle.
+*\*The frame rate in recording is 50 ms and independent from the value at 'Aquisition Interval'. At this rate, recording with 1 deg/s means 0.05 deg/frame.*
+*\*TEM information will be written in the HDF when 'Write during rotaion' is checked.*
+
 ***
 #### Data-recording workflow, 21 May 2024
 1. Setup the beam and stage of TEM for data collection.
