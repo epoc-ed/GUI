@@ -49,10 +49,8 @@ class RecordTask(Task):
             logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
             logfile.write(f"# Final Angle (scheduled): {phi1:6.3f} deg\n")
             logfile.write(f"# angular Speed:           {self.phi_dot:6.2f} deg/s\n")
-            if self.control.tem_status['eos.GetFunctionMode'][0] == 0:
-                logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue'][0]:6d} x\n")
-            elif self.control.tem_status['eos.GetFunctionMode'][0] == 4:
-                logfile.write(f"#d etector distance:       {self.control.tem_status['eos.GetMagValue'][0]*10} mm\n")
+            logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n")
+            logfile.write(f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n")
             self.tem_moreinfo() #self.control.send_to_tem("#more")
             # BEAM
             logfile.write(f"# spot_size:               {self.control.tem_status['eos.GetSpotSize']}\n")
@@ -87,7 +85,7 @@ class RecordTask(Task):
         self.rotations_angles = []
         # while True:
         stage_moving = False
-        while self.control.tem_status['stage.GetPos'][3] < phi1:
+        while self.control.tem_status['stage.GetPos'][3] < phi1 and self.control.window.rotation_button.started:
             if os.name == 'nt':
                 self.tem_command("stage", "SetTXRel", [self.phi_dot])
             time.sleep(0.5)
@@ -110,7 +108,8 @@ class RecordTask(Task):
                 if self.writer and self.control.window.streamWriterButton.started:
                     self.writer()
                 break
-                
+        if self.writer and self.control.window.streamWriterButton.started:
+            self.writer()                
         time.sleep(0.5)
         self.tem_command("defl", "SetBeamBlank", [1]) # beam blanking ON
         self.tem_moreinfo() #self.control.send_to_tem("#more")
@@ -149,29 +148,37 @@ class RecordTask(Task):
             self.control.tem_update_times['stage.GetPos'][1])
         )
 
-#     def make_xds_file(self, master_filepath, xds_filepath, xds_template_filepath):
-#         master_file = h5py.File(master_filepath, 'r')
-#         template_filepath = master_filepath.replace('master', '??????')
-#         frame_time = master_file['entry/instrument/detector/frame_time'][()]
-#         oscillation_range = frame_time * self.phi_dot
-#         logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
-#         logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
+    def make_xds_file(self, master_filepath, xds_filepath, xds_template_filepath):
+        master_file = h5py.File(master_filepath, 'r')
+        template_filepath = master_filepath[:-9] + "??????.h5" # master_filepath.replace('master', '??????')
+        frame_time = master_file['entry/instrument/detector/frame_time'][()]
+        oscillation_range = 0.05 # frame_time * self.phi_dot
+        logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
+        logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
 
-#         for dset in master_file["entry/data"]:
-#             nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"]
-#             logging.info(f" DATA_RANGE= 1 {nimages_dset}")
-#             logging.info(f" BACKGROUND_RANGE= 1 {nimages_dset}")
-#             logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
-#             h = master_file['entry/data/data_000001'].shape[2]
-#             w = master_file['entry/data/data_000001'].shape[1]
-#             for i in range(1):
-#                 image = master_file['entry/data/data_000001'][i]
-#                 logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
-#                 org_x, org_y = 0, 0
-#             break
+        for dset in master_file["entry/data"]:
+            nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"]
+            logging.info(f" DATA_RANGE= 1 {nimages_dset}")
+            logging.info(f" BACKGROUND_RANGE= 1 {nimages_dset}")
+            logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
+            h = master_file['entry/data/data_000001'].shape[2]
+            w = master_file['entry/data/data_000001'].shape[1]
+            for i in range(1):
+                image = master_file['entry/data/data_000001'][i]
+                logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
+                org_x, org_y = 0, 0
+            break
 
-#         myxds = XDSparams(xdstempl=xds_template_filepath)
-#         myxds.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range,
-#                      self.control.tem_status['eos.GetMagValue'][0]*10)
-#         myxds.xdswrite(filepath=xds_filepath)
+        # myxds = XDSparams(xdstempl=xds_template_filepath)
+        # myxds.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range,
+        #              self.control.tem_status['eos.GetMagValue'][0]*10)
+        # myxds.xdswrite(filepath=xds_filepath)
         
+        # def do_xds(self):
+        #     make_xds_file()
+        #     subprocess.run(cmd_xds, cwd=self.'workingdirectory')
+        #     if os.path.isfile(** + '/IDXREF.LP'):
+        #         with open(** + '/IDXREF.LP', 'r') as f:
+        #             [extract cell parameters and indexing rate]
+        #     [report to the GUI or control_worker]
+                    

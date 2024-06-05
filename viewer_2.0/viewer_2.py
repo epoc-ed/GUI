@@ -64,6 +64,7 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             self.control.updated.connect(self.on_tem_update)
             self.formatted_filename = ''
             self.temtools = TEMTools(self)
+            self.beamcenter = json.loads(cfg.parser['overlay']['circle1'])['xy']
 
     def initUI(self):
         self.setWindowTitle("Viewer 2.x")
@@ -200,9 +201,15 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             section1.addLayout(self.hbox_rot)
             self.movex10ump.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(10000)"))
             self.movex10umn.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(-10000)"))
-            self.move10degp.clicked.connect(lambda: self.control.with_max_speed("stage.SetTXRel(10)"))
-            self.move10degn.clicked.connect(lambda: self.control.with_max_speed("stage.SetTXRel(-10)"))
-            self.move0deg.clicked.connect(lambda: self.control.with_max_speed("stage.SetTiltXAngle(0)"))
+            self.move10degp.clicked.connect(
+                        lambda: self.control.send.emit(self.control.with_max_speed("stage.SetTXRel(10)")))
+            self.move10degn.clicked.connect(
+                        lambda: self.control.send.emit(self.control.with_max_speed("stage.SetTXRel(-10)")))
+            self.move0deg.clicked.connect(
+                        lambda: self.control.send.emit(self.control.with_max_speed("stage.SetTiltXAngle(0)")))
+            # self.move10degp.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(10)"))
+            # self.move10degn.clicked.connect(lambda: self.control.send.emit("stage.SetTXRel(-10)"))
+            # self.move0deg.clicked.connect(lambda: self.control.send.emit("stage.SetTiltXAngle(0)"))
             section1.addLayout(self.hbox_move)
         ##### END of communication with TEM
         
@@ -358,15 +365,9 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         self.streamWriterButton = ToggleButton("Write Stream in H5", self)
         self.streamWriterButton.setEnabled(False)
         self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
-        # Create a checkbox
-        self.xds_checkbox = QCheckBox("Prepare for XDS processing", self)
-        self.xds_checkbox.setChecked(True)
         hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
         if globals.tem_mode:
-            hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
-            hdf5_writer_layout.addWidget(self.writer_for_rotation, 1, 2)
-        else:
-            hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
+            hdf5_writer_layout.addWidget(self.writer_for_rotation, 1, 0)
 
         self.nb_frame = QLabel("Number Written Frames:", self)
         self.total_frame_nb = QSpinBox(self)
@@ -376,6 +377,8 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         hdf5_writer_layout.addWidget(self.total_frame_nb, 0, 3)
 
         section3.addLayout(hdf5_writer_layout)
+        if globals.tem_mode:
+            section3.addLayout(self.index_layout)
         group3.setLayout(section3)
 
         sections_layout.addWidget(group1, 1)
@@ -499,7 +502,7 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             # Disable buttons
             self.accumulate_button.setEnabled(False)
             self.streamWriterButton.setEnabled(False)
-            # Wait for thread to actually stop            
+            # Wait for thread to actually stop
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")
                 time.sleep(0.1) 
@@ -619,6 +622,9 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             self.plotDialog.updatePlot(amplitude, sigma_x, sigma_y, 20)
         # Draw the fitting line at the FWHM of the 2d-gaussian
         self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
+        if globals.tem_mode:
+            self.beamcenter = float(fit_result_best_values['xo']), float(fit_result_best_values['yo'])
+        
 
     def drawFittingEllipse(self, xo, yo, sigma_x, sigma_y, theta_deg):
         # p = 0.5 is equivalent to using the Full Width at Half Maximum (FWHM)
@@ -729,7 +735,7 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             self.formatted_filename = self.generate_h5_filename(prefix)
             self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                              endpoint=args.stream, 
-                                             image_size = (globals.nrow, globals.ncol),
+                                             image_size = (globals.nrow,globals.ncol),
                                              dtype=args.dtype)
             self.streamWriter.start()
             self.streamWriterButton.setText("Stop Writing")
@@ -742,43 +748,18 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
 
-            # if self.xds_checkbox.isChecked():
-            #     self.generate_h5_master(self.formatted_filename)
-
     def update_h5_file_index(self, index):
             self.h5_file_index = index
             
     def generate_h5_filename(self, prefix):
         now = datetime.datetime.now()
-        date_str = now.strftime("%d_%B_%Y_%H:%M:%S")
+        date_str = now.strftime("D%Y_%m_%d_T%H%M%S")
         index_str = f"{self.h5_file_index:03}"
         self.h5_file_index += 1
         self.index_box.setValue(self.h5_file_index)
         filename = f"{prefix}_{index_str}_{date_str}.h5"
-        if self.xds_checkbox.isChecked():
-            filename = f"{prefix}_{index_str}_{date_str}_master.h5" # for XDS
         full_path = os.path.join(self.h5_folder_name, filename)
         return full_path
-
-    def generate_h5_master(self, formatted_filename_original_h5):
-        logging.info("Generating HDF5 master file for XDS analysis...")
-        with h5py.File(formatted_filename_original_h5, 'r') as f:
-            data_shape = f['entry/data/data_000001'].shape
-
-        external_link = h5py.ExternalLink(
-            filename = formatted_filename_original_h5,
-            path = 'entry/data/data_000001'
-        )
-        # output = os.path.basename(args.path_input)[:-24] + '_master.h5'
-        output = formatted_filename_original_h5[:-24]  + '_master.h5'
-        with h5py.File(output, 'w') as f:
-            f['entry/data/data_000001'] = external_link
-            f.create_dataset('entry/instrument/detector/detectorSpecific/nimages', data = data_shape[0], dtype='uint64')
-            f.create_dataset('entry/instrument/detector/detectorSpecific/pixel_mask', data = np.zeros((data_shape[1], data_shape[2]), dtype='uint32')) ## 514, 1030, 512, 1024
-            f.create_dataset('entry/instrument/detector/detectorSpecific/x_pixels_in_detector', data = data_shape[1], dtype='uint64') # 512
-            f.create_dataset('entry/instrument/detector/detectorSpecific/y_pixels_in_detector', data = data_shape[2], dtype='uint64') # 1030
-
-        print('HDF5 Master file is ready at ', output)
 
     def do_exit(self):
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
@@ -798,8 +779,9 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             else: 
                 return
         
-        if self.connecttem_button.started:
-            self.control.trigger_shutdown.emit()
+        if globals.tem_mode:
+            if self.connecttem_button.started:
+                self.control.trigger_shutdown.emit()
 
         logging.info("Exiting app!") 
         app.quit()
@@ -824,14 +806,16 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         if not self.rotation_button.started:
             self.rotation_button.setText("Stop")
             self.rotation_button.started = True
-            self.streamWriterButton.setEnabled(False)
+            if self.writer_for_rotation.isChecked():
+                self.streamWriterButton.setEnabled(False)
             self.control.trigger_record.emit()
         else:
             self.rotation_button.setText("Rotation")
             self.rotation_button.started = False
             if self.streamWriterButton.started:
-                self.toggle_hdf5Writer_dummy()
-            self.streamWriterButton.setEnabled(True)
+                self.toggle_hdf5Writer() # self.toggle_hdf5Writer_dummy()
+            if self.writer_for_rotation.isChecked():
+                self.streamWriterButton.setEnabled(True)
             self.control.stop()
 
     def toggle_centering(self):
@@ -842,16 +826,6 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
             self.centering_button.setText("Click-on-Centering")
             self.centering_button.started = False
 
-    def drawDebyeRing(self, xo=0, yo=0, d_draw=1, draw=True):
-        if draw:
-            detector_distance_cm = self.control.tem_status["eos.GetMagValue"][0] # in cm
-            radius_in_px = tool.d2radius_in_px(d_draw, camlen=detector_distance_cm*10)
-            self.debyering = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
-            self.debyering.setPen(pg.mkPen('b', width=3))
-            self.plot.addItem(self.debyering)
-        else:
-            self.plot.removeItem(self.debyering)
-
     def on_tem_update(self):
         angle_x = self.control.tem_status["stage.GetPos"][3]
         self.input_start_angle.setValue(angle_x)
@@ -859,14 +833,12 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         if self.control.tem_status["eos.GetFunctionMode"][0] in [0, 1, 2]:
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.input_magnification.setText(magnification)
-            # self.drawDebyeRing(draw=False)
+            self.drawscale_overlay(self, xo=self.imageItem.image.shape[1]*0.85, yo=self.imageItem.image.shape[0]*0.1)
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.input_det_distance.setText(detector_distance)
-            if self.gettem_checkbox.isChecked():
-                pass
-                # self.drawDebyeRing(xo=self.imageItem.image.shape[0]/2, yo=self.imageItem.image.shape[1]/2, draw=True)
-        
+            self.drawscale_overlay(self, xo=self.beamcenter[0], yo=self.beamcenter[1])
+
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
         self.rb_speeds.button(rotation_speed_index).setChecked(True)
 

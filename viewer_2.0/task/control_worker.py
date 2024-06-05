@@ -183,7 +183,8 @@ class ControlWorker(QObject):
         if self.task.running:
             self.stop()
         end_angle = self.window.update_end_angle.value() # 60
-        filename_suffix = self.window.formatted_filename[:-3]
+        # filename_suffix = self.window.formatted_filename[:-3]
+        filename_suffix = self.window.generate_h5_filename(self.window.prefix_input.text().strip())[:-3]
         ###
 #        self.task.tem_command("eos", "SetSelector", [11])
 #        if os.name == 'nt': self.task.tem_command("eos", "SetSelector", [20]) # test on Win-Win
@@ -193,7 +194,7 @@ class ControlWorker(QObject):
 #            if int(self.tem_status['eos.GetMagValue'][0]) == 20000: break
         ###
         if self.window.writer_for_rotation.isChecked():
-            task = RecordTask(self, end_angle, filename_suffix, writer_event = self.window.toggle_hdf5Writer_dummy)
+            task = RecordTask(self, end_angle, filename_suffix, writer_event = self.window.toggle_hdf5Writer) #_dummy)
         else:
             task = RecordTask(self, end_angle, filename_suffix)
         self.start_task(task)
@@ -292,3 +293,11 @@ class ControlWorker(QObject):
     def with_max_speed(self, tem_command):
         return "speed=stage.Getf1OverRateTxNum(); stage.Setf1OverRateTxNum(0); " + tem_command \
             + "; stage.Setf1OverRateTxNum(speed)"
+    
+    def update_rotation_info(self, reset=False):
+        if reset:
+            self.rotation_status = {"start_angle": 0, "end_angle": 0,
+                                    "start_time": 0, "end_time": 0,
+                                    "nimages": 0,}
+        else:
+            self.rotation_status["oscillation_per_frame"] = np.abs(self.rotation_status["end_angle"] - self.rotation_status["start_angle"]) / self.rotation_status["nimages"]    
