@@ -377,8 +377,8 @@ class ApplicationWindow(QMainWindow, Ui_TEMctrl):
         hdf5_writer_layout.addWidget(self.total_frame_nb, 0, 3)
 
         section3.addLayout(hdf5_writer_layout)
-        if globals.tem_mode:
-            section3.addLayout(self.index_layout)
+        # if globals.tem_mode:
+        #     section3.addLayout(self.index_layout)
         group3.setLayout(section3)
 
         sections_layout.addWidget(group1, 1)
