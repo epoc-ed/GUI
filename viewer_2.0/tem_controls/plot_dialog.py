@@ -18,8 +18,6 @@ class PlotDialog(QDialog):
         self.plotWidget0 = pg.PlotWidget()
         self.plotWidget0.setLabel('bottom', '<span style="font-size: 13pt">Time</span>', units='s')  
         self.plotWidget0.setLabel('left', '<span style="font-size: 12pt">Amplitude</span>')
-        # self.plotWidget0.getPlotItem().getAxis('left').setLogMode(False, True)
-        # self.plotWidget0.setYRange(1e6,1e7)
         self.layout.addWidget(self.plotWidget0)
         # Middle plot of Sigma_x and Sigma_y = f(t)
         self.plotWidget1 = pg.PlotWidget()

@@ -5,12 +5,12 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from .fit_beam_intensity import fit_2d_gaussian_roi
 
-class Gaussian_Fitter(QObject):
+class GaussianFitter(QObject):
     finished = Signal(object)
     updateParamsSignal = Signal(object, object)
 
     def __init__(self):
-        super(Gaussian_Fitter, self).__init__()
+        super(GaussianFitter, self).__init__()
         self.imageItem = None
         self.roi = None
         self.updateParamsSignal.connect(self.updateParams)

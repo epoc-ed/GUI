@@ -9,15 +9,19 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QCheckBox, QGraphicsEllipseItem,
                                 QGraphicsRectItem)
 
-from .plot_dialog import PlotDialog
-from .gaussian_fitter import Gaussian_Fitter
+# from .plot_dialog import PlotDialog
+from .plot_dialog_bis import PlotDialog
+# from .gaussian_fitter import GaussianFitter
+from .gaussian_fitter_mp import GaussianFitter
 
+import globals
 from toggle_button import ToggleButton
 
 class TemControls(QGroupBox):
     def __init__(self, parent):
         super().__init__("TEM Controls")
         self.parent = parent
+        self.fitter = None
         self.initUI()
 
     def initUI(self):
@@ -88,10 +92,52 @@ class TemControls(QGroupBox):
         section2.addLayout(BeamFocus_layout)
         self.setLayout(section2)
 
+    """ *********************************************** """
+    """ Multiprocessing Version of the gaussian fitting """
+    """ *********************************************** """
     def toggle_gaussianFit(self):
         if not self.btnBeamFocus.started:
+            if self.fitter is None:
+                self.fitter = GaussianFitter()
+            logging.debug(f"0.Fitter is Ready? {globals.fitterWorkerReady.value}")
+            self.fitter.updateParams(self.parent.imageItem, self.parent.roi)
+            logging.debug(f"1/2.Fitter should be Ready! Is it? --> {globals.fitterWorkerReady.value}")
+            self.fitter.finished.connect(self.updateFitParams) 
+            self.fitter.start()
+            logging.debug(f"1.Fitter is Ready? {globals.fitterWorkerReady.value}")
+            self.btnBeamFocus.setText("Stop Fitting")
+            self.btnBeamFocus.started = True
+            # Pop-up Window
+            if self.checkbox.isChecked():
+                self.showPlotDialog()   
+            # Timer started
+            self.parent.timer_fit.start(100)
+        else:
+            self.btnBeamFocus.setText("Beam Gaussian Fit")
+            self.btnBeamFocus.started = False
+            self.parent.timer_fit.stop()  
+            # Close Pop-up Window
+            if self.plotDialog != None:
+                self.plotDialog.close()
+            self.fitter.finished.disconnect()
+            self.fitter.stop()
+            self.fitter = None
+            globals.fitterWorkerReady.value = False
+            self.removeAxes()
+
+    def getFitParams(self):
+        self.fitter.check_output_queue()
+        logging.debug(f"2.Fitter is Ready? {globals.fitterWorkerReady.value}")
+        if not globals.fitterWorkerReady.value:
+            self.fitter.updateParams(self.parent.imageItem, self.parent.roi)  
+
+    """ ***************************************** """
+    """ Threading Version of the gaussian fitting """
+    """ ***************************************** """
+    """ def toggle_gaussianFit(self):
+        if not self.btnBeamFocus.started:
             self.thread_fit = QThread()
-            self.fitter = Gaussian_Fitter()
+            self.fitter = GaussianFitter()
             self.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
             self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
             self.thread_fit.start()
@@ -121,10 +167,6 @@ class TemControls(QGroupBox):
         worker.finished.connect(self.updateFitParams)
         worker.finished.connect(self.getFitterReady)
 
-    def showPlotDialog(self):
-        self.plotDialog = PlotDialog(self)
-        self.plotDialog.startPlotting(self.gauss_height_spBx.value(), self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
-        self.plotDialog.show() 
 
     def getFitterReady(self):
         self.fitterWorkerReady = True
@@ -134,7 +176,7 @@ class TemControls(QGroupBox):
             # Emit the update signal with the new parameters
             self.fitter.updateParamsSignal.emit(imageItem, roi)  
 
-    # @profile
+    #@profile
     def getFitParams(self):
         if self.fitterWorkerReady:
             # Prevent new tasks until the current one is finished
@@ -143,6 +185,12 @@ class TemControls(QGroupBox):
             self.updateWorkerParams(self.parent.imageItem, self.parent.roi)
             # Trigger the "run" computation in the thread where self.fitter" lives
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
+    """
+
+    def showPlotDialog(self):
+        self.plotDialog = PlotDialog(self)
+        self.plotDialog.startPlotting(self.gauss_height_spBx.value(), self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
+        self.plotDialog.show() 
 
     def updateFitParams(self, fit_result_best_values):
         amplitude = float(fit_result_best_values['amplitude'])
@@ -159,7 +207,7 @@ class TemControls(QGroupBox):
         self.angle_spBx.setValue(theta_deg)
         # Update graph in pop-up Window
         if self.plotDialog != None:
-            self.plotDialog.updatePlot(amplitude, sigma_x, sigma_y, 20)
+            self.plotDialog.updatePlot(amplitude, sigma_x, sigma_y)
         # Draw the fitting line at the FWHM of the 2d-gaussian
         self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 

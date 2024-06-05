@@ -66,6 +66,12 @@ class ApplicationWindow(QMainWindow):
         self.tem_controls = TemControls(self)
         self.file_operations = FileOperations(self)
 
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.visualization_panel.captureImage)
+
+        self.timer_fit = QTimer()
+        self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
+
         sections_layout.addWidget(self.visualization_panel, 1)
         sections_layout.addWidget(self.tem_controls, 1)
         sections_layout.addWidget(self.file_operations, 1)
@@ -79,13 +85,7 @@ class ApplicationWindow(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.visualization_panel.captureImage)
-
-        self.timer_fit = QTimer()
-        self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
         logging.info("Viewer ready!")
-
 
     def roiChanged(self):
         roiPos = self.roi.pos()
@@ -147,15 +147,23 @@ class ApplicationWindow(QMainWindow):
                                         "A process is still running. Are you sure you want to exit?",
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
+                globals.exit_flag.value = True
                 if self.file_operations.streamWriter is not None:
                     if self.file_operations.streamWriter.write_process.is_alive():
                         self.file_operations.streamWriter.stop()
-                globals.exit_flag.value = True
+                if self.file_operations.frameAccumulator is not None:
+                    if self.file_operations.frameAccumulator.accumulate_process.is_alive():
+                        self.file_operations.frameAccumulator.accumulate_process.terminate()
+                        self.file_operations.frameAccumulator.accumulate_process.join()
+                if self.tem_controls.fitter is not None:
+                    # if self.tem_controls.fitter.fitting_process is not None and self.tem_controls.fitter.fitting_process.is_alive():
+                    self.tem_controls.fitter.stop()
                 for thread, worker in running_threadWorkerPairs:
                     logging.debug(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker) 
             else: 
                 return
-        
+                
         logging.info("Exiting app!") 
-        self.app.quit()  
+        self.app.quit()
+        

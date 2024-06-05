@@ -9,7 +9,8 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QMessageBox, QGridLayout)
 
 from .stream_writer import StreamWriter
-from .frame_accumulator import Frame_Accumulator
+# from .frame_accumulator import FrameAccumulator
+from .frame_accumulator_mp import FrameAccumulator
 
 import reuss
 import globals
@@ -41,12 +42,14 @@ class FileOperations(QGroupBox):
         tiff_file_layout.addWidget(self.findex_input)
 
         section3.addLayout(tiff_file_layout)
-
+        
+        self.frameAccumulator = None
         self.accumulate_button = QPushButton("Accumulate in TIFF", self)
         self.accumulate_button.setEnabled(False)
         self.accumulate_button.clicked.connect(self.start_accumulate)
         self.acc_spin = QSpinBox(self)
         self.acc_spin.setValue(10)
+        self.acc_spin.setMaximum(1000000)
         self.acc_spin.setSuffix(' frames')
 
         accumulate_layout = QHBoxLayout()
@@ -115,14 +118,17 @@ class FileOperations(QGroupBox):
 
         section3.addLayout(hdf5_writer_layout)
         self.setLayout(section3)
-            
-    def start_accumulate(self):
+
+    """ ****************************************** """
+    """ Threading Version of the TIFF file Writing """
+    """ ****************************************** """        
+    """ def start_accumulate(self):
         self.file_index = self.findex_input.value()
         f_name = self.fname_input.text()
         nb_frames_to_take = self.acc_spin.value()
         # Construct the (thread, worker) pair
         self.thread_acc = QThread()
-        self.accumulator = Frame_Accumulator(nb_frames_to_take)
+        self.accumulator = FrameAccumulator(nb_frames_to_take)
         self.parent.threadWorkerPairs.append((self.thread_acc, self.accumulator))
         self.initializeWorker(self.thread_acc, self.accumulator)
         # Connect signals to relevant slots for operations
@@ -131,13 +137,30 @@ class FileOperations(QGroupBox):
         self.thread_acc.start()
         # Upadate file number for next take
         self.findex_input.setValue(self.file_index+1)
-
-
+    
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
         logging.info(f"{worker.__str__()} is Ready!")
         thread.started.connect(worker.run)
         worker.finished.connect(lambda x: save_captures(f'{self.fname_input.text()}_{self.file_index}', x))
+    """
+
+    """ ************************************************ """
+    """ Multiprocessing Version of the TIFF file Writing """
+    """ ************************************************ """
+    def start_accumulate(self):
+        file_index = self.findex_input.value()
+        full_fname = f'{self.fname_input.text()}_{self.findex_input.value()}'
+        nb_frames_to_take = self.acc_spin.value()
+        self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
+                                                                  dtype= globals.dtype,
+                                                                  image_size=(globals.nrow, globals.ncol),
+                                                                  nframes=nb_frames_to_take,
+                                                                  fname=full_fname)
+        self.frameAccumulator.start()
+        # Upadate file number for next take
+        self.findex_input.setValue(file_index+1)
+
 
     def open_directory_dialog(self):
         initial_dir = self.h5_folder_name or self.outPath_input.text()

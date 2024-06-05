@@ -46,6 +46,6 @@ if __name__ == "__main__":
     viewer.setPalette(app_palette)
 
     viewer.show()
-    QCoreApplication.processEvents()
+    # QCoreApplication.processEvents()
 
     sys.exit(app.exec())

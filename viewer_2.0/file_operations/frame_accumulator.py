@@ -4,11 +4,11 @@ from PySide6.QtCore import QObject, Signal
 
 import globals
 
-class Frame_Accumulator(QObject):
+class FrameAccumulator(QObject):
     finished = Signal(object)
 
     def __init__(self, nframes):
-        super(Frame_Accumulator, self).__init__()
+        super(FrameAccumulator, self).__init__()
         self.nframes_to_capture = nframes
 
     def run(self):
