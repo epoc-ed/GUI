@@ -14,7 +14,7 @@ from .frame_accumulator_mp import FrameAccumulator
 
 import reuss
 import globals
-from toggle_button import ToggleButton
+from ui_components.toggle_button import ToggleButton
 
 def save_captures(fname, data):
     logging.info(f'Saving: {fname}')

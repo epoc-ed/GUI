@@ -15,7 +15,7 @@ from .plot_dialog_bis import PlotDialog
 from .gaussian_fitter_mp import GaussianFitter
 
 import globals
-from toggle_button import ToggleButton
+from ui_components.toggle_button import ToggleButton
 
 class TemControls(QGroupBox):
     def __init__(self, parent):

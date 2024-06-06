@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
 from .reader import Reader
 
 from reuss import config as cfg
-from toggle_button import ToggleButton
+from ui_components.toggle_button import ToggleButton
 
 
 class VisualizationPanel(QGroupBox):

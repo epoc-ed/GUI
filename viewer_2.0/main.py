@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QCoreApplication
 
 import globals
-import palette
+import ui_components.palette as palette
 from zmq_receiver import ZmqReceiver
 from ui_main_window import ApplicationWindow 
 

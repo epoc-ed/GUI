@@ -2,15 +2,15 @@ import logging
 import globals
 import numpy as np
 import pyqtgraph as pg
-from overlay import draw_overlay 
+from ui_components.overlay import draw_overlay 
 from pyqtgraph.dockarea import Dock
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget,
                                 QHBoxLayout, QFrame, QPushButton,
                                 QMessageBox)
 from PySide6.QtCore import QTimer
-from visualization_panel.visualization_panel import VisualizationPanel
-from tem_controls.tem_controls import TemControls
-from file_operations.file_operations import FileOperations
+from ui_components.visualization_panel.visualization_panel import VisualizationPanel
+from ui_components.tem_controls.tem_controls import TemControls
+from ui_components.file_operations.file_operations import FileOperations
 
 class ApplicationWindow(QMainWindow):
     def __init__(self, receiver, app):
