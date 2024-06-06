@@ -82,7 +82,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 
 #### Data-processing notes, 6 Jun 2024
 - Read with XDS:\
-    The pligin derived from Neggia one requires '_master.h5' in the input filename, and a symbolic link with the suffix should be additionally prepared (to be corrected).
+    The plugin derived from Neggia one requires '_master.h5' in the input filename, and a symbolic link with the suffix should be additionally prepared (to be corrected).
 
 #### Data-processing workflow, 21 May 2024
 *\* The complete feasibility (including structure refinement) of the new data has not been established yet on 28th May 2024*
