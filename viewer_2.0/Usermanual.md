@@ -11,7 +11,7 @@
     *\*Using 12 threads*
 1.  ```$ cd /home/psi/software/viewer_2.0/GUI/viewer_2.0```\
     *\*Stable version. Development version is /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0*
-1.  ```$ ./viewer_2.py```\
+1.  ```$ ./main.py```\
     *\*To use TEM controling functions with Development version, ```$ ./viewer_2.py -t```*
 1. Start streaming in the viewer-GUI, without incident beam.
 1.  ```>>> r.record_pedestal(1)``` *at the terminal window working on the receiver (srecv)
@@ -79,10 +79,15 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 1. Click 'Stop Writing' right before the rotation ends.
 
 ***
+
+#### Data-processing notes, 6 Jun 2024
+- Read with XDS:\
+    The pligin derived from Neggia one requires '_master.h5' in the input filename, and a symbolic link with the suffix should be additionally prepared (to be corrected).
+
 #### Data-processing workflow, 21 May 2024
 *\* The complete feasibility (including structure refinement) of the new data has not been established yet on 28th May 2024*
 - Read with DIALS:\
     When the Format Class [https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE01.py] is installed, DIALS can read the HDF directly;\
     ```dials.import ******_master.h5```
 - Read with XDS:\
-    XDS can read the HDF file with a plugin command 'LIB= [plugin_path]'. A modified Neggia plugin [https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia/src/dectris/neggia/plugin] can be used.
+    XDS can read the HDF file with a plugin command 'LIB= [plugin_path]'. A modified Neggia plugin [https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia/src/dectris/neggia/plugin] can be used.\
