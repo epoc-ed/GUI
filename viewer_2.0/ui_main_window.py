@@ -69,6 +69,9 @@ class ApplicationWindow(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.visualization_panel.captureImage)
 
+        self.timer_contrast = QTimer(self)
+        self.timer_contrast.timeout.connect(self.visualization_panel.applyAutoContrast)
+
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
 
