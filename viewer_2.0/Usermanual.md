@@ -84,7 +84,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 - Read with XDS:\
     The plugin derived from Neggia one requires '_master.h5' in the input filename, and a symbolic link with the suffix should be additionally prepared (to be corrected).
 - Read with DIALS:\
-    An updated Format Class must be installed [https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py]. Then DIALS can read the HDF directly;\
+    [An updated Format Class](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py) must be installed. Then DIALS can read the HDF directly;\
     ```dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660```
 
 <!--
