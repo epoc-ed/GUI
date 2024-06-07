@@ -80,10 +80,14 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 
 ***
 
-#### Data-processing notes, 6 Jun 2024
+#### Data-processing notes, 6-7 Jun 2024
 - Read with XDS:\
     The plugin derived from Neggia one requires '_master.h5' in the input filename, and a symbolic link with the suffix should be additionally prepared (to be corrected).
+- Read with DIALS:\
+    An updated Format Class must be installed [https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py]. Then DIALS can read the HDF directly;\
+    ```dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660```
 
+<!--
 #### Data-processing workflow, 21 May 2024
 *\* The complete feasibility (including structure refinement) of the new data has not been established yet on 28th May 2024*
 - Read with DIALS:\
@@ -91,3 +95,4 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
     ```dials.import ******_master.h5```
 - Read with XDS:\
     XDS can read the HDF file with a plugin command 'LIB= [plugin_path]'. A modified Neggia plugin [https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia/src/dectris/neggia/plugin] can be used.\
+-->
