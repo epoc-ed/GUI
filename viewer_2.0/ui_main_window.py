@@ -12,6 +12,9 @@ from ui_components.visualization_panel.visualization_panel import VisualizationP
 from ui_components.tem_controls.tem_controls import TemControls
 from ui_components.file_operations.file_operations import FileOperations
 
+from ui_components.tem_controls.ui_temspecific import TEMDetector, TEMStageCtrl, TEMTasks
+from ui_components.tem_controls.tem_action import TEMAction
+
 class ApplicationWindow(QMainWindow):
     def __init__(self, receiver, app):
         super().__init__()
@@ -19,9 +22,9 @@ class ApplicationWindow(QMainWindow):
         self.receiver = receiver
         self.threadWorkerPairs = []
         self.initUI()
-
+        
     def initUI(self):
-        self.setWindowTitle("Viewer 2.0")
+        self.setWindowTitle("Viewer 2.0/temctrl")
         self.setGeometry(50, 50, 1500, 1000)
         
         pg.setConfigOptions(imageAxisOrder='row-major')
@@ -74,16 +77,37 @@ class ApplicationWindow(QMainWindow):
 
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
+        
+        if globals.tem_mode:
+            self.tem_detector = TEMDetector()
+            section1_layout = QVBoxLayout()
+            section1_layout.addWidget(self.visualization_panel)
+            section1_layout.addWidget(self.tem_detector)
+            sections_layout.addLayout(section1_layout, 1)
+            
+            self.tem_stagectrl = TEMStageCtrl()
+            section2_layout = QVBoxLayout()
+            section2_layout.addWidget(self.tem_controls)
+            section2_layout.addWidget(self.tem_stagectrl)
+            sections_layout.addLayout(section2_layout, 1)
+        else:
+            sections_layout.addWidget(self.visualization_panel, 1)
+            sections_layout.addWidget(self.tem_controls, 1)
 
-        sections_layout.addWidget(self.visualization_panel, 1)
-        sections_layout.addWidget(self.tem_controls, 1)
         sections_layout.addWidget(self.file_operations, 1)
-
         main_layout.addLayout(sections_layout)
 
-        self.exit_button = QPushButton("Exit", self)
-        self.exit_button.clicked.connect(self.do_exit)
-        main_layout.addWidget(self.exit_button)
+        if globals.tem_mode:
+            self.tem_tasks = TEMTasks()
+            main_layout.addWidget(self.tem_tasks)
+            self.tem_tasks.exit_button.clicked.connect(self.do_exit)
+            self.tem_action = TEMAction(self)
+            self.tem_action.enabling(False)
+        else:
+            self.exit_button = QPushButton("Exit", self)
+            main_layout.addWidget(self.exit_button)
+            self.exit_button.clicked.connect(self.do_exit)
+        
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
@@ -166,7 +190,11 @@ class ApplicationWindow(QMainWindow):
                     self.stopWorker(thread, worker) 
             else: 
                 return
-                
+
+        if globals.tem_mode:
+            if self.tem_tasks.connecttem_button.started:
+                self.tem_action.control.trigger_shutdown.emit()
+
         logging.info("Exiting app!") 
         self.app.quit()
         

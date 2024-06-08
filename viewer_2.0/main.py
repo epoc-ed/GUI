@@ -23,6 +23,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--stream', type=str, default="tcp://localhost:4545", help="zmq stream")
     parser.add_argument("-d", "--dtype", help="Data type", type = np.dtype, default=np.float32)
+    parser.add_argument("-t", "--tem", action="store_true", help="Activate tem-control functions")
 
     args = parser.parse_args()
 
@@ -37,6 +38,7 @@ if __name__ == "__main__":
     globals.stream = args.stream 
     globals.dtype = args.dtype
     globals.acc_image = np.zeros((globals.nrow,globals.ncol), dtype = args.dtype)
+    globals.tem_mode = args.tem
     logging.debug(type(globals.acc_image[0,0]))
 
     Rcv = ZmqReceiver(endpoint=args.stream, dtype=args.dtype) 
