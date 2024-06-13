@@ -66,7 +66,7 @@ class Hdf5File:
                 dtype=self.dt,
                 maxshape=(None, *self._image_size),
                 chunks=(1, *self._image_size),
-                #**compression,
+                **compression,
             )
             self.ds.attrs["image_nr_low"] = np.int32(0)
 
@@ -87,7 +87,7 @@ class Hdf5File:
                 dtype='int64',
                 maxshape=(None,),
                 chunks=(1,),
-                #**compression,
+                **compression,
             )
 
         elif self.mode == 'r':
