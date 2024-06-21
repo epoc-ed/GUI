@@ -55,9 +55,9 @@ def _fitGaussian(input_queue, output_queue):
             else:
                 task = input_queue.get()  # Blocking call, waits for new data
             
-            if task is None: # None is used as a signal to stop the process
-                logging.debug("/!\/!\/!\ Stopping Fitting Process!" )
-                break
+            # if task is None: # None is used as a signal to stop the process
+            #     print("/!\/!\/!\ Stopping Fitting Process!" )
+            #     break
             
             logging.debug("Ongoing Fitting.......")
             image_data, roiPos, roiSize = task
@@ -110,13 +110,12 @@ class GaussianFitter(QObject):
                 logging.debug("4. Fitter finished !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
     def stop(self):
-        self.input_queue.put(None)  # Send None to signal the process to exit
+        # self.input_queue.put(None)  # Send None to signal the process to exit
         if self.fitting_process is not None:
             self.fitting_process.terminate()
             self.fitting_process.join()
             self.fitting_process = None
-        # if globals.exit_flag.value:
-        logging.debug("Closing queues and joining ")
+        logging.info("Closing queues and joining ")
         self.input_queue.close()
         self.output_queue.close()
         self.input_queue.cancel_join_thread()

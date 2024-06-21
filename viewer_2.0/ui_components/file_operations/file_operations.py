@@ -88,6 +88,7 @@ class FileOperations(QGroupBox):
         self.outPath = QLabel("H5 Output Path", self)
         self.outPath_input = QLineEdit(self)
         self.outPath_input.setText(os.getcwd())
+        self.outPath_input.returnPressed.connect(self.modify_path_manually)
         self.h5_folder_name = self.outPath_input.text()
         self.folder_button = QPushButton()
         self.folder_button.setIcon(QIcon("./extras/folder_icon.png"))
@@ -161,6 +162,12 @@ class FileOperations(QGroupBox):
         # Upadate file number for next take
         self.findex_input.setValue(file_index+1)
 
+    def modify_path_manually(self):
+        path = self.outPath_input.text()
+        if os.path.exists(path): 
+            self.h5_folder_name = path
+        else:
+            QMessageBox.critical(self, "Wrong Path", "The entered path does not exist!\nPlease create it or use the dedicated button for folder selection...", QMessageBox.Ok)
 
     def open_directory_dialog(self):
         initial_dir = self.h5_folder_name or self.outPath_input.text()
