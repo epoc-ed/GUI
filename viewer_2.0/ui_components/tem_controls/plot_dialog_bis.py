@@ -70,8 +70,6 @@ class PlotDialog(QDialog):
 
     def updatePlot(self, newValue_H, newValue_x, newValue_y, width_max=60):
         elapsed = self.timeElapsed.msecsTo(QTime.currentTime()) / 1000.0 # Convert milliseconds to seconds
-        # if elapsed > width_max:  # Shift time window
-        #     elapsed = width_max
 
         self.dataX.append(elapsed)
         self.dataY0.append(newValue_H)

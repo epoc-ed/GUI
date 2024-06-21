@@ -1,14 +1,13 @@
 import ctypes
 import numpy as np
 import multiprocessing as mp
-
-from reuss import config as cfg
+import ui_config.config as cfg 
 
 stream = "tcp://localhost:4545"
 
 #Configuration
-nrow = 514 # cfg.nrows()
-ncol = 1030 # cfg.ncols()
+nrow = cfg.nrows() 
+ncol = cfg.ncols()
 
 dtype = np.float32
 cdtype = ctypes.c_float

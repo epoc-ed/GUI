@@ -182,9 +182,8 @@ class ApplicationWindow(QMainWindow):
                     if self.file_operations.frameAccumulator.accumulate_process.is_alive():
                         self.file_operations.frameAccumulator.accumulate_process.terminate()
                         self.file_operations.frameAccumulator.accumulate_process.join()
-                if self.tem_controls.fitter is not None:
-                    # if self.tem_controls.fitter.fitting_process is not None and self.tem_controls.fitter.fitting_process.is_alive():
-                    self.tem_controls.fitter.stop()
+                # if self.tem_controls.fitter is not None:
+                #     self.tem_controls.fitter.stop()
                 for thread, worker in running_threadWorkerPairs:
                     logging.debug(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker) 

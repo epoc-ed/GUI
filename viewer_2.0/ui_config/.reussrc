@@ -1,0 +1,27 @@
+[app]
+shm = /dev/shm/reuss
+
+[detector]
+det_id = 272
+caldir = /home/l_khalil/calibrtion
+
+[data]
+path = /where/to/save/data
+pedestal_base_name = pedestal
+
+[plot]
+origin = lower
+
+[compute]
+n_cores = 12
+
+[overlay]
+circle1 = {"xy": [173,170], "radius": 160,"ec": "r", "fill" : false, "lw": 2}
+circle2 = {"xy": [173,170], "radius": 5,"ec": "g", "fill" : false, "lw": 2}
+rectangle1 = {"xy": [400,400], "width": 10, "height": 5, "angle": 30, "ec":"y"}
+
+[viewer]
+#time in ms
+interval = 200
+cmin = 0
+cmax = 20e3
