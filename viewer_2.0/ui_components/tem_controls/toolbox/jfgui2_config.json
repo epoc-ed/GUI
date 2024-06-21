@@ -1,0 +1,178 @@
+{ "distances":
+        [
+         { "displayed": "100cm",
+           "calibrated": 1160.0,
+           "unit": "mm",
+           "date_update": "20/07/2022"
+         },
+         { "displayed": "80cm",
+           "calibrated": 1055.0,
+           "unit": "mm",
+           "date_update": "29/06/2023"
+         },
+         { "displayed": "60cm",
+           "calibrated": 795.0,
+           "unit": "mm",
+           "date_update": "29/06/2023"
+         },
+         { "displayed": "50cm",
+           "calibrated": 660.0,
+           "unit": "mm",
+           "date_update": "29/06/2023"
+         },
+         { "displayed": "40cm",
+            "calibrated": 497.0,
+           "unit": "mm",
+           "date_update": "29/06/2023"
+         },
+         { "displayed": "30cm",
+            "calibrated": 370.0,
+           "unit": "mm",
+           "date_update": "23/08/2022"
+         },
+         { "displayed": "25cm",
+           "calibrated": 372.0,
+           "unit": "mm",
+           "date_update": "20/07/2022"
+        }
+],
+  "magnification":
+        [
+         { "displayed": "X100k",
+           "calibrated": 133920,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X80k",
+           "calibrated": 106704,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X60k",
+           "calibrated": 77112,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X50k",
+           "calibrated": 65016,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X40k",
+           "calibrated": 52056,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X30k",
+           "calibrated": 39852,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X25k",
+           "calibrated": 33120,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X20k",
+           "calibrated": 26136,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X15k",
+           "calibrated": 20196,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X12k",
+           "calibrated": 15898,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X10k",
+           "calibrated": 13046,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X8000",
+           "calibrated": 10553,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X6000",
+           "calibrated": 7830,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X5000",
+           "calibrated": 5364,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X4000",
+           "calibrated": 5227,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X3000",
+           "calibrated": 3888,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X2500",
+           "calibrated": 3294,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X2000",
+           "calibrated": 2592,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X1500",
+           "calibrated": 1890,
+           "date_update": "26/10/2023"
+        },
+         { "displayed": "X1200",
+           "calibrated": 1560,
+           "date_update": "extrapolation"
+        },
+         { "displayed": "X1000",
+           "calibrated": 1300,
+           "date_update": "extrapolation"
+        }
+], 
+  "CL":
+        [
+         { "ID": 0,
+           "size": 0,
+           "unit": "um"
+         },
+         { "ID": 1,
+           "size": 150,
+           "unit": "um"
+         },
+         { "ID": 2,
+           "size": 70,
+           "unit": "um"
+         },
+         { "ID": 3,
+           "size": 50,
+           "unit": "um"
+         },
+         { "ID": 4,
+           "size": 10,
+           "unit": "um"
+         }
+],
+  "SA":
+        [
+         { "ID": 0,
+           "size": 0,
+           "unit": "um"
+         },
+         { "ID": 1,
+           "size": 100,
+           "unit": "um"
+         },
+         { "ID": 2,
+           "size": 50,
+           "unit": "um"
+         },
+         { "ID": 3,
+           "size": 20,
+           "unit": "um"
+         },
+         { "ID": 4,
+           "size": 10,
+           "unit": "um"
+         }
+],
+  "TEM_IP": "temserver",
+  "TEM_PORT": 12345, 
+  "reuss_config": "/home/psi/.reussrc",
+  "data_root": "/data/jungfrau/psi/CCSA",
+  "work_dir_root": "/data/jungfrau/psi/CCSA",
+  "XDS_template": "/xtal/Integration/XDS/CCSA-templates/XDS-JUNGFRAU_50cm.INP"
+}
