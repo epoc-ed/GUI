@@ -16,10 +16,10 @@
 1.  ```$ ./srecv -t 12``` \
     *\*Using 12 threads*
 1.  ```$ cd /home/psi/software/viewer_2.0/GUI/viewer_2.0```\
-    *\*'Testing' version. 'Development' version is at /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0* \
+    *\*'PSI' version. 'Testing' version is at /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0* \
     *\*'Testing' version will be renamed as 'Stable' verstion after the bug-fix*
 1.  ```$ ./main.py```\
-    *\*To use TEM controling functions with Development version, ```$ ./viewer_2.py -t```*
+    *\*To use TEM controling functions with Testing version, ```$ ./viewer_2.py -t```*
 1. Start streaming in the viewer-GUI, without incident beam.
 1.  ```>>> r.record_pedestal(1)``` *at the terminal window where the receiver (srecv) is running
 1. 'Acquisition Interval (ms)' in GUI should be changed to '20' to reduce the dealy.
