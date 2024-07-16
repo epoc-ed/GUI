@@ -2,9 +2,9 @@
 - [Activation](#Activation)
 - [Deactivation](#Deactivation)
 - [Main Function](#Main-Function)
-- [Data-recording workflow](#Data-recording-workflow,-21-May-2024)
+- [Data-recording workflow](#Data-recording-workflow)
 - [Data-recording workflow with Development version](#Data-recording-workflow-with-Development-version,-4-Jul-2024)
-- [Data-procesing-notes](#Data-processing-notes,-6-7-Jun-2024)
+- [Data-procesing notes](#Data-processing-notes,-6-7-Jun-2024)
 - [Troubleshooting](#Troubleshooting)
 
 ### Activation
@@ -17,9 +17,9 @@
     *\*Using 12 threads*
 1.  ```$ cd /home/psi/software/viewer_2.0/GUI/viewer_2.0```\
     *\*'PSI' version. 'Testing' version is at /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0* \
-    *\*'Testing' version will be renamed as 'Stable' verstion after the bug-fix*
+    *\*'Testing' version will be renamed as 'Stable' version after the bug-fix*
 1.  ```$ ./main.py```\
-    *\*To use TEM controling functions with Testing version, ```$ ./viewer_2.py -t```*
+    *\*To use TEM control functions with Testing version, ```$ ./viewer_2.py -t```*
 1. Start streaming in the viewer-GUI, without incident beam.
 1.  ```>>> r.record_pedestal(1)``` *at the terminal window where the receiver (srecv) is running
 1. 'Acquisition Interval (ms)' in GUI should be changed to '20' to reduce the dealy.
@@ -46,9 +46,9 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
  - 'Beam Gaussian Fit': Starts the gaussian fitting of the beam elliptical spot shape.
     - *at the moment, useful as a quantifying indicator for manual-focusing.*
  - 'Exit': Exits the GUI. The connection to TEM is disconnected before exiting.
- - ['[A]'](screenshot/ver_21Jul2024.png) at the bottom left of the viewer panel can reset the viewer scale.
+ - ['[A]'](screenshot/ver_21Jun2024.png) at the bottom left of the viewer panel can reset the viewer scale.
  
-#### *[Function in Development version](screenshot/ver_4Jul2024.png)*
+#### *[Tem-control Function](screenshot/ver_4Jun2024.png)*
  - 'Magnification', 'Distance': Indicates the current or just previous value of magnification/distance
      - 'scale' for displaying a scale bar for imaging (1 um length) or the Debye-ring for diffraction (1 A circle)
  - 'Rotation Speed': Changes rotation speed settings and indicates the current value
@@ -111,7 +111,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
     *Modity the H5 Output Path via the folder icon (activates file-browser sytem).*
 - When pusing the tiff-recording button, error messages are displayed.\
     *Stop and restart the streaming. Then the tiff will be saved. This is fixed in the next version.*
-- The TEM-controlling button does not respond immediately.\
+- The TEM-control button does not respond immediately.\
     *There will be a delay of a few seconds in responding, especially the first time. Please wait a few moments.*
 - The GUI does not respond after the Gaussian-fitting.\
     *Stop the function by Ctrl+C in the terminal, and restart the GUI. This caused from the multi-processing (to be fixed).*
