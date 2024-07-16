@@ -33,8 +33,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 **\*CameraPC (hodgkin)**
 1. Stop streaming and Exit the viewer
 1. Stop the receiver from the terminal window. This may take several tens of seconds.\
-    ```>>> r.stop()``` \
-<!--     ```>>> exit()``` -->
+    ```>>> r.stop()``` 
 1. ```$ p stop```
 
 **\*TEM-PC**
