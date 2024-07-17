@@ -23,10 +23,11 @@ This document was updated on 17 Jul 2024
 1.  ```$ ./main_ui.py```\
     *\*To use TEM control functions with Testing version, ```$ ./main_ui.py -t```*
 1. Start streaming in the viewer-GUI, without incident beam.
-1.  ```>>> r.record_pedestal(1)``` *at the terminal window where the receiver (srecv) is running
+1.  ```>>> r.record_pedestal(1)``` *at the terminal window where the receiver (srecv) is running\
+    ****\*To be more careful of the threshold, reset the value before pedestaling as: ```r.set_threshold(-50)```****
 1. 'Acquisition Interval (ms)' in GUI should be changed to '20' to reduce the dealy.
 
-**\*TEM-PC, NOT needed when you ONLY use the TEM console**
+**\*TEM-PC, NOT needed when you ONLY use the TEM console panel**
 1. Activate relay_server \
 Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay server;\
     ```$ python relay_server_testKT.py```  
@@ -51,6 +52,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
  - ['[A]'](screenshot/ver_21Jun2024.png) at the bottom left of the viewer panel can reset the viewer scale.
  
 #### *[TEM-control Function](screenshot/ver_17Jul2024.png)*
+*\*The current version does not modify any lens values but controls only the stage and the beam blanking.*
  - 'Magnification', 'Distance': Indicates the current or just previous value of magnification/distance
      - 'scale' for displaying a scale bar for imaging (1 um length) or the Debye-ring for diffraction (1 A circle)
  - 'Rotation Speed': Changes rotation speed settings and indicates the current value
@@ -69,10 +71,10 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 <!-- , 21 May 2024 -->
 1. Setup the beam and stage of TEM for data collection.
 1. Define the data output path on the 'H5 Output Path' lineedit, via a folder icon.
-<!-- 1. When 'Prepare for XDS processing' is checked, the ouput filename is end with '_master.h5' -->
-<!-- 1. Modify the 'Acquisition Interval (ms)' -->
 1. Start the stage rotation of TEM for example, and immediately click 'Write Stream in H5'
 1. Click 'Stop Writing' right before the rotation ends.
+<!-- 1. When 'Prepare for XDS processing' is checked, the ouput filename is end with '_master.h5' -->
+<!-- 1. Modify the 'Acquisition Interval (ms)' -->
 
 ***
 ### Data-recording workflow with Testing version
