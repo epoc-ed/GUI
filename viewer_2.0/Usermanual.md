@@ -1,11 +1,11 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document is updated on 17 Jul 2024
+This document was updated on 17 Jul 2024
 - [Activation](#Activation)
 - [Deactivation](#Deactivation)
 - [Main Function](#Main-Function)
 - [TEM-control Function](#TEM-control-Function)
 - [Data-recording workflow](#Data-recording-workflow)
-- [Data-recording workflow with Development version](#Data-recording-workflow-with-Development-version,-4-Jul-2024)
+- [Data-recording workflow with Testing version](#Data-recording-workflow-with-Testing-version)
 - [Data-procesing notes](#Data-processing-notes,-6-7-Jun-2024)
 - [Troubleshooting](#Troubleshooting)
 
@@ -75,6 +75,16 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 1. Click 'Stop Writing' right before the rotation ends.
 
 ***
+### Data-recording workflow with Testing version
+1. Setup the beam and stage of TEM for data collection.
+1. Confirm/modify the data output path on the 'H5 Output Path' lineedit, via a folder icon.
+1. Confirm/modify the stage rotation speed and the end angle of the rotation.
+1. Check the 'with Writer' box. Check/uncheck the 'Auto reset' box.
+1. Click 'Rotation/Record' button, then start the rotation and recording synchronously.
+1. The rotation/recording continues until reaching the end angle or being interrupted.
+1. Take a tiff image if you need. The tiff image is not tied with the HDF file at the moment.
+
+<!-- ***
 ### Data-recording workflow with Development version, 4 Jul 2024
 1. Setup the beam and stage of TEM for data collection.
 1. Define the data output path on the 'H5 Output Path' lineedit. *a '/' at the last part of the path may cause an error.
@@ -83,7 +93,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 1. Click 'Rotation/Record' to start the rotation and recording.
 1. Rotation/recording can be stopped by clicking 'Stop' (the same button) or interrupption by TEM console. Otherwise the recording will continue until tilted to the end angle.
 *\*The frame rate in recording is 50 ms and independent from the value at 'Aquisition Interval'. At this rate, recording with 1 deg/s means 0.05 deg/frame.*
-*\*TEM information will be written in the HDF when 'Write during rotaion' is checked.*
+*\*TEM information will be written in the HDF when 'Write during rotaion' is checked.* -->
 
 ***
 ### Data-processing notes, 6-7 Jun 2024
