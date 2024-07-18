@@ -77,8 +77,10 @@ class Hdf5File:
             nxentry.create_dataset('instrument/detector/y_pixel_size', data=self._pixel_size[0], dtype='float32')
             inst = nxentry.create_group("instrument/detector/detectorSpecific")
             inst.create_dataset("pixel_mask", data=pixel_mask.astype(np.uint8)) #, **compression)
-            inst.create_dataset('x_pixels_in_detector', data=self._image_size[1], dtype='uint64')
-            inst.create_dataset('y_pixels_in_detector', data=self._image_size[0], dtype='uint64')
+            inst.create_dataset('x_pixels_in_detector', data=self._image_size[0], dtype='uint64')
+            inst.create_dataset('y_pixels_in_detector', data=self._image_size[1], dtype='uint64')
+            #inst.create_dataset('x_pixels_in_detector', data=self._image_size[1], dtype='uint64')
+            #inst.create_dataset('y_pixels_in_detector', data=self._image_size[0], dtype='uint64')
 
             # Create a dataset for storing frame numbers
             self.frame_nb_ds = nxdata.create_dataset(
