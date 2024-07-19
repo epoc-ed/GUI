@@ -57,8 +57,8 @@ class index(Enum):
     COL = 0 #1
 
 class module:
-    rows = 512
-    cols = 1024
+    rows = 514 #512
+    cols = 1030 #1024
     gains = 3
 
 def nrows():
