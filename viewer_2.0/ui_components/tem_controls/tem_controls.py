@@ -9,8 +9,9 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QCheckBox, QGraphicsEllipseItem,
                                 QGraphicsRectItem)
 
-# from .plot_dialog import PlotDialog
-from .plot_dialog_bis import PlotDialog
+# from .plot_dialog_slow import PlotDialog
+from .plot_dialog_fast import PlotDialog
+
 from .gaussian_fitter import GaussianFitter
 # from .gaussian_fitter_mp import GaussianFitter
 
@@ -28,8 +29,6 @@ class TemControls(QGroupBox):
         section2 = QVBoxLayout()
 
         self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
-        # self.parent.timer_fit = self.parent.timer_fit
-        # self.parent.timer_fit.timeout.connect(self.getFitParams)
         self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
 
         self.checkbox = QCheckBox("Enable pop-up Window", self)
