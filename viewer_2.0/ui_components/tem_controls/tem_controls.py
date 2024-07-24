@@ -235,17 +235,22 @@ class TemControls(QGroupBox):
         # First, translate the coordinate system to the center of the ellipse,
         # then rotate around this point and finally translate back to origin.
         rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo)
-        
+        # Create the symmetry (vertical flip) transform
+        symmetryTransform = QTransform().translate(xo, yo).scale(1, -1).translate(-xo, -yo)
+
+        # Combine the rotation and symmetry transforms
+        combinedTransform = rotationTransform * symmetryTransform
+
         self.ellipse_fit.setPen(pg.mkPen('b', width=3))
-        self.ellipse_fit.setTransform(rotationTransform)
+        self.ellipse_fit.setTransform(combinedTransform)
         self.parent.plot.addItem(self.ellipse_fit)
 
         self.sigma_x_fit.setPen(pg.mkPen('b', width=2))
-        self.sigma_x_fit.setTransform(rotationTransform)
+        self.sigma_x_fit.setTransform(combinedTransform)
         self.parent.plot.addItem(self.sigma_x_fit)
 
         self.sigma_y_fit.setPen(pg.mkPen('r', width=2))
-        self.sigma_y_fit.setTransform(rotationTransform)
+        self.sigma_y_fit.setTransform(combinedTransform)
         self.parent.plot.addItem(self.sigma_y_fit)
 
     def removeAxes(self):

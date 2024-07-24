@@ -50,15 +50,16 @@ bitmask = np.array([0x3FFF], dtype=np.uint16)
 #TODO! Synch with C++
 #roi = [(slice(0, 512, 1), slice(256, 768, 1))]
 # roi = [(slice(0, 514, 1), slice(0, 1030, 1))]
-roi = [(slice(0, 1030, 1), slice(0, 514, 1))]
+# roi = [(slice(0, 1030, 1), slice(0, 514, 1))]
+roi = [(slice(0, 1024, 1), slice(0, 512, 1))]
 
 class index(Enum):
     ROW = 1 #0
     COL = 0 #1
 
 class module:
-    rows = 514 #512
-    cols = 1030 #1024
+    rows = 512 #514 #512
+    cols = 1024 #1030 #1024
     gains = 3
 
 def nrows():
