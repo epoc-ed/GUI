@@ -39,6 +39,7 @@ if __name__ == "__main__":
     globals.dtype = args.dtype
     globals.acc_image = np.zeros((globals.nrow,globals.ncol), dtype = args.dtype)
     globals.tem_mode = args.tem
+
     logging.debug(type(globals.acc_image[0,0]))
 
     Rcv = ZmqReceiver(endpoint=args.stream, dtype=args.dtype) 

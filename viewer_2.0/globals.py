@@ -4,6 +4,7 @@ import multiprocessing as mp
 import ui_config.config as cfg 
 
 stream = "tcp://localhost:4545"
+tem_mode = False
 
 #Configuration
 nrow = cfg.nrows() 
