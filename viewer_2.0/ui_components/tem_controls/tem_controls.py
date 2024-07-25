@@ -217,8 +217,8 @@ class TemControls(QGroupBox):
         # where FWHM = 2*sqrt(2*ln(2))*sigma ~ 2.3548*sigma
         p = 0.2
         alpha = 2*np.sqrt(-2*math.log(p))
-        width = alpha * sigma_x # Use 
-        height = alpha * sigma_y # 
+        width = alpha * max(sigma_x, sigma_y) # Use 
+        height = alpha * min(sigma_x, sigma_y) # 
         # Check if the item is added to a scene, and remove it if so
         scene = self.ellipse_fit.scene() 
         scene_x = self.sigma_x_fit.scene() 
@@ -236,17 +236,21 @@ class TemControls(QGroupBox):
         # First, translate the coordinate system to the center of the ellipse,
         # then rotate around this point and finally translate back to origin.
         rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo)
-        
+        # Create the symmetry (vertical flip) transform
+        symmetryTransform = QTransform().translate(xo, yo).scale(1, -1).translate(-xo, -yo)
+        # Combine the rotation and symmetry transforms
+        combinedTransform = rotationTransform * symmetryTransform
+
         self.ellipse_fit.setPen(pg.mkPen('b', width=3))
-        self.ellipse_fit.setTransform(rotationTransform)
+        self.ellipse_fit.setTransform(combinedTransform)
         self.parent.plot.addItem(self.ellipse_fit)
 
         self.sigma_x_fit.setPen(pg.mkPen('b', width=2))
-        self.sigma_x_fit.setTransform(rotationTransform)
+        self.sigma_x_fit.setTransform(combinedTransform)
         self.parent.plot.addItem(self.sigma_x_fit)
 
         self.sigma_y_fit.setPen(pg.mkPen('r', width=2))
-        self.sigma_y_fit.setTransform(rotationTransform)
+        self.sigma_y_fit.setTransform(combinedTransform)
         self.parent.plot.addItem(self.sigma_y_fit)
 
     def removeAxes(self):

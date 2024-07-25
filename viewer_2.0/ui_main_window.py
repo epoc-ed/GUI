@@ -15,6 +15,31 @@ from ui_components.file_operations.file_operations import FileOperations
 from ui_components.tem_controls.ui_temspecific import TEMDetector, TEMStageCtrl, TEMTasks
 from ui_components.tem_controls.tem_action import TEMAction
 
+def create_gaussian(size_x, size_y, sigma_x, sigma_y, theta):
+    """
+    Create a 2D Gaussian distribution tilted by an angle theta.
+    
+    Parameters:
+    size_x (int): Width of the array
+    size_y (int): Height of the array
+    sigma_x (float): Standard deviation in the x direction
+    sigma_y (float): Standard deviation in the y direction
+    theta (float): Angle of rotation in radians
+    
+    Returns:
+    np.array: 2D array representing the Gaussian distribution
+    """
+    x = np.linspace(-size_x//2, size_x//2, size_x)
+    y = np.linspace(-size_y//2, size_y//2, size_y)
+    x, y = np.meshgrid(x, y)
+    
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    
+    gaussian = np.exp(-(a*x**2 + 2*b*x*y + c*y**2))
+    return gaussian.astype(np.float32)
+
 class ApplicationWindow(QMainWindow):
     def __init__(self, receiver, app):
         super().__init__()
@@ -49,9 +74,20 @@ class ApplicationWindow(QMainWindow):
         self.plot.addItem(self.roi)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
+        self.roi.addScaleHandle([0.5, 0], [0.5, 0.5])
+        self.roi.addScaleHandle([1, 0.5], [0.5, 0.5])
         self.roi.sigRegionChanged.connect(self.roiChanged)
         # Initial data (optional)
-        data = np.random.rand(globals.nrow,globals.ncol).astype(globals.dtype)
+        
+        # Parameters
+        size_x, size_y = 1024, 512
+        sigma_x = 30
+        sigma_y = sigma_x / 2
+        theta = np.deg2rad(35)  # Angle in radians
+        # Create the Gaussian data
+        data = create_gaussian(size_x, size_y, sigma_x, sigma_y, theta)
+       
+        # data = np.random.rand(globals.nrow,globals.ncol).astype(globals.dtype)
         logging.debug(f"type(data) is {type(data[0,0])}")
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         # Plot overlays from .reussrc          
