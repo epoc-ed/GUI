@@ -1,4 +1,5 @@
 import time
+import logging
 from datetime import datetime as dt
 from ui_components.tem_controls.task.task import Task
 import numpy as np
@@ -34,21 +35,21 @@ class BeamFitTask(Task):
         time.sleep(1)
     
     def sweep_il1_linear(self, lower, upper, step, wait_time_s=0.2):
-#        max_amplitude = 0
-#        max_il1value = None
+        max_amplitude = 0
+        max_il1value = None
         for il1_value in range(lower, upper, step):
             self.tem_command("lens", "SetILFocus", [il1_value])
             time.sleep(wait_time_s)
             print(dt.now(), il1_value)
-#            amplitude = self.control.stream_receiver.fit[0]
-#            if max_amplitude < amplitude:
-#                max_amplitude = amplitud
-#                max_il1value = il1_value
-        print("Now reset to the initial value (for safety in testing)")
+            # amplitude = self.control.stream_receiver.fit[0]
+            if max_amplitude < amplitude:
+                max_amplitude = amplitude
+                max_il1value = il1_value
+
+        logging.info("Now reset to the initial value (for safety in testing)")
         time.sleep(1)
         self.tem_command("lens", "SetILFocus", [(lower + upper)//2])
-        max_amplitude = 1 # dummy
-        max_il1value = (lower + upper)//2 # dummy
+
         return max_amplitude, max_il1value
         
     def move_to_stigm(self, stigm_x, stigm_y):
@@ -63,10 +64,10 @@ class BeamFitTask(Task):
             self.tem_command("defl", "SetILs", [stigmx_value, init_stigm[1]])
             time.sleep(wait_time_s)
             print(dt.now(), stigmx_value)
-            # simga1 = self.control.stream_receiver.fit[0] # smaller sigma value (shorter axis)
-            # if min_sigma1 > sigma1:
-            #     min_sigma1 = sigma1
-            #     min_stigmvalue = [stigmx_value, init_stigm[1]]
+            # sigma1 = self.control.stream_receiver.fit[0] # smaller sigma value (shorter axis)
+            if min_sigma1 > sigma1:
+                min_sigma1 = sigma1
+                min_stigmvalue = [stigmx_value, init_stigm[1]]
 
         self.tem_command("defl", "SetILs", min_stigmvalue)
         time.sleep(1)
@@ -76,13 +77,13 @@ class BeamFitTask(Task):
             time.sleep(wait_time_s)
             print(dt.now(), stigmy_value)
             # ratio = self.control.stream_receiver.fit[0] # sigma ratio
-            # if np.abs(best_ratio - 1) > np.abs(ratio - 1):
-            #     best_ratio = ratio
-            #     min_stigmvalue = [min_stigmvalue[0], stigmy_value]
+            if abs(best_ratio - 1) > abs(ratio - 1):
+                best_ratio = ratio
+                min_stigmvalue = [min_stigmvalue[0], stigmy_value]
         
         print("Now reset to the initial value (for safety in testing)")
         time.sleep(1)
         self.tem_command("defl", "SetILs", init_stigm)
-        min_stigmvalue = init_stigm # dummy
+        
         return min_sigma1, best_ratio, min_stigmvalue
 
