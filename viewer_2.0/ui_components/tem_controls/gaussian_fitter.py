@@ -21,29 +21,19 @@ class GaussianFitter(QObject):
         self.imageItem = imageItem
         self.roi = roi
 
-    # @Slot()
-    # def run(self):
-    #     if not self.imageItem or not self.roi:
-    #         logging.warning("ImageItem or ROI not set.\nSetting now...")
-    #         return
-    #     im = self.imageItem.image
-    #     roiPos = self.roi.pos()
-    #     roiSize = self.roi.size()
-    #     roi_start_row = int(np.floor(roiPos.y()))
-    #     roi_end_row = int(np.ceil(roiPos.y() + roiSize.y()))
-    #     roi_start_col = int(np.floor(roiPos.x()))
-    #     roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
-    #     fit_result = fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col)
-    #     self.finished.emit(fit_result.best_values)
-
     @Slot()
     def run(self):
         if not self.imageItem or not self.roi:
             logging.warning("ImageItem or ROI not set.\nSetting now...")
             return
         im = self.imageItem.image
-        roi = self.roi
-        fit_result = fit_2d_gaussian_roi_test(im, roi)
+        roiPos = self.roi.pos()
+        roiSize = self.roi.size()
+        roi_start_row = int(np.floor(roiPos.y()))
+        roi_end_row = int(np.ceil(roiPos.y() + roiSize.y()))
+        roi_start_col = int(np.floor(roiPos.x()))
+        roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
+        fit_result = fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col)
         self.finished.emit(fit_result.best_values)
 
     def __str__(self) -> str:

@@ -12,6 +12,8 @@ from reuss import config as cfg
 import json
 import os
 
+from .plot_dialog_bis import PlotDialog
+
 class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
@@ -42,7 +44,10 @@ class TEMAction(QObject):
         self.control.updated.connect(self.on_tem_update)
         self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
         # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
-        self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)        
+        self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
+
+        self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
+
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
         self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(10000)"))
         self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(-10000)"))
@@ -72,6 +77,8 @@ class TEMAction(QObject):
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
         # self.tem_tasks.btnBeamSweep.setEnabled(enables)
+        
+        self.tem_tasks.beamAutofocus.setEnabled(enables)
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
@@ -183,12 +190,46 @@ class TEMAction(QObject):
                 self.file_operations.streamWriterButton.setEnabled(True)
             self.control.stop()
             
-#     def toggle_centering(self):
-#         if not self.centering_button.started:
-#             self.centering_button.setText("Deactivate centering")
-#             self.centering_button.started = True
-#         else:
-#             self.centering_button.setText("Click-on-Centering")
-#             self.centering_button.started = False
+    # def toggle_centering(self):
+    #     if not self.centering_button.started:
+    #         self.centering_button.setText("Deactivate centering")
+    #         self.centering_button.started = True
+    #     else:
+    #         self.centering_button.setText("Click-on-Centering")
+    #         self.centering_button.started = False
             
-            
+    def toggle_beamAutofocus(self):
+            if not self.tem_tasks.beamAutofocus.started:
+                self.control.init.emit()
+                self.control.actionFit_Beam.emit()
+                self.tem_tasks.btnBeamFocus.setText("Stop Autofocus")
+                self.tem_tasks.btnBeamFocus.started = True
+                # Pop-up Window
+                if self.tem_tasks.checkbox.isChecked():
+                    self.showPlotDialog()  
+            else:
+                self.tem_tasks.btnBeamFocus.setText("Start Beam Autofocus")
+                self.tem_tasks.btnBeamFocus.started = False
+                # Close Pop-up Window
+                if self.tem_tasks.plotDialog != None:
+                    self.tem_tasks.plotDialog.close()
+                self.control.stop() # TODO? Clean-up
+                self.removeAxes()
+
+    def showPlotDialog(self):
+        self.tem_tasks.plotDialog = PlotDialog(self)
+        # self.plotDialog.startPlotting(self.gauss_height_spBx.value(), self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
+        self.tem_tasks.plotDialog.startPlotting(10, 10, 10)
+        self.tem_tasks.plotDialog.show() 
+
+    def removeAxes(self):
+        logging.info("Removing gaussian fitting ellipse.")
+        if self.tem_tasks.ellipse_fit.scene():
+            logging.debug("Removing ellipse_fit from scene")
+            self.tem_tasks.ellipse_fit.scene().removeItem(self.tem_tasks.ellipse_fit)
+        if self.tem_tasks.sigma_x_fit.scene():
+            logging.debug("Removing sigma_x_fit from scene")
+            self.tem_tasks.sigma_x_fit.scene().removeItem(self.tem_tasks.sigma_x_fit)
+        if self.tem_tasks.sigma_y_fit.scene():
+            logging.debug("Removing sigma_y_fit from scene")
+            self.tem_tasks.sigma_y_fit.scene().removeItem(self.tem_tasks.sigma_y_fit)

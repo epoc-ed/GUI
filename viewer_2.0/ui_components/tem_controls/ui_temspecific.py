@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
                                QRadioButton, QSpinBox, QPushButton, QCheckBox,
-                               QDoubleSpinBox, QGraphicsEllipseItem, QGraphicsLineItem)
+                               QDoubleSpinBox, QGraphicsEllipseItem, QGraphicsLineItem,
+                               QGraphicsRectItem)
 from ui_components.toggle_button import ToggleButton
 
 class TEMDetector(QGroupBox):
@@ -10,7 +11,8 @@ class TEMDetector(QGroupBox):
 
     def initUI(self):
         section1 = QVBoxLayout()
-
+        
+        self.hbox_mag = QVBoxLayout()
         self.hbox_mag = QHBoxLayout()
         magn_label = QLabel("Magnification:", self)
         dist_label = QLabel("Distance:", self)
@@ -90,6 +92,16 @@ class TEMTasks(QGroupBox):
         self.gettem_checkbox.setChecked(False)
         self.centering_button = ToggleButton("Click-on-Centering", self)
         self.centering_button.setEnabled(False) # not secured function
+        
+        self.beamAutofocus = ToggleButton('Beam Autofocus', self)
+        self.checkbox = QCheckBox("Enable pop-up Window", self)
+        self.checkbox.setChecked(False)
+        self.plotDialog = None
+
+        self.ellipse_fit = QGraphicsEllipseItem()
+        self.sigma_x_fit = QGraphicsRectItem()
+        self.sigma_y_fit = QGraphicsRectItem()
+
         self.rotation_button  = ToggleButton("Rotation", self) # Rotation/Record
         self.withwriter_checkbox = QCheckBox("with Writer", self)
         self.withwriter_checkbox.setChecked(False)
@@ -116,6 +128,10 @@ class TEMTasks(QGroupBox):
         section1.addWidget(self.gettem_button)
         section1.addWidget(self.gettem_checkbox)
         section1.addWidget(self.centering_button)
+
+        section1.addWidget(self.beamAutofocus)
+        section1.addWidget(self.checkbox)
+        
         section1.addWidget(self.rotation_button)
         section1.addWidget(self.withwriter_checkbox)
         section1.addWidget(self.autoreset_checkbox)
