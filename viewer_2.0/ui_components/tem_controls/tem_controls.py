@@ -28,8 +28,6 @@ class TemControls(QGroupBox):
         section2 = QVBoxLayout()
 
         self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
-        # self.parent.timer_fit = self.parent.timer_fit
-        # self.parent.timer_fit.timeout.connect(self.getFitParams)
         self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
 
         self.checkbox = QCheckBox("Enable pop-up Window", self)
@@ -40,7 +38,7 @@ class TemControls(QGroupBox):
         self.sigma_x_fit = QGraphicsRectItem()
         self.sigma_y_fit = QGraphicsRectItem()
 
-        label_gauss_height = QLabel()
+        """ label_gauss_height = QLabel()
         label_gauss_height.setText("Gaussian height")
         self.gauss_height_spBx = QDoubleSpinBox()
         self.gauss_height_spBx.setValue(1)
@@ -67,27 +65,27 @@ class TemControls(QGroupBox):
         self.angle_spBx = QSpinBox()
         self.angle_spBx.setMinimum(-90)
         self.angle_spBx.setMaximum(90)
-        self.angle_spBx.setSingleStep(15)
+        self.angle_spBx.setSingleStep(15) """
 
         BeamFocus_layout = QVBoxLayout()
         BeamFocus_layout.addWidget(self.btnBeamFocus)
         BeamFocus_layout.addWidget(self.checkbox)
-        gauss_H_layout = QHBoxLayout()
-        gauss_H_layout.addWidget(label_gauss_height)  
-        gauss_H_layout.addWidget(self.gauss_height_spBx)
-        BeamFocus_layout.addLayout(gauss_H_layout)
-        sigma_x_layout = QHBoxLayout()
-        sigma_x_layout.addWidget(label_sigma_x)  
-        sigma_x_layout.addWidget(self.sigma_x_spBx)         
-        BeamFocus_layout.addLayout(sigma_x_layout)
-        sigma_y_layout = QHBoxLayout()
-        sigma_y_layout.addWidget(label_sigma_y)  
-        sigma_y_layout.addWidget(self.sigma_y_spBx)         
-        BeamFocus_layout.addLayout(sigma_y_layout)        
-        rot_angle_layout = QHBoxLayout()
-        rot_angle_layout.addWidget(label_rot_angle)  
-        rot_angle_layout.addWidget(self.angle_spBx)         
-        BeamFocus_layout.addLayout(rot_angle_layout)
+        """ # gauss_H_layout = QHBoxLayout()
+        # gauss_H_layout.addWidget(label_gauss_height)  
+        # gauss_H_layout.addWidget(self.gauss_height_spBx)
+        # BeamFocus_layout.addLayout(gauss_H_layout)
+        # sigma_x_layout = QHBoxLayout()
+        # sigma_x_layout.addWidget(label_sigma_x)  
+        # sigma_x_layout.addWidget(self.sigma_x_spBx)         
+        # BeamFocus_layout.addLayout(sigma_x_layout)
+        # sigma_y_layout = QHBoxLayout()
+        # sigma_y_layout.addWidget(label_sigma_y)  
+        # sigma_y_layout.addWidget(self.sigma_y_spBx)         
+        # BeamFocus_layout.addLayout(sigma_y_layout)        
+        # rot_angle_layout = QHBoxLayout()
+        # rot_angle_layout.addWidget(label_rot_angle)  
+        # rot_angle_layout.addWidget(self.angle_spBx)         
+        # BeamFocus_layout.addLayout(rot_angle_layout) """
  
         section2.addLayout(BeamFocus_layout)
         self.setLayout(section2)
@@ -186,7 +184,11 @@ class TemControls(QGroupBox):
             self.updateWorkerParams(self.parent.imageItem, self.parent.roi)
             # Trigger the "run" computation in the thread where self.fitter" lives
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
-   
+    
+    """ ***************************************** """
+    """ **** END OF THREADING VERSION METHODS *** """        
+    """ ***************************************** """
+
 
     def showPlotDialog(self):
         self.plotDialog = PlotDialog(self)
@@ -201,11 +203,11 @@ class TemControls(QGroupBox):
         sigma_y = float(fit_result_best_values['sigma_y'])
         theta_deg = 180*float(fit_result_best_values['theta'])/np.pi
         # Show fitting parameters 
-        self.gauss_height_spBx.setValue(amplitude)
+        """ self.gauss_height_spBx.setValue(amplitude)
         self.sigma_x_spBx.setValue(sigma_x)
         self.sigma_x_spBx.setValue(sigma_x)
         self.sigma_y_spBx.setValue(sigma_y)
-        self.angle_spBx.setValue(theta_deg)
+        self.angle_spBx.setValue(theta_deg) """
         # Update graph in pop-up Window
         if self.plotDialog != None:
             self.plotDialog.updatePlot(amplitude, sigma_x, sigma_y)

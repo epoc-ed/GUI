@@ -47,6 +47,8 @@ class ControlWorker(QObject):
         self.task_thread = QThread()
         # self.stream_receiver = StreamReceiver(self)
         self.tem_action = tem_action
+        """ im = self.tem_action.parent.ImageItem.image
+        roi = self.tem_action.parent.roi """
         self.last_task: Task = None
         
         self.setObjectName("control Thread")

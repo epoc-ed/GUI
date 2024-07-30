@@ -60,6 +60,46 @@ def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_c
 
     return fit_result
 
+def fit_2d_gaussian_roi_test(im, roi):
+    
+    roiPos = roi.pos()
+    roiSize = roi.size()
+    roi_start_row = int(np.floor(roiPos.y()))
+    roi_end_row = int(np.ceil(roiPos.y() + roiSize.y()))
+    roi_start_col = int(np.floor(roiPos.x()))
+    roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
+
+    logging.debug(f"type(im) is {type(im[0,0])}")
+
+    im_roi = im[roi_start_row:roi_end_row, roi_start_col:roi_end_col]
+    logging.debug(f"type(im_roi) is {type(im_roi[0,0])}")
+
+    n_columns_roi, n_rows_roi = im_roi.shape[1], im_roi.shape[0]
+
+    diag_roi = np.sqrt(n_columns_roi*n_columns_roi+n_rows_roi*n_rows_roi)
+    
+    x_roi, y_roi = np.meshgrid(np.arange(n_columns_roi), np.arange(n_rows_roi))
+    z_flat_roi = im_roi.ravel()
+    x_flat_roi = x_roi.ravel()
+    y_flat_roi = y_roi.ravel()
+
+    # Create model and parameters for ROI fitting
+    model_roi = Model(gaussian2d_rotated, independent_vars=['x','y'], nan_policy='omit')
+    params_roi = Parameters()
+    params_roi.add('amplitude', value=np.max(im_roi), min=1, max=1.5*np.max(im_roi))
+    params_roi.add('xo', value=n_columns_roi//2, min=0, max=n_columns_roi)
+    params_roi.add('yo', value=n_rows_roi//2, min=0,max=n_rows_roi)
+    params_roi.add('sigma_x', value=n_columns_roi//4, min=1, max=diag_roi//2)  # Adjusted for likely ROI size
+    params_roi.add('sigma_y', value=n_rows_roi//4, min=1, max=diag_roi//2)    # Adjusted for likely ROI size
+    params_roi.add('theta', value=0, min=-np.pi/2, max=np.pi/2)
+
+    result_roi = model_roi.fit(z_flat_roi, x=x_flat_roi, y=y_flat_roi, params=params_roi)
+    fit_result = result_roi
+    fit_result.best_values['xo'] +=  roi_start_col
+    fit_result.best_values['yo'] +=  roi_start_row
+
+    return fit_result
+
 def do_fit_3d(images_3d):
     images_2d = images_3d[0]
     return do_fit_2d(images_2d)
