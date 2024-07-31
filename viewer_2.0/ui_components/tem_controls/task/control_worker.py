@@ -33,6 +33,9 @@ class ControlWorker(QObject):
 
     trigger_record = Signal()
     trigger_shutdown = Signal()
+    """ *************************** """
+    """ trigger_stopTask = Signal() """
+    """ *************************** """
     trigger_interactive = Signal()
     trigger_getteminfo = Signal(str)
     trigger_centering = Signal(bool, str)
@@ -47,8 +50,6 @@ class ControlWorker(QObject):
         self.task_thread = QThread()
         # self.stream_receiver = StreamReceiver(self)
         self.tem_action = tem_action
-        """ im = self.tem_action.parent.ImageItem.image
-        roi = self.tem_action.parent.roi """
         self.last_task: Task = None
         
         self.setObjectName("control Thread")
@@ -57,6 +58,9 @@ class ControlWorker(QObject):
         self.send.connect(self.send_to_tem)
         self.trigger_record.connect(self.start_record)
         self.trigger_shutdown.connect(self.shutdown)
+        """ ********************************************* """
+        """ self.trigger_stopTask.connect(self.stop_task) """
+        """ ********************************************* """
         self.trigger_interactive.connect(self.interactive)
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
@@ -100,6 +104,9 @@ class ControlWorker(QObject):
     def start_task(self, task):
         self.last_task = self.task
         self.task = task
+        """ ********************************************* """
+        """ self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task)) """
+        """ ********************************************* """
         self.task.finished.connect(self.on_task_finished)
         self.task.moveToThread(self.task_thread)
         self.task.start.emit()
@@ -163,11 +170,39 @@ class ControlWorker(QObject):
         except:
             pass
 
+    """ ********************************************* """
+    """ @Slot()
+    def stop_task(self):
+    
+        ## TODO? -> tell TEM to stop: self.send_to_tem('stage.Stop()')  ???
+    
+        if self.task:
+            self.task.finished.disconnect()
+        if self.task_thread.isRunning():
+            self.task_thread.quit()
+            self.task_thread.wait() # Wait for the thread to actually finish
+
+        index_to_delete = None
+        for i, (thread, worker) in enumerate(self.tem_action.parent.threadWorkerPairs):
+            if thread == self.task_thread:
+                if worker is not None:
+                    logging.info(f"Stopping {worker.task_name}!") # self.task.task_name
+                    worker.deleteLater() # Schedule the worker for deletion
+                    worker = None
+                    logging.info("Process stopped!")
+                index_to_delete = i
+                break # because always only one instance of a thread/worker pair type
+        if index_to_delete is not None:
+            del self.tem_action.parent.threadWorkerPairs[index_to_delete]
+        self.task_thread.deleteLater()  # Schedule the thread for deletion
+        self.task_thread = None
+    """
+    """ ********************************************* """
 
     @Slot(str)
     def send_to_tem(self, message):
-        # print(f'sending {message} to TEM...')
-        # print(self.tem_socket.state())
+        logging.debug(f'sending {message} to TEM...')
+        logging.debug(self.tem_socket.state())
         # if self.tem_socket.state() == QAbstractSocket.SocketState.ConnectedState:
         if self.tem_socket.state() == QAbstractSocket.SocketState.ConnectingState or self.tem_socket.state() == QAbstractSocket.SocketState.ConnectedState:
             self.tem_socket.write(message.encode())

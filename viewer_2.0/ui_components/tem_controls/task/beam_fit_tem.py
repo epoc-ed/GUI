@@ -52,10 +52,10 @@ class BeamFitTask(Task):
 
             """ *** Fitting *** """
             # amplitude = self.control.stream_receiver.fit[0] # amplitude
-            im = self.tem_action.parent.ImageItem.image
-            roi = self.tem_action.parent.roi
+            im = self.control.tem_action.parent.ImageItem.image
+            roi = self.control.tem_action.parent.roi
             fit_result = fit_2d_gaussian_roi_test(im, roi)
-            # Upadate pop-up plot
+            # Update pop-up plot and drawn ellipse 
             self.updateFitParams(fit_result)
             # Determine peak value (amplitude)
             amplitude = float(fit_result['amplitude'])
@@ -87,10 +87,10 @@ class BeamFitTask(Task):
             
             """ *** Fitting *** """
             # sigma1 = self.control.stream_receiver.fit[0] # smaller sigma value (shorter axis)
-            im = self.tem_action.parent.ImageItem.image
-            roi = self.tem_action.parent.roi
+            im = self.control.tem_action.parent.ImageItem.image
+            roi = self.control.tem_action.parent.roi
             fit_result = fit_2d_gaussian_roi_test(im, roi)
-            # Upadate pop-up plot
+            # Update pop-up plot and drawn ellipse 
             self.updateFitParams(fit_result)
             # Determine smaller sigma (sigma1)
             sigma_x = float(fit_result['sigma_x'])
@@ -112,10 +112,10 @@ class BeamFitTask(Task):
             
             """ *** Fitting *** """
             # ratio = self.control.stream_receiver.fit[0] # sigma ratio
-            im = self.tem_action.parent.ImageItem.image
-            roi = self.tem_action.parent.roi
+            im = self.control.tem_action.parent.ImageItem.image
+            roi = self.control.tem_action.parent.roi
             fit_result = fit_2d_gaussian_roi_test(im, roi)
-            # Upadate pop-up plot
+            # Update pop-up plot and drawn ellipse 
             self.updateFitParams(fit_result)
             # Determine sigmas ratio
             sigma_x = float(fit_result['sigma_x'])
@@ -141,8 +141,8 @@ class BeamFitTask(Task):
         sigma_y = float(fit_result_best_values['sigma_y'])
         theta_deg = 180*float(fit_result_best_values['theta'])/np.pi 
         # Update graph in pop-up Window
-        if self.tem_action.tem_tasks.plotDialog != None:
-            self.tem_action.tem_tasks.plotDialog.updatePlot(amplitude, sigma_x, sigma_y)
+        if self.control.tem_action.tem_tasks.plotDialog != None:
+            self.control.tem_action.tem_tasks.plotDialog.updatePlot(amplitude, sigma_x, sigma_y)
         # Draw the fitting line at the FWHM of the 2d-gaussian
         self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 
@@ -154,19 +154,19 @@ class BeamFitTask(Task):
         width = alpha * max(sigma_x, sigma_y) # Use 
         height = alpha * min(sigma_x, sigma_y) # 
         # Check if the item is added to a scene, and remove it if so
-        scene = self.tem_action.tem_tasks.ellipse_fit.scene() 
-        scene_x = self.tem_action.tem_tasks.sigma_x_fit.scene() 
-        scene_y = self.tem_action.tem_tasks.sigma_y_fit.scene() 
+        scene = self.control.tem_action.tem_tasks.ellipse_fit.scene() 
+        scene_x = self.control.tem_action.tem_tasks.sigma_x_fit.scene() 
+        scene_y = self.control.tem_action.tem_tasks.sigma_y_fit.scene() 
         if scene:  
-            scene.removeItem(self.tem_action.tem_tasks.ellipse_fit)
+            scene.removeItem(self.control.tem_action.tem_tasks.ellipse_fit)
         if scene_x:
-            scene_x.removeItem(self.tem_action.tem_tasks.sigma_x_fit)
+            scene_x.removeItem(self.control.tem_action.tem_tasks.sigma_x_fit)
         if scene_y: 
-            scene_y.removeItem(self.tem_action.tem_tasks.sigma_y_fit)
+            scene_y.removeItem(self.control.tem_action.tem_tasks.sigma_y_fit)
         # Create the ellipse item with its bounding rectangle
-        self.tem_action.tem_tasks.ellipse_fit = QGraphicsEllipseItem(QRectF(xo-0.5*width, yo-0.5*height, width, height))
-        self.tem_action.tem_tasks.sigma_x_fit = QGraphicsRectItem(QRectF(xo-0.5*width, yo, width, 0))
-        self.tem_action.tem_tasks.sigma_y_fit = QGraphicsRectItem(QRectF(xo, yo-0.5*height, 0, height))
+        self.control.tem_action.tem_tasks.ellipse_fit = QGraphicsEllipseItem(QRectF(xo-0.5*width, yo-0.5*height, width, height))
+        self.control.tem_action.tem_tasks.sigma_x_fit = QGraphicsRectItem(QRectF(xo-0.5*width, yo, width, 0))
+        self.control.tem_action.tem_tasks.sigma_y_fit = QGraphicsRectItem(QRectF(xo, yo-0.5*height, 0, height))
         # First, translate the coordinate system to the center of the ellipse,
         # then rotate around this point and finally translate back to origin.
         rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo)
@@ -175,14 +175,14 @@ class BeamFitTask(Task):
         # Combine the rotation and symmetry transforms
         combinedTransform = rotationTransform * symmetryTransform
 
-        self.tem_action.tem_tasks.ellipse_fit.setPen(pg.mkPen('b', width=3))
-        self.tem_action.tem_tasks.ellipse_fit.setTransform(combinedTransform)
-        self.tem_action.parent.plot.addItem(self.ellipse_fit)
+        self.control.tem_action.tem_tasks.ellipse_fit.setPen(pg.mkPen('b', width=3))
+        self.control.tem_action.tem_tasks.ellipse_fit.setTransform(combinedTransform)
+        self.control.tem_action.parent.plot.addItem(self.ellipse_fit)
 
-        self.tem_action.tem_tasks.sigma_x_fit.setPen(pg.mkPen('b', width=2))
-        self.tem_action.tem_tasks.sigma_x_fit.setTransform(combinedTransform)
-        self.tem_action.parent.plot.addItem(self.sigma_x_fit)
+        self.control.tem_action.tem_tasks.sigma_x_fit.setPen(pg.mkPen('b', width=2))
+        self.control.tem_action.tem_tasks.sigma_x_fit.setTransform(combinedTransform)
+        self.control.tem_action.parent.plot.addItem(self.sigma_x_fit)
 
-        self.tem_action.tem_tasks.sigma_y_fit.setPen(pg.mkPen('r', width=2))
-        self.tem_action.tem_tasks.sigma_y_fit.setTransform(combinedTransform)
-        self.tem_actoin.parent.plot.addItem(self.sigma_y_fit)
+        self.control.tem_action.tem_tasks.sigma_y_fit.setPen(pg.mkPen('r', width=2))
+        self.control.tem_action.tem_tasks.sigma_y_fit.setTransform(combinedTransform)
+        self.control.tem_action.parent.plot.addItem(self.sigma_y_fit)

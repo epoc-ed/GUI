@@ -213,7 +213,9 @@ class TEMAction(QObject):
                 # Close Pop-up Window
                 if self.tem_tasks.plotDialog != None:
                     self.tem_tasks.plotDialog.close()
-                self.control.stop() # TODO? Clean-up
+                """ ************************************ """
+                """ self.control.trigger_stopTask.emit() """ # or may be directly self.control.stop_task()
+                """ ************************************ """
                 self.removeAxes()
 
     def showPlotDialog(self):
