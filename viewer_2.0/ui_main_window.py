@@ -6,7 +6,7 @@ from ui_components.overlay import draw_overlay
 from pyqtgraph.dockarea import Dock
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget,
                                 QHBoxLayout, QFrame, QPushButton,
-                                QMessageBox)
+                                QMessageBox, QTabWidget)
 from PySide6.QtCore import QTimer
 from ui_components.visualization_panel.visualization_panel import VisualizationPanel
 from ui_components.tem_controls.tem_controls import TemControls
@@ -53,57 +53,40 @@ class ApplicationWindow(QMainWindow):
         self.initUI()
 
     def initUI(self):
+        # Window Geometry
         self.setWindowTitle(self.version)
         self.setGeometry(50, 50, 1500, 1000)
-        
+
+        # pyqtgraph config params
         pg.setConfigOptions(imageAxisOrder='row-major')
         pg.mkQApp()
         
-        self.dock = Dock("Image", size=(1000, 350))
-        self.glWidget = pg.GraphicsLayoutWidget(self)
-        self.plot = self.glWidget.addPlot(title="")
-        self.dock.addWidget(self.glWidget)
-        self.imageItem = pg.ImageItem()
-        self.plot.addItem(self.imageItem)
-        self.histogram = pg.HistogramLUTItem()
-        self.histogram.setImageItem(self.imageItem)
-        self.glWidget.addItem(self.histogram)
-        self.histogram.setLevels(0, 255)
-        self.plot.setAspectLocked(True)
-        self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
-        self.plot.addItem(self.roi)
-        self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
-        self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
-        self.roi.addScaleHandle([0.5, 0], [0.5, 0.5])
-        self.roi.addScaleHandle([1, 0.5], [0.5, 0.5])
-        self.roi.sigRegionChanged.connect(self.roiChanged)
+        # Create image area
+        self.create_dock_area()
+
         # Initial data (optional)
-        
-        # Parameters
-        size_x, size_y = 1024, 512
-        sigma_x = 30
-        sigma_y = sigma_x / 2
-        theta = np.deg2rad(35)  # Angle in radians
-        # Create the Gaussian data
-        data = create_gaussian(size_x, size_y, sigma_x, sigma_y, theta)
-       
+        data = create_gaussian(globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
         # data = np.random.rand(globals.nrow,globals.ncol).astype(globals.dtype)
         logging.debug(f"type(data) is {type(data[0,0])}")
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
+        
         # Plot overlays from .reussrc          
         draw_overlay(self.plot)
+        
         # Mouse hovering
         self.imageItem.hoverEvent = self.imageHoverEvent
         
         main_layout = QVBoxLayout()
-        main_layout.addWidget(self.dock)
+        tools_layout = QHBoxLayout()
+        tools_layout.addWidget(self.dock,3)
 
-        h_line_1 = QFrame()
-        h_line_1.setFrameShape(QFrame.HLine)
-        h_line_1.setFrameShadow(QFrame.Plain)
-        h_line_1.setStyleSheet("""QFrame {border: none; border-top: 1px solid grey;}""")
+        # h_line_1 = QFrame()
+        # h_line_1.setFrameShape(QFrame.HLine)
+        # h_line_1.setFrameShadow(QFrame.Plain)
+        # h_line_1.setStyleSheet("""QFrame {border: none; border-top: 1px solid grey;}""")
 
-        sections_layout = QHBoxLayout()
+        # sections_layout = QHBoxLayout()
+        tab_widget = QTabWidget()
 
         self.visualization_panel = VisualizationPanel(self)
         self.tem_controls = TemControls(self)
@@ -118,25 +101,14 @@ class ApplicationWindow(QMainWindow):
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
 
-        if globals.tem_mode:
-            self.tem_detector = TEMDetector()
-            section1_layout = QVBoxLayout()
-            section1_layout.addWidget(self.visualization_panel)
-            section1_layout.addWidget(self.tem_detector)
-            sections_layout.addLayout(section1_layout, 1)
-            
-            self.tem_stagectrl = TEMStageCtrl()
-            section2_layout = QVBoxLayout()
-            section2_layout.addWidget(self.tem_controls)
-            section2_layout.addWidget(self.tem_stagectrl)
-            sections_layout.addLayout(section2_layout, 1)
-        else:
-            sections_layout.addWidget(self.visualization_panel, 1)
-            sections_layout.addWidget(self.tem_controls, 1)
-        
-        sections_layout.addWidget(self.file_operations, 1)
+        tab_widget.addTab(self.visualization_panel, "Vizualisation")
+        tab_widget.addTab(self.tem_controls, "TEM")
+        tab_widget.addTab(self.file_operations, "File")
 
-        main_layout.addLayout(sections_layout)
+        # main_layout.addLayout(sections_layout)
+        tools_layout.addWidget(tab_widget, 1)
+
+        main_layout.addLayout(tools_layout)
 
         if globals.tem_mode:
             self.tem_tasks = TEMTasks()
@@ -155,6 +127,27 @@ class ApplicationWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         logging.info("Viewer ready!")
+
+
+    def create_dock_area(self):
+        self.dock = Dock("Image", size=(1000, 350))
+        self.glWidget = pg.GraphicsLayoutWidget(self)
+        self.plot = self.glWidget.addPlot(title="")
+        self.dock.addWidget(self.glWidget)
+        self.imageItem = pg.ImageItem()
+        self.plot.addItem(self.imageItem)
+        self.histogram = pg.HistogramLUTItem()
+        self.histogram.setImageItem(self.imageItem)
+        self.glWidget.addItem(self.histogram)
+        self.histogram.setLevels(0, 255)
+        self.plot.setAspectLocked(True)
+        self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        self.plot.addItem(self.roi)
+        self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
+        self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
+        self.roi.addScaleHandle([0.5, 0], [0.5, 0.5])
+        self.roi.addScaleHandle([1, 0.5], [0.5, 0.5])
+        self.roi.sigRegionChanged.connect(self.roiChanged)
 
     def roiChanged(self):
         roiPos = self.roi.pos()

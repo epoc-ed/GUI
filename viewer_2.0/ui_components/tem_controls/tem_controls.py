@@ -17,6 +17,8 @@ from .gaussian_fitter import GaussianFitter
 import globals
 from ui_components.toggle_button import ToggleButton
 
+from ui_components.tem_controls.ui_temspecific import TEMStageCtrl
+
 class TemControls(QGroupBox):
     def __init__(self, parent):
         super().__init__("TEM Controls")
@@ -88,6 +90,13 @@ class TemControls(QGroupBox):
         BeamFocus_layout.addLayout(rot_angle_layout) """
  
         section2.addLayout(BeamFocus_layout)
+
+        if globals.tem_mode:
+            self.tem_stagectrl = TEMStageCtrl()
+            section2.addWidget(self.tem_stagectrl)
+        else: 
+            pass
+
         self.setLayout(section2)
 
     """ *********************************************** """

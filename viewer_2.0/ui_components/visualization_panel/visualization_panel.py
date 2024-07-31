@@ -12,6 +12,8 @@ from .reader import Reader
 
 from reuss import config as cfg
 from ui_components.toggle_button import ToggleButton
+import globals
+from ui_components.tem_controls.ui_temspecific import TEMDetector
 
 
 class VisualizationPanel(QGroupBox):
@@ -87,6 +89,14 @@ class VisualizationPanel(QGroupBox):
         time_interval_layout.addWidget(time_interval)
         time_interval_layout.addWidget(self.update_interval)
         section1.addLayout(time_interval_layout)
+
+        if globals.tem_mode:
+            self.tem_detector = TEMDetector()
+            section1.addWidget(self.tem_detector)
+        else: 
+            pass
+
+
         self.setLayout(section1)
 
     def change_theme(self, theme):
