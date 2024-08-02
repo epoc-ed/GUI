@@ -11,34 +11,9 @@ from PySide6.QtCore import QTimer
 from ui_components.visualization_panel.visualization_panel import VisualizationPanel
 from ui_components.tem_controls.tem_controls import TemControls
 from ui_components.file_operations.file_operations import FileOperations
-
+from ui_components.utils import create_gaussian
 from ui_components.tem_controls.ui_temspecific import TEMDetector, TEMStageCtrl, TEMTasks
 from ui_components.tem_controls.tem_action import TEMAction
-
-def create_gaussian(size_x, size_y, sigma_x, sigma_y, theta):
-    """
-    Create a 2D Gaussian distribution tilted by an angle theta.
-    
-    Parameters:
-    size_x (int): Width of the array
-    size_y (int): Height of the array
-    sigma_x (float): Standard deviation in the x direction
-    sigma_y (float): Standard deviation in the y direction
-    theta (float): Angle of rotation in radians
-    
-    Returns:
-    np.array: 2D array representing the Gaussian distribution
-    """
-    x = np.linspace(-size_x//2, size_x//2, size_x)
-    y = np.linspace(-size_y//2, size_y//2, size_y)
-    x, y = np.meshgrid(x, y)
-    
-    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    
-    gaussian = np.exp(-(a*x**2 + 2*b*x*y + c*y**2))
-    return gaussian.astype(np.float32)
 
 class ApplicationWindow(QMainWindow):
     def __init__(self, receiver, app):
@@ -80,17 +55,12 @@ class ApplicationWindow(QMainWindow):
         tools_layout = QHBoxLayout()
         tools_layout.addWidget(self.dock,3)
 
-        # h_line_1 = QFrame()
-        # h_line_1.setFrameShape(QFrame.HLine)
-        # h_line_1.setFrameShadow(QFrame.Plain)
-        # h_line_1.setStyleSheet("""QFrame {border: none; border-top: 1px solid grey;}""")
-
         # sections_layout = QHBoxLayout()
         tab_widget = QTabWidget()
 
         self.visualization_panel = VisualizationPanel(self)
-        self.tem_controls = TemControls(self)
         self.file_operations = FileOperations(self)
+        self.tem_controls = TemControls(self)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.visualization_panel.captureImage)
@@ -101,26 +71,25 @@ class ApplicationWindow(QMainWindow):
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
 
-        tab_widget.addTab(self.visualization_panel, "Vizualisation")
-        tab_widget.addTab(self.tem_controls, "TEM")
-        tab_widget.addTab(self.file_operations, "File")
+        tab_widget.addTab(self.visualization_panel, "Visualization Panel")
+        tab_widget.addTab(self.tem_controls, "TEM Controls")
+        tab_widget.addTab(self.file_operations, "File operations")
 
-        # main_layout.addLayout(sections_layout)
         tools_layout.addWidget(tab_widget, 1)
 
         main_layout.addLayout(tools_layout)
 
-        if globals.tem_mode:
-            self.tem_tasks = TEMTasks()
-            main_layout.addWidget(self.tem_tasks)
-            self.tem_tasks.exit_button.clicked.connect(self.do_exit)
-            self.tem_action = TEMAction(self)
-            self.tem_action.enabling(False)
-            self.tem_action.set_configuration()
-        else:
-            self.exit_button = QPushButton("Exit", self)
-            main_layout.addWidget(self.exit_button)
-            self.exit_button.clicked.connect(self.do_exit)
+        # if globals.tem_mode:
+        #     self.tem_tasks = TEMTasks()
+        #     main_layout.addWidget(self.tem_tasks)
+        #     self.tem_tasks.exit_button.clicked.connect(self.do_exit)
+        #     self.tem_action = TEMAction(self)
+        #     self.tem_action.enabling(False)
+        #     self.tem_action.set_configuration()
+        # else:
+        self.exit_button = QPushButton("Exit", self)
+        main_layout.addWidget(self.exit_button)
+        self.exit_button.clicked.connect(self.do_exit)
 
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
@@ -226,8 +195,8 @@ class ApplicationWindow(QMainWindow):
                 return
 
         if globals.tem_mode:
-            if self.tem_tasks.connecttem_button.started:
-                self.tem_action.control.trigger_shutdown.emit()
+            if self.tem_controls.tem_tasks.connecttem_button.started:
+                self.tem_controls.tem_action.control.trigger_shutdown.emit()
 
         logging.info("Exiting app!") 
         self.app.quit()

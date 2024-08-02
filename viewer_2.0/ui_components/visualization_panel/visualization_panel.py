@@ -4,9 +4,9 @@ import numpy as np
 from boost_histogram import Histogram
 from boost_histogram.axis import Regular
 from PySide6.QtCore import Qt, QThread, QMetaObject
-from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
+from PySide6.QtWidgets import (QWidget, QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QPushButton, QFrame, QSpinBox,
-                                QGridLayout)
+                                QGridLayout, QSizePolicy)
 
 from .reader import Reader
 
@@ -14,16 +14,19 @@ from reuss import config as cfg
 from ui_components.toggle_button import ToggleButton
 import globals
 from ui_components.tem_controls.ui_temspecific import TEMDetector
-
+from ui_components.utils import create_horizontal_line_with_margin
 
 class VisualizationPanel(QGroupBox):
     def __init__(self, parent):
-        super().__init__("Visualization Panel")
+        # super().__init__("Visualization Panel")
+        super().__init__()
         self.parent = parent
         self.initUI()
 
     def initUI(self):
-        section1 = QVBoxLayout()
+        section_visual = QVBoxLayout()
+        section_visual.setContentsMargins(10, 10, 10, 10)  # Minimal margins
+        section_visual.setSpacing(10) 
 
         colors_group = QVBoxLayout()
         colors_layout = QHBoxLayout()
@@ -37,16 +40,12 @@ class VisualizationPanel(QGroupBox):
         }
         for name, button in self.color_buttons.items():
             colors_layout.addWidget(button)
+            button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             button.clicked.connect(lambda checked=False, b=name: self.change_theme(b))
         colors_group.addLayout(colors_layout)
         self.change_theme('viridis')
-        section1.addLayout(colors_group)
-
-        h_line_1 = QFrame()
-        h_line_1.setFrameShape(QFrame.HLine)
-        h_line_1.setFrameShadow(QFrame.Plain)
-        h_line_1.setStyleSheet("""QFrame {border: none; border-top: 1px solid grey;}""")
-        section1.addWidget(h_line_1)
+        section_visual.addLayout(colors_group)
+        section_visual.addWidget(create_horizontal_line_with_margin(15))
 
         self.stream_view_button = ToggleButton("View Stream", self)
         self.stream_view_button.setStyleSheet(
@@ -77,7 +76,8 @@ class VisualizationPanel(QGroupBox):
         grid_1.addWidget(self.resetContrastBtn, 1, 2)
 
         view_contrast_group.addLayout(grid_1)
-        section1.addLayout(view_contrast_group)
+        section_visual.addLayout(view_contrast_group)
+        # section_visual.addWidget(create_horizontal_line_with_margin())
 
         time_interval = QLabel("Acquisition Interval (ms):", self)
         self.update_interval = QSpinBox(self)
@@ -88,16 +88,23 @@ class VisualizationPanel(QGroupBox):
         time_interval_layout = QHBoxLayout()
         time_interval_layout.addWidget(time_interval)
         time_interval_layout.addWidget(self.update_interval)
-        section1.addLayout(time_interval_layout)
+        section_visual.addLayout(time_interval_layout)
+        section_visual.addWidget(create_horizontal_line_with_margin(15))
 
         if globals.tem_mode:
+            tem_detector_layout = QVBoxLayout()
+            tem_detector_label = QLabel("Detector")
+
             self.tem_detector = TEMDetector()
-            section1.addWidget(self.tem_detector)
+            tem_detector_layout.addWidget(tem_detector_label)
+            tem_detector_layout.addWidget(self.tem_detector)
+
+            section_visual.addLayout(tem_detector_layout)
         else: 
             pass
-
-
-        self.setLayout(section1)
+        
+        section_visual.addStretch()
+        self.setLayout(section_visual)
 
     def change_theme(self, theme):
         self.parent.histogram.gradient.loadPreset(theme)

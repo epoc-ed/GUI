@@ -15,6 +15,8 @@ from .frame_accumulator_mp import FrameAccumulator
 import reuss
 import globals
 from ui_components.toggle_button import ToggleButton
+from ui_components.utils import create_horizontal_line_with_margin
+
 
 def save_captures(fname, data):
     logging.info(f'Saving: {fname}')
@@ -58,11 +60,7 @@ class FileOperations(QGroupBox):
 
         section3.addLayout(accumulate_layout)
         
-        h_line_3 = QFrame()
-        h_line_3.setFrameShape(QFrame.HLine)
-        h_line_3.setFrameShadow(QFrame.Plain)
-        h_line_3.setStyleSheet("""QFrame {border: none;border-top: 1px solid grey;}""")
-        section3.addWidget(h_line_3)
+        section3.addWidget(create_horizontal_line_with_margin(15))
 
         # Initialize 
         self.h5_file_index = 0
@@ -118,6 +116,7 @@ class FileOperations(QGroupBox):
         hdf5_writer_layout.addWidget(self.total_frame_nb)
 
         section3.addLayout(hdf5_writer_layout)
+        section3.addStretch()
         self.setLayout(section3)
 
     """ ****************************************** """

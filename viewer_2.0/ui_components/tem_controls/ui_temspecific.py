@@ -1,8 +1,9 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
                                QRadioButton, QSpinBox, QPushButton, QCheckBox,
                                QDoubleSpinBox, QGraphicsEllipseItem, QGraphicsLineItem,
-                               QGraphicsRectItem)
+                               QGraphicsRectItem, QSizePolicy)
 from ui_components.toggle_button import ToggleButton
+from ui_components.utils import create_horizontal_line_with_margin
 
 class TEMDetector(QGroupBox):
     def __init__(self):
@@ -10,7 +11,7 @@ class TEMDetector(QGroupBox):
         self.initUI()
 
     def initUI(self):
-        section1 = QVBoxLayout()
+        detector_section = QVBoxLayout()
         
         self.hbox_mag = QVBoxLayout()
         self.hbox_mag = QHBoxLayout()
@@ -27,8 +28,9 @@ class TEMDetector(QGroupBox):
         self.hbox_mag.addWidget(dist_label, 1)
         self.hbox_mag.addWidget(self.input_det_distance, 1)
         self.hbox_mag.addWidget(self.scale_checkbox, 1)
-        section1.addLayout(self.hbox_mag)
-        self.setLayout(section1)
+
+        detector_section.addLayout(self.hbox_mag)
+        self.setLayout(detector_section)
 
 class TEMStageCtrl(QGroupBox):
     def __init__(self):
@@ -36,7 +38,7 @@ class TEMStageCtrl(QGroupBox):
         self.initUI()
 
     def initUI(self):
-        section1 = QVBoxLayout()
+        stage_ctrl_section = QVBoxLayout()
 
         self.hbox_rot = QHBoxLayout()
         rot_label = QLabel("Rotation Speed:", self)
@@ -51,7 +53,7 @@ class TEMStageCtrl(QGroupBox):
         self.rb_speeds.addButton(self.rb_speed_10, 0)
         self.rb_speeds.button(1).setChecked(True)
         self.hbox_rot.addWidget(rot_label, 1)
-        section1.addLayout(self.hbox_rot)
+        stage_ctrl_section.addLayout(self.hbox_rot)
         
         self.hbox_move = QHBoxLayout()
         move_label = QLabel("Stage Ctrl:", self)
@@ -67,7 +69,7 @@ class TEMStageCtrl(QGroupBox):
         self.movestages.addButton(self.move10degn, -10)
         self.movestages.addButton(self.move0deg, 0)
         self.hbox_move.addWidget(move_label, 1)
-        section1.addLayout(self.hbox_move)
+        stage_ctrl_section.addLayout(self.hbox_move)
 
         for i in self.rb_speeds.buttons():
             self.hbox_rot.addWidget(i, 1)
@@ -76,7 +78,7 @@ class TEMStageCtrl(QGroupBox):
             self.hbox_move.addWidget(i, 1)
             # i.setEnabled(enables)
         
-        self.setLayout(section1)
+        self.setLayout(stage_ctrl_section)
 
 class TEMTasks(QGroupBox):
     def __init__(self):
@@ -84,15 +86,22 @@ class TEMTasks(QGroupBox):
         self.initUI()
 
     def initUI(self):
-        section1 = QHBoxLayout()
+        tasks_section = QVBoxLayout()
         
+        CTN_group = QVBoxLayout()
+        CTN_section = QHBoxLayout()
+        CTN_label = QLabel("Connection", self)
         self.connecttem_button = ToggleButton('Connect to TEM', self)
         self.gettem_button = QPushButton("Get TEM status", self)
         self.gettem_checkbox = QCheckBox("recording", self)
         self.gettem_checkbox.setChecked(False)
         self.centering_button = ToggleButton("Click-on-Centering", self)
+        self.centering_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.centering_button.setEnabled(False) # not secured function
         
+        BEAM_group = QVBoxLayout()
+        BEAM_label = QLabel("Beam Sweep & Focus", self)
+
         self.beamAutofocus = ToggleButton('Beam Autofocus', self)
         self.checkbox = QCheckBox("Enable pop-up Window", self)
         self.checkbox.setChecked(False)
@@ -102,12 +111,21 @@ class TEMTasks(QGroupBox):
         self.sigma_x_fit = QGraphicsRectItem()
         self.sigma_y_fit = QGraphicsRectItem()
 
+        ROT_group = QVBoxLayout()
+        ROT_label = QLabel("Rotation & Stage Control", self)
+
+        ROT_section_1= QHBoxLayout()
+
         self.rotation_button  = ToggleButton("Rotation", self) # Rotation/Record
         self.withwriter_checkbox = QCheckBox("with Writer", self)
         self.withwriter_checkbox.setChecked(False)
         self.autoreset_checkbox = QCheckBox("Auto reset", self)
         self.autoreset_checkbox.setChecked(True)
-        # input_start_angle = QLabel("Start angle:", self) # current value
+
+        ROT_section_2= QVBoxLayout()
+
+        INPUT_layout = QHBoxLayout()
+        input_start_angle_lb = QLabel("Start angle:", self) # current value
         self.input_start_angle = QDoubleSpinBox(self)
         self.input_start_angle.setMaximum(70)
         self.input_start_angle.setMinimum(-70)
@@ -115,28 +133,53 @@ class TEMTasks(QGroupBox):
         self.input_start_angle.setDecimals(1)
         # self.input_start_angle.setValue("")
         self.input_start_angle.setReadOnly(True)
-        # end_angle = QLabel("Target angle:", self)
+
+        INPUT_layout.addWidget(input_start_angle_lb)
+        INPUT_layout.addWidget(self.input_start_angle)
+
+        END_layout = QHBoxLayout()
+        end_angle = QLabel("Target angle:", self)
         self.update_end_angle = QDoubleSpinBox(self)
         self.update_end_angle.setMaximum(71) # should be checked with the holder's threshold
         self.update_end_angle.setMinimum(-71)
         self.update_end_angle.setSuffix('°')
         self.update_end_angle.setDecimals(1)
         self.update_end_angle.setValue(65) # will be replaced with configuration file
-        self.exit_button = QPushButton("Exit", self)
 
-        section1.addWidget(self.connecttem_button)
-        section1.addWidget(self.gettem_button)
-        section1.addWidget(self.gettem_checkbox)
-        section1.addWidget(self.centering_button)
+        END_layout.addWidget(end_angle)
+        END_layout.addWidget(self.update_end_angle)
 
-        section1.addWidget(self.beamAutofocus)
-        section1.addWidget(self.checkbox)
+        """ self.exit_button = QPushButton("Exit", self) """
+
+        CTN_group.addWidget(CTN_label)
+        CTN_section.addWidget(self.connecttem_button)
+        CTN_section.addWidget(self.gettem_button)
+        CTN_section.addWidget(self.gettem_checkbox)
+        CTN_group.addLayout(CTN_section)
+        CTN_group.addWidget(self.centering_button)
+        tasks_section.addLayout(CTN_group)
+
+        tasks_section.addWidget(create_horizontal_line_with_margin(50))
+
+        BEAM_group.addWidget(BEAM_label)
+        BEAM_group.addWidget(self.beamAutofocus)
+        BEAM_group.addWidget(self.checkbox)
+        tasks_section.addLayout(BEAM_group)
+
+        tasks_section.addWidget(create_horizontal_line_with_margin(50))
+
+        ROT_group.addWidget(ROT_label)
+        ROT_section_1.addWidget(self.rotation_button)
+        ROT_section_1.addWidget(self.withwriter_checkbox)
+        ROT_section_1.addWidget(self.autoreset_checkbox)
+        ROT_group.addLayout(ROT_section_1)
+        ROT_section_2.addLayout(INPUT_layout)
+        ROT_section_2.addLayout(END_layout)
+        ROT_group.addLayout(ROT_section_2)
+        tasks_section.addLayout(ROT_group)
+
+        # tasks_section.addWidget(self.input_start_angle)
+        # tasks_section.addWidget(self.update_end_angle)
+        """ tasks_section.addWidget(self.exit_button) """
         
-        section1.addWidget(self.rotation_button)
-        section1.addWidget(self.withwriter_checkbox)
-        section1.addWidget(self.autoreset_checkbox)
-        section1.addWidget(self.input_start_angle)
-        section1.addWidget(self.update_end_angle)
-        section1.addWidget(self.exit_button)
-        
-        self.setLayout(section1)
+        self.setLayout(tasks_section)

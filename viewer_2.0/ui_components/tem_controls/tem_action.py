@@ -18,20 +18,21 @@ class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
-    def __init__(self, parent):
+    def __init__(self, parent, grandparent):
         super().__init__()
-        self.parent = parent
+        self.parent = grandparent #self.grandparent.tem_controls
+        self.tem_controls = parent
         self.visualization_panel = self.parent.visualization_panel
-        self.tem_controls = self.parent.tem_controls
         self.file_operations = self.parent.file_operations
         # self.tem_detector = self.parent.tem_detector
         self.tem_detector = self.visualization_panel.tem_detector
         # self.tem_stagectrl = self.parent.tem_stagectrl
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
-        self.tem_tasks = self.parent.tem_tasks
+        # self.tem_tasks = self.parent.tem_tasks
+        self.tem_tasks = self.tem_controls.tem_tasks
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
-        self.version = self.parent.version
+        self.version =  self.parent.version #self.parent.version
         
         # initialization
         self.scale = None
