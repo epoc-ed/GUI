@@ -6,6 +6,7 @@ import threading
 
 from PySide6.QtCore import Signal, Slot, QObject
 from PySide6.QtNetwork import QTcpSocket, QAbstractSocket
+
 # import json
 
 class Task(QObject):
@@ -15,7 +16,7 @@ class Task(QObject):
 
     def __init__(self, control_worker, name):
         super().__init__()
-
+        
         self.running = False
         self.estimated_duration_s = 1e10
         self.setObjectName(name)
@@ -57,7 +58,6 @@ class Task(QObject):
             return 0
         percentage = abs(self.start_time - time.monotonic()) / self.estimated_duration_s
         return max(0.0, min(percentage, 1.0))
-        # return 0.5
 
     # def on_tem_receive(self):
     #     pass

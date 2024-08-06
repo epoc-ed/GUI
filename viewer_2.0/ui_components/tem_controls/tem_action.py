@@ -33,6 +33,8 @@ class TEMAction(QObject):
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version #self.parent.version
+
+        # self.tem_tasks.beamAutofocus.setEnabled(True)
         
         # initialization
         self.scale = None
@@ -84,16 +86,17 @@ class TEMAction(QObject):
         self.tem_tasks.beamAutofocus.setEnabled(enables)
 
     def toggle_connectTEM(self):
-        if not self.tem_tasks.connecttem_button.started:
-            self.control.init.emit()
-            self.tem_tasks.connecttem_button.setText("Disconnect")
-            self.tem_tasks.connecttem_button.started = True
-            self.control.trigger_getteminfo.emit('N')
-        else:
-            self.control.trigger_shutdown.emit()
-            self.tem_tasks.connecttem_button.setText("Connect to TEM")
-            self.tem_tasks.connecttem_button.started = False
-        self.enabling(self.tem_tasks.connecttem_button.started)
+        # if not self.tem_tasks.connecttem_button.started:
+        #     self.control.init.emit()
+        #     self.tem_tasks.connecttem_button.setText("Disconnect")
+        #     self.tem_tasks.connecttem_button.started = True
+        #     self.control.trigger_getteminfo.emit('N')
+        # else:
+        #     self.control.trigger_shutdown.emit()
+        #     self.tem_tasks.connecttem_button.setText("Connect to TEM")
+        #     self.tem_tasks.connecttem_button.started = False
+        # self.enabling(self.tem_tasks.connecttem_button.started)
+        self.enabling(True)
         
     def callGetInfoTask(self):
         if self.tem_tasks.gettem_checkbox.isChecked():
