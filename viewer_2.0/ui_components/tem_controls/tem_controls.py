@@ -107,6 +107,7 @@ class TemControls(QGroupBox):
             BeamFocus_layout.addLayout(rot_angle_layout)
             """ ********** """
             tem_section.addLayout(BeamFocus_layout)
+            
         
         tem_section.addStretch()
         self.setLayout(tem_section)

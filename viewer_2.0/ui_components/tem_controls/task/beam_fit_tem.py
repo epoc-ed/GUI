@@ -20,6 +20,7 @@ class BeamFitTask(Task):
         super().__init__(control_worker, "BeamFit")
         self.duration_s = 60 # should be replaced with a practical value
         self.estimateds_duration = self.duration_s + 0.1
+        self.control = control_worker 
     
     def run(self, init_IL1=IL1_0):
         logging.info("Start IL1 rough-sweeping.")
@@ -27,24 +28,25 @@ class BeamFitTask(Task):
         self.tem_command("lens", "SetILFocus", [il1_guess1])
         time.sleep(1)
 
-        logging.info("Start ILs rough-sweeping.")
-        _, _, ils_guess1 = self.sweep_stig_linear(500, 50)
-        self.tem_command("defl", "SetILs", ils_guess1)
-        time.sleep(1)
+        # logging.info("Start ILs rough-sweeping.")
+        # _, _, ils_guess1 = self.sweep_stig_linear(500, 50)
+        # self.tem_command("defl", "SetILs", ils_guess1)
+        # time.sleep(1)
                
-        logging.info("Start IL1 fine-sweeping.")
-        _, il1_guess2 = self.sweep_il1_linear(il1_guess1 - 50, il1_guess1 + 50, 5)
-        self.tem_command("lens", "SetILFocus", [il1_guess2])
-        time.sleep(1)
+        # logging.info("Start IL1 fine-sweeping.")
+        # _, il1_guess2 = self.sweep_il1_linear(il1_guess1 - 50, il1_guess1 + 50, 5)
+        # self.tem_command("lens", "SetILFocus", [il1_guess2])
+        # time.sleep(1)
 
-        logging.info("Start ILs fine-sweeping.")
-        _, _, ils_guess2 = self.sweep_stig_linear(50, 5)
-        self.tem_command("defl", "SetILs", ils_guess2)
-        time.sleep(1)
+        # logging.info("Start ILs fine-sweeping.")
+        # _, _, ils_guess2 = self.sweep_stig_linear(50, 5)
+        # self.tem_command("defl", "SetILs", ils_guess2)
+        # time.sleep(1)
     
     def sweep_il1_linear(self, lower, upper, step, wait_time_s=0.2):
         max_amplitude = 0
         max_il1value = None
+        logging.info("before loop")
         for il1_value in range(lower, upper, step):
             self.tem_command("lens", "SetILFocus", [il1_value])
             time.sleep(wait_time_s)
@@ -52,19 +54,20 @@ class BeamFitTask(Task):
 
             """ *** Fitting *** """
             # amplitude = self.control.stream_receiver.fit[0] # amplitude
-            im = self.control.tem_action.parent.ImageItem.image
+            im = self.control.tem_action.parent.imageItem.image
             roi = self.control.tem_action.parent.roi
             fit_result = fit_2d_gaussian_roi_test(im, roi)
             # Update pop-up plot and drawn ellipse 
-            self.updateFitParams(fit_result)
+            self.updateFitParams(fit_result.best_values)
             # Determine peak value (amplitude)
-            amplitude = float(fit_result['amplitude'])
+            amplitude = float(fit_result.best_values['amplitude'])
             """ *************** """
             
             if max_amplitude < amplitude:
                 max_amplitude = amplitude
                 max_il1value = il1_value
             logging.debug(f"{dt.now()}, amplitude = {amplitude}")
+        logging.info("end loop")
 
         logging.info("Now reset to the initial value (for safety in testing)")
         time.sleep(1)
@@ -87,14 +90,14 @@ class BeamFitTask(Task):
             
             """ *** Fitting *** """
             # sigma1 = self.control.stream_receiver.fit[0] # smaller sigma value (shorter axis)
-            im = self.control.tem_action.parent.ImageItem.image
+            im = self.control.tem_action.parent.imageItem.image
             roi = self.control.tem_action.parent.roi
             fit_result = fit_2d_gaussian_roi_test(im, roi)
             # Update pop-up plot and drawn ellipse 
-            self.updateFitParams(fit_result)
+            self.updateFitParams(fit_result.best_values)
             # Determine smaller sigma (sigma1)
-            sigma_x = float(fit_result['sigma_x'])
-            sigma_y = float(fit_result['sigma_y'])
+            sigma_x = float(fit_result.best_values['sigma_x'])
+            sigma_y = float(fit_result.best_values['sigma_y'])
             sigma1 = min(sigma_x, sigma_y)
             """ *************** """
             
@@ -112,14 +115,14 @@ class BeamFitTask(Task):
             
             """ *** Fitting *** """
             # ratio = self.control.stream_receiver.fit[0] # sigma ratio
-            im = self.control.tem_action.parent.ImageItem.image
+            im = self.control.tem_action.parent.imageItem.image
             roi = self.control.tem_action.parent.roi
             fit_result = fit_2d_gaussian_roi_test(im, roi)
             # Update pop-up plot and drawn ellipse 
-            self.updateFitParams(fit_result)
+            self.updateFitParams(fit_result.best_values)
             # Determine sigmas ratio
-            sigma_x = float(fit_result['sigma_x'])
-            sigma_y = float(fit_result['sigma_y'])
+            sigma_x = float(fit_result.best_values['sigma_x'])
+            sigma_y = float(fit_result.best_values['sigma_y'])
             ratio = max(sigma_x, sigma_y)/min(sigma_x, sigma_y)
             """ *************** """
             
@@ -177,12 +180,12 @@ class BeamFitTask(Task):
 
         self.control.tem_action.tem_tasks.ellipse_fit.setPen(pg.mkPen('b', width=3))
         self.control.tem_action.tem_tasks.ellipse_fit.setTransform(combinedTransform)
-        self.control.tem_action.parent.plot.addItem(self.ellipse_fit)
+        self.control.tem_action.parent.plot.addItem(self.control.tem_action.tem_tasks.ellipse_fit)
 
         self.control.tem_action.tem_tasks.sigma_x_fit.setPen(pg.mkPen('b', width=2))
         self.control.tem_action.tem_tasks.sigma_x_fit.setTransform(combinedTransform)
-        self.control.tem_action.parent.plot.addItem(self.sigma_x_fit)
+        self.control.tem_action.parent.plot.addItem(self.control.tem_action.tem_tasks.sigma_x_fit)
 
         self.control.tem_action.tem_tasks.sigma_y_fit.setPen(pg.mkPen('r', width=2))
         self.control.tem_action.tem_tasks.sigma_y_fit.setTransform(combinedTransform)
-        self.control.tem_action.parent.plot.addItem(self.sigma_y_fit)
+        self.control.tem_action.parent.plot.addItem(self.control.tem_action.tem_tasks.sigma_y_fit)

@@ -37,7 +37,25 @@ class ApplicationWindow(QMainWindow):
         pg.mkQApp()
         
         # Create image area
-        self.create_dock_area()
+        # self.create_dock_area()
+        self.dock = Dock("Image", size=(1000, 350))
+        self.glWidget = pg.GraphicsLayoutWidget(self)
+        self.plot = self.glWidget.addPlot(title="")
+        self.dock.addWidget(self.glWidget)
+        self.imageItem = pg.ImageItem()
+        self.plot.addItem(self.imageItem)
+        self.histogram = pg.HistogramLUTItem()
+        self.histogram.setImageItem(self.imageItem)
+        self.glWidget.addItem(self.histogram)
+        self.histogram.setLevels(0, 255)
+        self.plot.setAspectLocked(True)
+        self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        self.plot.addItem(self.roi)
+        self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
+        self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
+        self.roi.addScaleHandle([0.5, 0], [0.5, 0.5])
+        self.roi.addScaleHandle([1, 0.5], [0.5, 0.5])
+        self.roi.sigRegionChanged.connect(self.roiChanged)
 
         # Initial data (optional)
         data = create_gaussian(globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
@@ -60,7 +78,6 @@ class ApplicationWindow(QMainWindow):
 
         self.visualization_panel = VisualizationPanel(self)
         self.file_operations = FileOperations(self)
-        self.tem_controls = TemControls(self)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.visualization_panel.captureImage)
@@ -68,8 +85,10 @@ class ApplicationWindow(QMainWindow):
         self.timer_contrast = QTimer(self)
         self.timer_contrast.timeout.connect(self.visualization_panel.applyAutoContrast)
 
-        self.timer_fit = QTimer()
-        self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
+        self.tem_controls = TemControls(self)
+        if not globals.tem_mode:
+            self.timer_fit = QTimer()
+            self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
 
         tab_widget.addTab(self.visualization_panel, "Visualization Panel")
         tab_widget.addTab(self.tem_controls, "TEM Controls")
@@ -98,7 +117,7 @@ class ApplicationWindow(QMainWindow):
         logging.info("Viewer ready!")
 
 
-    def create_dock_area(self):
+    """ def create_dock_area(self):
         self.dock = Dock("Image", size=(1000, 350))
         self.glWidget = pg.GraphicsLayoutWidget(self)
         self.plot = self.glWidget.addPlot(title="")
@@ -116,7 +135,7 @@ class ApplicationWindow(QMainWindow):
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.roi.addScaleHandle([0.5, 0], [0.5, 0.5])
         self.roi.addScaleHandle([1, 0.5], [0.5, 0.5])
-        self.roi.sigRegionChanged.connect(self.roiChanged)
+        self.roi.sigRegionChanged.connect(self.roiChanged) """
 
     def roiChanged(self):
         roiPos = self.roi.pos()
@@ -149,9 +168,10 @@ class ApplicationWindow(QMainWindow):
     def stopWorker(self, thread, worker):
         if worker:
             worker.finished.disconnect()
-        if thread.isRunning():
-            thread.quit()
-            thread.wait() # Wait for the thread to finish
+        if thread is not None:
+            if thread.isRunning():
+                thread.quit()
+                thread.wait() # Wait for the thread to finish
         self.threadCleanup(thread, worker)
         
     def threadCleanup(self, thread, worker):

@@ -205,24 +205,26 @@ class TEMAction(QObject):
             if not self.tem_tasks.beamAutofocus.started:
                 self.control.init.emit()
                 self.control.actionFit_Beam.emit()
-                self.tem_tasks.btnBeamFocus.setText("Stop Autofocus")
-                self.tem_tasks.btnBeamFocus.started = True
+                self.tem_tasks.beamAutofocus.setText("Stop Autofocus")
+                self.tem_tasks.beamAutofocus.started = True
                 # Pop-up Window
-                if self.tem_tasks.checkbox.isChecked():
+                if self.tem_tasks.popup_checkbox.isChecked():
                     self.showPlotDialog()  
             else:
-                self.tem_tasks.btnBeamFocus.setText("Start Beam Autofocus")
-                self.tem_tasks.btnBeamFocus.started = False
+                self.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
+                self.tem_tasks.beamAutofocus.started = False
                 # Close Pop-up Window
                 if self.tem_tasks.plotDialog != None:
                     self.tem_tasks.plotDialog.close()
                 """ ************************************ """
-                """ self.control.trigger_stopTask.emit() """ # or may be directly self.control.stop_task()
+                # self.control.trigger_stopTask.emit() # or may be directly self.control.stop_task()
+                # self.control.stop_task()
+                self.control.stop()
                 """ ************************************ """
                 self.removeAxes()
 
     def showPlotDialog(self):
-        self.tem_tasks.plotDialog = PlotDialog(self)
+        self.tem_tasks.plotDialog = PlotDialog(self.parent)
         # self.plotDialog.startPlotting(self.gauss_height_spBx.value(), self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
         self.tem_tasks.plotDialog.startPlotting(10, 10, 10)
         self.tem_tasks.plotDialog.show() 

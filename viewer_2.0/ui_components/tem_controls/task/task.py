@@ -57,6 +57,7 @@ class Task(QObject):
             return 0
         percentage = abs(self.start_time - time.monotonic()) / self.estimated_duration_s
         return max(0.0, min(percentage, 1.0))
+        # return 0.5
 
     # def on_tem_receive(self):
     #     pass

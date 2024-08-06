@@ -34,7 +34,7 @@ class ControlWorker(QObject):
     trigger_record = Signal()
     trigger_shutdown = Signal()
     """ *************************** """
-    """ trigger_stopTask = Signal() """
+    trigger_stopTask = Signal()
     """ *************************** """
     trigger_interactive = Signal()
     trigger_getteminfo = Signal(str)
@@ -60,6 +60,7 @@ class ControlWorker(QObject):
         self.trigger_shutdown.connect(self.shutdown)
         """ ********************************************* """
         """ self.trigger_stopTask.connect(self.stop_task) """
+        self.trigger_stopTask.connect(self.stop)
         """ ********************************************* """
         self.trigger_interactive.connect(self.interactive)
         self.trigger_getteminfo.connect(self.getteminfo)
@@ -105,7 +106,7 @@ class ControlWorker(QObject):
         self.last_task = self.task
         self.task = task
         """ ********************************************* """
-        """ self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task)) """
+        self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
         """ ********************************************* """
         self.task.finished.connect(self.on_task_finished)
         self.task.moveToThread(self.task_thread)
@@ -175,12 +176,14 @@ class ControlWorker(QObject):
     def stop_task(self):
     
         ## TODO? -> tell TEM to stop: self.send_to_tem('stage.Stop()')  ???
+        self.send_to_tem('stage.Stop()')
     
         if self.task:
             self.task.finished.disconnect()
-        if self.task_thread.isRunning():
-            self.task_thread.quit()
-            self.task_thread.wait() # Wait for the thread to actually finish
+        if self.task_thread is not None:
+            if self.task_thread.isRunning():
+                self.task_thread.quit()
+                self.task_thread.wait() # Wait for the thread to actually finish
 
         index_to_delete = None
         for i, (thread, worker) in enumerate(self.tem_action.parent.threadWorkerPairs):
@@ -199,7 +202,7 @@ class ControlWorker(QObject):
     """
     """ ********************************************* """
 
-    @Slot(str)
+    @Slot(str) 
     def send_to_tem(self, message):
         logging.debug(f'sending {message} to TEM...')
         logging.debug(self.tem_socket.state())
@@ -210,7 +213,7 @@ class ControlWorker(QObject):
             self.tem_socket.waitForBytesWritten()
             # print(f'{message} sent to TEM...')
         else:
-            logging.info("invalid socket state" + str(self.tem_socket.state()))
+            logging.info("invalid socket state " + str(self.tem_socket.state()))
             pass
 
     @Slot()

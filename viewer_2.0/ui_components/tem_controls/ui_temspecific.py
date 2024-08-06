@@ -103,8 +103,8 @@ class TEMTasks(QGroupBox):
         BEAM_label = QLabel("Beam Sweep & Focus", self)
 
         self.beamAutofocus = ToggleButton('Beam Autofocus', self)
-        self.checkbox = QCheckBox("Enable pop-up Window", self)
-        self.checkbox.setChecked(False)
+        self.popup_checkbox = QCheckBox("Enable pop-up Window", self)
+        self.popup_checkbox.setChecked(False)
         self.plotDialog = None
 
         self.ellipse_fit = QGraphicsEllipseItem()
@@ -163,7 +163,7 @@ class TEMTasks(QGroupBox):
 
         BEAM_group.addWidget(BEAM_label)
         BEAM_group.addWidget(self.beamAutofocus)
-        BEAM_group.addWidget(self.checkbox)
+        BEAM_group.addWidget(self.popup_checkbox)
         tasks_section.addLayout(BEAM_group)
 
         tasks_section.addWidget(create_horizontal_line_with_margin(50))
