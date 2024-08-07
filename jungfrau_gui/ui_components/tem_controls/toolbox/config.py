@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 import pandas as pd
 from pathlib import Path
-
+from importlib_resources import files
 # def load_config_files():
 #     config = {}
 #     _override(config, _load_config("etc/singlaui_config.json"))
@@ -24,8 +24,11 @@ def _load_config(path):
     except json.JSONDecodeError:
         logging.error("Invalid JSON in config file" + path)
     return {}
-    
-parser = _load_config(Path(__file__).parent/'jfgui2_config.json')
+
+#TODO! Error handling
+f = files('jungfrau_gui').joinpath('ui_components/tem_controls/toolbox/jfgui2_config.json')
+parser = json.loads(f.read_text())
+#parser = _load_config(Path(__file__).parent/'jfgui2_config.json')
 
 class lut:
     distance = parser['distances']
