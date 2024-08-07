@@ -6,9 +6,9 @@ import numpy as np
 # from dectris2xds.fit2d import fitgaussian
 
 class XDSparams:
-"""
-Stores parameters for XDS and creates the template XDS.INP in the current directory
-"""
+    """
+    Stores parameters for XDS and creates the template XDS.INP in the current directory
+    """
     def __init__(self, xdstempl):
         self.xdstempl = xdstempl
 

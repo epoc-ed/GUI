@@ -1,8 +1,9 @@
 import math
+import json
 import logging
 import numpy as np
 import pyqtgraph as pg
-from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject
+from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
 from PySide6.QtGui import QTransform
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QDoubleSpinBox, QSpinBox, 
@@ -32,30 +33,64 @@ class TemControls(QGroupBox):
         tem_section.setContentsMargins(10, 10, 10, 10)  # Minimal margins
         tem_section.setSpacing(10) 
 
+        self.ellipse_fit = QGraphicsEllipseItem()
+        self.sigma_x_fit = QGraphicsRectItem()
+        self.sigma_y_fit = QGraphicsRectItem()
+
+        self.checkbox = QCheckBox("Enable pop-up Window", self)
+        self.checkbox.setChecked(False)
+        self.plotDialog = None
+        
+        self.label_gauss_height = QLabel()
+        self.label_gauss_height.setText("Gaussian height")
+        self.gauss_height_spBx = QDoubleSpinBox()
+        self.gauss_height_spBx.setValue(1)
+        self.gauss_height_spBx.setMaximum(1e8)
+
+        self.label_sigma_x = QLabel()
+        self.label_sigma_x.setText("Sigma x (px)")
+        self.label_sigma_x.setStyleSheet('color: cyan;')
+        self.sigma_x_spBx = QDoubleSpinBox()
+        self.sigma_x_spBx.setStyleSheet('color: blue;')
+        self.sigma_x_spBx.setValue(1)
+        self.sigma_x_spBx.setSingleStep(0.1)
+
+        self.label_sigma_y = QLabel()
+        self.label_sigma_y.setText("Sigma y (px)")
+        self.label_sigma_y.setStyleSheet('color: red;')
+        self.sigma_y_spBx = QDoubleSpinBox()
+        self.sigma_y_spBx.setStyleSheet('color: red;')
+        self.sigma_y_spBx.setValue(1)
+        self.sigma_y_spBx.setSingleStep(0.1)
+
+        self.label_rot_angle = QLabel()
+        self.label_rot_angle.setText("Theta (deg)")
+        self.angle_spBx = QSpinBox()
+        self.angle_spBx.setMinimum(-90)
+        self.angle_spBx.setMaximum(90)
+        self.angle_spBx.setSingleStep(15)
+        
         if globals.tem_mode:
-            self.tem_tasks = TEMTasks()
+            self.tem_tasks = TEMTasks(self)
             self.tem_stagectrl = TEMStageCtrl()
             tem_section.addWidget(self.tem_tasks)
             # self.tem_tasks.exit_button.clicked.connect(self.do_exit)
             self.tem_action = TEMAction(self, self.parent)
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
-
+            self.tem_action.control.fit_updated.connect(self.updateFitParams)
+            self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
         else: 
             self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
             self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
 
-            self.checkbox = QCheckBox("Enable pop-up Window", self)
-            self.checkbox.setChecked(False)
-            self.plotDialog = None
-
-            self.ellipse_fit = QGraphicsEllipseItem()
+            """ self.ellipse_fit = QGraphicsEllipseItem()
             self.sigma_x_fit = QGraphicsRectItem()
-            self.sigma_y_fit = QGraphicsRectItem()
+            self.sigma_y_fit = QGraphicsRectItem() """
 
             """ REMOVE ? """
-            label_gauss_height = QLabel()
+            """ label_gauss_height = QLabel()
             label_gauss_height.setText("Gaussian height")
             self.gauss_height_spBx = QDoubleSpinBox()
             self.gauss_height_spBx.setValue(1)
@@ -82,7 +117,7 @@ class TemControls(QGroupBox):
             self.angle_spBx = QSpinBox()
             self.angle_spBx.setMinimum(-90)
             self.angle_spBx.setMaximum(90)
-            self.angle_spBx.setSingleStep(15)
+            self.angle_spBx.setSingleStep(15) """
             """ ********** """
 
             BeamFocus_layout = QVBoxLayout()
@@ -90,19 +125,19 @@ class TemControls(QGroupBox):
             BeamFocus_layout.addWidget(self.checkbox)
             """ REMOVE ? """
             gauss_H_layout = QHBoxLayout()
-            gauss_H_layout.addWidget(label_gauss_height)  
+            gauss_H_layout.addWidget(self.label_gauss_height)  
             gauss_H_layout.addWidget(self.gauss_height_spBx)
             BeamFocus_layout.addLayout(gauss_H_layout)
             sigma_x_layout = QHBoxLayout()
-            sigma_x_layout.addWidget(label_sigma_x)  
+            sigma_x_layout.addWidget(self.label_sigma_x)  
             sigma_x_layout.addWidget(self.sigma_x_spBx)         
             BeamFocus_layout.addLayout(sigma_x_layout)
             sigma_y_layout = QHBoxLayout()
-            sigma_y_layout.addWidget(label_sigma_y)  
+            sigma_y_layout.addWidget(self.label_sigma_y)  
             sigma_y_layout.addWidget(self.sigma_y_spBx)         
             BeamFocus_layout.addLayout(sigma_y_layout)        
             rot_angle_layout = QHBoxLayout()
-            rot_angle_layout.addWidget(label_rot_angle)  
+            rot_angle_layout.addWidget(self.label_rot_angle)  
             rot_angle_layout.addWidget(self.angle_spBx)         
             BeamFocus_layout.addLayout(rot_angle_layout)
             """ ********** """
@@ -217,6 +252,7 @@ class TemControls(QGroupBox):
         self.plotDialog.startPlotting(self.gauss_height_spBx.value(), self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
         self.plotDialog.show() 
 
+    @Slot()
     def updateFitParams(self, fit_result_best_values):
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
