@@ -1,0 +1,35 @@
+package:
+  name: jungfrau_gui
+  version: "{{ load_setup_py_data().version }}"
+
+build:
+  noarch: python
+  script: python setup.py install
+  entry_points:
+   - jungfrau_gui = jungfrau_gui.main_ui:main
+source:
+  path: ..
+
+requirements:
+  build:
+    - python 
+
+  run:
+    - python
+    - h5py
+    - hdf5plugin
+    - line_profiler
+    - lmfit
+    - numpy
+    - pyqtgraph
+    - PySide6
+    - pyzmq
+    - scipy
+
+
+
+about:
+  home: https://github.com/epoc-ed/epoc-utils
+  license: MIT
+  license_family: MIT
+  summary: Configuration of experiments in the EPOC project
