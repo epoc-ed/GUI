@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="jungfrau_gui",
-    version= '2024.7.23',
+    version= '2024.8.7',
     author="Khalil Ferjaoui",
     author_email="khalil.ferjaoui@psi.ch",
     description="Pyqtgraph based GUI for Jungfrau",
@@ -14,6 +14,8 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/epoc-ed/GUI",
     packages=setuptools.find_packages(),
+    include_package_data = True,
+    package_data={'jungfrau_gui': ['ui_config/.reussrc']},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GPL License",

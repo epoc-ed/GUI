@@ -5,20 +5,25 @@ from enum import Enum
 import numpy as np
 from pathlib import Path
 import configparser
+from importlib_resources import files
+
+#files('jungfrau_gui').joinpath('ui_config/.reussrc')
 
 # config_file = Path.home()/'.reussrc'
 
 config_dir = Path(__file__).parent
 config_file = config_dir / '.reussrc'
 
+config_file = files('jungfrau_gui').joinpath('ui_config/.reussrc')
+
 # config_file = Path(os.getcwd())/'.reussrc'
 
 def load(fname):
     parser = configparser.ConfigParser()
-    rc = parser.read(config_file)
+    rc = parser.read_string(config_file.read_text())
     #Validate fields?
-    if fname.as_posix() not in rc:
-        raise IOError(f"Could not open {Path(__file__).parent/'.reussrc'}")
+    #if fname.as_posix() not in rc:
+    #    raise IOError(f"Could not open {Path(__file__).parent/'.reussrc'}")
     return parser
 
 parser = load(config_file)
