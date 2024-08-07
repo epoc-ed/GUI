@@ -17,6 +17,9 @@ from ui_components.tem_controls.task.adjustZ import AdjustZ
 from ui_components.tem_controls.task.get_teminfo import GetInfoTask
 from ui_components.tem_controls.task.stage_centering import CenteringTask
 
+from simple_tem import TEMClient
+
+
 class ControlWorker(QObject):
     """
     The 'ControlWorker' object controls communication with the TEM over a TCP channel and redirects requests to the GUI.
@@ -31,11 +34,11 @@ class ControlWorker(QObject):
     finished_task = Signal()
     tem_socket_status = Signal(int, str)
 
+    fit_updated = Signal(dict)
+    remove_ellipse = Signal()
+
     trigger_record = Signal()
     trigger_shutdown = Signal()
-    """ *************************** """
-    trigger_stopTask = Signal()
-    """ *************************** """
     trigger_interactive = Signal()
     trigger_getteminfo = Signal(str)
     trigger_centering = Signal(bool, str)
@@ -45,6 +48,9 @@ class ControlWorker(QObject):
 
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
+        
+        self.client = TEMClient("temserver", 3535)
+
         self.tem_socket: QTcpSocket = None
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
@@ -58,10 +64,6 @@ class ControlWorker(QObject):
         self.send.connect(self.send_to_tem)
         self.trigger_record.connect(self.start_record)
         self.trigger_shutdown.connect(self.shutdown)
-        """ ********************************************* """
-        """ self.trigger_stopTask.connect(self.stop_task) """
-        self.trigger_stopTask.connect(self.stop)
-        """ ********************************************* """
         self.trigger_interactive.connect(self.interactive)
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
@@ -109,12 +111,17 @@ class ControlWorker(QObject):
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
         """ ********************************************* """
         self.task.finished.connect(self.on_task_finished)
+        self.finished_task.connect(self.on_fitting_over)
         self.task.moveToThread(self.task_thread)
         self.task.start.emit()
 
     @Slot()
     def on_task_finished(self):
         self.finished_task.emit()
+
+    def on_fitting_over(self):
+        if isinstance(self.task, BeamFitTask):
+            self.remove_ellipse.emit() 
     
     def tcpconnect(self): # renamed from 'connect' to avoid an error in PySide6
         logging.info(f"connecting to {self.host}:{self.port}")
@@ -172,20 +179,24 @@ class ControlWorker(QObject):
             pass
 
     """ ********************************************* """
-    """ @Slot()
+    @Slot()
     def stop_task(self):
     
         ## TODO? -> tell TEM to stop: self.send_to_tem('stage.Stop()')  ???
-        self.send_to_tem('stage.Stop()')
-    
+        # self.send_to_tem('stage.Stop()')
+        self.client.exit()
+        time.sleep(0.1)
+        
         if self.task:
             self.task.finished.disconnect()
+            self.fit_updated.disconnect()
+            self.remove_ellipse.emit()
         if self.task_thread is not None:
             if self.task_thread.isRunning():
                 self.task_thread.quit()
                 self.task_thread.wait() # Wait for the thread to actually finish
 
-        index_to_delete = None
+        """ index_to_delete = None
         for i, (thread, worker) in enumerate(self.tem_action.parent.threadWorkerPairs):
             if thread == self.task_thread:
                 if worker is not None:
@@ -198,8 +209,8 @@ class ControlWorker(QObject):
         if index_to_delete is not None:
             del self.tem_action.parent.threadWorkerPairs[index_to_delete]
         self.task_thread.deleteLater()  # Schedule the thread for deletion
-        self.task_thread = None
-    """
+        self.task_thread = None """
+   
     """ ********************************************* """
 
     @Slot(str) 
@@ -275,7 +286,7 @@ class ControlWorker(QObject):
 #        if self.tem_status['eos.GetMagValue'][0] <= 200: # 1
 #            print('Changes magnifitation ' + str(self.tem_status['eos.GetMagValue'][2]) + ' to x20k')
 #            self.task.tem_command("eos", "SetSelector", [20])
-        ###
+        #stop##
         if os.name == 'nt': # test on Win-Win
             while True:
                 self.send_to_tem('#more')

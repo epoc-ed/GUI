@@ -81,8 +81,9 @@ class TEMStageCtrl(QGroupBox):
         self.setLayout(stage_ctrl_section)
 
 class TEMTasks(QGroupBox):
-    def __init__(self):
+    def __init__(self, parent):
         super().__init__("")
+        self.parent = parent
         self.initUI()
 
     def initUI(self):
@@ -103,13 +104,9 @@ class TEMTasks(QGroupBox):
         BEAM_label = QLabel("Beam Sweep & Focus", self)
 
         self.beamAutofocus = ToggleButton('Beam Autofocus', self)
-        self.popup_checkbox = QCheckBox("Enable pop-up Window", self)
-        self.popup_checkbox.setChecked(False)
-        self.plotDialog = None
-
-        self.ellipse_fit = QGraphicsEllipseItem()
-        self.sigma_x_fit = QGraphicsRectItem()
-        self.sigma_y_fit = QGraphicsRectItem()
+        self.beamAutofocus.setEnabled(True)
+        self.popup_checkbox = self.parent.checkbox
+        self.plotDialog = self.parent.plotDialog
 
         ROT_group = QVBoxLayout()
         ROT_label = QLabel("Rotation & Stage Control", self)
@@ -164,6 +161,29 @@ class TEMTasks(QGroupBox):
         BEAM_group.addWidget(BEAM_label)
         BEAM_group.addWidget(self.beamAutofocus)
         BEAM_group.addWidget(self.popup_checkbox)
+        
+        
+        BeamFocus_layout = QVBoxLayout()
+        """ REMOVE ? """
+        gauss_H_layout = QHBoxLayout()
+        gauss_H_layout.addWidget(self.parent.label_gauss_height)  
+        gauss_H_layout.addWidget(self.parent.gauss_height_spBx)
+        BeamFocus_layout.addLayout(gauss_H_layout)
+        sigma_x_layout = QHBoxLayout()
+        sigma_x_layout.addWidget(self.parent.label_sigma_x)  
+        sigma_x_layout.addWidget(self.parent.sigma_x_spBx)         
+        BeamFocus_layout.addLayout(sigma_x_layout)
+        sigma_y_layout = QHBoxLayout()
+        sigma_y_layout.addWidget(self.parent.label_sigma_y)  
+        sigma_y_layout.addWidget(self.parent.sigma_y_spBx)         
+        BeamFocus_layout.addLayout(sigma_y_layout)        
+        rot_angle_layout = QHBoxLayout()
+        rot_angle_layout.addWidget(self.parent.label_rot_angle)  
+        rot_angle_layout.addWidget(self.parent.angle_spBx)         
+        BeamFocus_layout.addLayout(rot_angle_layout)
+        """ ********** """
+        BEAM_group.addLayout(BeamFocus_layout)
+
         tasks_section.addLayout(BEAM_group)
 
         tasks_section.addWidget(create_horizontal_line_with_margin(50))

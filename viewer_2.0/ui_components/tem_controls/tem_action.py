@@ -20,7 +20,7 @@ class TEMAction(QObject):
     """    
     def __init__(self, parent, grandparent):
         super().__init__()
-        self.parent = grandparent #self.grandparent.tem_controls
+        self.parent = grandparent # ApplicationWindow in ui_main_window
         self.tem_controls = parent
         self.visualization_panel = self.parent.visualization_panel
         self.file_operations = self.parent.file_operations
@@ -81,22 +81,21 @@ class TEMAction(QObject):
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
-        # self.tem_tasks.btnBeamSweep.setEnabled(enables)
         
-        self.tem_tasks.beamAutofocus.setEnabled(enables)
+        """ self.tem_tasks.beamAutofocus.setEnabled(enables) """
 
     def toggle_connectTEM(self):
-        # if not self.tem_tasks.connecttem_button.started:
-        #     self.control.init.emit()
-        #     self.tem_tasks.connecttem_button.setText("Disconnect")
-        #     self.tem_tasks.connecttem_button.started = True
-        #     self.control.trigger_getteminfo.emit('N')
-        # else:
-        #     self.control.trigger_shutdown.emit()
-        #     self.tem_tasks.connecttem_button.setText("Connect to TEM")
-        #     self.tem_tasks.connecttem_button.started = False
-        # self.enabling(self.tem_tasks.connecttem_button.started)
-        self.enabling(True)
+        if not self.tem_tasks.connecttem_button.started:
+            self.control.init.emit()
+            self.tem_tasks.connecttem_button.setText("Disconnect")
+            self.tem_tasks.connecttem_button.started = True
+            self.control.trigger_getteminfo.emit('N')
+        else:
+            self.control.trigger_shutdown.emit()
+            self.tem_tasks.connecttem_button.setText("Connect to TEM")
+            self.tem_tasks.connecttem_button.started = False
+        self.enabling(self.tem_tasks.connecttem_button.started)
+        # self.enabling(True)
         
     def callGetInfoTask(self):
         if self.tem_tasks.gettem_checkbox.isChecked():
@@ -205,41 +204,20 @@ class TEMAction(QObject):
     #         self.centering_button.started = False
             
     def toggle_beamAutofocus(self):
-            if not self.tem_tasks.beamAutofocus.started:
-                self.control.init.emit()
-                self.control.actionFit_Beam.emit()
-                self.tem_tasks.beamAutofocus.setText("Stop Autofocus")
-                self.tem_tasks.beamAutofocus.started = True
-                # Pop-up Window
-                if self.tem_tasks.popup_checkbox.isChecked():
-                    self.showPlotDialog()  
-            else:
-                self.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
-                self.tem_tasks.beamAutofocus.started = False
-                # Close Pop-up Window
-                if self.tem_tasks.plotDialog != None:
-                    self.tem_tasks.plotDialog.close()
-                """ ************************************ """
-                # self.control.trigger_stopTask.emit() # or may be directly self.control.stop_task()
-                # self.control.stop_task()
-                self.control.stop()
-                """ ************************************ """
-                self.removeAxes()
+        if not self.tem_tasks.beamAutofocus.started:
+            self.control.init.emit()
+            self.control.actionFit_Beam.emit()
+            self.tem_tasks.beamAutofocus.setText("Stop Autofocus")
+            self.tem_tasks.beamAutofocus.started = True
+            # Pop-up Window
+            if self.tem_tasks.popup_checkbox.isChecked():
+                self.tem_tasks.parent.showPlotDialog()  
+        else:
+            self.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
+            self.tem_tasks.beamAutofocus.started = False
+            # Close Pop-up Window
+            if self.tem_tasks.parent.plotDialog != None:
+                self.tem_tasks.parent.plotDialog.close()
+            self.control.stop_task()
+            # self.control.stop()
 
-    def showPlotDialog(self):
-        self.tem_tasks.plotDialog = PlotDialog(self.parent)
-        # self.plotDialog.startPlotting(self.gauss_height_spBx.value(), self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
-        self.tem_tasks.plotDialog.startPlotting(10, 10, 10)
-        self.tem_tasks.plotDialog.show() 
-
-    def removeAxes(self):
-        logging.info("Removing gaussian fitting ellipse.")
-        if self.tem_tasks.ellipse_fit.scene():
-            logging.debug("Removing ellipse_fit from scene")
-            self.tem_tasks.ellipse_fit.scene().removeItem(self.tem_tasks.ellipse_fit)
-        if self.tem_tasks.sigma_x_fit.scene():
-            logging.debug("Removing sigma_x_fit from scene")
-            self.tem_tasks.sigma_x_fit.scene().removeItem(self.tem_tasks.sigma_x_fit)
-        if self.tem_tasks.sigma_y_fit.scene():
-            logging.debug("Removing sigma_y_fit from scene")
-            self.tem_tasks.sigma_y_fit.scene().removeItem(self.tem_tasks.sigma_y_fit)
