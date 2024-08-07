@@ -2,8 +2,8 @@ import logging
 import numpy as np 
 from PySide6.QtCore import QObject, Signal, Slot
 
-import globals
-from zmq_receiver import ZmqReceiver
+from ... import globals
+from ...zmq_receiver import ZmqReceiver
 
 class Reader(QObject):
     finished = Signal(object, object)  # Signal to indicate completion and carry results

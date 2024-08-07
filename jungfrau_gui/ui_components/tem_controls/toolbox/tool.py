@@ -3,7 +3,7 @@ import time
 import h5py
 import hdf5plugin
 import logging
-import ui_components.tem_controls.toolbox.config as cfg_jf
+from ....ui_components.tem_controls.toolbox import config as cfg_jf
 
 def ev2angstrom(voltage): # in ev
     h, m0, e, c = 6.62607004e-34, 9.10938356e-31, 1.6021766208e-19, 299792458.0

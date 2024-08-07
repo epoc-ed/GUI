@@ -5,9 +5,9 @@ from PySide6.QtCore import QRectF, QObject
 from PySide6.QtNetwork import QAbstractSocket # QTcpSocket, 
 import pyqtgraph as pg
 # from ui_components.toggle_button import ToggleButton
-from ui_components.tem_controls.toolbox.tool import *
-import ui_components.tem_controls.toolbox.config as cfg_jf
-from ui_components.tem_controls.task.control_worker import *
+from ...ui_components.tem_controls.toolbox.tool import *
+from ...ui_components.tem_controls.toolbox import config as cfg_jf
+from ...ui_components.tem_controls.task.control_worker import *
 from reuss import config as cfg
 import json
 import os

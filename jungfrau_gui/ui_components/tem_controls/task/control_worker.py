@@ -10,12 +10,12 @@ from PySide6.QtCore import Signal, Slot, QObject, QThread
 from PySide6.QtNetwork import QTcpSocket, QAbstractSocket
 import json
 
-from ui_components.tem_controls.task.task import Task
-from ui_components.tem_controls.task.record_task import RecordTask
-from ui_components.tem_controls.task.beam_fit_tem import BeamFitTask
-from ui_components.tem_controls.task.adjustZ import AdjustZ
-from ui_components.tem_controls.task.get_teminfo import GetInfoTask
-from ui_components.tem_controls.task.stage_centering import CenteringTask
+from ....ui_components.tem_controls.task.task import Task
+from ....ui_components.tem_controls.task.record_task import RecordTask
+from ....ui_components.tem_controls.task.beam_fit_tem import BeamFitTask
+from ....ui_components.tem_controls.task.adjustZ import AdjustZ
+from ....ui_components.tem_controls.task.get_teminfo import GetInfoTask
+from ....ui_components.tem_controls.task.stage_centering import CenteringTask
 
 class ControlWorker(QObject):
     """

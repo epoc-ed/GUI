@@ -2,8 +2,8 @@ from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLin
                                QRadioButton, QSpinBox, QPushButton, QCheckBox,
                                QDoubleSpinBox, QGraphicsEllipseItem, QGraphicsLineItem,
                                QGraphicsRectItem, QSizePolicy)
-from ui_components.toggle_button import ToggleButton
-from ui_components.utils import create_horizontal_line_with_margin
+from ...ui_components.toggle_button import ToggleButton
+from ...ui_components.utils import create_horizontal_line_with_margin
 
 class TEMDetector(QGroupBox):
     def __init__(self):

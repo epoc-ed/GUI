@@ -3,7 +3,7 @@ import zmq
 import time
 import logging
 import numpy as np
-import globals
+from . import globals
 
 
 # Receiver of the ZMQ stream

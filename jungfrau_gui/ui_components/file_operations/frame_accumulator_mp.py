@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import multiprocessing as mp
 
-import globals
+from ... import globals
 from reuss import io
 
 class FrameAccumulator:

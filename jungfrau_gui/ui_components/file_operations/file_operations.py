@@ -13,9 +13,9 @@ from .stream_writer import StreamWriter
 from .frame_accumulator_mp import FrameAccumulator
 
 import reuss
-import globals
-from ui_components.toggle_button import ToggleButton
-from ui_components.utils import create_horizontal_line_with_margin
+from ... import globals
+from ...ui_components.toggle_button import ToggleButton
+from ...ui_components.utils import create_horizontal_line_with_margin
 
 
 def save_captures(fname, data):

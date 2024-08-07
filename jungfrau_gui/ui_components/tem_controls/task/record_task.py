@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from datetime import datetime as dt
-from ui_components.tem_controls.task.task import Task
+from ....ui_components.tem_controls.task.task import Task
 import subprocess
 import logging
 # from PySide6.QtWidgets import QRadioButton

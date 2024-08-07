@@ -8,16 +8,16 @@ import numpy as np
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QCoreApplication
 
-import globals
-import ui_components.palette as palette
-from zmq_receiver import ZmqReceiver
-from ui_main_window import ApplicationWindow 
+from . import globals
+from .ui_components import palette
+from .zmq_receiver import ZmqReceiver
+from .ui_main_window import ApplicationWindow 
 
 # format = "%(message)s"
 # logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-if __name__ == "__main__":
-
+#if __name__ == "__main__":
+def main():
     app = QApplication(sys.argv)
     
     parser = argparse.ArgumentParser()
@@ -55,3 +55,5 @@ if __name__ == "__main__":
     # QCoreApplication.processEvents()
 
     sys.exit(app.exec())
+if __name__ == "__main__":
+    main()

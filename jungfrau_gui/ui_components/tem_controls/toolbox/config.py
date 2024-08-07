@@ -3,6 +3,7 @@ import logging
 # import os.path
 from pathlib import Path
 import pandas as pd
+from pathlib import Path
 
 # def load_config_files():
 #     config = {}
@@ -24,7 +25,7 @@ def _load_config(path):
         logging.error("Invalid JSON in config file" + path)
     return {}
     
-parser = _load_config('ui_components/tem_controls/toolbox/jfgui2_config.json')
+parser = _load_config(Path(__file__).parent/'jfgui2_config.json')
 
 class lut:
     distance = parser['distances']

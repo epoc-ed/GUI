@@ -2,7 +2,7 @@ import time
 import math
 import logging
 from datetime import datetime as dt
-from ui_components.tem_controls.task.task import Task
+from ....ui_components.tem_controls.task.task import Task
 import numpy as np
 from PySide6.QtGui import QTransform
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem

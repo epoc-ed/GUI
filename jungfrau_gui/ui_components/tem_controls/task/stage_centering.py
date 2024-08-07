@@ -1,8 +1,8 @@
 import time
 from datetime import datetime as dt
-from ui_components.tem_controls.task.task import Task
+from ....ui_components.tem_controls.task.task import Task
 import numpy as np
-import ui_components.tem_controls.toolbox.config as cfg_jf
+from ....ui_components.tem_controls.toolbox import config as cfg_jf
 
 # data measured by TG, using Au-grating grid, on 26 Oct 2023
 mag_on_jf = [[100000,  80000, 60000, 50000, 40000, 30000, 25000, 20000, 15000, 12000, 10000,  8000, 6000, 5000, 4000, 3000, 2500, 2000, 1500], 

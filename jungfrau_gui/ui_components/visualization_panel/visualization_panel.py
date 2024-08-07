@@ -11,10 +11,10 @@ from PySide6.QtWidgets import (QWidget, QGroupBox, QVBoxLayout, QHBoxLayout,
 from .reader import Reader
 
 from reuss import config as cfg
-from ui_components.toggle_button import ToggleButton
-import globals
-from ui_components.tem_controls.ui_temspecific import TEMDetector
-from ui_components.utils import create_horizontal_line_with_margin
+from ...ui_components.toggle_button import ToggleButton
+from ... import globals
+from ...ui_components.tem_controls.ui_temspecific import TEMDetector
+from ...ui_components.utils import create_horizontal_line_with_margin
 
 class VisualizationPanel(QGroupBox):
     def __init__(self, parent):

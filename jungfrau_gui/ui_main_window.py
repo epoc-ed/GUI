@@ -1,19 +1,19 @@
 import logging
-import globals
+from . import globals
 import numpy as np
 import pyqtgraph as pg
-from ui_components.overlay import draw_overlay 
+from .ui_components.overlay import draw_overlay 
 from pyqtgraph.dockarea import Dock
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget,
                                 QHBoxLayout, QFrame, QPushButton,
                                 QMessageBox, QTabWidget)
 from PySide6.QtCore import QTimer
-from ui_components.visualization_panel.visualization_panel import VisualizationPanel
-from ui_components.tem_controls.tem_controls import TemControls
-from ui_components.file_operations.file_operations import FileOperations
-from ui_components.utils import create_gaussian
-from ui_components.tem_controls.ui_temspecific import TEMDetector, TEMStageCtrl, TEMTasks
-from ui_components.tem_controls.tem_action import TEMAction
+from .ui_components.visualization_panel.visualization_panel import VisualizationPanel
+from .ui_components.tem_controls.tem_controls import TemControls
+from .ui_components.file_operations.file_operations import FileOperations
+from .ui_components.utils import create_gaussian
+from .ui_components.tem_controls.ui_temspecific import TEMDetector, TEMStageCtrl, TEMTasks
+from .ui_components.tem_controls.tem_action import TEMAction
 
 class ApplicationWindow(QMainWindow):
     def __init__(self, receiver, app):
