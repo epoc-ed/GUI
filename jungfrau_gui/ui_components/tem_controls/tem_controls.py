@@ -19,7 +19,9 @@ from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 
 from ...ui_components.tem_controls.ui_temspecific import TEMStageCtrl, TEMTasks
-from ...ui_components.tem_controls.tem_action import TEMAction
+
+# from ...ui_components.tem_controls.tem_action import TEMAction
+from ...ui_components.tem_controls.tem_action_test import TEMAction
 
 class TemControls(QGroupBox):
     def __init__(self, parent):

@@ -2,12 +2,14 @@ import time
 import h5py
 import numpy as np
 from datetime import datetime as dt
-from ....ui_components.tem_controls.task.task import Task
+from ....ui_components.tem_controls.task.task_test import Task
 import subprocess
 import logging
 # from PySide6.QtWidgets import QRadioButton
 import os
 # import ui_components.tem_controls.task.dectris2xds import XDSparams
+
+from simple_tem import TEMClient
 
 class RecordTask(Task):
     def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None):
@@ -20,7 +22,10 @@ class RecordTask(Task):
         self.rotations_angles = []
         self.log_suffix = log_suffix
 
+        self.client = TEMClient("temserver", 3535)
+
     def run(self):
+        print("In run() of RecordTask")
         # ft = self.control.detector.get_config("frame_time", "detector")
         phi0 = float(self.control.tem_status['stage.GetPos'][3])
         phi1 = self.end_angle
@@ -54,7 +59,7 @@ class RecordTask(Task):
             logfile.write(f"# angular Speed:           {self.phi_dot:6.2f} deg/s\n")
             logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n")
             logfile.write(f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n")
-            self.tem_moreinfo() #self.control.send_to_tem("#more")
+            self.tem_moreinfo() 
             # BEAM
             logfile.write(f"# spot_size:               {self.control.tem_status['eos.GetSpotSize']}\n")
             logfile.write(f"# alpha_angle:             {self.control.tem_status['eos.GetAlpha']}\n")
@@ -74,9 +79,11 @@ class RecordTask(Task):
         
         # self.tem_command("stage", "Setf1OverRateTxNum", [phi_dot_idx])
         # time.sleep(1)
-        self.tem_command("defl", "SetBeamBlank", [0]) # beam blanking OFF
+        # self.tem_command("defl", "SetBeamBlank", [0]) # beam blanking OFF
+        self.client.SetBeamBlank(0)
         time.sleep(0.5)
-        self.tem_command("stage", "SetTiltXAngle", [phi1])
+        # self.tem_command("stage", "SetTiltXAngle", [phi1])
+        self.client.SetTiltXAngle(phi1)
         time.sleep(self.control.triggerdelay_ms / 1000)
         if self.writer: self.writer() #logging.info('Writer Pushed')
         
@@ -105,7 +112,8 @@ class RecordTask(Task):
         if self.writer and self.tem_action.file_operations.streamWriterButton.started:
             self.writer()
         time.sleep(0.5)
-        self.tem_command("defl", "SetBeamBlank", [1]) # beam blanking ON
+        # self.tem_command("defl", "SetBeamBlank", [1]) # beam blanking ON
+        self.client.SetBeamBlank(1)
         self.tem_moreinfo() #self.control.send_to_tem("#more")
         time.sleep(0.5)
         # logging.info(self.control.tem_status)
@@ -119,9 +127,12 @@ class RecordTask(Task):
         if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
             logging.info("Return the stage tilt to zero.")
             time.sleep(1)
-            self.control.send.emit(self.control.with_max_speed("stage.SetTiltXAngle(0)"))
+            # self.control.send.emit(self.control.with_max_speed("stage.SetTiltXAngle(0)"))
+            self.control.with_max_speed("SetTiltXAngle(0)")
             # self.tem_command("stage", "Setf1OverRateTxNum", [return_speed_idx]) # requires ED package
+            """ self.client.Setf1OverRateTxNum(return_speed_idx) """
             # self.tem_command("stage", "SetTiltXAngle", [0])
+            """ self.client.SetTiltXAngle(0) """
         logging.info("Recording task stopped.")
         
         if self.writer and os.path.isfile(self.tem_action.file_operations.formatted_filename):

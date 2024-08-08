@@ -74,9 +74,15 @@ class TEMStageCtrl(QGroupBox):
         for i in self.rb_speeds.buttons():
             self.hbox_rot.addWidget(i, 1)
             # i.setEnabled(enables)
+            """ ************** """
+            i.setEnabled(True)
+            """ ************** """
         for i in self.movestages.buttons():
             self.hbox_move.addWidget(i, 1)
             # i.setEnabled(enables)
+            """ ************** """
+            i.setEnabled(True)
+            """ ************** """
         
         self.setLayout(stage_ctrl_section)
 
