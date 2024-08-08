@@ -89,7 +89,8 @@ class FileOperations(QGroupBox):
         self.outPath_input.textChanged.connect(self.modify_path_manually)
         self.h5_folder_name = self.outPath_input.text()
         self.folder_button = QPushButton()
-        self.folder_button.setIcon(QIcon("./extras/folder_icon.png"))
+        icon_path = os.path.join(os.path.dirname(__file__), "folder_icon.png")
+        self.folder_button.setIcon(QIcon(icon_path))
         self.folder_button.clicked.connect(self.open_directory_dialog)
         
         output_folder_layout.addWidget(self.outPath, 2)
@@ -165,8 +166,8 @@ class FileOperations(QGroupBox):
         path = self.outPath_input.text()
         if os.path.exists(path): 
             self.h5_folder_name = path
-        else:
-            QMessageBox.critical(self, "Wrong Path", "The entered path does not exist!\nPlease create it or use the dedicated button for folder selection...", QMessageBox.Ok)
+        # else:
+        #     QMessageBox.critical(self, "Wrong Path", "The entered path does not exist!\nPlease create it or use the dedicated button for folder selection...", QMessageBox.Ok)
 
     def open_directory_dialog(self):
         initial_dir = self.h5_folder_name or self.outPath_input.text()
@@ -187,6 +188,10 @@ class FileOperations(QGroupBox):
             
             logging.debug("TCP address for Hdf5 writer to bind to is ", globals.stream)
             logging.debug("Data type to build the streamWriter object ", globals.dtype)
+
+            """ If manually entered path is wrong, back to the latest correct path """
+            if self.outPath_input.text() != self.h5_folder_name:
+                self.outPath_input.setText(self.h5_folder_name)
 
             self.formatted_filename = self.generate_h5_filename(prefix)
             self.streamWriter = StreamWriter(filename=self.formatted_filename, 

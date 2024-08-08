@@ -24,11 +24,8 @@ class TEMAction(QObject):
         self.tem_controls = parent
         self.visualization_panel = self.parent.visualization_panel
         self.file_operations = self.parent.file_operations
-        # self.tem_detector = self.parent.tem_detector
         self.tem_detector = self.visualization_panel.tem_detector
-        # self.tem_stagectrl = self.parent.tem_stagectrl
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
-        # self.tem_tasks = self.parent.tem_tasks
         self.tem_tasks = self.tem_controls.tem_tasks
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
