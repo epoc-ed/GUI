@@ -99,6 +99,7 @@ class TEMTasks(QGroupBox):
         CTN_section = QHBoxLayout()
         CTN_label = QLabel("Connection", self)
         self.connecttem_button = ToggleButton('Connect to TEM', self)
+        self.connecttem_button.setEnabled(False)
         self.gettem_button = QPushButton("Get TEM status", self)
         self.gettem_checkbox = QCheckBox("recording", self)
         self.gettem_checkbox.setChecked(False)

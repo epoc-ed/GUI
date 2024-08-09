@@ -47,6 +47,7 @@ MORE_QUERIES = [
     "stage.GetStatus", 
     "eos.GetMagValue", 
     "eos.GetFunctionMode",
+    "stage.Getf1OverRateTxNum",
     "apt.GetSize(1)", 
     "apt.GetSize(4)",  # 1=CL, 4=SA
     "eos.GetSpotSize", 
@@ -75,6 +76,7 @@ MORE_QUERIES_CLIENT = [
     "GetStageStatus()", 
     "GetMagValue()", 
     "GetFunctionMode()",
+    "Getf1OverRateTxNum()",
     "GetAperatureSize(1)", 
     "GetAperatureSize(4)",  # 1=CL, 4=SA
     "GetSpotSize()", 
@@ -171,17 +173,17 @@ class ControlWorker(QObject):
         threading.current_thread().setName("ControlThread")
         logging.info("initializing control thread...")
         
+        # self.client = TEMClient("temserver", 3535)
+        """ self.send_to_tem("#more") """
         # self.tem_socket = QTcpSocket()
-
         # self.tem_socket.readyRead.connect(self.on_tem_receive)
-
         # self.tem_socket.stateChanged.connect(
         #     lambda state: self.tem_socket_status.emit(state, self.tem_socket.errorString()))
         # self.tem_socket.errorOccurred.connect(
         #     lambda state: self.tem_socket_status.emit(self.tem_socket.state(), self.tem_socket.errorString()))        
         # self.tcpconnect()
         
-        self.task_thread.start()
+        """ self.task_thread.start() """
         
         # self.send.emit("stage.Setf1OverRateTxNum(2)")
         logging.info("initialized control thread")
@@ -190,12 +192,24 @@ class ControlWorker(QObject):
         print("In start_task in control_worker.py")
         self.last_task = self.task
         self.task = task
-        # self.send_to_tem("#more")
+
+        print(f"task_name is {self.task.task_name}")
+        """ self.send_to_tem("#more") """
+
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
+
         self.task.finished.connect(self.on_task_finished)
         self.finished_task.connect(self.on_fitting_over)
+
         self.task.moveToThread(self.task_thread)
-        self.task.start.emit()
+
+        print("About to start")
+        # ******
+        self.task_thread.start()
+        self.task_thread.started.connect(self.task.start.emit())
+        # ******
+        """ self.task.start.emit() """
+        # time.sleep(1)
 
     @Slot()
     def on_task_finished(self):
@@ -250,11 +264,19 @@ class ControlWorker(QObject):
 
     @Slot(dict)
     def update_tem_status(self, response):
+        """ *************** """
+        # print(f"Display update values")
+        # for key, value in response.items():
+        #     print(f"{key}: {value}")
+        """ *************** """
         print("Updating TEM Status")
         try:
+            print("BEGINNING update loop")
             for entry in response:
                 self.tem_status[entry] = response[entry]["val"]
                 self.tem_update_times[entry] = (response[entry]["tst_before"], response[entry]["tst_after"])
+            print("END update loop")
+            print(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
             if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_MAG'] = self.tem_update_times['eos.GetMagValue']
@@ -262,16 +284,36 @@ class ControlWorker(QObject):
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
 
+            print("Before emission")
             self.updated.emit()
+            print("After emission")
         except Exception as e:
             print(f"Error: {e}")
+
+    @Slot(str) 
+    def send_to_tem(self, message):
+        logging.debug(f'sending {message} to TEM...')
+        if message == "#info":
+            results = self.get_state()
+            self.trigger_tem_update.emit(results)
+            # self.update_tem_status(results)
+        elif message == "#more":
+            results = self.get_state_detailed()
+            self.trigger_tem_update.emit(results)
+            # self.update_tem_status(results)
+        else:
+            print("Just passing through")
+            pass
 
     def get_state(self):
         results = {}
         for query in INFO_QUERIES:
             tic = time.perf_counter()
+            # print(" ++++++++++++++++ ")
+            # print(f"Command from list {query}")
+            # print(f"Command as executed {full_mapping[query]}")
             results[query] = self.execute_command(full_mapping[query])
-
+            # print(f"results[query] is {results[query]}")
             toc = time.perf_counter()
             print("Getting info for", query, "Took", toc - tic, "seconds")
 
@@ -280,29 +322,51 @@ class ControlWorker(QObject):
     def get_state_detailed(self):
         results = {}
         for query in MORE_QUERIES:
-            # if 'defl' in query: time.sleep(0.1)
-            # command = query
-            # if not 'apt.GetSize' in query:
-            #     command = query + "()"
             result = {}
             result["tst_before"] = time.time()
             result["val"] = self.execute_command(full_mapping[query])
             result["tst_after"] = time.time()
             results[query] = result
         return results
-     
-    @Slot(str) 
-    def send_to_tem(self, message):
-        logging.debug(f'sending {message} to TEM...')
-        if message == "#info":
-            results = self.get_state()
-            self.trigger_tem_update.emit(results)
-        elif message == "#more":
-            results = self.get_state_detailed()
-            self.update_tem_status(results)
-        else:
-            print("Just passing through")
-            pass
+
+    def execute_command(self, command_str):
+        try:
+            # Split the command into method name and arguments
+            parts = command_str.split('(')
+            method_name = parts[0]
+            arguments = parts[1].replace(')', '')
+
+            # Function to convert string arguments to appropriate types
+            def convert_arg(arg):
+                if arg.lower() in ('true', 'false'):
+                    return arg.lower() == 'true'  # Convert to boolean
+                try:
+                    if '.' in arg:
+                        return float(arg)  # Convert to float
+                    return int(arg)  # Convert to int
+                except ValueError:
+                    return arg  # Return as string if not a number
+
+            # Check if there are no arguments
+            if arguments:
+                # Split arguments and convert them
+                args = tuple(convert_arg(arg.strip()) for arg in arguments.split(','))
+            else:
+                args = ()
+
+             # Get the method from the client object
+            method = getattr(self.client, method_name)
+            
+            # Call the method with the arguments
+            result = method(*args)
+
+            # Return the result or a default value
+            return result if result is not None else "No result returned"
+
+        except AttributeError:
+            print(f"Error: The method '{method_name}' does not exist.")
+        except Exception as e:
+            print(f"Error: {e}")
 
     @Slot()
     def shutdown(self):
@@ -331,27 +395,6 @@ class ControlWorker(QObject):
                 self.task_thread.quit()
                 self.task_thread.wait() # Wait for the thread to actually finish
 
-    def execute_command(self, command_str):
-        try:
-            # Split the command into method name and arguments
-            parts = command_str.split('(')
-            method_name = parts[0]
-            arguments = parts[1].replace(')', '')
-            # Check if there are no arguments
-            if arguments:
-                # Convert arguments into a tuple
-                args = tuple(map(int, arguments.split(',')))
-            else:
-                args = ()
-            # Get the method from the client object
-            method = getattr(self.client, method_name)
-            # Call the method with the arguments
-            method(*args)
-
-        except AttributeError:
-            print(f"Error: The method '{method_name}' does not exist.")
-        except Exception as e:
-            print(f"Error: {e}")
 
     @Slot()
     def stop(self):
@@ -362,9 +405,11 @@ class ControlWorker(QObject):
     
     @Slot()
     def start_record(self):
+        print("Start record")
         if self.task.running:
             self.stop()
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
+        print(f"End angle + {end_angle}")
         ### filename_suffix = self.tem_action.formatted_filename[:-3]
         ### filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
         filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
@@ -376,7 +421,9 @@ class ControlWorker(QObject):
             task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
         else:
             task = RecordTask(self, end_angle, filename_suffix)
+        print("before")
         self.start_task(task)
+        print("after")
 
     @Slot()
     def start_beam_fit(self):
@@ -399,7 +446,6 @@ class ControlWorker(QObject):
         task = BeamFitTask(self)
         self.start_task(task)
 
-    
     """ 
     @Slot()
     def start_adjustZ(self):

@@ -54,25 +54,16 @@ class TEMAction(QObject):
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
 
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
-        # self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(10000)"))
-        # self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(-10000)"))
         
         self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.execute_command("SetXRel(10000)"))
         self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.execute_command("SetXRel(-10000)"))
-        
-        # self.tem_stagectrl.move10degp.clicked.connect(
-        #             lambda: self.control.send.emit(self.control.with_max_speed("stage.SetTXRel(10)")))
-        # self.tem_stagectrl.move10degn.clicked.connect(
-        #             lambda: self.control.send.emit(self.control.with_max_speed("stage.SetTXRel(-10)")))
-        # self.tem_stagectrl.move0deg.clicked.connect(
-        #             lambda: self.control.send.emit(self.control.with_max_speed("stage.SetTiltXAngle(0)")))
 
         self.tem_stagectrl.move10degp.clicked.connect(
                     lambda: self.control.with_max_speed("SetTXRel(10)"))
         self.tem_stagectrl.move10degn.clicked.connect(
                     lambda: self.control.with_max_speed("SetTXRel(-10)"))
         self.tem_stagectrl.move0deg.clicked.connect(
-                    lambda: self.control.with_max_speed("SetTiltXAngle(0)"))
+                    lambda: self.control.with_max_speed("SetTiltXAngle(0, True)"))
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.datasaving_filepath)
@@ -88,7 +79,7 @@ class TEMAction(QObject):
 
         self.tem_tasks.gettem_button.setEnabled(False)
         self.tem_tasks.gettem_checkbox.setEnabled(False)
-        self.tem_tasks.centering_button.setEnabled(False)
+        self.tem_tasks.centering_button.setEnabled(False) 
 
         # self.tem_tasks.beamAutofocus.setEnabled(enables)
         # self.tem_tasks.update_end_angle.setEnabled(enables)
@@ -148,7 +139,7 @@ class TEMAction(QObject):
     #     ## return message, color
 
     def on_tem_update(self):
-        print("On TEM update!!")
+        print("On TEM update!!!!!!!")
         # self.beamcenter = float(fit_result_best_values['xo']), float(fit_result_best_values['yo'])
         angle_x = self.control.tem_status["stage.GetPos"][3]
         self.tem_tasks.input_start_angle.setValue(angle_x)

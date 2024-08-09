@@ -22,11 +22,12 @@ class Task(QObject):
         self.setObjectName(name)
         self.task_name = name
         self.control = control_worker
-        self.send_tem_command.connect(control_worker.send_to_tem)
+        self.send_tem_command.connect(self.control.send_to_tem)
         self.start.connect(self._start)
         threading.current_thread().setName(name + "Thread")
 
     def run(self):
+        print("Empty run in Task.py")
         pass
 
     @Slot()
@@ -36,24 +37,15 @@ class Task(QObject):
         self.running = True
         self.start_time = time.monotonic()
         try:
-            print("Try run!")
             self.run()
         except Exception as exc:
             logging.error(f"Exception occured in task {self.task_name}: {traceback.format_exc()}")
             # ...
-            print(exc)
+            # print(exc)
             pass
         self.running = False
         logging.info(f"Finished task {self.task_name}")
         self.finished.emit()
-
-    # def tem_command(self, module, cmd, args):
-    #     self.send_tem_command.emit(module + "." + cmd + "(" + str(args)[1: -1] + ")")
-    #     ## response = self.send_to_tem(module + "." + cmd + "(" + str(args)[1: -1] + ")")
-    #     ## if len(response.split()) == 1:
-    #     ##     return response
-    #     ## else:
-    #     ##     return re.sub('[\[\],]', '', response).split()
 
     def get_progress(self):
         if not self.running:
@@ -65,8 +57,10 @@ class Task(QObject):
     #     pass
         
     def tem_info(self):
+        print(f"{self.task_name} has asked for #info")
         self.send_tem_command.emit("#info")
 
     def tem_moreinfo(self):
+        print(f"{self.task_name} has asked for #more")
         self.send_tem_command.emit("#more")
         
