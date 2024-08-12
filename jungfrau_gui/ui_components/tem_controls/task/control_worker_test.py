@@ -219,8 +219,8 @@ class ControlWorker(QObject):
         if isinstance(self.task, BeamFitTask):
             if self.task_thread.isRunning(): 
                 # self.fitterWorkerReady = False
+                self.remove_ellipse.emit() 
                 self.fit_finish.emit()
-                """ self.remove_ellipse.emit() """ 
                 # time.sleep(0.1)
         else:
             print("Do nothing!!")
