@@ -221,6 +221,7 @@ class ControlWorker(QObject):
                 # self.remove_ellipse.emit() 
                 # self.fitterWorkerReady = False
                 self.fit_finish.emit()
+                time.sleep(0.1)
         else:
             print("Do nothing!!")
             pass
