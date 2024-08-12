@@ -30,7 +30,8 @@ class BeamFitTask(Task):
         """ self.fit_updated.connect(self.updateFitParams_json) """
         
         self.client = TEMClient("temserver", 3535)
-    
+
+        self.control.trigger_fitting_stop.connect(self.set_worker_not_ready)
 
     def run(self, init_IL1=IL1_0):
 
@@ -169,3 +170,7 @@ class BeamFitTask(Task):
         self.client.SetILs(init_stigm[0], init_stigm[1])        
 
         return min_sigma1, best_ratio, min_stigmvalue
+    
+    def set_worker_not_ready(self):
+        print("FITTING WORKER READY = FALSE")
+        self.control.fitterWorkerReady = False

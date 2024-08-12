@@ -115,6 +115,7 @@ class ControlWorker(QObject):
 
     fit_updated = Signal(dict)
     fit_finish = Signal()
+    trigger_fitting_stop = Signal()
     remove_ellipse = Signal()
 
     trigger_record = Signal()
@@ -387,7 +388,8 @@ class ControlWorker(QObject):
         # self.client.exit()
         if self.task:
             print("Stopping the FITTING task!!!")
-            self.fitterWorkerReady = False
+            """ self.fitterWorkerReady = False """
+            self.trigger_fitting_stop.emit()
             time.sleep(1)
             # self.task.finished.disconnect()
             # self.fit_updated.disconnect()
