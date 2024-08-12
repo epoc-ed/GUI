@@ -61,7 +61,7 @@ class TEMAction(QObject):
 
 
         self.tem_stagectrl.move10degp.clicked.connect(
-                    lambda: self.control.with_max_speed.SetTXRel(10, run_async=True, max_speed=True))
+                    lambda: self.control.client.SetTXRel(10, run_async=True, max_speed=True))
         self.tem_stagectrl.move10degn.clicked.connect(
                     lambda: self.control.client.SetTXRel(-10, run_async=True, max_speed=True))
         """
