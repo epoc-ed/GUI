@@ -386,13 +386,15 @@ class ControlWorker(QObject):
     def stop_task(self):
         # self.client.exit()
         if self.task:
+            print("Stopping the FITTING task!!!")
             self.fitterWorkerReady = False
-            time.sleep(0.1)
+            time.sleep(1)
             # self.task.finished.disconnect()
             # self.fit_updated.disconnect()
             self.remove_ellipse.emit()
         if self.task_thread is not None:
             if self.task_thread.isRunning():
+                print("Quitting FITTING Thread")
                 self.task_thread.quit()
                 self.task_thread.wait() # Wait for the thread to actually finish
 
