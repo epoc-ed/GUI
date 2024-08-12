@@ -144,7 +144,7 @@ class RecordTask(Task):
         # logging.info("Recording task stopped.")
         
         if self.writer and os.path.isfile(self.tem_action.file_operations.formatted_filename):
-            # self.tem_action.temtools.addinfo_to_hdf()
+            self.tem_action.temtools.addinfo_to_hdf()
             os.rename(self.log_suffix + '.log', self.tem_action.file_operations.formatted_filename[:-3] + '.log')
 
         self.tem_action.tem_tasks.rotation_button.setText("Rotation")
