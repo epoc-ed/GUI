@@ -64,7 +64,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.move10degn.clicked.connect(
                     lambda: self.control.with_max_speed("SetTXRel(-10)"))
         self.tem_stagectrl.move0deg.clicked.connect(
-                    lambda: self.control.with_max_speed("SetTiltXAngle(0, True)"))
+                    lambda: self.control.with_max_speed("SetTiltXAngle(0, False)"))
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.datasaving_filepath)
@@ -229,3 +229,5 @@ class TEMAction(QObject):
     def toggle_OFF_beamAutofocus(self):
         if self.tem_tasks.beamAutofocus.started == True:
             self.toggle_beamAutofocus()
+        else: 
+            pass

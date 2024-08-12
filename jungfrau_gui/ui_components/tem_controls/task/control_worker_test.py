@@ -355,7 +355,7 @@ class ControlWorker(QObject):
             else:
                 args = ()
 
-             # Get the method from the client object
+            # Get the method from the client object
             method = getattr(self.client, method_name)
             
             # Call the method with the arguments
@@ -385,12 +385,11 @@ class ControlWorker(QObject):
     @Slot()
     def stop_task(self):
         # self.client.exit()
-        self.fitterWorkerReady = False
-        time.sleep(0.1)
-        
         if self.task:
-            self.task.finished.disconnect()
-            self.fit_updated.disconnect()
+            self.fitterWorkerReady = False
+            time.sleep(0.1)
+            # self.task.finished.disconnect()
+            # self.fit_updated.disconnect()
             self.remove_ellipse.emit()
         if self.task_thread is not None:
             if self.task_thread.isRunning():
