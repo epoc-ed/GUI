@@ -115,7 +115,7 @@ class ControlWorker(QObject):
 
     fit_updated = Signal(dict)
     fit_finish = Signal()
-    trigger_fitting_stop = Signal()
+    trigger_stop_fitting = Signal()
     remove_ellipse = Signal()
 
     trigger_record = Signal()
@@ -149,9 +149,9 @@ class ControlWorker(QObject):
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
         # self.actionAdjustZ.connect(self.start_adjustZ)
-        
+
         self.actionFit_Beam.connect(self.start_beam_fit)
-        self.trigger_fitting_stop.connect(self.set_worker_not_ready)
+        self.trigger_stop_fitting.connect(self.set_worker_not_ready)
         
         self.trigger_tem_update.connect(self.update_tem_status)
         
@@ -216,53 +216,14 @@ class ControlWorker(QObject):
         self.finished_task.emit()
 
     def on_fitting_over(self):
-        if isinstance(self.task, BeamFitTask):
-            # self.remove_ellipse.emit() 
-            # self.fitterWorkerReady = False
-            self.fit_finish.emit()
+        if self.task is not None: 
+            if isinstance(self.task, BeamFitTask):
+                # self.remove_ellipse.emit() 
+                # self.fitterWorkerReady = False
+                self.fit_finish.emit()
         else:
             print("Do nothing!!")
             pass
-    
-    # def tcpconnect(self): # renamed from 'connect' to avoid an error in PySide6
-    #     logging.info(f"connecting to {self.host}:{self.port}")
-    #     self.tem_socket.connectToHost(self.host, self.port)
-    #     if self.tem_socket.waitForConnected(5000): # msec
-    #         logging.info("connected.")
-    #         return
-    #     logging.warning("Connection failed.")        
-
-    # @Slot()
-    # def readyread_check(self):
-    #     print('Readyread emitted!: ', self.tem_socket.state())
-    
-    
-    # @Slot()
-    # def on_tem_receive(self):
-    #     # data = str(self.tem_socket.readAll()) # bytedata as QByteArray -> str
-    #     data = self.tem_socket.readAll() # bytedata as QByteArray -> str
-    #     if len(data) == 0 or data == b'': 
-    #         return 0
-    #     # elif not "None" in data:
-    #     #     data = re.sub(r'^.*}}{(.*)}\'$', r'{\1}', data)
-    #     #     # print('Data receiving...')
-    #     try:
-    #         response = json.loads(bytes(data)) # response = json.loads(data)
-    #         # print(' Json data receiving...', data)
-    #         for entry in response:
-    #             self.tem_status[entry] = response[entry]["val"]
-    #             self.tem_update_times[entry] = (response[entry]["tst_before"], response[entry]["tst_after"])
-    #         if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
-    #             self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
-    #             self.tem_update_times['eos.GetMagValue_MAG'] = self.tem_update_times['eos.GetMagValue']
-    #         elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
-    #             self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
-    #             self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
-
-    #         self.updated.emit()
-    #     except json.JSONDecodeError:
-    #         # print(' Json data receiving failed...', data)
-    #         pass
 
     @Slot(dict)
     def update_tem_status(self, response):
@@ -337,7 +298,6 @@ class ControlWorker(QObject):
             parts = command_str.split('(')
             method_name = parts[0]
             arguments = parts[1].replace(')', '')
-
             # Function to convert string arguments to appropriate types
             def convert_arg(arg):
                 if arg.lower() in ('true', 'false'):
@@ -348,23 +308,18 @@ class ControlWorker(QObject):
                     return int(arg)  # Convert to int
                 except ValueError:
                     return arg  # Return as string if not a number
-
             # Check if there are no arguments
             if arguments:
                 # Split arguments and convert them
                 args = tuple(convert_arg(arg.strip()) for arg in arguments.split(','))
             else:
                 args = ()
-
             # Get the method from the client object
             method = getattr(self.client, method_name)
-            
             # Call the method with the arguments
             result = method(*args)
-
             # Return the result or a default value
             return result if result is not None else "No result returned"
-
         except AttributeError:
             print(f"Error: The method '{method_name}' does not exist.")
         except Exception as e:
@@ -389,16 +344,20 @@ class ControlWorker(QObject):
         if self.task:
             print("Stopping the FITTING task!!!")
             """ self.fitterWorkerReady = False """
-            self.trigger_fitting_stop.emit()
-            time.sleep(1)
+            self.trigger_stop_fitting.emit()
+            # time.sleep(1)
             # self.task.finished.disconnect()
             # self.fit_updated.disconnect()
-            self.remove_ellipse.emit()
+            """ self.remove_ellipse.emit() """
+            
         if self.task_thread is not None:
             if self.task_thread.isRunning():
                 print("Quitting FITTING Thread")
                 self.task_thread.quit()
                 self.task_thread.wait() # Wait for the thread to actually finish
+                
+                self.task.deleteLater()
+                self.task = None 
 
 
     @Slot()
@@ -454,6 +413,7 @@ class ControlWorker(QObject):
     def set_worker_not_ready(self):
         print("FITTING WORKER READY = FALSE")
         self.fitterWorkerReady = False
+        self.remove_ellipse.emit()
 
     """ 
     @Slot()
