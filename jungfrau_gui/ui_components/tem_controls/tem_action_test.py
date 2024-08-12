@@ -59,12 +59,17 @@ class TEMAction(QObject):
         self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.execute_command("SetXRel(10000)"))
         self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.execute_command("SetXRel(-10000)"))
 
+
         self.tem_stagectrl.move10degp.clicked.connect(
                     lambda: self.control.with_max_speed("SetTXRel(10)"))
         self.tem_stagectrl.move10degn.clicked.connect(
                     lambda: self.control.with_max_speed("SetTXRel(-10)"))
+        """
         self.tem_stagectrl.move0deg.clicked.connect(
-                    lambda: self.control.with_max_speed("SetTiltXAngle(0, False)"))
+                    lambda: self.control.with_max_speed("SetTiltXAngle(0, True)")) """
+        
+        self.tem_stagectrl.move0deg.clicked.connect(
+                    lambda: self.control.execute_command("SetTiltXAngle(0, True, True)"))
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.datasaving_filepath)
