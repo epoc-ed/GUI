@@ -65,6 +65,7 @@ class BeamFitTask(Task):
 
         for il1_value in range(lower, upper, step):
             if self.control.fitterWorkerReady == True:
+                print(f"fitterWorkerReady = {self.control.fitterWorkerReady}")
                 # self.tem_command("lens", "SetILFocus", [il1_value])
                 self.client.SetILFocus(il1_value)
                 logging.debug(f"{dt.now()}, il1_value = {il1_value}")
@@ -106,6 +107,7 @@ class BeamFitTask(Task):
 
         for stigmx_value in range(init_stigm[0]-deviation, init_stigm[0]+deviation, step):
             if self.control.fitterWorkerReady == True:
+                print(f"fitterWorkerReady = {self.control.fitterWorkerReady}")
                 # self.tem_command("defl", "SetILs", [stigmx_value, init_stigm[1]])
                 self.client.SetILs(stigmx_value, init_stigm[1])
 
