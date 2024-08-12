@@ -149,11 +149,11 @@ class ControlWorker(QObject):
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
         # self.actionAdjustZ.connect(self.start_adjustZ)
-        self.actionFit_Beam.connect(self.start_beam_fit)
         
-        """ ********************* """
+        self.actionFit_Beam.connect(self.start_beam_fit)
+        self.trigger_fitting_stop.connect(self.set_worker_not_ready)
+        
         self.trigger_tem_update.connect(self.update_tem_status)
-        """ ********************* """     
         
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": 0.5,
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": [0, 'X', 'X0k'],
@@ -450,6 +450,10 @@ class ControlWorker(QObject):
 
         task = BeamFitTask(self)
         self.start_task(task)
+
+    def set_worker_not_ready(self):
+        print("FITTING WORKER READY = FALSE")
+        self.fitterWorkerReady = False
 
     """ 
     @Slot()
