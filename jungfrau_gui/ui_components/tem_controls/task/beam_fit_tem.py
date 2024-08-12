@@ -36,18 +36,18 @@ class BeamFitTask(Task):
     def run(self, init_IL1=IL1_0):
 
         logging.info("Start ILs rough-sweeping.")
-        _, _, ils_guess1 = self.sweep_stig_linear(1000, 50)
+        _, _, ils_guess1 = self.sweep_stig_linear(500, 50)
         # self.tem_command("defl", "SetILs", ils_guess1)
         self.client.SetILs(ils_guess1[0], ils_guess1[1])
         time.sleep(1)
                
         logging.info("Start IL1 rough-sweeping.")
-        _, il1_guess1 = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 50)
+        _, il1_guess1 = self.sweep_il1_linear(init_IL1 - 250, init_IL1 + 250, 50)
         # self.tem_command("lens", "SetILFocus", [il1_guess1])
         self.client.SetILFocus(il1_guess1)
         time.sleep(1)
         
-        logging.info("Start IL1 fine-sweeping.")
+        """ logging.info("Start IL1 fine-sweeping.")
         _, il1_guess2 = self.sweep_il1_linear(il1_guess1 - 50, il1_guess1 + 50, 5)
         # self.tem_command("lens", "SetILFocus", [il1_guess2])
         self.client.SetILFocus(il1_guess2)
@@ -57,7 +57,7 @@ class BeamFitTask(Task):
         _, _, ils_guess2 = self.sweep_stig_linear(50, 5)
         # self.tem_command("defl", "SetILs", ils_guess2)
         self.client.SetILs(ils_guess2[0], ils_guess2[1])
-        time.sleep(1)
+        time.sleep(1) """
     
     def sweep_il1_linear(self, lower, upper, step, wait_time_s=0.2):
         max_amplitude = 0
@@ -138,6 +138,7 @@ class BeamFitTask(Task):
         
         for stigmy_value in range(init_stigm[1]-deviation, init_stigm[1]+deviation, step):
             if self.control.fitterWorkerReady == True:
+                print(f"fitterWorkerReady = {self.control.fitterWorkerReady}")
                 # self.tem_command("defl", "SetILs", [min_stigmvalue[0], stigmy_value])
                 self.client.SetILs(min_stigmvalue[0], stigmy_value)        
 
