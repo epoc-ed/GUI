@@ -56,7 +56,7 @@ class TEMTools:
                     f.create_dataset('entry/instrument/optics/wavelength', data = self.wavelength, dtype='float')
                     f.create_dataset('entry/instrument/optics/magnification', data = self.tem_status['eos.GetMagValue_MAG'][0], dtype='uint8')
                     f.create_dataset('entry/instrument/optics/distance_nominal', data = self.tem_status['eos.GetMagValue_DIFF'][0], dtype='uint8')
-                    f.create_dataset('entry/instrument/optics/spot_size', data = self.tem_status['eos.GetSpotSize']+1, dtype='uint8')
+                    """ f.create_dataset('entry/instrument/optics/spot_size', data = self.tem_status['eos.GetSpotSize']+1, dtype='uint8') """
                     f.create_dataset('entry/instrument/optics/alpha_angle', data = self.tem_status['eos.GetAlpha']+1, dtype='uint8')
                     f.create_dataset('entry/instrument/optics/CL_ID', data = self.tem_status['apt.GetSize(1)'], dtype='uint8')
                     aperture_size = cfg_jf.lookup(cfg_jf.lut.cl, self.tem_status['apt.GetSize(1)'], 'ID', 'size')
