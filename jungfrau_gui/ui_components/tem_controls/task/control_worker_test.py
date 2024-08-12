@@ -217,9 +217,9 @@ class ControlWorker(QObject):
 
     def on_fitting_over(self):
         if isinstance(self.task, BeamFitTask):
+            self.remove_ellipse.emit() 
             if self.task_thread.isRunning(): 
                 # self.fitterWorkerReady = False
-                self.remove_ellipse.emit() 
                 self.fit_finish.emit()
                 # time.sleep(0.1)
         else:
