@@ -218,10 +218,10 @@ class ControlWorker(QObject):
     def on_fitting_over(self):
         if isinstance(self.task, BeamFitTask):
             if self.task_thread.isRunning(): 
-                # self.remove_ellipse.emit() 
                 # self.fitterWorkerReady = False
                 self.fit_finish.emit()
-                time.sleep(0.1)
+                """ self.remove_ellipse.emit() """ 
+                # time.sleep(0.1)
         else:
             print("Do nothing!!")
             pass
@@ -349,7 +349,7 @@ class ControlWorker(QObject):
             # time.sleep(1)
             # self.task.finished.disconnect()
             # self.fit_updated.disconnect()
-            """ self.remove_ellipse.emit() """
+            self.remove_ellipse.emit()
             
         if self.task_thread is not None:
             if self.task_thread.isRunning():
@@ -414,8 +414,8 @@ class ControlWorker(QObject):
     def set_worker_not_ready(self):
         print("FITTING WORKER READY = FALSE")
         self.fitterWorkerReady = False
-        self.remove_ellipse.emit()
-        time.sleep(0.1)
+        """ self.remove_ellipse.emit() """
+        # time.sleep(0.1)
 
     """ 
     @Slot()
