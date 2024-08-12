@@ -46,6 +46,7 @@ class TEMAction(QObject):
 
         """ self.control.tem_socket_status.connect(self.on_sockstatus_change) """
         self.control.updated.connect(self.on_tem_update)
+        self.control.fit_finish.connect(self.toggle_OFF_beamAutofocus)
 
         self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
         # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
@@ -224,3 +225,7 @@ class TEMAction(QObject):
                 self.tem_tasks.parent.plotDialog.close()
             self.control.stop_task()
             # self.control.stop()
+
+    def toggle_OFF_beamAutofocus(self):
+        if self.tem_tasks.beamAutofocus.started == True:
+            self.toggle_beamAutofocus()

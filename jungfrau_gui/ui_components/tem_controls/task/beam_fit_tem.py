@@ -62,32 +62,30 @@ class BeamFitTask(Task):
         max_amplitude = 0
         max_il1value = None
 
-        logging.info("before loop")
-
         for il1_value in range(lower, upper, step):
-            # self.tem_command("lens", "SetILFocus", [il1_value])
-            self.client.SetILFocus(il1_value)
-            logging.debug(f"{dt.now()}, il1_value = {il1_value}")
-            time.sleep(wait_time_s)
+            if self.control.fitterWorkerReady == True:
+                # self.tem_command("lens", "SetILFocus", [il1_value])
+                self.client.SetILFocus(il1_value)
+                logging.debug(f"{dt.now()}, il1_value = {il1_value}")
+                time.sleep(wait_time_s)
+                """ *** Fitting *** """
+                # amplitude = self.control.stream_receiver.fit[0] # amplitude
+                im = self.control.tem_action.parent.imageItem.image
+                roi = self.control.tem_action.parent.roi
+                fit_result = fit_2d_gaussian_roi_test(im, roi)
+                # Update pop-up plot and drawn ellipse 
+                self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal
+                # Determine peak value (amplitude)
+                amplitude = float(fit_result.best_values['amplitude'])
+                """ *************** """
+                if max_amplitude < amplitude:
+                    max_amplitude = amplitude
+                    max_il1value = il1_value
 
-            """ *** Fitting *** """
-            # amplitude = self.control.stream_receiver.fit[0] # amplitude
-            im = self.control.tem_action.parent.imageItem.image
-            roi = self.control.tem_action.parent.roi
-            fit_result = fit_2d_gaussian_roi_test(im, roi)
-            # Update pop-up plot and drawn ellipse 
-            self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal
-            # Determine peak value (amplitude)
-            amplitude = float(fit_result.best_values['amplitude'])
-            """ *************** """
-            
-            if max_amplitude < amplitude:
-                max_amplitude = amplitude
-                max_il1value = il1_value
-
-            logging.debug(f"{dt.now()}, amplitude = {amplitude}")
-
-        logging.info("end loop")
+                logging.debug(f"{dt.now()}, amplitude = {amplitude}")
+            else:
+                print("IL1 LINEAR sweeping INTERRUPTED")
+                break
 
         logging.info("Now reset to the initial value (for safety in testing)")
         time.sleep(1)
@@ -106,56 +104,64 @@ class BeamFitTask(Task):
         best_ratio = 2
 
         for stigmx_value in range(init_stigm[0]-deviation, init_stigm[0]+deviation, step):
-            # self.tem_command("defl", "SetILs", [stigmx_value, init_stigm[1]])
-            self.client.SetILs(stigmx_value, init_stigm[1])
+            if self.control.fitterWorkerReady == True:
+                # self.tem_command("defl", "SetILs", [stigmx_value, init_stigm[1]])
+                self.client.SetILs(stigmx_value, init_stigm[1])
 
-            time.sleep(wait_time_s)
-            logging.debug(f"{dt.now()}, stigmx_value = {stigmx_value}")
-            
-            """ *** Fitting *** """
-            # sigma1 = self.control.stream_receiver.fit[0] # smaller sigma value (shorter axis)
-            im = self.control.tem_action.parent.imageItem.image
-            roi = self.control.tem_action.parent.roi
-            fit_result = fit_2d_gaussian_roi_test(im, roi)
-            # Update pop-up plot and drawn ellipse 
-            self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal
-            # Determine smaller sigma (sigma1)
-            sigma_x = float(fit_result.best_values['sigma_x'])
-            sigma_y = float(fit_result.best_values['sigma_y'])
-            sigma1 = min(sigma_x, sigma_y)
-            """ *************** """
-            
-            if min_sigma1 > sigma1:
-                min_sigma1 = sigma1
-                min_stigmvalue = [stigmx_value, init_stigm[1]]
+                time.sleep(wait_time_s)
+                logging.debug(f"{dt.now()}, stigmx_value = {stigmx_value}")
+                
+                """ *** Fitting *** """
+                # sigma1 = self.control.stream_receiver.fit[0] # smaller sigma value (shorter axis)
+                im = self.control.tem_action.parent.imageItem.image
+                roi = self.control.tem_action.parent.roi
+                fit_result = fit_2d_gaussian_roi_test(im, roi)
+                # Update pop-up plot and drawn ellipse 
+                self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal
+                # Determine smaller sigma (sigma1)
+                sigma_x = float(fit_result.best_values['sigma_x'])
+                sigma_y = float(fit_result.best_values['sigma_y'])
+                sigma1 = min(sigma_x, sigma_y)
+                """ *************** """
+                
+                if min_sigma1 > sigma1:
+                    min_sigma1 = sigma1
+                    min_stigmvalue = [stigmx_value, init_stigm[1]]
+            else:
+                print("ILs STIGMATISM in X axis sweeping INTERRUPTED")
+                break
 
         # self.tem_command("defl", "SetILs", min_stigmvalue)
         self.client.SetILs(min_stigmvalue[0], min_stigmvalue[1])        
         time.sleep(1)
         
         for stigmy_value in range(init_stigm[1]-deviation, init_stigm[1]+deviation, step):
-            # self.tem_command("defl", "SetILs", [min_stigmvalue[0], stigmy_value])
-            self.client.SetILs(min_stigmvalue[0], stigmy_value)        
+            if self.control.fitterWorkerReady == True:
+                # self.tem_command("defl", "SetILs", [min_stigmvalue[0], stigmy_value])
+                self.client.SetILs(min_stigmvalue[0], stigmy_value)        
 
-            time.sleep(wait_time_s)
-            logging.debug(f"{dt.now()}, stigmy_value = {stigmy_value}")
-            
-            """ *** Fitting *** """
-            # ratio = self.control.stream_receiver.fit[0] # sigma ratio
-            im = self.control.tem_action.parent.imageItem.image
-            roi = self.control.tem_action.parent.roi
-            fit_result = fit_2d_gaussian_roi_test(im, roi)
-            # Update pop-up plot and drawn ellipse 
-            self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal
-            # Determine sigmas ratio
-            sigma_x = float(fit_result.best_values['sigma_x'])
-            sigma_y = float(fit_result.best_values['sigma_y'])
-            ratio = max(sigma_x, sigma_y)/min(sigma_x, sigma_y)
-            """ *************** """
-            
-            if abs(best_ratio - 1) > abs(ratio - 1):
-                best_ratio = ratio
-                min_stigmvalue = [min_stigmvalue[0], stigmy_value]
+                time.sleep(wait_time_s)
+                logging.debug(f"{dt.now()}, stigmy_value = {stigmy_value}")
+                
+                """ *** Fitting *** """
+                # ratio = self.control.stream_receiver.fit[0] # sigma ratio
+                im = self.control.tem_action.parent.imageItem.image
+                roi = self.control.tem_action.parent.roi
+                fit_result = fit_2d_gaussian_roi_test(im, roi)
+                # Update pop-up plot and drawn ellipse 
+                self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal
+                # Determine sigmas ratio
+                sigma_x = float(fit_result.best_values['sigma_x'])
+                sigma_y = float(fit_result.best_values['sigma_y'])
+                ratio = max(sigma_x, sigma_y)/min(sigma_x, sigma_y)
+                """ *************** """
+                
+                if abs(best_ratio - 1) > abs(ratio - 1):
+                    best_ratio = ratio
+                    min_stigmvalue = [min_stigmvalue[0], stigmy_value]
+            else:
+                print("ILs STIGMATISM in Y axis sweeping INTERRUPTED")
+                break
         
         logging.debug("Now reset to the initial value (for safety in testing)")
         time.sleep(1)

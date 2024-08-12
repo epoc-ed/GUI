@@ -114,6 +114,7 @@ class ControlWorker(QObject):
     """ ********************* """
 
     fit_updated = Signal(dict)
+    fit_finish = Signal()
     remove_ellipse = Signal()
 
     trigger_record = Signal()
@@ -184,28 +185,26 @@ class ControlWorker(QObject):
         # self.tcpconnect()
         
         """ self.task_thread.start() """
-        
+        self.fitterWorkerReady = False
         # self.send.emit("stage.Setf1OverRateTxNum(2)")
-        logging.info("initialized control thread")
+        logging.info("Initialized control thread")
 
     def start_task(self, task):
         print("In start_task in control_worker.py")
         self.last_task = self.task
         self.task = task
-
         print(f"task_name is {self.task.task_name}")
         """ self.send_to_tem("#more") """
-
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
 
         self.task.finished.connect(self.on_task_finished)
         self.finished_task.connect(self.on_fitting_over)
 
         self.task.moveToThread(self.task_thread)
-
-        print("About to start")
         # ******
         self.task_thread.start()
+        if isinstance(self.task, BeamFitTask):
+            self.fitterWorkerReady = True
         self.task_thread.started.connect(self.task.start.emit())
         # ******
         """ self.task.start.emit() """
@@ -217,7 +216,9 @@ class ControlWorker(QObject):
 
     def on_fitting_over(self):
         if isinstance(self.task, BeamFitTask):
-            self.remove_ellipse.emit() 
+            # self.remove_ellipse.emit() 
+            # self.fitterWorkerReady = False
+            self.fit_finish.emit()
         else:
             print("Do nothing!!")
             pass
@@ -383,7 +384,8 @@ class ControlWorker(QObject):
 
     @Slot()
     def stop_task(self):
-        self.client.exit()
+        # self.client.exit()
+        self.fitterWorkerReady = False
         time.sleep(0.1)
         
         if self.task:
