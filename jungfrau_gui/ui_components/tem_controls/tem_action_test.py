@@ -78,8 +78,8 @@ class TEMAction(QObject):
         # for i in self.tem_stagectrl.movestages.buttons():
         #     i.setEnabled(enables)
 
-        # self.tem_tasks.gettem_button.setEnabled(False)
-        # self.tem_tasks.gettem_checkbox.setEnabled(False)
+        self.tem_tasks.gettem_button.setEnabled(False)
+        self.tem_tasks.gettem_checkbox.setEnabled(False)
         self.tem_tasks.centering_button.setEnabled(False) 
 
         # self.tem_tasks.beamAutofocus.setEnabled(enables)
@@ -114,7 +114,7 @@ class TEMAction(QObject):
         if self.tem_tasks.gettem_checkbox.isChecked():
             self.control.trigger_getteminfo.emit('Y')
             if os.path.isfile(self.formatted_filename):
-                logging.info(f'Trying to add TEMinfor to {self.formatted_filename}')
+                logging.info(f'Trying to add TEM information to {self.formatted_filename}')
                 self.temtools.addinfo_to_hdf()
         else:
             self.control.trigger_getteminfo.emit('N')
