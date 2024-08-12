@@ -349,7 +349,7 @@ class ControlWorker(QObject):
             # time.sleep(1)
             # self.task.finished.disconnect()
             # self.fit_updated.disconnect()
-            self.remove_ellipse.emit()
+            """ self.remove_ellipse.emit() """
             
         if self.task_thread is not None:
             if self.task_thread.isRunning():
