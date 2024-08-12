@@ -206,7 +206,7 @@ class ControlWorker(QObject):
         self.task_thread.start()
         if isinstance(self.task, BeamFitTask):
             self.fitterWorkerReady = True
-        self.task_thread.started.connect(self.task.start.emit())
+        self.task_thread.started.connect(self.task.start.emit)
         # ******
         """ self.task.start.emit() """
         # time.sleep(1)

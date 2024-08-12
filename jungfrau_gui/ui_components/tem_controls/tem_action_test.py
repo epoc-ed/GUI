@@ -78,8 +78,8 @@ class TEMAction(QObject):
         # for i in self.tem_stagectrl.movestages.buttons():
         #     i.setEnabled(enables)
 
-        self.tem_tasks.gettem_button.setEnabled(False)
-        self.tem_tasks.gettem_checkbox.setEnabled(False)
+        # self.tem_tasks.gettem_button.setEnabled(False)
+        # self.tem_tasks.gettem_checkbox.setEnabled(False)
         self.tem_tasks.centering_button.setEnabled(False) 
 
         # self.tem_tasks.beamAutofocus.setEnabled(enables)

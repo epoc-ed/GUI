@@ -102,7 +102,10 @@ class TEMTasks(QGroupBox):
         self.connecttem_button.setEnabled(False)
         self.gettem_button = QPushButton("Get TEM status", self)
         self.gettem_checkbox = QCheckBox("recording", self)
-        self.gettem_checkbox.setChecked(False)
+        """ #################### """
+        self.gettem_button.setEnabled(True)
+        self.gettem_checkbox.setChecked(True) #False
+        """ #################### """
         self.centering_button = ToggleButton("Click-on-Centering", self)
         self.centering_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.centering_button.setEnabled(False) # not secured function
