@@ -135,12 +135,8 @@ class RecordTask(Task):
         # if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
         #     logging.info("Return the stage tilt to zero.")
         #     time.sleep(1)
-        #     # self.control.send.emit(self.control.with_max_speed("stage.SetTiltXAngle(0)"))
-        #     self.control.with_max_speed("SetTiltXAngle(0)")
-        #     # self.tem_command("stage", "Setf1OverRateTxNum", [return_speed_idx]) # requires ED package
-        #     """ self.client.Setf1OverRateTxNum(return_speed_idx) """
-        #     # self.tem_command("stage", "SetTiltXAngle", [0])
-        #     """ self.client.SetTiltXAngle(0) """
+        #     self.client.SetTiltXAngle(phi1, True, True)
+
         # logging.info("Recording task stopped.")
         
         if self.writer and os.path.isfile(self.tem_action.file_operations.formatted_filename):
@@ -153,8 +149,6 @@ class RecordTask(Task):
         self.tem_action.file_operations.streamWriterButton.setEnabled(True)
 
         print("------REACHED END OF TASK----------")
-
-        self.control.stop_task()
 
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?

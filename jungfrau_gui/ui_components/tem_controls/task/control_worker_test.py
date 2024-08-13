@@ -107,6 +107,7 @@ class ControlWorker(QObject):
     send = Signal(str)
     init = Signal()
     finished_task = Signal()
+    finished_record_task = Signal()
     """ tem_socket_status = Signal(int, str) """
     
     """ ********************* """
@@ -201,6 +202,7 @@ class ControlWorker(QObject):
         """ self.task.finished.connect(self.on_task_finished)
         self.finished_task.connect(self.on_fitting_over) """
         self.task.finished.connect(self.on_task_finished)
+        self.finished_record_task.connect(self.stop_task)
 
         self.task.moveToThread(self.task_thread)
         # ******
@@ -215,6 +217,8 @@ class ControlWorker(QObject):
     @Slot()
     def on_task_finished(self):
         self.finished_task.emit()
+        if isinstance(self.task, RecordTask):
+            self.finished_record_task.emit()
 
     """ def on_fitting_over(self):
         if isinstance(self.task, BeamFitTask):
