@@ -41,6 +41,7 @@ class BeamFitTask(Task):
                
         logging.info("Start IL1 rough-sweeping.")
         amp_guess_1, il1_guess1 = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 50)
+        time.sleep(1)
         self.client.SetILFocus(il1_guess1)
         amp_last_fit = self.fit().best_values["amplitude"]
         time.sleep(1)
@@ -89,7 +90,7 @@ class BeamFitTask(Task):
         logging.info("Now reset to the initial value (for safety in testing)")
         time.sleep(1)
 
-        """ self.client.SetILFocus((lower + upper)//2) """
+        self.client.SetILFocus((lower + upper)//2)
 
         return max_amplitude, max_il1value
         
