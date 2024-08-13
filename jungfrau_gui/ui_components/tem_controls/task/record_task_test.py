@@ -154,6 +154,8 @@ class RecordTask(Task):
 
         print("------REACHED END OF TASK----------")
 
+        self.control.stop_task()
+
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
         #                    self.tem_action.xds_template_filepath)
