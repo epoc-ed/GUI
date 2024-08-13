@@ -40,11 +40,11 @@ class BeamFitTask(Task):
         time.sleep(1) """
                
         logging.info("Start IL1 rough-sweeping.")
-        amp_guess_1, il1_guess1 = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 50)
-        time.sleep(1)
+        amp_guess_1, il1_guess1 = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 25)
+        # time.sleep(1)
         self.client.SetILFocus(il1_guess1)
         amp_last_fit = self.fit().best_values["amplitude"]
-        time.sleep(1)
+        # time.sleep(1)
         print(f"Is the LAST FRAME ({amp_last_fit}), the ACTUAL GUESS ({amp_guess_1}): {amp_guess_1 == amp_last_fit}")
         
         """ logging.info("Start IL1 fine-sweeping.")
@@ -68,12 +68,8 @@ class BeamFitTask(Task):
             if self.control.fitterWorkerReady == True:
                 self.client.SetILFocus(il1_value)
                 logging.debug(f"{dt.now()}, il1_value = {il1_value}")
-                """ time.sleep(wait_time_s) """ # sleep 1
+                # time.sleep(wait_time_s) # sleep 1
                 """ *** Fitting *** """
-                # im = self.control.tem_action.parent.imageItem.image
-                # roi = self.control.tem_action.parent.roi
-                # fit_result = fit_2d_gaussian_roi_test(im, roi)
-                # self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal to Update pop-up plot and drawn ellipse
                 fit_result = self.fit()
                 amplitude = float(fit_result.best_values['amplitude']) # Determine peak value (amplitude)
                 """ *************** """
@@ -81,15 +77,13 @@ class BeamFitTask(Task):
                     max_amplitude = amplitude
                     max_il1value = il1_value
 
-                """ time.sleep(wait_time_s) """ # sleep 2
+                # time.sleep(wait_time_s) # sleep 2
                 logging.debug(f"{dt.now()}, amplitude = {amplitude}")
             else:
                 print("IL1 LINEAR sweeping INTERRUPTED")
                 break
 
         logging.info("Now reset to the initial value (for safety in testing)")
-        time.sleep(1)
-
         self.client.SetILFocus((lower + upper)//2)
 
         return max_amplitude, max_il1value
