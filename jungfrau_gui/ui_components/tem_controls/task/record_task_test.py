@@ -135,8 +135,8 @@ class RecordTask(Task):
         #TODO! Enable auto reset of tilt
         if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
             logging.info("Return the stage tilt to zero.")
-            time.sleep(1)
-            self.client.SetTiltXAngle(0, False, True)
+            # time.sleep(1)
+            self.client.SetTiltXAngle(0, True, True)
 
         # logging.info("Recording task stopped.")
         
