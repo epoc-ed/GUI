@@ -44,7 +44,7 @@ class BeamFitTask(Task):
         self.client.SetILFocus(il1_guess1)
         amp_last_fit = self.fit().best_values["amplitude"]
         time.sleep(1)
-        print(f"Is the LAST FRAME, the ACTUAL GUESS: {amp_guess_1 == amp_last_fit}")
+        print(f"Is the LAST FRAME ({amp_last_fit}), the ACTUAL GUESS ({amp_guess_1}): {amp_guess_1 == amp_last_fit}")
         
         """ logging.info("Start IL1 fine-sweeping.")
         _, il1_guess2 = self.sweep_il1_linear(il1_guess1 - 50, il1_guess1 + 50, 5)
