@@ -54,7 +54,7 @@ class BeamFitTask(Task):
         self.client.SetILs(ils_guess2[0], ils_guess2[1])
         time.sleep(1) """
 
-        self.tem_action.tem_tasks.beamAutofocus.setText("Remove axis / pop-up")    
+        self.control.tem_action.tem_tasks.beamAutofocus.setText("Remove axis / pop-up")    
     
     def sweep_il1_linear(self, lower, upper, step, wait_time_s=0.2):
         max_amplitude = 0
