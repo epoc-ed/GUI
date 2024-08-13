@@ -83,7 +83,7 @@ class RecordTask(Task):
         self.client.SetBeamBlank(0)
         time.sleep(0.5)
 
-        self.client.SetTiltXAngle(phi1, True)
+        self.client.SetTiltXAngle(phi1, True, False)
 
         #Wait enough to make the rotation start (can also use other logic)
         time.sleep(0.5) 
