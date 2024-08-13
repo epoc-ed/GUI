@@ -40,9 +40,11 @@ class BeamFitTask(Task):
         time.sleep(1) """
                
         logging.info("Start IL1 rough-sweeping.")
-        _, il1_guess1 = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 50)
+        amp_guess_1, il1_guess1 = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 50)
         self.client.SetILFocus(il1_guess1)
+        amp_last_fit = self.fit().best_values["amplitude"]
         time.sleep(1)
+        print(f"Is the LAST FRAME, the ACTUAL GUESS: {amp_guess_1 == amp_last_fit}")
         
         """ logging.info("Start IL1 fine-sweeping.")
         _, il1_guess2 = self.sweep_il1_linear(il1_guess1 - 50, il1_guess1 + 50, 5)
@@ -65,19 +67,20 @@ class BeamFitTask(Task):
             if self.control.fitterWorkerReady == True:
                 self.client.SetILFocus(il1_value)
                 logging.debug(f"{dt.now()}, il1_value = {il1_value}")
-                time.sleep(wait_time_s) # sleep 1
+                """ time.sleep(wait_time_s) """ # sleep 1
                 """ *** Fitting *** """
-                im = self.control.tem_action.parent.imageItem.image
-                roi = self.control.tem_action.parent.roi
-                fit_result = fit_2d_gaussian_roi_test(im, roi)
-                self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal to Update pop-up plot and drawn ellipse
+                # im = self.control.tem_action.parent.imageItem.image
+                # roi = self.control.tem_action.parent.roi
+                # fit_result = fit_2d_gaussian_roi_test(im, roi)
+                # self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal to Update pop-up plot and drawn ellipse
+                fit_result = self.fit()
                 amplitude = float(fit_result.best_values['amplitude']) # Determine peak value (amplitude)
                 """ *************** """
                 if max_amplitude < amplitude:
                     max_amplitude = amplitude
                     max_il1value = il1_value
 
-                time.sleep(wait_time_s) # sleep 2
+                """ time.sleep(wait_time_s) """ # sleep 2
                 logging.debug(f"{dt.now()}, amplitude = {amplitude}")
             else:
                 print("IL1 LINEAR sweeping INTERRUPTED")
@@ -167,3 +170,12 @@ class BeamFitTask(Task):
         self.client.SetILs(init_stigm[0], init_stigm[1])        
 
         return min_sigma1, best_ratio, min_stigmvalue
+    
+    def fit(self):
+        # im = self.control.tem_action.parent.imageItem.image
+        # roi = self.control.tem_action.parent.roi
+        # fit_result = fit_2d_gaussian_roi_test(im, roi)
+        fit_result = fit_2d_gaussian_roi_test(self.control.tem_action.parent.imageItem.image, 
+                                              self.control.tem_action.parent.roi)
+        self.control.fit_updated.emit(fit_result.best_values)
+        return fit_result
