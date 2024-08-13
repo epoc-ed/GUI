@@ -78,7 +78,7 @@ class BeamFitTask(Task):
                     max_amplitude = amplitude
                     max_il1value = il1_value
 
-                # time.sleep(wait_time_s) # sleep 2
+                time.sleep(wait_time_s) # sleep 2
                 logging.debug(f"{dt.now()}, amplitude = {amplitude}")
             else:
                 print("IL1 LINEAR sweeping INTERRUPTED")
