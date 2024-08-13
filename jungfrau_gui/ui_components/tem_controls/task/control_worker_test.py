@@ -362,8 +362,8 @@ class ControlWorker(QObject):
                 self.task_thread.quit()
                 self.task_thread.wait() # Wait for the thread to actually finish
 
-                self.task.deleteLater()
-                self.task = None
+                # self.task.deleteLater()
+                # self.task = None
 
         if isinstance(self.task, BeamFitTask):
             self.remove_ellipse.emit() 
@@ -379,7 +379,7 @@ class ControlWorker(QObject):
     def start_record(self):
         print("Start record")
         if self.task.running:
-            self.stop()
+            self.stop_task()
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         print(f"End angle + {end_angle}")
         ### filename_suffix = self.tem_action.formatted_filename[:-3]
