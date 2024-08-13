@@ -199,7 +199,7 @@ class TEMAction(QObject):
                 self.file_operations.toggle_hdf5Writer()
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(True)
-            self.control.stop()
+            self.control.stop_task()
             
     # def toggle_centering(self):
     #     if not self.centering_button.started:

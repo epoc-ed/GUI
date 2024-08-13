@@ -345,14 +345,13 @@ class ControlWorker(QObject):
     def stop_task(self):
         # self.client.exit()
         if self.task:
-            print("Stopping the FITTING task!!!")
-            """ self.fitterWorkerReady = False """
-            self.trigger_stop_fitting.emit()
-            # time.sleep(1)
-            # self.task.finished.disconnect()
-            # self.fit_updated.disconnect()
-            """ self.remove_ellipse.emit() """
-            
+            if isinstance(self.task, BeamFitTask):
+                print("Stopping the FITTING task!!!")
+                self.trigger_stop_fitting.emit()
+                # time.sleep(1)
+            elif isinstance(self.task, RecordTask):
+                self.client.StopStage()
+    
         if self.task_thread is not None:
             if self.task_thread.isRunning():
                 print("Quitting FITTING Thread")
@@ -360,8 +359,9 @@ class ControlWorker(QObject):
                 self.task_thread.wait() # Wait for the thread to actually finish
                 # self.task.deleteLater()
                 # self.task = None 
-
-        self.remove_ellipse.emit() 
+                
+        if isinstance(self.task, BeamFitTask):
+            self.remove_ellipse.emit() 
 
     @Slot()
     def stop(self):
