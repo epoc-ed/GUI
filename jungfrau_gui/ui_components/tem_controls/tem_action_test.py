@@ -187,11 +187,12 @@ class TEMAction(QObject):
 
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:
+            self.control.init.emit()
+            self.control.trigger_record.emit()
             self.tem_tasks.rotation_button.setText("Stop")
             self.tem_tasks.rotation_button.started = True
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(False)
-            self.control.trigger_record.emit()
         else:
             self.tem_tasks.rotation_button.setText("Rotation")
             self.tem_tasks.rotation_button.started = False
