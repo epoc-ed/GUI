@@ -354,7 +354,7 @@ class ControlWorker(QObject):
     
         if self.task_thread is not None:
             if self.task_thread.isRunning():
-                print("Quitting FITTING Thread")
+                print(f"Quitting {self.task.task_name} Thread")
                 self.task_thread.quit()
                 self.task_thread.wait() # Wait for the thread to actually finish
 
