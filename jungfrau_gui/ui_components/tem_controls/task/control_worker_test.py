@@ -362,6 +362,9 @@ class ControlWorker(QObject):
                 self.task_thread.quit()
                 self.task_thread.wait() # Wait for the thread to actually finish
 
+                self.task.deleteLater()
+                self.task = None
+
         if isinstance(self.task, BeamFitTask):
             self.remove_ellipse.emit() 
 
