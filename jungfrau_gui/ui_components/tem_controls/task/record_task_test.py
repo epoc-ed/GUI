@@ -51,6 +51,7 @@ class RecordTask(Task):
 
         if os.access(os.path.dirname(self.log_suffix), os.W_OK):
             print("\n\n\n---------OPEN LOG-----------------\n\n\n")
+            # self.control.send_to_tem("#more")
             logfile = open(self.log_suffix + '.log', 'w')
             logfile.write("# TEM Record\n")
             logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")

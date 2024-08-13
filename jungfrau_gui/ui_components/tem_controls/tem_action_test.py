@@ -155,13 +155,13 @@ class TEMAction(QObject):
             self.tem_detector.input_det_distance.setText(detector_distance)
             self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
 
-        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
-        self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
-        if not self.tem_tasks.rotation_button.started:
-            if self.tem_tasks.withwriter_checkbox.isChecked():
-                self.tem_tasks.rotation_button.setText("Rotation/Record")
-            else:
-                self.tem_tasks.rotation_button.setText("Rotation")
+        # rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
+        # self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        # if not self.tem_tasks.rotation_button.started:
+        #     if self.tem_tasks.withwriter_checkbox.isChecked():
+        #         self.tem_tasks.rotation_button.setText("Rotation/Record")
+        #     else:
+        #         self.tem_tasks.rotation_button.setText("Rotation")
 
     def drawscale_overlay(self, xo=0, yo=0, l_draw=1, pixel=0.075):
         if self.scale != None:
