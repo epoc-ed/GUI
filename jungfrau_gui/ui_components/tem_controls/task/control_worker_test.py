@@ -198,8 +198,9 @@ class ControlWorker(QObject):
         """ self.send_to_tem("#more") """
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
 
+        """ self.task.finished.connect(self.on_task_finished)
+        self.finished_task.connect(self.on_fitting_over) """
         self.task.finished.connect(self.on_task_finished)
-        self.finished_task.connect(self.on_fitting_over)
 
         self.task.moveToThread(self.task_thread)
         # ******
@@ -215,7 +216,7 @@ class ControlWorker(QObject):
     def on_task_finished(self):
         self.finished_task.emit()
 
-    def on_fitting_over(self):
+    """ def on_fitting_over(self):
         if isinstance(self.task, BeamFitTask):
             self.remove_ellipse.emit() 
             if self.task_thread.isRunning(): 
@@ -225,6 +226,7 @@ class ControlWorker(QObject):
         else:
             print("Do nothing!!")
             pass
+    """
 
     @Slot(dict)
     def update_tem_status(self, response):
@@ -356,10 +358,10 @@ class ControlWorker(QObject):
                 print("Quitting FITTING Thread")
                 self.task_thread.quit()
                 self.task_thread.wait() # Wait for the thread to actually finish
-                
                 # self.task.deleteLater()
                 # self.task = None 
 
+        self.remove_ellipse.emit() 
 
     @Slot()
     def stop(self):
@@ -414,8 +416,6 @@ class ControlWorker(QObject):
     def set_worker_not_ready(self):
         print("FITTING WORKER READY = FALSE")
         self.fitterWorkerReady = False
-        """ self.remove_ellipse.emit() """
-        # time.sleep(0.1)
 
     """ 
     @Slot()
@@ -499,10 +499,6 @@ class ControlWorker(QObject):
             pixels = np.array(vector.split(sep=','), dtype=float)
             task = CenteringTask(self, pixels)
             self.start_task(task)
-            
-    # def with_max_speed(self, tem_command):
-    #     return "speed=stage.Getf1OverRateTxNum(); stage.Setf1OverRateTxNum(0); " + tem_command \
-    #         + "; stage.Setf1OverRateTxNum(speed)"
     
     def with_max_speed(self, tem_command):
         speed = self.client.Getf1OverRateTxNum()

@@ -41,22 +41,20 @@ class BeamFitTask(Task):
                
         logging.info("Start IL1 rough-sweeping.")
         _, il1_guess1 = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 50)
-        # self.tem_command("lens", "SetILFocus", [il1_guess1])
         self.client.SetILFocus(il1_guess1)
         time.sleep(1)
         
         """ logging.info("Start IL1 fine-sweeping.")
         _, il1_guess2 = self.sweep_il1_linear(il1_guess1 - 50, il1_guess1 + 50, 5)
-        # self.tem_command("lens", "SetILFocus", [il1_guess2])
         self.client.SetILFocus(il1_guess2)
         time.sleep(1)
 
         logging.info("Start ILs fine-sweeping.")
         _, _, ils_guess2 = self.sweep_stig_linear(50, 5)
-        # self.tem_command("defl", "SetILs", ils_guess2)
         self.client.SetILs(ils_guess2[0], ils_guess2[1])
         time.sleep(1) """
-    
+
+        self.tem_action.tem_tasks.beamAutofocus.setText("Remove axis / pop-up")    
     
     def sweep_il1_linear(self, lower, upper, step, wait_time_s=0.2):
         max_amplitude = 0
@@ -65,24 +63,21 @@ class BeamFitTask(Task):
         for il1_value in range(lower, upper, step):
             print(f"********************* fitterWorkerReady = {self.control.fitterWorkerReady}")
             if self.control.fitterWorkerReady == True:
-                # self.tem_command("lens", "SetILFocus", [il1_value])
                 self.client.SetILFocus(il1_value)
                 logging.debug(f"{dt.now()}, il1_value = {il1_value}")
-                time.sleep(wait_time_s)
+                time.sleep(wait_time_s) # sleep 1
                 """ *** Fitting *** """
-                # amplitude = self.control.stream_receiver.fit[0] # amplitude
                 im = self.control.tem_action.parent.imageItem.image
                 roi = self.control.tem_action.parent.roi
                 fit_result = fit_2d_gaussian_roi_test(im, roi)
-                # Update pop-up plot and drawn ellipse 
-                self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal
-                # Determine peak value (amplitude)
-                amplitude = float(fit_result.best_values['amplitude'])
+                self.control.fit_updated.emit(fit_result.best_values)  # Emit the signal to Update pop-up plot and drawn ellipse
+                amplitude = float(fit_result.best_values['amplitude']) # Determine peak value (amplitude)
                 """ *************** """
                 if max_amplitude < amplitude:
                     max_amplitude = amplitude
                     max_il1value = il1_value
 
+                time.sleep(wait_time_s) # sleep 2
                 logging.debug(f"{dt.now()}, amplitude = {amplitude}")
             else:
                 print("IL1 LINEAR sweeping INTERRUPTED")
@@ -90,8 +85,8 @@ class BeamFitTask(Task):
 
         logging.info("Now reset to the initial value (for safety in testing)")
         time.sleep(1)
-        # self.tem_command("lens", "SetILFocus", [(lower + upper)//2])
-        self.client.SetILFocus((lower + upper)//2)
+
+        """ self.client.SetILFocus((lower + upper)//2) """
 
         return max_amplitude, max_il1value
         

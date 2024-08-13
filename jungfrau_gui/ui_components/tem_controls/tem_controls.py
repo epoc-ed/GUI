@@ -87,45 +87,9 @@ class TemControls(QGroupBox):
             self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
             self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
 
-            """ self.ellipse_fit = QGraphicsEllipseItem()
-            self.sigma_x_fit = QGraphicsRectItem()
-            self.sigma_y_fit = QGraphicsRectItem() """
-
-            """ REMOVE ? """
-            """ label_gauss_height = QLabel()
-            label_gauss_height.setText("Gaussian height")
-            self.gauss_height_spBx = QDoubleSpinBox()
-            self.gauss_height_spBx.setValue(1)
-            self.gauss_height_spBx.setMaximum(1e8)
-
-            label_sigma_x = QLabel()
-            label_sigma_x.setText("Sigma x (px)")
-            label_sigma_x.setStyleSheet('color: cyan;')
-            self.sigma_x_spBx = QDoubleSpinBox()
-            self.sigma_x_spBx.setStyleSheet('color: blue;')
-            self.sigma_x_spBx.setValue(1)
-            self.sigma_x_spBx.setSingleStep(0.1)
-
-            label_sigma_y = QLabel()
-            label_sigma_y.setText("Sigma y (px)")
-            label_sigma_y.setStyleSheet('color: red;')
-            self.sigma_y_spBx = QDoubleSpinBox()
-            self.sigma_y_spBx.setStyleSheet('color: red;')
-            self.sigma_y_spBx.setValue(1)
-            self.sigma_y_spBx.setSingleStep(0.1)
-
-            label_rot_angle = QLabel()
-            label_rot_angle.setText("Theta (deg)")
-            self.angle_spBx = QSpinBox()
-            self.angle_spBx.setMinimum(-90)
-            self.angle_spBx.setMaximum(90)
-            self.angle_spBx.setSingleStep(15) """
-            """ ********** """
-
             BeamFocus_layout = QVBoxLayout()
             BeamFocus_layout.addWidget(self.btnBeamFocus)
             BeamFocus_layout.addWidget(self.checkbox)
-            """ REMOVE ? """
             gauss_H_layout = QHBoxLayout()
             gauss_H_layout.addWidget(self.label_gauss_height)  
             gauss_H_layout.addWidget(self.gauss_height_spBx)
@@ -142,7 +106,7 @@ class TemControls(QGroupBox):
             rot_angle_layout.addWidget(self.label_rot_angle)  
             rot_angle_layout.addWidget(self.angle_spBx)         
             BeamFocus_layout.addLayout(rot_angle_layout)
-            """ ********** """
+
             tem_section.addLayout(BeamFocus_layout)
             
         

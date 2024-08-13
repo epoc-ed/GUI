@@ -44,9 +44,9 @@ class TEMAction(QObject):
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
 
-        """ self.control.tem_socket_status.connect(self.on_sockstatus_change) """
+        # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
-        self.control.fit_finish.connect(self.toggle_OFF_beamAutofocus)
+        """ self.control.fit_finish.connect(self.toggle_OFF_beamAutofocus) """
 
         self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
         # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
@@ -63,11 +63,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.move10degp.clicked.connect(
                     lambda: self.control.client.SetTXRel(10, run_async=True, max_speed=True))
         self.tem_stagectrl.move10degn.clicked.connect(
-                    lambda: self.control.client.SetTXRel(-10, run_async=True, max_speed=True))
-        """
-        self.tem_stagectrl.move0deg.clicked.connect(
-                    lambda: self.control.with_max_speed("SetTiltXAngle(0, True)")) """
-        
+                    lambda: self.control.client.SetTXRel(-10, run_async=True, max_speed=True))        
         self.tem_stagectrl.move0deg.clicked.connect(
                     lambda: self.control.client.SetTiltXAngle(0, run_async=True, max_speed=True))
 
