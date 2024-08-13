@@ -19,8 +19,6 @@ IL1_0 = 21902 #40345
 ILs_0 = [33040, 32688]
 
 class BeamFitTask(Task):
-    """ fit_updated = Signal(dict)"""
-
     def __init__(self, control_worker):
         super().__init__(control_worker, "BeamFit")
         self.duration_s = 60 # should be replaced with a practical value
