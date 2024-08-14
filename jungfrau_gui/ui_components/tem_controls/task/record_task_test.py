@@ -140,7 +140,8 @@ class RecordTask(Task):
             logging.info("Return the stage tilt to zero.")
             self.client.SetTiltXAngle(0, True, True)
             time.sleep(1)
-        
+            
+        # Waiting for the rotation to end
         while self.client.stage_is_rotating:
             time.sleep(0.1)
 
