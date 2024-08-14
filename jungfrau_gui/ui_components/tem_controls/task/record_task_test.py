@@ -90,7 +90,8 @@ class RecordTask(Task):
 
         #If enabled we start writing files 
         if self.writer: 
-            self.writer() 
+            """ self.writer() """
+            self.tem_action.file_operations.start_H5_recording.emit() 
         t0 = time.time()
 
         while self.client.stage_is_rotating:
@@ -123,7 +124,9 @@ class RecordTask(Task):
         
         # Stop the file writing
         if self.writer and self.tem_action.file_operations.streamWriterButton.started:
-            self.writer()
+            print(" *********************** Stopping the Writer **********************")
+            """ self.writer() """
+            self.tem_action.file_operations.stop_H5_recording.emit()
         
         self.client.SetBeamBlank(1)
         phi1 = self.client.GetTiltXAngle()

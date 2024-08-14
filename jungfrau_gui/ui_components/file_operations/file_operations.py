@@ -2,7 +2,7 @@ import os
 import logging
 import datetime
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import QThread
+from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QLineEdit, QSpinBox, QFrame,
                                 QPushButton, QFileDialog, QCheckBox,
@@ -23,6 +23,9 @@ def save_captures(fname, data):
     reuss.io.save_tiff(fname, data)
 
 class FileOperations(QGroupBox):
+    start_H5_recording = Signal()
+    stop_H5_recording = Signal()
+    
     def __init__(self, parent):
         super().__init__("File Operations")
         self.parent = parent
@@ -104,6 +107,8 @@ class FileOperations(QGroupBox):
         self.streamWriterButton = ToggleButton("Write Stream in H5", self)
         self.streamWriterButton.setEnabled(False)
         self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
+        self.start_H5_recording.connect(self.toggle_hdf5Writer_ON)
+        self.stop_H5_recording.connect(self.toggle_hdf5Writer_OFF)
         # self.xds_checkbox = QCheckBox("Prepare for XDS processing", self)
         # self.xds_checkbox.setChecked(True)
         hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
@@ -178,6 +183,14 @@ class FileOperations(QGroupBox):
         self.outPath_input.setText(self.h5_folder_name)
         logging.info(f"H5 output path set to: {self.h5_folder_name}")
     
+    def toggle_hdf5Writer_ON(self):
+        if not self.streamWriterButton.started:
+            self.toggle_hdf5Writer()
+
+    def toggle_hdf5Writer_OFF(self):
+        if self.streamWriterButton.started:
+            self.toggle_hdf5Writer()
+
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
             prefix = self.prefix_input.text().strip()
