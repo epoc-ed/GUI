@@ -35,7 +35,8 @@ class RecordTask(Task):
 
         return_speed_idx = 0 # 10 deg/s
         # log_duration = 1.5 # 0.5
-
+        
+        self.phi_dot = stage_rates[phi_dot_idx]
         # self.phi_dot = stage_rates[phi_dot_idx] * np.sign(phi1 - phi0)
         # # # calculate number of images, take delay into account
         # # n_imgs = (abs(phi1 - phi0) / abs(self.phi_dot) - self.control.triggerdelay_ms * 0.001) / ft
@@ -149,7 +150,6 @@ class RecordTask(Task):
         
         if self.writer and os.path.isfile(self.tem_action.file_operations.formatted_filename):
             self.control.send_to_tem("#more")
-            """ self.tem_action.temtools.addinfo_to_hdf() """
             self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
             os.rename(self.log_suffix + '.log', self.tem_action.file_operations.formatted_filename[:-3] + '.log')
 
