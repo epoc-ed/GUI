@@ -350,7 +350,7 @@ class ControlWorker(QObject):
         if self.task:
             if isinstance(self.task, BeamFitTask):
                 print("Stopping the - Fitting - task !")
-                self.trigger_stop_fitting.emit()
+                self.trigger_stop_fitting.emit() # self.set_worker_not_ready()
                 # time.sleep(1)
             elif isinstance(self.task, RecordTask):
                 print("Stopping the - Record - task!!!")
