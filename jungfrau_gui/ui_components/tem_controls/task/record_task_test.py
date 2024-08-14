@@ -145,7 +145,8 @@ class RecordTask(Task):
         
         if self.writer and os.path.isfile(self.tem_action.file_operations.formatted_filename):
             self.control.send_to_tem("#more")
-            self.tem_action.temtools.addinfo_to_hdf()
+            """ self.tem_action.temtools.addinfo_to_hdf() """
+            self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
             os.rename(self.log_suffix + '.log', self.tem_action.file_operations.formatted_filename[:-3] + '.log')
 
         self.tem_action.tem_tasks.rotation_button.setText("Rotation")

@@ -4,6 +4,7 @@ import h5py
 import hdf5plugin
 import logging
 from ....ui_components.tem_controls.toolbox import config as cfg_jf
+from PySide6.QtCore import Signal
 
 def ev2angstrom(voltage): # in ev
     h, m0, e, c = 6.62607004e-34, 9.10938356e-31, 1.6021766208e-19, 299792458.0
@@ -15,10 +16,12 @@ def d2radius_in_px(d=1, camlen=660, ht=200, pixel=0.075): # angstrom, mm, keV, m
     return radius
 
 class TEMTools:
+    trigger_addinfo_to_hdf5 = Signal()
     def __init__(self, tem_action):
         self.tem_action = tem_action
         self.ht = 200 # keV  # <- HT3
-        self.wavelength = ev2angstrom(self.ht*1e3) # Angstrom        
+        self.wavelength = ev2angstrom(self.ht*1e3) # Angstrom   
+        self.trigger_addinfo_to_hdf5.connect(self.addinfo_to_hdf)     
  
     def addinfo_to_hdf(self, pixel=0.075):
         self.tem_status = self.tem_action.control.tem_status
