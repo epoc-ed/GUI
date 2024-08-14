@@ -355,6 +355,11 @@ class ControlWorker(QObject):
             elif isinstance(self.task, RecordTask):
                 print("Stopping the - Record - task!!!")
                 self.client.StopStage()
+                # # Tilt back to Zero
+                # if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
+                #     logging.info("Return the stage tilt to zero.")
+                #     time.sleep(1)
+                #     self.client.SetTiltXAngle(0, True, True)
     
         if self.task_thread is not None:
             if self.task_thread.isRunning():
