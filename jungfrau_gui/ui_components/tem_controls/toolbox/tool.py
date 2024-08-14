@@ -15,9 +15,10 @@ def d2radius_in_px(d=1, camlen=660, ht=200, pixel=0.075): # angstrom, mm, keV, m
     radius = camlen * np.tan(np.arcsin(wavelength/2/d)*2) / pixel
     return radius
 
-class TEMTools:
+class TEMTools(QObject):
     trigger_addinfo_to_hdf5 = Signal()
     def __init__(self, tem_action):
+        super.__init__()
         self.tem_action = tem_action
         self.ht = 200 # keV  # <- HT3
         self.wavelength = ev2angstrom(self.ht*1e3) # Angstrom   
