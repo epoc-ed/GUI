@@ -218,6 +218,6 @@ class FileOperations(QGroupBox):
         index_str = f"{self.h5_file_index:03}"
         self.h5_file_index += 1
         self.index_box.setValue(self.h5_file_index)
-        filename = f"{prefix}_{index_str}_{date_str}.h5"
+        filename = f"{prefix}_{index_str}_{date_str}_master.h5"
         full_path = os.path.join(self.h5_folder_name, filename)
         return full_path
