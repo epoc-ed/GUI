@@ -4,7 +4,7 @@ import h5py
 import hdf5plugin
 import logging
 from ....ui_components.tem_controls.toolbox import config as cfg_jf
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QObject, Signal
 
 def ev2angstrom(voltage): # in ev
     h, m0, e, c = 6.62607004e-34, 9.10938356e-31, 1.6021766208e-19, 299792458.0
