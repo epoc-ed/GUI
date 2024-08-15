@@ -9,7 +9,8 @@ from ...ui_components.tem_controls.toolbox.tool import *
 from ...ui_components.tem_controls.toolbox import config as cfg_jf
 from ...ui_components.tem_controls.task.control_worker_test import *
 
-from reuss import config as cfg
+# from reuss import config as cfg
+from epoc import ConfigurationClient, auth_token, redis_host
 import json
 import os
 
@@ -35,9 +36,11 @@ class TEMAction(QObject):
         # self.tem_tasks.beamAutofocus.setEnabled(True)
         
         # initialization
+        cfg = ConfigurationClient(redis_host(), token=auth_token())
+
         self.scale = None
         self.formatted_filename = ''
-        self.beamcenter = json.loads(cfg.parser['overlay']['circle1'])['xy']
+        self.beamcenter = cfg.beam_center # TODO! read the value when needed!
         self.xds_template_filepath = cfg_jf.path.xds
         self.datasaving_filepath = str(cfg_jf.path.data)
         

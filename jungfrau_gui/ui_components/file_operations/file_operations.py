@@ -12,7 +12,9 @@ from .stream_writer import StreamWriter
 # from .frame_accumulator import FrameAccumulator
 from .frame_accumulator_mp import FrameAccumulator
 
-import reuss
+# import reuss
+import tifffile
+import numpy as np
 from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
@@ -20,7 +22,8 @@ from ...ui_components.utils import create_horizontal_line_with_margin
 
 def save_captures(fname, data):
     logging.info(f'Saving: {fname}')
-    reuss.io.save_tiff(fname, data)
+    # reuss.io.save_tiff(fname, data)
+    tifffile.imwrite(fname, data.astype(np.int32))
 
 class FileOperations(QGroupBox):
     start_H5_recording = Signal()
