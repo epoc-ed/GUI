@@ -122,7 +122,7 @@ class FileOperations(QGroupBox):
         self.total_frame_nb.setMaximum(100000000)
 
         hdf5_writer_layout.addWidget(self.nb_frame)
-        hdf5_writer_layout.addWidget(self.total_frame_nb)
+        # hdf5_writer_layout.addWidget(self.total_frame_nb)
 
         section3.addLayout(hdf5_writer_layout)
         section3.addStretch()
@@ -223,7 +223,7 @@ class FileOperations(QGroupBox):
             self.streamWriter.stop()
             self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
-            logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
+            # logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
     
     def update_h5_file_index(self, index):
             self.h5_file_index = index
