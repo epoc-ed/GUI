@@ -20,10 +20,11 @@ from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
 
 
+""" #Useful for Threading version of TIFF file Writing (below)
 def save_captures(fname, data):
     logging.info(f'Saving: {fname}')
     # reuss.io.save_tiff(fname, data)
-    tifffile.imwrite(fname, data.astype(np.int32))
+    tifffile.imwrite(fname, data.astype(np.int32)) """
 
 class FileOperations(QGroupBox):
     start_H5_recording = Signal()
@@ -117,11 +118,10 @@ class FileOperations(QGroupBox):
         hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
         # hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
 
-        self.nb_frame = QLabel("Number Written Frames:", self)
-        self.total_frame_nb = QSpinBox(self)
-        self.total_frame_nb.setMaximum(100000000)
-
-        hdf5_writer_layout.addWidget(self.nb_frame)
+        # self.nb_frame = QLabel("Number Written Frames:", self)
+        # self.total_frame_nb = QSpinBox(self)
+        # self.total_frame_nb.setMaximum(100000000)
+        # hdf5_writer_layout.addWidget(self.nb_frame)
         # hdf5_writer_layout.addWidget(self.total_frame_nb)
 
         section3.addLayout(hdf5_writer_layout)
@@ -159,7 +159,7 @@ class FileOperations(QGroupBox):
     """ ************************************************ """
     def start_accumulate(self):
         file_index = self.findex_input.value()
-        full_fname = f'{self.fname_input.text()}_{self.findex_input.value()}'
+        full_fname = f'{self.fname_input.text()}_{self.findex_input.value()}.tiff'
         nb_frames_to_take = self.acc_spin.value()
         self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
                                                                   dtype= globals.dtype,
@@ -221,7 +221,7 @@ class FileOperations(QGroupBox):
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
             self.streamWriter.stop()
-            self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
+            # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             # logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
     
