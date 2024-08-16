@@ -17,20 +17,21 @@ This document was updated on 17 Jul 2024
 1.  ```$ cd /home/psi/software/v2/reuss/build```
 1.  ```$ ./srecv -t 12``` \
     *\*Using 12 threads*
-1.  ```$ cd /home/psi/software/viewer_2.0/GUI/viewer_2.0```\
-    *\*'PSI' version. 'Testing' version is at /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0* \
-    *\*'Testing' version will be renamed as 'Stable' version after the bug-fix*
-1.  ```$ ./main_ui.py```\
-    *\*To use TEM control functions with Testing version, ```$ ./main_ui.py -t```*
-1. Start streaming in the viewer-GUI, without incident beam.
+1.  ```$ cd /home/psi/software/viewer_2.0/GUI```\
+    <!-- *\*'PSI' version. 'Testing' version is at /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0* \
+    *\*'Testing' version will be renamed as 'Stable' version after the bug-fix* -->
+1.  ```$ python launch_gui.py```\
+    *\*To use TEM control functions, ```$ python launch_gui.py -t```*
+1. Start streaming in the Jungfrau_GUI, without incident beam.
 1.  ```>>> r.record_pedestal(1)``` *at the terminal window where the receiver (srecv) is running\
     ****\*To be more careful of the threshold, reset the value before pedestaling as: ```r.set_threshold(-50)```****
 1. 'Acquisition Interval (ms)' in GUI should be changed to '20' to reduce the dealy.
 
 **\*TEM-PC, NOT needed when you ONLY use the TEM console panel**
-1. Activate relay_server \
-Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay server;\
-    ```$ python relay_server_testKT.py```  
+1. Activate the TEM server \ <!-- relay_server \ -->
+Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem server;\
+    <!--```$ python relay_server_testKT.py```-->
+   ```$ python server_tem.py```  
 
 ### Deactivation
 **\*CameraPC (hodgkin)**
@@ -40,31 +41,30 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 1. ```$ p stop```
 
 **\*TEM-PC**
-1. When disconnected from the viewer-GUI, the relay_server automatically terminates.
+1. When disconnected from the Jungfrau_GUI, the server_tem does not automatically terminate.
 
 ***
 ### Main Function
  - 'View Stream': Reads the stream of frames sent by the receiver.
  - 'Auto Contrast': Dynamically adjusts the contrast of the displayed frames.
- - 'Beam Gaussian Fit': Starts the gaussian fitting of the beam elliptical spot shape.
+ - 'Beam Fit': Starts the gaussian fitting of the beam elliptical spot shape.
     - *at the moment, useful as a quantifying indicator for manual-focusing.*
  - 'Exit': Exits the GUI. The connection to TEM is disconnected before exiting.
  - ['[A]'](screenshot/ver_21Jun2024.png) at the bottom left of the viewer panel can reset the viewer scale.
  
-#### *[TEM-control Function](screenshot/ver_17Jul2024.png)*
-*\*The current version does not modify any lens values but controls only the stage and the beam blanking.*
+#### *[TEM-control Function](screenshot/ver_16Aug2024.PNG)*
  - 'Magnification', 'Distance': Indicates the current or just previous value of magnification/distance
      - 'scale' for displaying a scale bar for imaging (1 um length) or the Debye-ring for diffraction (1 A circle)
  - 'Rotation Speed': Changes rotation speed settings and indicates the current value
  - 'Stage Ctrl': Moves the stage quickly by a constant values.
-<!--  - 'Start Focus-sweeping': Sweeps IL1 and ILstig values linearly, roughly and finely -->
- - 'Connect to TEM': Starts communication with TEM.
- - 'Get TEM status': Updates the TEM information and shows in the terminal. If an hdf file with the defined filename exists, the information will be added to the header.
-     - 'recording': save the TEM values in the log file in the current directory.
- - 'Click-on-Centring': Activates stage control by clicking the streaming image (now deactivated)
- - 'Rotation', 'Rotation/Record': Starts stage rotation until the input tilt degree (in the right box), reports the setting parapemters. When the beam is blanked, it will be unblanked on starting the rotation. When the rotation ends, the beam will be blanked. The rotation can be interruppted either by clicking this button again or touching the tilt button of the TEM console.
+ - 'Beam Autofocus': (/!\ Not ready for use!) Sweeps IL1 and ILstig values linearly, roughly and finely 
+ - 'Connect to TEM': (deactivated) Starts communication with TEM.
+ - 'Get TEM status': (deactivated) Updates the TEM information and shows in the terminal. If an hdf file with the defined filename exists, the information will be added to the header.
+     - 'recording': (deactivated) save the TEM values in the log file in the current directory.
+ - 'Click-on-Centring': (deactivated) Activates stage control by clicking the streaming image
+ - 'Rotation': Starts stage rotation until the input tilt degree (in the right box), reports the setting parameters. When the beam is blanked, it will be unblanked on starting the rotation. When the rotation ends, the beam will be blanked. The rotation can be interrupted either by clicking this button again.
      - 'with Writer': The HDF writer is synchronized with the rotation.
-     - 'Auto reset': The stage-tilt will be reset to 0 deg. after the rotation.
+     - 'Auto reset': The stage tilt will be reset to 0 deg after the rotation.
  
 ***
 ### Data-recording workflow
@@ -79,10 +79,10 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
 ***
 ### Data-recording workflow with Testing version
 1. Setup the beam and stage of TEM for data collection.
-1. Confirm/modify the data output path on the 'H5 Output Path' lineedit, via a folder icon.
+1. Confirm/modify the data output path on the 'H5 Output Path' line-edit via a folder icon or manually (but cannot create an inexistent folder).
 1. Confirm/modify the stage rotation speed and the end angle of the rotation.
 1. Check the 'with Writer' box. Check/uncheck the 'Auto reset' box.
-1. Click 'Rotation/Record' button, then start the rotation and recording synchronously.
+1. Click 'Rotation' button, then start the rotation and recording synchronously.
 1. The rotation/recording continues until reaching the end angle or being interrupted.
 1. Take a tiff image if you need. The tiff image is not tied with the HDF file at the moment.
 
@@ -122,15 +122,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the relay 
     *Open another PowerShell console and kill the corresponding python process*\
     ```$ Get-Process python```  
     ```$ kill [pid]```
-- The information from TEM is not correctly received.\
-    *Check the relay_server's version (at TEM PC). The GUI does not correctly communicate with the previous version, 'relay_server.py'*
-- Hdf files are not output to the defined path.\
-    *Modity the H5 Output Path via the folder icon (activates file-browser sytem).*
-- **[Fixed]** When pusing the tiff-recording button, error messages are displayed.\
-    *Stop and restart the streaming. Then the tiff will be saved. This is fixed in the next version.*
+- [Fixed] Hdf files are not output to the defined path.\
+    *Modity the H5 Output Path via the folder icon (activates file-browser system).*
 - The TEM-control button does not respond immediately.\
     *There will be a delay of a few seconds in responding, especially the first time. Please wait a few moments.*
-- **[Fixed]** The GUI does not respond after the Gaussian-fitting.\
-    *Stop the function by Ctrl+C in the terminal, and restart the GUI. This caused from the multi-processing (to be fixed).*
-- File numbers of hdf and log files do not match.\
-    *Fixed in the next version.*
