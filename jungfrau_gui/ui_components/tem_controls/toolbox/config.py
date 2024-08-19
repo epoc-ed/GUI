@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 import pandas as pd
 from pathlib import Path
-from importlib_resources import files
+from importlib.resources import files
 # def load_config_files():
 #     config = {}
 #     _override(config, _load_config("etc/singlaui_config.json"))

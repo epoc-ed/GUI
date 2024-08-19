@@ -27,7 +27,7 @@ class BeamFitTask(Task):
 
         """ self.fit_updated.connect(self.updateFitParams_json) """
         
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("localhost", 3535)
 
     def run(self, init_IL1=IL1_0):
 

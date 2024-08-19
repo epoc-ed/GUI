@@ -131,7 +131,7 @@ class ControlWorker(QObject):
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
         
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("localhost", 3535)
 
         """ self.tem_socket: QTcpSocket = None """
         # self.tem_socket = self.client.socket
@@ -176,7 +176,7 @@ class ControlWorker(QObject):
         threading.current_thread().setName("ControlThread")
         logging.info("initializing control thread...")
         
-        # self.client = TEMClient("temserver", 3535)
+        # self.client = TEMClient("temserver", 3535) #TEMClient("localhost", 3535)
         """ self.send_to_tem("#more") """
         # self.tem_socket = QTcpSocket()
         # self.tem_socket.readyRead.connect(self.on_tem_receive)
