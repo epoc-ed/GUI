@@ -1,3 +1,4 @@
+import logging
 import pyqtgraph as pg
 from collections import deque
 from PySide6.QtWidgets import QPushButton, QVBoxLayout, QDialog
@@ -53,6 +54,7 @@ class PlotDialog(QDialog):
         self.curve2 = self.plotWidget2.plot(pen=pg.mkPen(color='g', width=2), symbol='star', symbolBrush='g')
 
     def close_window(self):
+        logging.info("Removing pop-up window!")
         self.close()
 
     def startPlotting(self, initialValue_H, initialValue_x, initialValue_y):                

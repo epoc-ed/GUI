@@ -173,19 +173,8 @@ class ControlWorker(QObject):
 
     @Slot()
     def _init(self):
-        threading.current_thread().setName("ControlThread")
-        logging.info("initializing control thread...")
-        
-        # self.client = TEMClient("temserver", 3535)
-        """ self.send_to_tem("#more") """
-        # self.tem_socket = QTcpSocket()
-        # self.tem_socket.readyRead.connect(self.on_tem_receive)
-        # self.tem_socket.stateChanged.connect(
-        #     lambda state: self.tem_socket_status.emit(state, self.tem_socket.errorString()))
-        # self.tem_socket.errorOccurred.connect(
-        #     lambda state: self.tem_socket_status.emit(self.tem_socket.state(), self.tem_socket.errorString()))        
-        # self.tcpconnect()
-        
+        threading.current_thread().setName("ControlThread")      
+        """ self.send_to_tem("#more") """                       
         """ self.task_thread.start() """
         self.fitterWorkerReady = False
         # self.send.emit("stage.Setf1OverRateTxNum(2)")
@@ -351,16 +340,14 @@ class ControlWorker(QObject):
             if isinstance(self.task, BeamFitTask):
                 print("Stopping the - Fitting - task !")
                 self.trigger_stop_fitting.emit() # self.set_worker_not_ready()
-                # time.sleep(1)
             elif isinstance(self.task, RecordTask):
                 print("Stopping the - Record - task!!!")
                 self.client.StopStage()
-                # # Tilt back to Zero
-                # if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
-                #     logging.info("Return the stage tilt to zero.")
-                #     time.sleep(1)
-                #     self.client.SetTiltXAngle(0, True, True)
-    
+        
+        if isinstance(self.task, BeamFitTask):
+                print("********************* Emitting 'remove_ellipse' signal from -MAIN- Thread *********************")
+                self.remove_ellipse.emit() 
+
         if self.task_thread is not None:
             if self.task_thread.isRunning():
                 print(f"Quitting {self.task.task_name} Thread")
@@ -369,9 +356,6 @@ class ControlWorker(QObject):
 
                 self.task.deleteLater()
                 self.task = None
-
-        if isinstance(self.task, BeamFitTask):
-            self.remove_ellipse.emit() 
 
     @Slot()
     def stop(self):
@@ -405,9 +389,11 @@ class ControlWorker(QObject):
 
     @Slot()
     def start_beam_fit(self):
-        if self.task.running:
-            logging.warning('task already running')
-            return
+        print("Start AutoFocus")
+        if self.task is not None:
+            if self.task.running:
+                logging.warning('task already running')
+                return           
         ###
         if os.name == 'nt': # test on Win-Win
             while True:
@@ -523,4 +509,4 @@ class ControlWorker(QObject):
                                     "start_time": 0, "end_time": 0,
                                     "nimages": 0,}
         else:
-            self.rotation_status["oscillation_per_frame"] = np.abs(self.rotation_status["end_angle"] - self.rotation_status["start_angle"]) / self.rotation_status["nimages"]    
+            self.rotation_status["oscillation_per_frame"] = np.abs(self.rotation_status["end_angle"] - self.rotation_status["start_angle"]) / self.rotation_status["nimages"]

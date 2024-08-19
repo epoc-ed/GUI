@@ -27,12 +27,12 @@ class Task(QObject):
         threading.current_thread().setName(name + "Thread")
 
     def run(self):
-        print("Empty run in Task.py")
+        logging.debug("Empty run in Task.py")
         pass
 
     @Slot()
     def _start(self):
-        print("In _start in task.py")
+        logging.debug("In _start in task.py")
         logging.info(f"Starting task {self.task_name} ...")
         self.running = True
         self.start_time = time.monotonic()
@@ -40,8 +40,6 @@ class Task(QObject):
             self.run()
         except Exception as exc:
             logging.error(f"Exception occured in task {self.task_name}: {traceback.format_exc()}")
-            # ...
-            # print(exc)
             pass
         self.running = False
         logging.info(f"Finished task {self.task_name}")
@@ -57,10 +55,10 @@ class Task(QObject):
     #     pass
         
     def tem_info(self):
-        print(f"{self.task_name} has asked for #info")
+        logging.debug(f"{self.task_name} has asked for #info")
         self.send_tem_command.emit("#info")
 
     def tem_moreinfo(self):
-        print(f"{self.task_name} has asked for #more")
+        logging.debug(f"{self.task_name} has asked for #more")
         self.send_tem_command.emit("#more")
         
