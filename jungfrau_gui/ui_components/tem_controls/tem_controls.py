@@ -284,7 +284,7 @@ class TemControls(QGroupBox):
         self.parent.plot.addItem(self.sigma_y_fit)
 
     def removeAxes(self):
-        logging.info("Removing gaussian fitting ellipse.")
+        logging.info("Removing gaussian fitting ellipse and axis!")
         if self.ellipse_fit.scene():
             logging.debug("Removing ellipse_fit from scene")
             self.ellipse_fit.scene().removeItem(self.ellipse_fit)

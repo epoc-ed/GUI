@@ -224,9 +224,8 @@ class TEMAction(QObject):
             self.tem_tasks.beamAutofocus.started = False
             # Close Pop-up Window
             if self.tem_tasks.parent.plotDialog != None:
-                self.tem_tasks.parent.plotDialog.close()
+                self.tem_tasks.parent.plotDialog.close_window()
             self.control.stop_task()
-            # self.control.stop()
 
     def toggle_OFF_beamAutofocus(self):
         if self.tem_tasks.beamAutofocus.started == True:
