@@ -29,12 +29,14 @@ class BeamFitTask(Task):
     def run(self, init_IL1=IL1_0):
         logging.info("Start IL1 rough-sweeping.")
         self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 25)
+        il1_guess1 = self.amp_il1_map[self.max_amplitude]
+        self.client.SetILFocus(il1_guess1) # If task finished, move lens to optimal position 
+        """# Need to update the ellipse to fit the optimal the choice"""
 
-        if not self.max_amplitude == -float('inf'):
-            self.client.SetILFocus(self.amp_il1_map[self.max_amplitude]) # If task finished, move lens to optimal position 
-        else:
-            self.client.SetILFocus(init_IL1) # If task interrupted, back to initial position of lens 
-        """ amp_last_fit = self.fit().best_values["amplitude"]  # Need to update the ellipse to fit the optimal the choice"""
+        logging.info("Start IL1 fine-sweeping.")
+        self.sweep_il1_linear(il1_guess1 - 50, il1_guess1 + 50, 5)
+        il1_guess2 = self.amp_il1_map[self.max_amplitude]
+        self.client.SetILFocus(il1_guess2)
 
         if self.control.fitterWorkerReady == True:
             self.control.tem_action.tem_tasks.beamAutofocus.setText("Remove axis / pop-up")   
