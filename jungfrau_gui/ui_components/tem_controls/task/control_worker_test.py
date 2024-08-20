@@ -341,8 +341,7 @@ class ControlWorker(QObject):
                 print(f"Quitting {self.task.task_name} Thread")
                 self.task_thread.quit()
                 self.task_thread.wait() # Wait for the thread to actually finish
-
-                self.task.deleteLater()
+                self.task.deleteLater() # --> RuntimeError: Internal C++ object (BeamFitTask) already deleted.
                 self.task = None
 
     @Slot()
