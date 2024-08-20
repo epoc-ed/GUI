@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 17 Jul 2024
+This document was updated on 19 Aug 2024
 - [Activation](#Activation)
 - [Deactivation](#Deactivation)
 - [Main Function](#Main-Function)
@@ -17,9 +17,12 @@ This document was updated on 17 Jul 2024
 1.  ```$ cd /home/psi/software/v2/reuss/build```
 1.  ```$ ./srecv -t 12``` \
     *\*Using 12 threads*
-1.  ```$ cd /home/psi/software/viewer_2.0/GUI```\
+1.  ```$ cd /home/psi/software/viewer_2.0/GUI```
     <!-- *\*'PSI' version. 'Testing' version is at /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0* \
     *\*'Testing' version will be renamed as 'Stable' version after the bug-fix* -->
+1.  ```$ git switch testing``` (or ```$ git checkout testing```)
+1.  ```$ git branch --contains```\
+    *Confirm you are under the 'testing' branch.*
 1.  ```$ python launch_gui.py```\
     *\*To use TEM control functions, ```$ python launch_gui.py -t```*
 1. Start streaming in the Jungfrau_GUI, without incident beam.
@@ -28,10 +31,10 @@ This document was updated on 17 Jul 2024
 1. 'Acquisition Interval (ms)' in GUI should be changed to '20' to reduce the dealy.
 
 **\*TEM-PC, NOT needed when you ONLY use the TEM console panel**
-1. Activate the TEM server \ <!-- relay_server \ -->
+1. Activate the TEM server  <!-- relay_server \ -->\
 Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem server;\
-    <!--```$ python relay_server_testKT.py```-->
    ```$ python server_tem.py```  
+    <!--```$ python relay_server_testKT.py```-->
 
 ### Deactivation
 **\*CameraPC (hodgkin)**
@@ -41,44 +44,50 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem se
 1. ```$ p stop```
 
 **\*TEM-PC**
-1. When disconnected from the Jungfrau_GUI, the server_tem does not automatically terminate.
+1. When disconnected from the Jungfrau_GUI, the server_tem does not automatically terminate. Otherwise, see [Troubleshooting](#Troubleshooting)
 
 ***
 ### Main Function
  - 'View Stream': Reads the stream of frames sent by the receiver.
  - 'Auto Contrast': Dynamically adjusts the contrast of the displayed frames.
- - 'Beam Fit': Starts the gaussian fitting of the beam elliptical spot shape.
-    - *at the moment, useful as a quantifying indicator for manual-focusing.*
  - 'Exit': Exits the GUI. The connection to TEM is disconnected before exiting.
  - ['[A]'](screenshot/ver_21Jun2024.png) at the bottom left of the viewer panel can reset the viewer scale.
+ - 'Beam Gaussian Fit': Starts the gaussian fitting of the beam elliptical spot shape.
+    - *only at non-tem mode. at the moment, useful as a quantifying indicator for manual-focusing.*
+ - 'Magnification', 'Distance': Indicates magnification/distance value obtained at the previous recoring
+<!--      - 'scale' for displaying a scale bar for imaging (1 um length) or the Debye-ring for diffraction (1 A circle) -->
+    - *only at tem mode.*
+ - 'Accumulate in TIFF': Save a tiff-snapshot at the defined data path in lineedit.
+ - 'Write Stream in H5': Save an hdf-movie at the defined data path with prefix in lineedits. The output file ends with '_master.h5'.
  
 #### *[TEM-control Function](screenshot/ver_16Aug2024.PNG)*
- - 'Magnification', 'Distance': Indicates the current or just previous value of magnification/distance
-     - 'scale' for displaying a scale bar for imaging (1 um length) or the Debye-ring for diffraction (1 A circle)
- - 'Rotation Speed': Changes rotation speed settings and indicates the current value
- - 'Stage Ctrl': Moves the stage quickly by a constant values.
- - 'Beam Autofocus': (/!\ Not ready for use!) Sweeps IL1 and ILstig values linearly, roughly and finely 
  - 'Connect to TEM': (deactivated) Starts communication with TEM.
  - 'Get TEM status': (deactivated) Updates the TEM information and shows in the terminal. If an hdf file with the defined filename exists, the information will be added to the header.
      - 'recording': (deactivated) save the TEM values in the log file in the current directory.
  - 'Click-on-Centring': (deactivated) Activates stage control by clicking the streaming image
- - 'Rotation': Starts stage rotation until the input tilt degree (in the right box), reports the setting parameters. When the beam is blanked, it will be unblanked on starting the rotation. When the rotation ends, the beam will be blanked. The rotation can be interrupted either by clicking this button again.
-     - 'with Writer': The HDF writer is synchronized with the rotation.
+ - 'Beam Autofocus': (**! Not ready for use!**) Sweeps IL1 and ILstig values linearly, roughly and finely 
+ - 'Rotation': Starts stage rotation until the input tilt degree (in the lower box, 'Target angle'), and reports the setting parameters. When the beam is blanked, it will be unblanked on starting the rotation. When the rotation ends, the beam will be blanked. The rotation can be interrupted either by clicking this button again or touching the tilt button of the TEM console.\
+     *'Start angle' only indicates the current value (not real-time) and can not be modified.'*
+     - 'with Writer': The HDF writer ('Write Stream in H5') is synchronized with the rotation.
      - 'Auto reset': The stage tilt will be reset to 0 deg after the rotation.
+     - 'Rotation Speed': Changes rotation speed settings and indicates the current value.\
+     **The rotation speed buttion should be clicked right before starting rotation. [This will be fixed.](https://github.com/epoc-ed/GUI/issues/37)**
+ - 'Stage Ctrl': Moves the stage quickly by a constant values.
  
 ***
 ### Data-recording workflow
 <!-- , 21 May 2024 -->
 1. Setup the beam and stage of TEM for data collection.
-1. Define the data output path on the 'H5 Output Path' lineedit, via a folder icon.
+1. Define the data output path on the 'H5 Output Path' lineedit via a folder icon.
 1. Start the stage rotation of TEM for example, and immediately click 'Write Stream in H5'
 1. Click 'Stop Writing' right before the rotation ends.
 <!-- 1. When 'Prepare for XDS processing' is checked, the ouput filename is end with '_master.h5' -->
 <!-- 1. Modify the 'Acquisition Interval (ms)' -->
 
 ***
-### Data-recording workflow with Testing version
+### Data-recording workflow with Testing version (*'-t'*)
 1. Setup the beam and stage of TEM for data collection.
+1. Blank the beam to avoid the sample damage.
 1. Confirm/modify the data output path on the 'H5 Output Path' line-edit via a folder icon or manually (but cannot create an inexistent folder).
 1. Confirm/modify the stage rotation speed and the end angle of the rotation.
 1. Check the 'with Writer' box. Check/uncheck the 'Auto reset' box.
@@ -122,7 +131,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem se
     *Open another PowerShell console and kill the corresponding python process*\
     ```$ Get-Process python```  
     ```$ kill [pid]```
-- [Fixed] Hdf files are not output to the defined path.\
+- **[Fixed]** Hdf files are not output to the defined path.\
     *Modity the H5 Output Path via the folder icon (activates file-browser system).*
 - The TEM-control button does not respond immediately.\
     *There will be a delay of a few seconds in responding, especially the first time. Please wait a few moments.*
