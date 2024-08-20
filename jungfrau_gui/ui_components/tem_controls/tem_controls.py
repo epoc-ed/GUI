@@ -261,22 +261,26 @@ class TemControls(QGroupBox):
         self.sigma_y_fit = QGraphicsRectItem(QRectF(xo, yo-0.5*height, 0, height))
         # First, translate the coordinate system to the center of the ellipse,
         # then rotate around this point and finally translate back to origin.
-        rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo)
+        """ rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo) """
+        rotationTransform = QTransform().translate(xo, yo).rotate(-1*theta_deg).translate(-xo, -yo)
         # Create the symmetry (vertical flip) transform
-        symmetryTransform = QTransform().translate(xo, yo).scale(1, -1).translate(-xo, -yo)
+        """ symmetryTransform = QTransform().translate(xo, yo).scale(1, -1).translate(-xo, -yo) """
         # Combine the rotation and symmetry transforms
-        combinedTransform = rotationTransform * symmetryTransform
+        """ combinedTransform = rotationTransform * symmetryTransform  """
 
         self.ellipse_fit.setPen(pg.mkPen('b', width=3))
-        self.ellipse_fit.setTransform(combinedTransform)
+        """ self.ellipse_fit.setTransform(combinedTransform) """
+        self.ellipse_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.ellipse_fit)
 
         self.sigma_x_fit.setPen(pg.mkPen('b', width=2))
-        self.sigma_x_fit.setTransform(combinedTransform)
+        """ self.sigma_x_fit.setTransform(combinedTransform) """
+        self.sigma_x_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.sigma_x_fit)
 
         self.sigma_y_fit.setPen(pg.mkPen('r', width=2))
-        self.sigma_y_fit.setTransform(combinedTransform)
+        """ self.sigma_y_fit.setTransform(combinedTransform) """
+        self.sigma_y_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.sigma_y_fit)
 
     def removeAxes(self):

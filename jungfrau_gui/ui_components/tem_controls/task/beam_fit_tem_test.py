@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import pyqtgraph as pg
 from datetime import datetime as dt
-from ....ui_components.tem_controls.task.task import Task
+from ....ui_components.tem_controls.task.task_test import Task
 
 from ..fit_beam_intensity import fit_2d_gaussian_roi, fit_2d_gaussian_roi_test
 
