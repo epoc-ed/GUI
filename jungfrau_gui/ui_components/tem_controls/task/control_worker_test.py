@@ -114,7 +114,7 @@ class ControlWorker(QObject):
     trigger_tem_update = Signal(dict)
     """ ********************* """
 
-    fit_updated = Signal(dict)
+    fit_complete = Signal(dict)
     
     trigger_stop_fitting = Signal()
     remove_ellipse = Signal()
