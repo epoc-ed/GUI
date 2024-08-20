@@ -3,6 +3,7 @@ import json
 import logging
 import numpy as np
 import pyqtgraph as pg
+from datetime import datetime
 from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
 from PySide6.QtGui import QTransform
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
@@ -220,6 +221,7 @@ class TemControls(QGroupBox):
 
     @Slot()
     def updateFitParams(self, fit_result_best_values):
+        logging.info(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
         yo = float(fit_result_best_values['yo'])        
@@ -282,6 +284,8 @@ class TemControls(QGroupBox):
         """ self.sigma_y_fit.setTransform(combinedTransform) """
         self.sigma_y_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.sigma_y_fit)
+
+        logging.info(datetime.now().strftime(" END UPDATING GUI @ %H:%M:%S.%f")[:-3])
 
     def removeAxes(self):
         logging.info("Removing gaussian fitting ellipse and axis!")
