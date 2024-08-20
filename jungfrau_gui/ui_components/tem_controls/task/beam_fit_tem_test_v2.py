@@ -20,7 +20,7 @@ class BeamFitTask(Task):
         self.duration_s = 60 # should be replaced with a practical value
         self.estimateds_duration = self.duration_s + 0.1
         self.control = control_worker        
-        self.client = TEMClient("localhost", 3535)
+        self.client = TEMClient("temserver", 3535)
 
         # self.control.fit_complete.connect(self.process_fit_results)
         self.max_amplitude = -float('inf')

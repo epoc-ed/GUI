@@ -20,7 +20,7 @@ class BeamFitTask(Task):
         self.duration_s = 60 # should be replaced with a practical value
         self.estimateds_duration = self.duration_s + 0.1
         self.control = control_worker        
-        self.client = TEMClient("localhost", 3535)
+        self.client = TEMClient("temserver", 3535)
 
     def run(self, init_IL1=IL1_0):
 
