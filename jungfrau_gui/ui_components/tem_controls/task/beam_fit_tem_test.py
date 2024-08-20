@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import pyqtgraph as pg
 from datetime import datetime as dt
-from ....ui_components.tem_controls.task.task import Task
+from ....ui_components.tem_controls.task.task_test import Task
 
 from ..fit_beam_intensity import fit_2d_gaussian_roi, fit_2d_gaussian_roi_test
 
@@ -19,10 +19,7 @@ class BeamFitTask(Task):
         super().__init__(control_worker, "BeamFit")
         self.duration_s = 60 # should be replaced with a practical value
         self.estimateds_duration = self.duration_s + 0.1
-        self.control = control_worker 
-
-        """ self.fit_updated.connect(self.updateFitParams_json) """
-        
+        self.control = control_worker        
         self.client = TEMClient("localhost", 3535)
 
     def run(self, init_IL1=IL1_0):
