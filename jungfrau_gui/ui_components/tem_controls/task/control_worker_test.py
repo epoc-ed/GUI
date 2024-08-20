@@ -115,7 +115,7 @@ class ControlWorker(QObject):
     """ ********************* """
 
     fit_updated = Signal(dict)
-    fit_finish = Signal()
+    
     trigger_stop_fitting = Signal()
     remove_ellipse = Signal()
 
@@ -208,18 +208,6 @@ class ControlWorker(QObject):
         self.finished_task.emit()
         if isinstance(self.task, RecordTask):
             self.finished_record_task.emit()
-
-    """ def on_fitting_over(self):
-        if isinstance(self.task, BeamFitTask):
-            self.remove_ellipse.emit() 
-            if self.task_thread.isRunning(): 
-                # self.fitterWorkerReady = False
-                self.fit_finish.emit()
-                # time.sleep(0.1)
-        else:
-            print("Do nothing!!")
-            pass
-    """
 
     @Slot(dict)
     def update_tem_status(self, response):
