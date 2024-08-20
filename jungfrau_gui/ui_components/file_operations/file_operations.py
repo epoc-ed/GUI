@@ -77,7 +77,7 @@ class FileOperations(QGroupBox):
         self.h5_file_index = 0
         # Hdf5 file operations
         h5_file_ops_layout = QHBoxLayout()
-        self.prefix = QLabel("HDF5 prefix", self)
+        self.prefix = QLabel("HDF5 tag", self)
         self.prefix_input = QLineEdit(self)
         self.prefix_input.setText(self.cfg.measurement_tag)
         self.prefix_input.textChanged.connect(self.update_measurement_tag)
