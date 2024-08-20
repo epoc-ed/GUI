@@ -237,15 +237,29 @@ class ControlWorker(QObject):
         task = BeamFitTask(self)
         self.start_task(task)
 
-    def do_fit(self, il_value):
-        im = self.tem_action.parent.imageItem.image
-        roi = self.tem_action.parent.roi
-        fit_result = fit_2d_gaussian_roi_test(im, roi)
-        self.fit_complete.emit(fit_result.best_values, il_value)
-
     def set_worker_not_ready(self):
         logging.debug("Fitting worker is NOT ready!!")
         self.fitterWorkerReady = False
+
+    def do_fit(self, il_value):
+        if self.task is not None:
+            logging.info(dt.now().strftime(" FITTING @ %H:%M:%S.%f")[:-3])
+            im = self.tem_action.parent.imageItem.image
+            roi = self.tem_action.parent.roi
+            fit_result = fit_2d_gaussian_roi_test(im, roi)
+            self.fit_complete.emit(fit_result.best_values, il_value)
+            self.process_fit_results(fit_result.best_values, il_value)
+        else:
+            logging.warning("Fitting worker has been deleted ! ")
+
+    def process_fit_results(self, fit_result, il1_value):
+        amplitude = float(fit_result['amplitude'])
+        self.task.amp_il1_map[amplitude] = il1_value 
+        if amplitude > self.task.max_amplitude:
+            self.task.max_amplitude = amplitude
+        logging.info(dt.now().strftime(" PROCESSED @ %H:%M:%S.%f")[:-3])
+        # logging.info(f"Processed il_value {il1_value} with amplitude {amplitude}")
+        # logging.info(f"Current best focus at position {self.task.amp_il1_map[self.task.max_amplitude] } with amplitude {self.task.max_amplitude}")
 
     @Slot(dict)
     def update_tem_status(self, response):
