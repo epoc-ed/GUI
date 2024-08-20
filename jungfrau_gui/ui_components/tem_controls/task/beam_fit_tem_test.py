@@ -19,11 +19,8 @@ class BeamFitTask(Task):
         super().__init__(control_worker, "BeamFit")
         self.duration_s = 60 # should be replaced with a practical value
         self.estimateds_duration = self.duration_s + 0.1
-        self.control = control_worker 
-
-        """ self.fit_updated.connect(self.updateFitParams_json) """
-        
-        self.client = TEMClient("temserver", 3535)
+        self.control = control_worker        
+        self.client = TEMClient("localhost", 3535)
 
     def run(self, init_IL1=IL1_0):
 
