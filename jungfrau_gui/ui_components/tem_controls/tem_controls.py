@@ -80,7 +80,7 @@ class TemControls(QGroupBox):
             self.tem_action = TEMAction(self, self.parent)
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
-            self.tem_action.control.fit_updated.connect(self.updateFitParams)
+            self.tem_action.control.fit_complete.connect(self.updateFitParams)
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
         else: 
