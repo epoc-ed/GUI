@@ -19,7 +19,8 @@ class BeamFitTask(Task):
         super().__init__(control_worker, "BeamFit")
         self.duration_s = 60 # should be replaced with a practical value
         self.estimateds_duration = self.duration_s + 0.1
-        self.control = control_worker        
+        self.control = control_worker
+        self.is_first_beamfit = True        
         self.client = TEMClient("temserver", 3535)
 
         # self.control.fit_complete.connect(self.process_fit_results)
@@ -38,11 +39,13 @@ class BeamFitTask(Task):
         il1_guess2 = self.amp_il1_map[self.max_amplitude]
         self.client.SetILFocus(il1_guess2)
 
-        if self.control.fitterWorkerReady == True:
+        if self.control.sweepingWorkerReady == True:
             self.control.tem_action.tem_tasks.beamAutofocus.setText("Remove axis / pop-up")   
         else:
-            print("********************* Emitting 'remove_ellipse' signal from -FITTING- Thread *********************")
+            print("********************* Emitting 'remove_ellipse' signal from -SWEEPING- Thread *********************")
             self.control.remove_ellipse.emit()  
+        
+        # self.control.cleanup_fitter.emit()
     
 
     def sweep_il1_linear(self, lower, upper, step, wait_time_s=0.01): 
@@ -50,8 +53,8 @@ class BeamFitTask(Task):
         # this has been determined through some profiling (ref. timing of REQ and REP status of TEM commands in terminal)
         # wait_time_s is defined here as 10 ms, unless a dynamic wait is implemeted (commented area below)
         for il1_value in range(lower, upper, step):
-            print(f"********************* fitterWorkerReady = {self.control.fitterWorkerReady}")
-            if self.control.fitterWorkerReady == True:
+            print(f"********************* sweepingWorkerReady = {self.control.sweepingWorkerReady}")
+            if self.control.sweepingWorkerReady == True:
                 self.client.SetILFocus(il1_value)
                 logging.debug(f"{datetime.now()}, il1_value = {il1_value}")
                 
