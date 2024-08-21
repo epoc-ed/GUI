@@ -231,7 +231,6 @@ class FileOperations(QGroupBox):
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
             self.streamWriter.stop()
-            self.cfg.after_write() #Updated the file index and sets last dataset
             self.index_box.setValue( self.cfg.file_id )
             # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")

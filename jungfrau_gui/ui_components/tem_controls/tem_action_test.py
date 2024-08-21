@@ -106,20 +106,10 @@ class TEMAction(QObject):
         
     def callGetInfoTask(self):
         if self.tem_tasks.gettem_checkbox.isChecked():
-            if not os.access(self.file_operations.outPath_input.text(), os.W_OK):
-                self.tem_tasks.gettem_checkbox.setChecked(False)
-                logging.error(f'Writing in {self.file_operations.outPath_input.text()} is not permitted!')
-            else:
-                try:
-                    self.formatted_filename = self.file_operations.formatted_filename
-                except NameError:
-                    logging.error('Filename is not defined.')
-                    self.tem_tasks.gettem_checkbox.setChecked(False)
-        if self.tem_tasks.gettem_checkbox.isChecked():
             self.control.trigger_getteminfo.emit('Y')
-            if os.path.isfile(self.formatted_filename):
-                logging.info(f'Trying to add TEM information to {self.formatted_filename}')
-                self.temtools.addinfo_to_hdf()
+            # if os.path.isfile(self.formatted_filename):
+            #     logging.info(f'Trying to add TEM information to {self.formatted_filename}')
+            #     self.temtools.addinfo_to_hdf()
         else:
             self.control.trigger_getteminfo.emit('N')
     
