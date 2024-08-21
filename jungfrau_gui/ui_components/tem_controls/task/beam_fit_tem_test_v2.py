@@ -23,6 +23,7 @@ class BeamFitTask(Task):
         self.is_first_beamfit = True        
         self.client = TEMClient("temserver", 3535)
 
+
         # self.control.fit_complete.connect(self.process_fit_results)
         self.max_amplitude = -float('inf')
         self.amp_il1_map = {}
