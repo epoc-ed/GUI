@@ -113,7 +113,12 @@ class VisualizationPanel(QGroupBox):
         self.parent.histogram.gradient.loadPreset(theme)
 
     def resetContrast(self):
-        self.parent.histogram.setLevels(0, 255)
+        # self.parent.histogram.setLevels(0, 255)
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(cfg.viewer_cmin, cfg.viewer_cmax)
 
     def toggle_autoContrast(self):
         if not self.autoContrastBtn.started:
