@@ -116,7 +116,7 @@ class ControlWorker(QObject):
 
     fit_complete = Signal(dict)
     
-    trigger_stop_fitting = Signal()
+    trigger_stop_autofocus = Signal()
     remove_ellipse = Signal()
 
     trigger_record = Signal()
@@ -152,7 +152,7 @@ class ControlWorker(QObject):
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.actionFit_Beam.connect(self.start_beam_fit)
-        self.trigger_stop_fitting.connect(self.set_worker_not_ready)
+        self.trigger_stop_autofocus.connect(self.set_worker_not_ready)
         
         self.trigger_tem_update.connect(self.update_tem_status)
         
@@ -176,7 +176,7 @@ class ControlWorker(QObject):
         threading.current_thread().setName("ControlThread")      
         """ self.send_to_tem("#more") """                       
         """ self.task_thread.start() """
-        self.fitterWorkerReady = False
+        self.sweepingWorkerReady = False
         # self.send.emit("stage.Setf1OverRateTxNum(2)")
         logging.info("Initialized control thread")
 
@@ -197,7 +197,7 @@ class ControlWorker(QObject):
         # ******
         self.task_thread.start()
         if isinstance(self.task, BeamFitTask):
-            self.fitterWorkerReady = True
+            self.sweepingWorkerReady = True
         self.task_thread.started.connect(self.task.start.emit)
         # ******
         """ self.task.start.emit() """
@@ -326,8 +326,8 @@ class ControlWorker(QObject):
     def stop_task(self):
         if self.task:
             if isinstance(self.task, BeamFitTask):
-                print("Stopping the - Fitting - task !")
-                self.trigger_stop_fitting.emit() # self.set_worker_not_ready()
+                print("Stopping the - Sweeping - task !")
+                self.trigger_stop_autofocus.emit() # self.set_worker_not_ready()
             elif isinstance(self.task, RecordTask):
                 print("Stopping the - Record - task!!!")
                 self.client.StopStage()
@@ -398,8 +398,8 @@ class ControlWorker(QObject):
         self.start_task(task)
 
     def set_worker_not_ready(self):
-        print("FITTING WORKER READY = FALSE")
-        self.fitterWorkerReady = False
+        print("Sweeping WORKER READY = FALSE")
+        self.sweepingWorkerReady = False
 
     """ 
     @Slot()
