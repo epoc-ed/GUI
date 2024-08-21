@@ -8,7 +8,8 @@ import pyqtgraph as pg
 from ...ui_components.tem_controls.toolbox.tool import *
 from ...ui_components.tem_controls.toolbox import config as cfg_jf
 from ...ui_components.tem_controls.task.control_worker import *
-from reuss import config as cfg
+# from reuss import config as cfg
+from epoc import ConfigurationClient, auth_token, redis_host
 import json
 import os
 
@@ -36,9 +37,10 @@ class TEMAction(QObject):
         # initialization
         self.scale = None
         self.formatted_filename = ''
-        self.beamcenter = json.loads(cfg.parser['overlay']['circle1'])['xy']
-        self.xds_template_filepath = cfg_jf.path.xds
-        self.datasaving_filepath = str(cfg_jf.path.data)
+        cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.beamcenter = cfg.beam_center
+        self.xds_template_filepath = cfg.XDS_template
+        self.datasaving_filepath = cfg.data_dir.as_posix() #TODO! should we have them as class members at all or just read when needed?
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)

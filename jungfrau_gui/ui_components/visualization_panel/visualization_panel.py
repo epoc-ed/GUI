@@ -10,7 +10,9 @@ from PySide6.QtWidgets import (QWidget, QGroupBox, QVBoxLayout, QHBoxLayout,
 
 from .reader import Reader
 
-from reuss import config as cfg
+# from reuss import config as cfg
+from epoc import ConfigurationClient, auth_token, redis_host
+
 from ...ui_components.toggle_button import ToggleButton
 from ... import globals
 from ...ui_components.tem_controls.ui_temspecific import TEMDetector
@@ -83,7 +85,8 @@ class VisualizationPanel(QGroupBox):
         self.update_interval = QSpinBox(self)
         self.update_interval.setMaximum(5000)
         self.update_interval.setSuffix(' ms')
-        self.update_interval.setValue(cfg.viewer.interval)
+        cfg =  ConfigurationClient(redis_host(), token=auth_token())
+        self.update_interval.setValue(cfg.viewer_interval)
         self.update_interval.valueChanged.connect(lambda x: self.parent.timer.setInterval(x))
         time_interval_layout = QHBoxLayout()
         time_interval_layout.addWidget(time_interval)

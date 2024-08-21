@@ -4,7 +4,8 @@ import numpy as np
 import multiprocessing as mp
 
 from ... import globals
-from reuss import io
+# from reuss import io
+import tifffile
 
 class FrameAccumulator:
     def __init__(self, endpoint, dtype, image_size, nframes, fname):
@@ -61,4 +62,5 @@ class FrameAccumulator:
         
     def save_captures(self, fname, data):
         logging.info(f'Saving: {fname}')
-        io.save_tiff(fname, data)
+        # io.save_tiff(fname, data)
+        tifffile.imwrite(fname, data.astype(np.int32))

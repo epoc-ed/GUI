@@ -1,5 +1,5 @@
 [app]
-shm = /dev/shm/reuss
+shm = /tmp/reuss
 
 [detector]
 det_id = 272
