@@ -30,7 +30,7 @@ class BeamFitTask(Task):
 
     def run(self, init_IL1=IL1_0):
         logging.info("Start IL1 rough-sweeping.")
-        self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 25)
+        self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 50)
         il1_guess1 = self.amp_il1_map[self.max_amplitude]
         self.client.SetILFocus(il1_guess1) # If task finished, move lens to optimal position 
         """# Need to update the ellipse to fit the optimal the choice"""
