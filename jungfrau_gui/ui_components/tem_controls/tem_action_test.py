@@ -7,8 +7,7 @@ import pyqtgraph as pg
 # from ui_components.toggle_button import ToggleButton
 from ...ui_components.tem_controls.toolbox.tool import *
 from ...ui_components.tem_controls.toolbox import config as cfg_jf
-# from ...ui_components.tem_controls.task.control_worker_test import *
-from ...ui_components.tem_controls.task.control_worker_test_v2 import *
+from ...ui_components.tem_controls.task.control_worker_test import *
 
 # from reuss import config as cfg
 from epoc import ConfigurationClient, auth_token, redis_host
@@ -34,7 +33,7 @@ class TEMAction(QObject):
         self.control = ControlWorker(self)
         self.version =  self.parent.version #self.parent.version
 
-        # self.tem_tasks.beamAutofocus.setEnabled(True)
+        self.tem_tasks.beamAutofocus.setEnabled(False)
         
         # initialization
         cfg = ConfigurationClient(redis_host(), token=auth_token())
