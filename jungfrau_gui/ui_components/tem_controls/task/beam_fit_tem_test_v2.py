@@ -64,7 +64,7 @@ class BeamFitTask(Task):
                 # while not self.client.is_lens_ready():
                 #     time.sleep(0.01)  # Check every 10 ms if the lens is ready
 
-                logging.info(datetime.now().strftime(" EMISSION @ %H:%M:%S.%f")[:-3])
+                logging.info(datetime.now().strftime(" REQUESTED_FIT @ %H:%M:%S.%f")[:-3])
                 self.control.request_fit.emit(il1_value)
                 time.sleep(10*wait_time_s)
             else:

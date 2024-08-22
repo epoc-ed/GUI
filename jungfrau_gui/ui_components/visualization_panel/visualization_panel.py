@@ -23,6 +23,7 @@ class VisualizationPanel(QGroupBox):
         # super().__init__("Visualization Panel")
         super().__init__()
         self.parent = parent
+        self.cfg =  ConfigurationClient(redis_host(), token=auth_token())
         self.initUI()
 
     def initUI(self):
@@ -85,8 +86,7 @@ class VisualizationPanel(QGroupBox):
         self.update_interval = QSpinBox(self)
         self.update_interval.setMaximum(5000)
         self.update_interval.setSuffix(' ms')
-        cfg =  ConfigurationClient(redis_host(), token=auth_token())
-        self.update_interval.setValue(cfg.viewer_interval)
+        self.update_interval.setValue(self.cfg.viewer_interval)
         self.update_interval.valueChanged.connect(lambda x: self.parent.timer.setInterval(x))
         time_interval_layout = QHBoxLayout()
         time_interval_layout.addWidget(time_interval)
@@ -113,7 +113,12 @@ class VisualizationPanel(QGroupBox):
         self.parent.histogram.gradient.loadPreset(theme)
 
     def resetContrast(self):
-        self.parent.histogram.setLevels(0, 255)
+        # self.parent.histogram.setLevels(0, 255)
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(self.cfg.viewer_cmin, self.cfg.viewer_cmax)
 
     def toggle_autoContrast(self):
         if not self.autoContrastBtn.started:
