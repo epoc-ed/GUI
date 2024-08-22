@@ -51,7 +51,7 @@ class TEMStageCtrl(QGroupBox):
         self.rb_speeds.addButton(self.rb_speed_1, 2)
         self.rb_speeds.addButton(self.rb_speed_2, 1)
         self.rb_speeds.addButton(self.rb_speed_10, 0)
-        self.rb_speeds.button(1).setChecked(True)
+        self.rb_speeds.button(2).setChecked(True)
         self.hbox_rot.addWidget(rot_label, 1)
         stage_ctrl_section.addLayout(self.hbox_rot)
         
@@ -127,7 +127,7 @@ class TEMTasks(QGroupBox):
         self.withwriter_checkbox = QCheckBox("with Writer", self)
         self.withwriter_checkbox.setChecked(False)
         self.autoreset_checkbox = QCheckBox("Auto reset", self)
-        self.autoreset_checkbox.setChecked(True)
+        self.autoreset_checkbox.setChecked(False)
 
         ROT_section_2= QVBoxLayout()
 
