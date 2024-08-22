@@ -19,6 +19,8 @@ from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
 
+from epoc import ConfigurationClient, auth_token, redis_host
+
 
 """ #Useful for Threading version of TIFF file Writing (below)
 def save_captures(fname, data):
@@ -33,7 +35,9 @@ class FileOperations(QGroupBox):
     def __init__(self, parent):
         super().__init__("File Operations")
         self.parent = parent
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.initUI()
+        
 
     def initUI(self):
         section3 = QVBoxLayout()
@@ -73,14 +77,16 @@ class FileOperations(QGroupBox):
         self.h5_file_index = 0
         # Hdf5 file operations
         h5_file_ops_layout = QHBoxLayout()
-        self.prefix = QLabel("HDF5 prefix", self)
+        self.prefix = QLabel("HDF5 tag", self)
         self.prefix_input = QLineEdit(self)
-        self.prefix_input.setText('prefix')
+        self.prefix_input.setText(self.cfg.measurement_tag)
+        self.prefix_input.textChanged.connect(self.update_measurement_tag)
 
         self.index_label = QLabel("index")
         self.index_box = QSpinBox(self)
-        self.index_box.setValue(0)
-        self.index_box.valueChanged.connect(self.update_h5_file_index)
+        self.index_box.setValue( self.cfg.file_id )
+        self.index_box.setDisabled(True)
+        # self.index_box.valueChanged.connect(self.update_h5_file_index)
 
         h5_file_ops_layout.addWidget(self.prefix) 
         h5_file_ops_layout.addWidget(self.prefix_input)
@@ -92,13 +98,15 @@ class FileOperations(QGroupBox):
         output_folder_layout = QHBoxLayout()
         self.outPath = QLabel("H5 Output Path", self)
         self.outPath_input = QLineEdit(self)
-        self.outPath_input.setText(os.getcwd())
+        self.outPath_input.setText(self.cfg.data_dir.as_posix())
         self.outPath_input.textChanged.connect(self.modify_path_manually)
         self.h5_folder_name = self.outPath_input.text()
         self.folder_button = QPushButton()
         icon_path = os.path.join(os.path.dirname(__file__), "folder_icon.png")
+
         self.folder_button.setIcon(QIcon(icon_path))
-        self.folder_button.clicked.connect(self.open_directory_dialog)
+        self.folder_button.setDisabled(True)
+        # self.folder_button.clicked.connect(self.open_directory_dialog)
         
         output_folder_layout.addWidget(self.outPath, 2)
         output_folder_layout.addWidget(self.outPath_input, 7)
@@ -196,20 +204,22 @@ class FileOperations(QGroupBox):
 
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
-            prefix = self.prefix_input.text().strip()
-            if not prefix:
-                logging.error("Error: Prefix is missing! Please specify prefix of the written file(s).")# Handle error: Prefix is mandatory
-                QMessageBox.critical(self, "Prefix Missing", "Prefix of written files is missing!\nPlease specify one under the field 'HDF5 prefix'.", QMessageBox.Ok)
-                return
+            # prefix = self.prefix_input.text().strip()
+            # if not prefix:
+            #     logging.error("Error: Prefix is missing! Please specify prefix of the written file(s).")# Handle error: Prefix is mandatory
+            #     QMessageBox.critical(self, "Prefix Missing", "Prefix of written files is missing!\nPlease specify one under the field 'HDF5 prefix'.", QMessageBox.Ok)
+            #     return
             
             logging.debug("TCP address for Hdf5 writer to bind to is ", globals.stream)
             logging.debug("Data type to build the streamWriter object ", globals.dtype)
 
-            """ If manually entered path is wrong, back to the latest correct path """
-            if self.outPath_input.text() != self.h5_folder_name:
-                self.outPath_input.setText(self.h5_folder_name)
+            # """ If manually entered path is wrong, back to the latest correct path """
+            # if self.outPath_input.text() != self.h5_folder_name:
+            #     self.outPath_input.setText(self.h5_folder_name)
 
-            self.formatted_filename = self.generate_h5_filename(prefix)
+            # self.formatted_filename = self.generate_h5_filename(prefix)
+            self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
+            self.formatted_filename = self.cfg.data_dir/self.cfg.fname
             self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                              endpoint=globals.stream, 
                                              image_size = (globals.nrow,globals.ncol),
@@ -221,19 +231,13 @@ class FileOperations(QGroupBox):
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
             self.streamWriter.stop()
+            self.index_box.setValue( self.cfg.file_id )
             # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             # logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
     
     def update_h5_file_index(self, index):
             self.h5_file_index = index
+    def update_measurement_tag(self):
+        self.cfg.measurement_tag = self.prefix_input.text()
             
-    def generate_h5_filename(self, prefix):
-        now = datetime.datetime.now()
-        date_str = now.strftime("D%Y_%m_%d_T%H%M%S")
-        index_str = f"{self.h5_file_index:03}"
-        self.h5_file_index += 1
-        self.index_box.setValue(self.h5_file_index)
-        filename = f"{prefix}_{index_str}_{date_str}_master.h5"
-        full_path = os.path.join(self.h5_folder_name, filename)
-        return full_path

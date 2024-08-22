@@ -49,7 +49,7 @@ class ControlWorker(QObject):
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
         
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("localhost", 3535)
 
         self.tem_socket: QTcpSocket = None
         self.task = Task(self, "Dummy")
@@ -238,8 +238,6 @@ class ControlWorker(QObject):
         if self.task.running:
             self.stop()
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
-        # filename_suffix = self.tem_action.formatted_filename[:-3]
-        # filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
         filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
         ###
 #        self.task.tem_command("eos", "SetSelector", [11])

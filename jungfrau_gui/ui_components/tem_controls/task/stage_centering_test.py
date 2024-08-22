@@ -22,7 +22,7 @@ class CenteringTask(Task):
         # self.duration_s = 60 # should be replaced with a practical value
         # self.estimateds_duration = self.duration_s + 0.1
 
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("hostname", 3535)
 
     def rot2d(self, vector, theta):# anti-clockwise
         theta_r = np.radians(theta)

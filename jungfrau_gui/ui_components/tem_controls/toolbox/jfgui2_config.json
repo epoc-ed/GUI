@@ -168,11 +168,5 @@
            "size": 10,
            "unit": "um"
          }
-],
-  "TEM_IP": "temserver",
-  "TEM_PORT": 12345, 
-  "reuss_config": "/home/psi/.reussrc",
-  "data_root": "/data/jungfrau/psi/CCSA",
-  "work_dir_root": "/data/jungfrau/psi/CCSA",
-  "XDS_template": "/xtal/Integration/XDS/CCSA-templates/XDS-JUNGFRAU_50cm.INP"
+]
 }
