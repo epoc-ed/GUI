@@ -21,7 +21,7 @@ class BeamFitTask(Task):
         self.estimateds_duration = self.duration_s + 0.1
         self.control = control_worker
         self.is_first_beamfit = True        
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("localhost", 3535)
 
 
         # self.control.fit_complete.connect(self.process_fit_results)

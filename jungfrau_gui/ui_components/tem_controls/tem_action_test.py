@@ -42,7 +42,7 @@ class TEMAction(QObject):
         self.scale = None
         self.formatted_filename = ''
         self.beamcenter = cfg.beam_center # TODO! read the value when needed!
-        self.xds_template_filepath = cfg.XDS_template
+        # self.xds_template_filepath = cfg.XDS_template
         self.datasaving_filepath = cfg.data_dir.as_posix()
         
         # connect buttons with tem-functions

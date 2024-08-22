@@ -131,7 +131,7 @@ class ControlWorker(QObject):
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
         
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("localhost", 3535)
 
         """ self.tem_socket: QTcpSocket = None """
         # self.tem_socket = self.client.socket
