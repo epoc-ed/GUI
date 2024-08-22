@@ -114,7 +114,6 @@ class TEMTasks(QGroupBox):
         BEAM_label = QLabel("Beam Sweep & Focus", self)
 
         self.beamAutofocus = ToggleButton('Beam Autofocus', self)
-        self.beamAutofocus.setEnabled(False) # set to False for the "testing" version
         self.popup_checkbox = self.parent.checkbox
         self.plotDialog = self.parent.plotDialog
 
