@@ -5,7 +5,7 @@ from enum import Enum
 import numpy as np
 from pathlib import Path
 import configparser
-from importlib.resources import files
+from importlib_resources import files
 
 #files('jungfrau_gui').joinpath('ui_config/.reussrc')
 
