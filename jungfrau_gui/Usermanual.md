@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 17 Aug 2024
+This document was updated on 20 Aug 2024
 - [Activation](#Activation)
 - [Deactivation](#Deactivation)
 - [Main Function](#Main-Function)
@@ -10,6 +10,12 @@ This document was updated on 17 Aug 2024
 - [Troubleshooting](#Troubleshooting)
 
 ### Activation
+**\*TEM-PC, NOT needed when you ONLY use the TEM console panel**
+1. Activate the TEM server
+Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem server;\
+   ```$ python server_tem.py```  
+   This must be done **before** starting the GUI below.
+
 **\*CameraPC (hodgkin)**
 1. When we login as 'psi', the environment has been setup.
 1.  ```$ p config ~/jf.config```
@@ -20,6 +26,9 @@ This document was updated on 17 Aug 2024
 1.  ```$ cd /home/psi/software/viewer_2.0/GUI```
     <!-- *\*'PSI' version. 'Testing' version is at /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0* \
     *\*'Testing' version will be renamed as 'Stable' version after the bug-fix* -->
+1.  ```$ git switch testing``` (or ```$ git checkout testing```)
+1.  ```$ git branch --contains```\
+    *Confirm you are under the 'testing' branch.*
 1.  ```$ python launch_gui.py```\
     *\*To use TEM control functions, ```$ python launch_gui.py -t```*
 1. Start streaming in the Jungfrau_GUI, without incident beam.
@@ -27,11 +36,6 @@ This document was updated on 17 Aug 2024
     ****\*To be more careful of the threshold, reset the value before pedestaling as: ```r.set_threshold(-50)```****
 1. 'Acquisition Interval (ms)' in GUI should be changed to '20' to reduce the dealy.
 
-**\*TEM-PC, NOT needed when you ONLY use the TEM console panel**
-1. Activate the TEM server  <!-- relay_server \ -->\
-Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem server;\
-   ```$ python server_tem.py```  
-    <!--```$ python relay_server_testKT.py```-->
 
 ### Deactivation
 **\*CameraPC (hodgkin)**
@@ -41,7 +45,9 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem se
 1. ```$ p stop```
 
 **\*TEM-PC**
-1. When disconnected from the Jungfrau_GUI, the server_tem does not automatically terminate. Otherwise, see [Troubleshooting](#Troubleshooting)
+1. Open another PowerShell console and kill the corresponding python process\
+    ```$ Get-Process python```  
+    ```$ kill [process-id]```
 
 ***
 ### Main Function
@@ -68,7 +74,7 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem se
      - 'with Writer': The HDF writer ('Write Stream in H5') is synchronized with the rotation.
      - 'Auto reset': The stage tilt will be reset to 0 deg after the rotation.
      - 'Rotation Speed': Changes rotation speed settings and indicates the current value.\
-     **The rotation speed buttion should be clicked right before staring rotation. [This will be fixed.](https://github.com/epoc-ed/GUI/issues/37)**
+     **The rotation speed buttion should be clicked right before starting rotation. [This will be fixed.](https://github.com/epoc-ed/GUI/issues/37)**
  - 'Stage Ctrl': Moves the stage quickly by a constant values.
  
 ***
