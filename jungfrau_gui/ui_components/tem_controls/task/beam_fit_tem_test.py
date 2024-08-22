@@ -2,14 +2,10 @@ import time
 import json
 import math
 import logging
-from datetime import datetime as dt
-from ....ui_components.tem_controls.task.task import Task
 import numpy as np
-from PySide6.QtGui import QTransform
-from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
-from PySide6.QtCore import Signal, QRectF, Qt, QMetaObject, Q_ARG
-
 import pyqtgraph as pg
+from datetime import datetime as dt
+from ....ui_components.tem_controls.task.task_test import Task
 
 from ..fit_beam_intensity import fit_2d_gaussian_roi, fit_2d_gaussian_roi_test
 
@@ -23,13 +19,17 @@ class BeamFitTask(Task):
         super().__init__(control_worker, "BeamFit")
         self.duration_s = 60 # should be replaced with a practical value
         self.estimateds_duration = self.duration_s + 0.1
-        self.control = control_worker 
-
-        """ self.fit_updated.connect(self.updateFitParams_json) """
-        
+        self.control = control_worker        
         self.client = TEMClient("temserver", 3535)
 
     def run(self, init_IL1=IL1_0):
+
+        logging.info("Start IL1 rough-sweeping.")
+        amp_guess_1, il1_guess1 = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 25)
+        self.client.SetILFocus(il1_guess1)
+        amp_last_fit = self.fit().best_values["amplitude"]
+        print(f" ACTUAL POSITION ({self.client.GetIL1()}), the GUESS WAS ({il1_guess1})")
+        print(f" ACTUAL PEAK ({amp_last_fit}), THE GUESS WAS ({amp_guess_1})  ")
 
         """ logging.info("Start ILs rough-sweeping.")
         _, _, ils_guess1 = self.sweep_stig_linear(1000, 50)
@@ -37,14 +37,6 @@ class BeamFitTask(Task):
         self.client.SetILs(ils_guess1[0], ils_guess1[1])
         time.sleep(1) """
                
-        logging.info("Start IL1 rough-sweeping.")
-        amp_guess_1, il1_guess1 = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 500, 25)
-        # time.sleep(1)
-        self.client.SetILFocus(il1_guess1)
-        amp_last_fit = self.fit().best_values["amplitude"]
-        # time.sleep(1)
-        print(f" ACTUAL POSITION ({self.client.GetIL1()}), the GUESS WAS ({il1_guess1})")
-        print(f" ACTUAL PEAK ({amp_last_fit}), THE GUESS WAS ({amp_guess_1})  ")
         
         """ logging.info("Start IL1 fine-sweeping.")
         _, il1_guess2 = self.sweep_il1_linear(il1_guess1 - 50, il1_guess1 + 50, 5)
@@ -56,7 +48,11 @@ class BeamFitTask(Task):
         self.client.SetILs(ils_guess2[0], ils_guess2[1])
         time.sleep(1) """
 
-        self.control.tem_action.tem_tasks.beamAutofocus.setText("Remove axis / pop-up")    
+        if self.control.fitterWorkerReady == True:
+            self.control.tem_action.tem_tasks.beamAutofocus.setText("Remove axis / pop-up")   
+        else:
+            print("********************* Emitting 'remove_ellipse' signal from -FITTING- Thread *********************")
+            self.control.remove_ellipse.emit()  
     
     def sweep_il1_linear(self, lower, upper, step, wait_time_s=0.2):
         max_amplitude = 0

@@ -33,7 +33,7 @@ class TEMAction(QObject):
         self.control = ControlWorker(self)
         self.version =  self.parent.version #self.parent.version
 
-        # self.tem_tasks.beamAutofocus.setEnabled(True)
+        self.tem_tasks.beamAutofocus.setEnabled(False)
         
         # initialization
         cfg = ConfigurationClient(redis_host(), token=auth_token())
@@ -41,15 +41,14 @@ class TEMAction(QObject):
         self.scale = None
         self.formatted_filename = ''
         self.beamcenter = cfg.beam_center # TODO! read the value when needed!
-        self.xds_template_filepath = cfg_jf.path.xds
-        self.datasaving_filepath = str(cfg_jf.path.data)
+        self.xds_template_filepath = cfg.XDS_template
+        self.datasaving_filepath = cfg.data_dir.as_posix()
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
 
         # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
-        """ self.control.fit_finish.connect(self.toggle_OFF_beamAutofocus) """
 
         self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
         # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
@@ -106,20 +105,10 @@ class TEMAction(QObject):
         
     def callGetInfoTask(self):
         if self.tem_tasks.gettem_checkbox.isChecked():
-            if not os.access(self.file_operations.outPath_input.text(), os.W_OK):
-                self.tem_tasks.gettem_checkbox.setChecked(False)
-                logging.error(f'Writing in {self.file_operations.outPath_input.text()} is not permitted!')
-            else:
-                try:
-                    self.formatted_filename = self.file_operations.formatted_filename
-                except NameError:
-                    logging.error('Filename is not defined.')
-                    self.tem_tasks.gettem_checkbox.setChecked(False)
-        if self.tem_tasks.gettem_checkbox.isChecked():
             self.control.trigger_getteminfo.emit('Y')
-            if os.path.isfile(self.formatted_filename):
-                logging.info(f'Trying to add TEM information to {self.formatted_filename}')
-                self.temtools.addinfo_to_hdf()
+            # if os.path.isfile(self.formatted_filename):
+            #     logging.info(f'Trying to add TEM information to {self.formatted_filename}')
+            #     self.temtools.addinfo_to_hdf()
         else:
             self.control.trigger_getteminfo.emit('N')
     
@@ -227,12 +216,5 @@ class TEMAction(QObject):
             self.tem_tasks.beamAutofocus.started = False
             # Close Pop-up Window
             if self.tem_tasks.parent.plotDialog != None:
-                self.tem_tasks.parent.plotDialog.close()
+                self.tem_tasks.parent.plotDialog.close_window()
             self.control.stop_task()
-            # self.control.stop()
-
-    def toggle_OFF_beamAutofocus(self):
-        if self.tem_tasks.beamAutofocus.started == True:
-            self.toggle_beamAutofocus()
-        else: 
-            pass

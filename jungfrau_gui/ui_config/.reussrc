@@ -16,12 +16,14 @@ origin = lower
 n_cores = 12
 
 [overlay]
-circle1 = {"xy": [173,170], "radius": 160,"ec": "r", "fill" : false, "lw": 2}
-circle2 = {"xy": [173,170], "radius": 5,"ec": "g", "fill" : false, "lw": 2}
-rectangle1 = {"xy": [400,400], "width": 10, "height": 5, "angle": 30, "ec":"y"}
+circle1 = {"xy": [526,253], "radius": 188,"ec": "r", "fill" : false, "lw": 2}
+circle2 = {"xy": [526,253], "radius": 5,"ec": "g", "fill" : false, "lw": 2}
+rectangle1 = {"xy": [574,52], "width": 60, "height": 31, "angle": 27.5, "ec":"y", "fill": false}
+rectangle2 = {"xy": [0,0], "width": 1000, "height": 1, "angle": 19.8, "ec":"r", "fill": false}
+
 
 [viewer]
 #time in ms
-interval = 200
+interval = 100
 cmin = 0
 cmax = 20e3

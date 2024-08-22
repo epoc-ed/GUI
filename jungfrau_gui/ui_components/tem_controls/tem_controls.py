@@ -3,6 +3,7 @@ import json
 import logging
 import numpy as np
 import pyqtgraph as pg
+from datetime import datetime
 from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
 from PySide6.QtGui import QTransform
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
@@ -80,7 +81,7 @@ class TemControls(QGroupBox):
             self.tem_action = TEMAction(self, self.parent)
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
-            self.tem_action.control.fit_updated.connect(self.updateFitParams)
+            self.tem_action.control.fit_complete.connect(self.updateFitParams)
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
         else: 
@@ -220,6 +221,7 @@ class TemControls(QGroupBox):
 
     @Slot()
     def updateFitParams(self, fit_result_best_values):
+        logging.info(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
         yo = float(fit_result_best_values['yo'])        
@@ -261,26 +263,32 @@ class TemControls(QGroupBox):
         self.sigma_y_fit = QGraphicsRectItem(QRectF(xo, yo-0.5*height, 0, height))
         # First, translate the coordinate system to the center of the ellipse,
         # then rotate around this point and finally translate back to origin.
-        rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo)
+        """ rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo) """
+        rotationTransform = QTransform().translate(xo, yo).rotate(-1*theta_deg).translate(-xo, -yo)
         # Create the symmetry (vertical flip) transform
-        symmetryTransform = QTransform().translate(xo, yo).scale(1, -1).translate(-xo, -yo)
+        """ symmetryTransform = QTransform().translate(xo, yo).scale(1, -1).translate(-xo, -yo) """
         # Combine the rotation and symmetry transforms
-        combinedTransform = rotationTransform * symmetryTransform
+        """ combinedTransform = rotationTransform * symmetryTransform  """
 
         self.ellipse_fit.setPen(pg.mkPen('b', width=3))
-        self.ellipse_fit.setTransform(combinedTransform)
+        """ self.ellipse_fit.setTransform(combinedTransform) """
+        self.ellipse_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.ellipse_fit)
 
         self.sigma_x_fit.setPen(pg.mkPen('b', width=2))
-        self.sigma_x_fit.setTransform(combinedTransform)
+        """ self.sigma_x_fit.setTransform(combinedTransform) """
+        self.sigma_x_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.sigma_x_fit)
 
         self.sigma_y_fit.setPen(pg.mkPen('r', width=2))
-        self.sigma_y_fit.setTransform(combinedTransform)
+        """ self.sigma_y_fit.setTransform(combinedTransform) """
+        self.sigma_y_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.sigma_y_fit)
 
+        logging.info(datetime.now().strftime(" END UPDATING GUI @ %H:%M:%S.%f")[:-3])
+
     def removeAxes(self):
-        logging.info("Removing gaussian fitting ellipse.")
+        logging.info("Removing gaussian fitting ellipse and axis!")
         if self.ellipse_fit.scene():
             logging.debug("Removing ellipse_fit from scene")
             self.ellipse_fit.scene().removeItem(self.ellipse_fit)

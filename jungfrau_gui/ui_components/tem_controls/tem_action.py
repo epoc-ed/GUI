@@ -39,8 +39,8 @@ class TEMAction(QObject):
         self.formatted_filename = ''
         cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.beamcenter = cfg.beam_center
-        self.xds_template_filepath = cfg_jf.path.xds
-        self.datasaving_filepath = str(cfg_jf.path.data)
+        self.xds_template_filepath = cfg.XDS_template
+        self.datasaving_filepath = cfg.data_dir.as_posix() #TODO! should we have them as class members at all or just read when needed?
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
