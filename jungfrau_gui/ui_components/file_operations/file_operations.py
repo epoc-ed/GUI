@@ -232,10 +232,10 @@ class FileOperations(QGroupBox):
         else:
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
-            if not self.parent.tem_controls.tem_tasks.rotation_button.started:
-                self.cfg.after_write_no_rotation() 
             self.streamWriter.stop()
-            self.update_index_box()
+            if not self.parent.tem_controls.tem_tasks.rotation_button.started:
+                self.cfg.file_id += 1 
+                self.update_index_box()
             # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             # logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
