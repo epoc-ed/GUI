@@ -29,6 +29,7 @@ def save_captures(fname, data):
     tifffile.imwrite(fname, data.astype(np.int32)) """
 
 class FileOperations(QGroupBox):
+    trigger_update_h5_index_box = Signal()
     start_H5_recording = Signal()
     stop_H5_recording = Signal()
     
@@ -36,6 +37,7 @@ class FileOperations(QGroupBox):
         super().__init__("File Operations")
         self.parent = parent
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.trigger_update_h5_index_box.connect(self.update_index_box)
         self.initUI()
         
 
@@ -230,8 +232,10 @@ class FileOperations(QGroupBox):
         else:
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
+            if not self.parent.tem_controls.tem_tasks.rotation_button.started:
+                self.cfg.after_write_no_rotation() 
             self.streamWriter.stop()
-            self.index_box.setValue( self.cfg.file_id )
+            self.update_index_box()
             # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             # logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
@@ -240,4 +244,6 @@ class FileOperations(QGroupBox):
             self.h5_file_index = index
     def update_measurement_tag(self):
         self.cfg.measurement_tag = self.prefix_input.text()
-            
+
+    def update_index_box(self):
+        self.index_box.setValue(self.cfg.file_id)

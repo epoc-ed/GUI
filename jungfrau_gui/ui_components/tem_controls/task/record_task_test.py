@@ -116,8 +116,10 @@ class RecordTask(Task):
         if self.writer:
             self.control.send_to_tem("#more")
             self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-            os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+            # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+            os.rename(self.log_suffix + '.log', (self.tem_action.file_operations.formatted_filename).with_suffix('.log'))
             self.cfg.after_write()
+            self.tem_action.file_operations.trigger_update_h5_index_box.emit()
 
 
         self.tem_action.tem_tasks.rotation_button.setText("Rotation")
