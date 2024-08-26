@@ -1,13 +1,13 @@
+import os
 import time
 import h5py
-import numpy as np
-from datetime import datetime as dt
-from ....ui_components.tem_controls.task.task import Task
-import subprocess
 import logging
-# from PySide6.QtWidgets import QRadioButton
-import os
-# import ui_components.tem_controls.task.dectris2xds import XDSparams
+import numpy as np
+from .task import Task
+from .dectris2xds import XDSparams
+
+from simple_tem import TEMClient
+from epoc import ConfigurationClient, auth_token, redis_host
 
 class RecordTask(Task):
     def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None):
@@ -19,125 +19,108 @@ class RecordTask(Task):
         self.end_angle = end_angle
         self.rotations_angles = []
         self.log_suffix = log_suffix
+        logging.info("RecordTask initialized")
+        self.client = TEMClient("temserver", 3535)
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
     def run(self):
-        # ft = self.control.detector.get_config("frame_time", "detector")
-        phi0 = float(self.control.tem_status['stage.GetPos'][3])
+        logging.debug("RecordTask::run()")
+        phi0 = self.client.GetTiltXAngle()
         phi1 = self.end_angle
+
+
         stage_rates = [10.0, 2.0, 1.0, 0.5]
-        phi_dot_idx = 2 # 1 deg/s
-        if not os.name == 'nt': phi_dot_idx = self.control.tem_status['stage.Getf1OverRateTxNum'] # requires ED package
-        return_speed_idx = 0 # 10 deg/s
-        log_duration = 1.5 # 0.5
+        phi_dot_idx = self.client.Getf1OverRateTxNum()
 
-        self.phi_dot = stage_rates[phi_dot_idx] * np.sign(phi1 - phi0)
-        # # calculate number of images, take delay into account
-        # n_imgs = (abs(phi1 - phi0) / abs(self.phi_dot) - self.control.triggerdelay_ms * 0.001) / ft
-        # n_imgs = round(n_imgs)
-        # logging.info(f"phidot: {self.phi_dot} deg/s, Delta Phi:{abs(phi1 - phi0)} deg, {n_imgs} images")
-        self.estimated_duration_s = abs(phi1 - phi0) / abs(self.phi_dot)
-        if self.estimated_duration_s < 5:
-            logging.info(f"Estimated duration time is too short (<5 s)!!: {self.estimated_duration_s}")
-            self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-            self.tem_action.tem_tasks.rotation_button.started = False
-            return
-        logging.info(f'{self.estimated_duration_s:8.3f} sec expected.')
 
-        if os.access(os.path.dirname(self.log_suffix), os.W_OK):
-            logfile = open(self.log_suffix + '.log', 'w')
-            logging.info(f'Start logging: {self.log_suffix}.log')
-            # log file description #
-            logfile.write("# TEM Record\n")
-            logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")
-            logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
-            logfile.write(f"# Final Angle (scheduled): {phi1:6.3f} deg\n")
-            logfile.write(f"# angular Speed:           {self.phi_dot:6.2f} deg/s\n")
-            logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n")
-            logfile.write(f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n")
-            self.tem_moreinfo() #self.control.send_to_tem("#more")
-            # BEAM
-            logfile.write(f"# spot_size:               {self.control.tem_status['eos.GetSpotSize']}\n")
-            logfile.write(f"# alpha_angle:             {self.control.tem_status['eos.GetAlpha']}\n")
-            # APERTURE
-            logfile.write(f"# CL#:                     {self.control.tem_status['apt.GetSize(1)']}\n") # should refer look-up table
-            logfile.write(f"# SA#:                     {self.control.tem_status['apt.GetSize(4)']}\n") # should refer look-up table
-            # LENS
-            logfile.write(f"# brightness:              {self.control.tem_status['lens.GetCL3']}\n")
-            logfile.write(f"# diff_focus:              {self.control.tem_status['lens.GetIL1']}\n")
-            logfile.write(f"# IL_focus:                {self.control.tem_status['defl.GetILs']}\n")
-            logfile.write(f"# PL_align:                {self.control.tem_status['defl.GetPLA']}\n")
-            # STAGE
-            logfile.write(f"# stage_position:          {self.control.tem_status['stage.GetPos']}\n")
-        # logfile.write(f"#Images: {n_imgs}\n")
-        else:
-            logging.warning(self.log_suffix + '.log will not be saved without permission!!')
+        self.phi_dot = stage_rates[phi_dot_idx]
+        self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
+
+        # if os.access(os.path.dirname(self.log_suffix), os.W_OK):
+        print("\n\n\n---------OPEN LOG-----------------\n\n\n")
+        # self.control.send_to_tem("#more")
+        logfile = open(self.log_suffix + '.log', 'w')
+        logfile.write("# TEM Record\n")
+        logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")
+        logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
+        logfile.write(f"# Final Angle (scheduled): {phi1:6.3f} deg\n")
+        logfile.write(f"# angular Speed:           {self.phi_dot:6.2f} deg/s\n")
+        logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n")
+        logfile.write(f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n")
+        # BEAM
+        logfile.write(f"# spot_size:               {self.client.GetSpotSize()}\n")
+        logfile.write(f"# alpha_angle:             {self.client.GetAlpha()}\n")
+    #     # APERTURE
+        logfile.write(f"# CL#:                     {self.client.GetAperatureSize(1)}\n") # should refer look-up table
+        logfile.write(f"# SA#:                     {self.client.GetAperatureSize(4)}\n") # should refer look-up table
+    #     # LENS
+        logfile.write(f"# brightness:              {self.client.GetCL3()}\n")
+        logfile.write(f"# diff_focus:              {self.client.GetIL1()}\n")
+        logfile.write(f"# IL_focus:                {self.client.GetILs()}\n")
+        logfile.write(f"# PL_align:                {self.client.GetPLA()}\n")
+    #     # STAGE
+        logfile.write(f"# stage_position:          {self.client.GetStagePosition()}\n")
         
-        # self.tem_command("stage", "Setf1OverRateTxNum", [phi_dot_idx])
-        # time.sleep(1)
-        self.tem_command("defl", "SetBeamBlank", [0]) # beam blanking OFF
+
+        self.client.Setf1OverRateTxNum(phi_dot_idx)
+        time.sleep(1) 
+        self.client.SetBeamBlank(0)
         time.sleep(0.5)
-        self.tem_command("stage", "SetTiltXAngle", [phi1])
-        time.sleep(self.control.triggerdelay_ms / 1000)
-        if self.writer: self.writer() #logging.info('Writer Pushed')
+
+        self.client.SetTiltXAngle(phi1, True, False)
+
+        #Wait enough to make the rotation start (can also use other logic)
+        time.sleep(0.5) 
+
+        #If enabled we start writing files 
+        if self.writer: 
+            self.tem_action.file_operations.start_H5_recording.emit() 
         
-        time.sleep(log_duration)
         t0 = time.time()
-        self.rotations_angles = []
-        stage_moving = False
-        while self.control.tem_status['stage.GetPos'][3] < phi1 and self.tem_action.tem_tasks.rotation_button.started:
-            time.sleep(0.5)
-            self.estimated_duration_s -= 0.5
-            self.tem_info()
-            logging.info(f"{self.control.tem_update_times['stage.GetPos'][0] - t0:20.6f}  {self.control.tem_status['stage.GetPos'][3]:8.3f} deg")
-            if os.access(os.path.dirname(self.log_suffix), os.W_OK):
-                logfile.write(f"{self.control.tem_update_times['stage.GetPos'][0] - t0:20.6f}  {self.control.tem_status['stage.GetPos'][3]:8.3f} deg\n")
-            if int(self.control.tem_status['stage.GetStatus'][3]) == 1: stage_moving=True
-            if int(self.control.tem_status['stage.GetStatus'][3]) != 1 and stage_moving:
-                logging.info('Rotation was end or interrupted.')
-                if self.writer and self.tem_action.file_operations.streamWriterButton.started:
-                    self.writer()
-                break
-            if self.estimated_duration_s < 0:
-                logging.info('Duration timeout')
-                if self.writer and self.tem_action.file_operations.streamWriterButton.started:
-                    self.writer()
-                break
+        while self.client.stage_is_rotating:
+            pos = self.client.GetStagePosition()
+            t = time.time()
+            logfile.write(f"{t - t0:20.6f}  {pos[3]:8.3f} deg\n")
+            time.sleep(0.1) #TODO! Find a better value
+
+        
+        # Stop the file writing
         if self.writer and self.tem_action.file_operations.streamWriterButton.started:
-            self.writer()
-        time.sleep(0.5)
-        self.tem_command("defl", "SetBeamBlank", [1]) # beam blanking ON
-        self.tem_moreinfo() #self.control.send_to_tem("#more")
-        time.sleep(0.5)
-        # logging.info(self.control.tem_status)
-        if int(self.control.tem_status['defl.GetBeamBlank']) == 1:
-            logging.info('Beam is now blanking.')
-        phi1 = float(self.control.tem_status['stage.GetPos'][3])
+            print(" *********************** Stopping the Writer **********************")
+            self.tem_action.file_operations.stop_H5_recording.emit()
+        
+        self.client.SetBeamBlank(1)
+        phi1 = self.client.GetTiltXAngle()
         if os.access(os.path.dirname(self.log_suffix), os.W_OK):            
             logfile.write(f"# Final Angle (measured):   {phi1:.3f} deg\n")
             logfile.close()
         logging.info(f"Stage rotation end at {phi1:.1f} deg.")
+
+        #TODO! Enable auto reset of tilt
         if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
             logging.info("Return the stage tilt to zero.")
+            self.client.SetTiltXAngle(0, True, True)
             time.sleep(1)
-            self.control.send.emit(self.control.with_max_speed("stage.SetTiltXAngle(0)"))
-            # self.tem_command("stage", "Setf1OverRateTxNum", [return_speed_idx]) # requires ED package
-            # self.tem_command("stage", "SetTiltXAngle", [0])
-        logging.info("Recording task stopped.")
+            
+        # Waiting for the rotation to end
+        while self.client.stage_is_rotating:
+            time.sleep(0.1)
         
-        if self.writer and os.path.isfile(self.tem_action.file_operations.formatted_filename):
-            self.tem_action.temtools.addinfo_to_hdf()
-            os.rename(self.log_suffix + '.log', self.tem_action.file_operations.formatted_filename[:-3] + '.log')
-        
-        while True:
-            time.sleep(0.25)
-            # self.control.send_to_tem("#info")
-            if int(self.control.tem_status['stage.GetStatus'][3]) != 1:
-                logging.info('Now stage is ready.')
-                break
+        self.control.send_to_tem("#more")  # Update tem_status map and GUI 
+
+        if self.writer:
+            self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
+            # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+            os.rename(self.log_suffix + '.log', (self.tem_action.file_operations.formatted_filename).with_suffix('.log'))
+            self.cfg.after_write()
+            self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+
 
         self.tem_action.tem_tasks.rotation_button.setText("Rotation")
         self.tem_action.tem_tasks.rotation_button.started = False
         self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+
+        print("------REACHED END OF TASK----------")
 
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?

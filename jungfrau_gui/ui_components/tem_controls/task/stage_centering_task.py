@@ -1,8 +1,11 @@
 import time
-from datetime import datetime as dt
-from ....ui_components.tem_controls.task.task import Task
 import numpy as np
-from ....ui_components.tem_controls.toolbox import config as cfg_jf
+
+from .task import Task
+
+from ..toolbox import config as cfg_jf
+
+from simple_tem import TEMClient
 
 # data measured by TG, using Au-grating grid, on 26 Oct 2023
 mag_on_jf = [[100000,  80000, 60000, 50000, 40000, 30000, 25000, 20000, 15000, 12000, 10000,  8000, 6000, 5000, 4000, 3000, 2500, 2000, 1500], 
@@ -19,6 +22,8 @@ class CenteringTask(Task):
         self.pixels = pixels
         # self.duration_s = 60 # should be replaced with a practical value
         # self.estimateds_duration = self.duration_s + 0.1
+
+        self.client = TEMClient("temserver", 3535)
 
     def rot2d(self, vector, theta):# anti-clockwise
         theta_r = np.radians(theta)
@@ -59,9 +64,11 @@ class CenteringTask(Task):
         if np.abs(self.control.tem_status['stage.GetPos'][3]) > 1: 
             print('Stage tilts! Reset tilting and measure again.')
             return
-        self.tem_command("stage", "SetXRel", [movexy[0]*-1e3]) # nm for SetXRel
+        # self.tem_command("stage", "SetXRel", [movexy[0]*-1e3]) # nm for SetXRel
+        self.client.SetXRel(movexy[0]*-1e3)
         time.sleep(0.5)
-        self.tem_command("stage", "SetYRel", [movexy[1]*-1e3]) # nm for SetYRel
+        # self.tem_command("stage", "SetYRel", [movexy[1]*-1e3]) # nm for SetYRel
+        self.client.SetYRel(movexy[1]*-1e3)
         time.sleep(0.5)
 
         while True:

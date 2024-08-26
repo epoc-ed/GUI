@@ -1,6 +1,5 @@
 import os
 import logging
-import datetime
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
@@ -13,8 +12,7 @@ from .stream_writer import StreamWriter
 from .frame_accumulator_mp import FrameAccumulator
 
 # import reuss
-import tifffile
-import numpy as np
+# import tifffile
 from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
@@ -184,8 +182,6 @@ class FileOperations(QGroupBox):
         path = self.outPath_input.text()
         if os.path.exists(path): 
             self.h5_folder_name = path
-        # else:
-        #     QMessageBox.critical(self, "Wrong Path", "The entered path does not exist!\nPlease create it or use the dedicated button for folder selection...", QMessageBox.Ok)
 
     def open_directory_dialog(self):
         initial_dir = self.h5_folder_name or self.outPath_input.text()
@@ -242,6 +238,7 @@ class FileOperations(QGroupBox):
     
     def update_h5_file_index(self, index):
             self.h5_file_index = index
+            
     def update_measurement_tag(self):
         self.cfg.measurement_tag = self.prefix_input.text()
 

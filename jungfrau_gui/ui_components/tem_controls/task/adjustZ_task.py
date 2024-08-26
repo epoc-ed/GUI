@@ -1,7 +1,9 @@
 import time
 import numpy as np
-from datetime import datetime as dt
-from ....ui_components.tem_controls.task.task import Task
+
+from .task import Task
+
+from simple_tem import TEMClient
 
 # data measured by TG, using Au-grating grid, on 26 Oct 2023
 mag_on_jf = [[100000,  80000, 60000, 50000, 40000, 30000, 25000, 20000, 15000, 12000, 10000,  8000, 6000, 5000, 4000, 3000, 2500, 2000, 1500], 
@@ -16,6 +18,7 @@ class AdjustZ(Task):
     def __init__(self, control_worker):
         super().__init__(control_worker, "AdjustZ")
         self.control = control_worker
+        self.client = TEMClient("temserver", 3535)
         
     def px2um(self, px):
         magnification = int(self.control.tem_status['eos.GetMagValue'][0])
@@ -34,13 +37,13 @@ class AdjustZ(Task):
         magnification = int(self.control.tem_status['eos.GetMagValue'][0])
         print(f'Current Mag: {magnification}')
         phi0 = float(self.control.tem_status['stage.GetPos'][3])
-        ### self.tem_command("stage", "Setf1OverRateTxNum", [tilt_speed]) # requires ED package
+        ### self.client.Setf1OverRateTxNum(tilt_speed)  # requires ED package
         time.sleep(1)
         while itr <= 5 and phi0 <= max_tilt and dummy_step < 40:
             phi0 = float(self.control.tem_status['stage.GetPos'][3])
             x = input('Tilt stage until a central object goes on detector edge. Is it on top [T] or bottom [B] edge? \nOr type \'E\' for exit. [T]/B/E:')
             # x = 'T'
-            self.tem_command("stage", "SetTXRel", [dummy_step])
+            self.client.SetTXRel(dummy_step)
             time.sleep(dummy_step/10)
             ### dummy move for test ###
             while True:
@@ -61,7 +64,7 @@ class AdjustZ(Task):
                 print('Shift value is too large. Please adjust Z manually.')
                 return 0
             else:
-                self.tem_command("stage", "SetZRel", [delta_z * 1e3]) # nm for SetZRel
+                self.client.SetZRel(delta_z * 1e3)
                 time.sleep(delta_z)
             itr += 1
         print('Stage Z is now eucentric height.')

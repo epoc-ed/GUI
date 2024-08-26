@@ -7,7 +7,7 @@ from lmfit import Model, Parameters
 from scipy.interpolate import griddata
 from line_profiler import LineProfiler
 
-from ... import globals
+from .... import globals
 
 # Define a rotated 2D Gaussian function
 def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
