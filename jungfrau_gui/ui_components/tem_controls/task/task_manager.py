@@ -10,7 +10,7 @@ from .task import Task
 from .record_task import RecordTask
 from .beam_focus_task import BeamFitTask
 from .adjustZ_task import AdjustZ
-from .get_teminfo_tesk import GetInfoTask
+from .get_teminfo_task import GetInfoTask
 from .stage_centering_task import CenteringTask
 
 from simple_tem import TEMClient
@@ -104,11 +104,9 @@ class ControlWorker(QObject):
     init = Signal()
     finished_task = Signal()
     finished_record_task = Signal()
-    """ tem_socket_status = Signal(int, str) """
+    # tem_socket_status = Signal(int, str)
     
-    """ ********************* """
     trigger_tem_update = Signal(dict)
-    """ ********************* """
 
     fit_complete = Signal(dict)
     
@@ -322,7 +320,7 @@ class ControlWorker(QObject):
             elif isinstance(self.task, RecordTask):
                 logging.info("Stopping the - Record - task!!!")
                 self.client.StopStage()
-            elif isinstance(self.task, RecordTask):
+            elif isinstance(self.task, GetInfoTask):
                 logging.info("Stopping the - GetInfo - task!!!")
         
         if isinstance(self.task, BeamFitTask):
