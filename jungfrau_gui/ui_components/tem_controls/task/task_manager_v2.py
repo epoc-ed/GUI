@@ -9,7 +9,7 @@ from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt
 
 from .task import Task
 from .record_task import RecordTask
-from .beam_focus_task_v2 import BeamFitTask
+from .beam_focus_task import BeamFitTask
 from .adjustZ_task import AdjustZ
 from .get_teminfo_task import GetInfoTask
 from .stage_centering_task import CenteringTask
@@ -224,7 +224,7 @@ class ControlWorker(QObject):
             if self.task.running:
                 self.stop_task()
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
-        print(f"End angle + {end_angle}")
+        logging.info(f"End angle = {end_angle}")
         ### filename_suffix = self.tem_action.formatted_filename[:-3]
         ### filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
         filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
@@ -240,10 +240,10 @@ class ControlWorker(QObject):
 
     @Slot()
     def start_beam_fit(self):
-        print("Start Beam AutoFocus")
+        logging.info("Start Beam AutoFocus")
         if self.task is not None:
             if self.task.running:
-                logging.warning('task already running')
+                logging.warning('Task already running!!')
                 return           
         ###
         # if os.name == 'nt': # test on Win-Win
@@ -351,11 +351,9 @@ class ControlWorker(QObject):
         if message == "#info":
             results = self.get_state()
             self.trigger_tem_update.emit(results)
-            # self.update_tem_status(results)
         elif message == "#more":
             results = self.get_state_detailed()
             self.trigger_tem_update.emit(results)
-            # self.update_tem_status(results)
         else:
             logging.debug("Just passing through")
             pass
@@ -413,9 +411,9 @@ class ControlWorker(QObject):
             # Return the result or a default value
             return result if result is not None else "No result returned"
         except AttributeError:
-            print(f"Error: The method '{method_name}' does not exist.")
+            logging.error(f"Error: The method '{method_name}' does not exist.")
         except Exception as e:
-            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
 
     @Slot()
     def stop_task(self):
@@ -470,7 +468,7 @@ class ControlWorker(QObject):
         except:
             pass
 
-    """ 
+    """
     @Slot()
     def start_adjustZ(self):
         if self.task.running:
@@ -503,7 +501,7 @@ class ControlWorker(QObject):
         ###
         task = AdjustZ(self)
         self.start_task(task) 
-        """
+    """
     
     """ 
     @Slot()
@@ -518,7 +516,8 @@ class ControlWorker(QObject):
                 #########################
                 self.send_to_tem(x)
                 #########################
-            x = input() """
+            x = input() 
+    """
 
     """   
     @Slot(bool, str)
@@ -541,7 +540,7 @@ class ControlWorker(QObject):
             task = CenteringTask(self, pixels)
             self.start_task(task)
     """
-    
+
     def with_max_speed(self, tem_command):
         speed = self.client.Getf1OverRateTxNum()
         self.client.Setf1OverRateTxNum(0)

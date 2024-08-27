@@ -6,7 +6,7 @@ from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject
 from .toolbox.tool import *
 from .toolbox import config as cfg_jf
 
-from .task.task_manager import *
+from .task.task_manager_v2 import *
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
@@ -76,7 +76,7 @@ class TEMAction(QObject):
         self.tem_tasks.gettem_button.setEnabled(False) # Not functional yet
         self.tem_tasks.gettem_checkbox.setEnabled(False) # Not functional yet
         self.tem_tasks.centering_button.setEnabled(False) # Not functional yet
-        self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
+        self.tem_tasks.beamAutofocus.setEnabled(enables) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
