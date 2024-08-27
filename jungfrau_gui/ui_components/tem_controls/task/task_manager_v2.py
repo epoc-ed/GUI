@@ -120,7 +120,7 @@ class ControlWorker(QObject):
     trigger_shutdown = Signal()
     # trigger_interactive = Signal()
     trigger_getteminfo = Signal(str)
-    trigger_centering = Signal(bool, str)
+    # trigger_centering = Signal(bool, str)
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
@@ -141,7 +141,7 @@ class ControlWorker(QObject):
         self.trigger_shutdown.connect(self.shutdown)
         # self.trigger_interactive.connect(self.interactive)
         self.trigger_getteminfo.connect(self.getteminfo)
-        self.trigger_centering.connect(self.centering)
+        # self.trigger_centering.connect(self.centering)
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.actionFit_Beam.connect(self.start_beam_fit)
@@ -158,6 +158,7 @@ class ControlWorker(QObject):
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
         
+        """ 
         if os.name == 'nt': # test on Win-Win
             self.host = "131.130.27.31"
         else: # practice on Linux-Win
@@ -165,18 +166,29 @@ class ControlWorker(QObject):
         self.port = 12345
         # self.__timeout = timeout
         # self.__buffer = buffer
+        """
 
     @Slot()
     def _init(self):
-        threading.current_thread().setName("ControlThread")      
+        threading.current_thread().setName("ControlThread")  
+        self.send_to_tem("#more") # Update tem_status map and GUI    
         self.sweepingWorkerReady = False
         # self.send.emit("stage.Setf1OverRateTxNum(2)")
         logging.info("Initialized control thread")
 
+    @Slot()
+    def on_task_finished(self):
+        self.finished_task.emit()
+        if isinstance(self.task, RecordTask):
+            self.finished_record_task.emit()
+
     def start_task(self, task):
+        logging.debug("Control is starting a Task...")
         self.last_task = self.task
         self.task = task
-        print(f"task_name is {self.task.task_name}")
+        logging.info(f"Task name is {self.task.task_name}")
+
+        # self.send_to_tem("#more")
 
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
 
@@ -190,9 +202,24 @@ class ControlWorker(QObject):
         if isinstance(self.task, BeamFitTask):
             self.sweepingWorkerReady = True
 
+    @Slot(str)
+    def getteminfo(self, gui=''):
+        logging.info("Start GetInfo")                                                                  
+        if self.task is not None:                                                                      
+            if self.task.running:                                                                      
+                self.stop_task() 
+        # self.send.emit("stage.Setf1OverRateTxNum(2)")
+        command='TEMstatus'
+        if gui=='':
+            x = input(f'Write TEM status on a file? If YES, give a filename or "Y" ({command}_[timecode].log). [N]\n')
+            task = GetInfoTask(self, x)
+        else:
+            task = GetInfoTask(self, gui)
+        self.start_task(task)
+
     @Slot()
     def start_record(self):
-        print("Start record")
+        logging.info("Start Rotation/Record")
         if self.task is not None:
             if self.task.running:
                 self.stop_task()
@@ -202,7 +229,7 @@ class ControlWorker(QObject):
         ### filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
         filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
         ###
-        """ self.client.SetSelector(11) """
+        # self.client.SetSelector(11)
         ###
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
@@ -251,14 +278,14 @@ class ControlWorker(QObject):
             self.thread_fit = QThread()
             self.fitter = GaussianFitter(imageItem=im, roi=roi, il1_value = il1_value)
             self.tem_action.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
-            self.initializeWorker(self.thread_fit, self.fitter, il1_value) # Initialize the worker thread and fitter
+            self.initializeFitter(self.thread_fit, self.fitter, il1_value) # Initialize the worker thread and fitter
             self.thread_fit.start()
             self.fitterWorkerReady = True # Flag to indicate worker is ready
             logging.info("Starting fitting process")
         else:
             logging.warning("Fitting worker has been deleted ! ")
 
-    def initializeWorker(self, thread, worker, il1_value):
+    def initializeFitter(self, thread, worker, il1_value):
         worker.moveToThread(thread)
         logging.info(f"{worker.__str__()} is Ready!")
         thread.started.connect(worker.run)
@@ -282,17 +309,6 @@ class ControlWorker(QObject):
             self.updateWorkerParams(self.tem_action.parent.imageItem, self.tem_action.parent.roi, il1_value)
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
 
-    # def do_fit(self, il1_value):
-    #     if self.task is not None:
-    #         logging.info(dt.now().strftime(" FITTING @ %H:%M:%S.%f")[:-3])
-    #         im = self.tem_action.parent.imageItem.image
-    #         roi = self.tem_action.parent.roi
-    #         fit_result = fit_2d_gaussian_roi_test(im, roi)
-    #         self.fit_complete.emit(fit_result.best_values, il1_value)
-    #         self.process_fit_results(fit_result.best_values, il1_value)
-    #     else:
-    #         logging.warning("Fitting worker has been deleted ! ")
-
     def process_fit_results(self, fit_result, il1_value):
         amplitude = float(fit_result['amplitude'])
         self.task.amp_il1_map[amplitude] = il1_value 
@@ -304,18 +320,20 @@ class ControlWorker(QObject):
 
     @Slot(dict)
     def update_tem_status(self, response):
-        # ***********************************
-        # print(f"Display update values")
-        # for key, value in response.items():
-        #     print(f"{key}: {value}")
-        # ***********************************
-        logging.info("Updating TEM Status")
+        """ 
+        #***************
+        print(f"Display update values")
+        for key, value in response.items():
+            print(f"{key}: {value}")
+        #*************** 
+        # """
+        logging.info("Updating ControlWorker map with last TEM Status")
         try:
-            logging.debug("BEGINNING update loop")
+            logging.debug("START of the update loop")
             for entry in response:
                 self.tem_status[entry] = response[entry]["val"]
                 self.tem_update_times[entry] = (response[entry]["tst_before"], response[entry]["tst_after"])
-            logging.debug("END update loop")
+            logging.debug("END of update loop")
             logging.info(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
             if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
@@ -329,7 +347,7 @@ class ControlWorker(QObject):
 
     @Slot(str) 
     def send_to_tem(self, message):
-        logging.debug(f'sending {message} to TEM...')
+        logging.debug(f'Sending {message} to TEM...')
         if message == "#info":
             results = self.get_state()
             self.trigger_tem_update.emit(results)
@@ -346,13 +364,13 @@ class ControlWorker(QObject):
         results = {}
         for query in INFO_QUERIES:
             tic = time.perf_counter()
-            # print(" ++++++++++++++++ ")
-            # print(f"Command from list {query}")
-            # print(f"Command as executed {full_mapping[query]}")
+            logging.debug(" ++++++++++++++++ ")
+            logging.debug(f"Command from list {query}")
+            logging.debug(f"Command as executed {full_mapping[query]}")
             results[query] = self.execute_command(full_mapping[query])
-            # print(f"results[query] is {results[query]}")
+            logging.debug(f"results[query] is {results[query]}")
             toc = time.perf_counter()
-            print("Getting info for", query, "Took", toc - tic, "seconds")
+            logging.info("Getting info for", query, "Took", toc - tic, "seconds")
 
         return results
     
@@ -400,24 +418,20 @@ class ControlWorker(QObject):
             print(f"Error: {e}")
 
     @Slot()
-    def on_task_finished(self):
-        self.finished_task.emit()
-        if isinstance(self.task, RecordTask):
-            self.finished_record_task.emit()
-
-    @Slot()
     def stop_task(self):
         if self.task:
             if isinstance(self.task, BeamFitTask):
-                print("Stopping the - Sweeping - task !")
+                logging.info("Stopping the - Sweeping - task !")
                 self.trigger_stop_autofocus.emit() # self.set_worker_not_ready()
                 self.stopFitter()
             elif isinstance(self.task, RecordTask):
-                print("Stopping the - Record - task!!!")
+                logging.info("Stopping the - Record - task!!!")
                 self.client.StopStage()
+            elif isinstance(self.task, GetInfoTask):
+                logging.info("Stopping the - GetInfo - task!!!")
         
         if isinstance(self.task, BeamFitTask):
-                print("********************* Emitting 'remove_ellipse' signal from -MAIN- Thread *********************")
+                logging.info("********************* Emitting 'remove_ellipse' signal from -MAIN- Thread *********************")
                 self.remove_ellipse.emit() 
 
         if self.task_thread is not None:
@@ -439,7 +453,6 @@ class ControlWorker(QObject):
 
     @Slot()
     def stop(self):
-        # self.send_to_tem('stage.Stop()')
         self.client.StopStage()
         self.finished_task.emit()
         pass
@@ -507,19 +520,7 @@ class ControlWorker(QObject):
                 #########################
             x = input() """
 
-    @Slot(str)
-    def getteminfo(self, gui=''):
-        # if self.task.running:
-        #     self.stop()
-        # self.send.emit("stage.Setf1OverRateTxNum(2)")
-        command='TEMstatus'
-        if gui=='':
-            x = input(f'Write TEM status on a file? If YES, give a filename or "Y" ({command}_[timecode].log). [N]\n')
-            task = GetInfoTask(self, x)
-        else:
-            task = GetInfoTask(self, gui)
-        self.start_task(task)
-        
+    """   
     @Slot(bool, str)
     def centering(self, gui=False, vector='10, 1'):
         if self.task.running:
@@ -539,6 +540,7 @@ class ControlWorker(QObject):
             pixels = np.array(vector.split(sep=','), dtype=float)
             task = CenteringTask(self, pixels)
             self.start_task(task)
+    """
     
     def with_max_speed(self, tem_command):
         speed = self.client.Getf1OverRateTxNum()
