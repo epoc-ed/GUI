@@ -1,13 +1,13 @@
 import time
-import numpy as np
-from ....ui_components.tem_controls.task.task import Task
-import subprocess
 import logging
+import numpy as np
+
+from .task import Task
 
 class GetInfoTask(Task):
     def __init__(self, control_worker, command=''):
         super().__init__(control_worker, "GetInfo")
-        self.conrol = control_worker
+        self.control = control_worker
         self.command = command
 
     def run(self):
@@ -15,12 +15,10 @@ class GetInfoTask(Task):
             if self.control.tem_status['eos.GetMagValue'][0] != 0:
                 prev_timestamp = self.control.tem_update_times['stage.GetPos'][0]
                 break
-            # self.control.send_to_tem("#more")
             self.tem_moreinfo()
             time.sleep(0.5)
 
         while True:
-            # self.control.send_to_tem("#more")
             self.tem_moreinfo()
             if prev_timestamp != self.control.tem_update_times['stage.GetPos'][0]: break
             time.sleep(0.5)
@@ -56,7 +54,7 @@ class GetInfoTask(Task):
                 filename = 'TEMstatus' + time.strftime("_%Y%m%d-%H%M%S.log", stoptime)
             else:
                 filename = self.command + time.strftime("_%Y%m%d-%H%M%S.log", stoptime)
-            print(f'Status written: {filename}')
+            logging.info(f'Status written: {filename}')
             logfile = open(filename, 'w')
             logfile.write(buffer)
             logfile.close()

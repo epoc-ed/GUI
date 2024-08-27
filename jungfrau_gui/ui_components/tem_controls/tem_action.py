@@ -1,19 +1,17 @@
-from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
-                               QRadioButton, QSpinBox, QPushButton, QCheckBox,
-                               QDoubleSpinBox, QGraphicsEllipseItem, QGraphicsLineItem)
-from PySide6.QtCore import QRectF, QObject
-from PySide6.QtNetwork import QAbstractSocket # QTcpSocket, 
 import pyqtgraph as pg
-# from ui_components.toggle_button import ToggleButton
-from ...ui_components.tem_controls.toolbox.tool import *
-from ...ui_components.tem_controls.toolbox import config as cfg_jf
-from ...ui_components.tem_controls.task.control_worker import *
-# from reuss import config as cfg
-from epoc import ConfigurationClient, auth_token, redis_host
-import json
-import os
 
-from .plot_dialog_bis import PlotDialog
+from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
+from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject
+
+from .toolbox.tool import *
+from .toolbox import config as cfg_jf
+
+from .task.task_manager import *
+
+from epoc import ConfigurationClient, auth_token, redis_host
+
+from .connectivity_inspector import TEM_Connector
+
 
 class TEMAction(QObject):
     """
@@ -30,37 +28,39 @@ class TEMAction(QObject):
         self.tem_tasks = self.tem_controls.tem_tasks
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
-        self.version =  self.parent.version #self.parent.version
+        self.version =  self.parent.version
 
-        # self.tem_tasks.beamAutofocus.setEnabled(True)
+        self.timer_tem_connexion = QTimer()
+        self.timer_tem_connexion.timeout.connect(self.checkTemConnexion)
         
-        # initialization
+        # Initialization
+        cfg = ConfigurationClient(redis_host(), token=auth_token())
+
         self.scale = None
         self.formatted_filename = ''
-        cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.beamcenter = cfg.beam_center
-        self.xds_template_filepath = cfg.XDS_template
-        self.datasaving_filepath = cfg.data_dir.as_posix() #TODO! should we have them as class members at all or just read when needed?
+        self.beamcenter = cfg.beam_center # TODO! read the value when needed!
+        # self.xds_template_filepath = cfg.XDS_template
+        self.datasaving_filepath = cfg.data_dir.as_posix()
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
-        self.control.tem_socket_status.connect(self.on_sockstatus_change)
-        self.control.updated.connect(self.on_tem_update)
         self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
         # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
-
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
-
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(10000)"))
-        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.send.emit("stage.SetXRel(-10000)"))
+
+        # self.control.tem_socket_status.connect(self.on_sockstatus_change)
+        self.control.updated.connect(self.on_tem_update)
+        
+        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.execute_command("SetXRel(10000)"))
+        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.execute_command("SetXRel(-10000)"))
         self.tem_stagectrl.move10degp.clicked.connect(
-                    lambda: self.control.send.emit(self.control.with_max_speed("stage.SetTXRel(10)")))
+                    lambda: self.control.client.SetTXRel(10, run_async=True, max_speed=True))
         self.tem_stagectrl.move10degn.clicked.connect(
-                    lambda: self.control.send.emit(self.control.with_max_speed("stage.SetTXRel(-10)")))
+                    lambda: self.control.client.SetTXRel(-10, run_async=True, max_speed=True))        
         self.tem_stagectrl.move0deg.clicked.connect(
-                    lambda: self.control.send.emit(self.control.with_max_speed("stage.SetTiltXAngle(0)")))
+                    lambda: self.control.client.SetTiltXAngle(0, run_async=True, max_speed=True))
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.datasaving_filepath)
@@ -73,69 +73,89 @@ class TEMAction(QObject):
             i.setEnabled(enables)
         for i in self.tem_stagectrl.movestages.buttons():
             i.setEnabled(enables)
-        self.tem_tasks.gettem_button.setEnabled(enables)
-        self.tem_tasks.gettem_checkbox.setEnabled(enables)
-        self.tem_tasks.centering_button.setEnabled(False) #enables)
-        self.tem_tasks.update_end_angle.setEnabled(enables)
+        self.tem_tasks.gettem_button.setEnabled(False) # Not functional yet
+        self.tem_tasks.gettem_checkbox.setEnabled(False) # Not functional yet
+        self.tem_tasks.centering_button.setEnabled(False) # Not functional yet
+        self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
-        
-        """ self.tem_tasks.beamAutofocus.setEnabled(enables) """
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
             self.control.init.emit()
-            self.tem_tasks.connecttem_button.setText("Disconnect")
+            self.connect_thread = QThread()
+            self.temConnector = TEM_Connector()
+            self.parent.threadWorkerPairs.append((self.connect_thread, self.temConnector))
+            self.initializeWorker(self.connect_thread, self.temConnector)
+            self.connect_thread.start()
+            self.connectorWorkerReady = True
+            logging.info("Starting tem-connecting process")
             self.tem_tasks.connecttem_button.started = True
-            self.control.trigger_getteminfo.emit('N')
+            self.timer_tem_connexion.start(3000)
         else:
-            self.control.trigger_shutdown.emit()
-            self.tem_tasks.connecttem_button.setText("Connect to TEM")
+            self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            self.tem_tasks.connecttem_button.setText("Check TEM Connection")
             self.tem_tasks.connecttem_button.started = False
-        self.enabling(self.tem_tasks.connecttem_button.started)
-        # self.enabling(True)
+            self.timer_tem_connexion.stop()
+            self.parent.stopWorker(self.connect_thread, self.temConnector)
+
+    def initializeWorker(self, thread, worker):
+        worker.moveToThread(thread)
+        logging.info(f"{worker.__str__()} is Ready!")
+        thread.started.connect(worker.run)
+        worker.finished.connect(self.updateTemControls)
+        worker.finished.connect(self.getConnectorReady)
+
+    def getConnectorReady(self):
+        self.connectorWorkerReady = True
+
+    def checkTemConnexion(self):
+        if self.connectorWorkerReady:
+            self.connectorWorkerReady = False
+            QMetaObject.invokeMethod(self.temConnector, "run", Qt.QueuedConnection)
+
+    def updateTemControls(self, tem_connected):
+        if tem_connected:
+            self.tem_tasks.connecttem_button.setStyleSheet('background-color: green; color: white;')
+            self.tem_tasks.connecttem_button.setText("Connection OK")
+            # self.control.trigger_getteminfo.emit('N')
+        else:
+            self.tem_tasks.connecttem_button.setStyleSheet('background-color: red; color: white;')
+            self.tem_tasks.connecttem_button.setText("Disconnected")
+        self.enabling(tem_connected)
         
     def callGetInfoTask(self):
         if self.tem_tasks.gettem_checkbox.isChecked():
-            if not os.access(self.file_operations.outPath_input.text(), os.W_OK):
-                self.tem_tasks.gettem_checkbox.setChecked(False)
-                logging.error(f'Writing in {self.file_operations.outPath_input.text()} is not permitted!')
-            else:
-                try:
-                    self.formatted_filename = self.file_operations.formatted_filename
-                except NameError:
-                    logging.error('Filename is not defined.')
-                    self.tem_tasks.gettem_checkbox.setChecked(False)
-        if self.tem_tasks.gettem_checkbox.isChecked():
             self.control.trigger_getteminfo.emit('Y')
-            if os.path.isfile(self.formatted_filename):
-                logging.info(f'Trying to add TEMinfor to {self.formatted_filename}')
-                self.temtools.addinfo_to_hdf()
+            # if os.path.isfile(self.formatted_filename):
+            #     logging.info(f'Trying to add TEM information to {self.formatted_filename}')
+            #     self.temtools.addinfo_to_hdf()
         else:
             self.control.trigger_getteminfo.emit('N')
-
+    
     # @Slot(int, str)
-    def on_sockstatus_change(self, state, error_msg):
-        if state == QAbstractSocket.SocketState.ConnectedState:
-            message, color = "Connected!", "green"
-            self.tem_tasks.connecttem_button.started = True
-        elif state == QAbstractSocket.SocketState.ConnectingState:
-            message, color = "Connecting", "orange"
-            self.tem_tasks.connecttem_button.started = True
-        elif error_msg:
-            message = "Error (" + error_msg + ")"
-            color = "red"
-            self.tem_tasks.connecttem_button.started = False
-        else:
-            message, color = "Disconnected", "red"
-            self.tem_tasks.connecttem_button.started = False
-        self.tem_tasks.connecttem_button.setText(message)
-        self.enabling(self.tem_tasks.connecttem_button.started)
-        print(message, color) # '*can be ignored'
-        # return message, color
+    # def on_sockstatus_change(self, state, error_msg):
+    #     if state == QAbstractSocket.SocketState.ConnectedState:
+    #         message, color = "Connected!", "green"
+    #         self.tem_tasks.connecttem_button.started = True
+    #     elif state == QAbstractSocket.SocketState.ConnectingState:
+    #         message, color = "Connecting", "orange"
+    #         self.tem_tasks.connecttem_button.started = True
+    #     elif error_msg:
+    #         message = "Error (" + error_msg + ")"
+    #         color = "red"
+    #         self.tem_tasks.connecttem_button.started = False
+    #     else:
+    #         message, color = "Disconnected", "red"
+    #         self.tem_tasks.connecttem_button.started = False
+    #     self.tem_tasks.connecttem_button.setText(message)
+    #     self.enabling(self.tem_tasks.connecttem_button.started)
+    #     print(message, color) # '*can be ignored'
+    #     ## return message, color
 
     def on_tem_update(self):
+        logging.info("Updating GUI with last TEM Status")
         # self.beamcenter = float(fit_result_best_values['xo']), float(fit_result_best_values['yo'])
         angle_x = self.control.tem_status["stage.GetPos"][3]
         self.tem_tasks.input_start_angle.setValue(angle_x)
@@ -149,13 +169,13 @@ class TEMAction(QObject):
             self.tem_detector.input_det_distance.setText(detector_distance)
             self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
 
-        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
-        self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
-        if not self.tem_tasks.rotation_button.started:
-            if self.tem_tasks.withwriter_checkbox.isChecked():
-                self.tem_tasks.rotation_button.setText("Rotation/Record")
-            else:
-                self.tem_tasks.rotation_button.setText("Rotation")
+        # rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
+        # self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        # if not self.tem_tasks.rotation_button.started:
+        #     if self.tem_tasks.withwriter_checkbox.isChecked():
+        #         self.tem_tasks.rotation_button.setText("Rotation/Record")
+        #     else:
+        #         self.tem_tasks.rotation_button.setText("Rotation")
 
     def drawscale_overlay(self, xo=0, yo=0, l_draw=1, pixel=0.075):
         if self.scale != None:
@@ -175,16 +195,18 @@ class TEMAction(QObject):
             self.parent.plot.addItem(self.scale)        
             
     def toggle_rb_speeds(self):
-        if self.tem_tasks.connecttem_button.started:
-            self.control.send.emit("stage.Setf1OverRateTxNum("+ str(self.tem_stagectrl.rb_speeds.checkedId()) +")")
+        # if self.tem_tasks.connecttem_button.started:
+            # self.control.send.emit("stage.Setf1OverRateTxNum("+ str(self.tem_stagectrl.rb_speeds.checkedId()) +")")            
+        self.control.execute_command("Setf1OverRateTxNum("+ str(self.tem_stagectrl.rb_speeds.checkedId()) +")")
 
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:
+            self.control.init.emit()
+            self.control.trigger_record.emit()
             self.tem_tasks.rotation_button.setText("Stop")
             self.tem_tasks.rotation_button.started = True
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(False)
-            self.control.trigger_record.emit()
         else:
             self.tem_tasks.rotation_button.setText("Rotation")
             self.tem_tasks.rotation_button.started = False
@@ -192,7 +214,7 @@ class TEMAction(QObject):
                 self.file_operations.toggle_hdf5Writer()
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(True)
-            self.control.stop()
+            self.control.stop_task()
             
     # def toggle_centering(self):
     #     if not self.centering_button.started:
@@ -216,7 +238,5 @@ class TEMAction(QObject):
             self.tem_tasks.beamAutofocus.started = False
             # Close Pop-up Window
             if self.tem_tasks.parent.plotDialog != None:
-                self.tem_tasks.parent.plotDialog.close()
+                self.tem_tasks.parent.plotDialog.close_window()
             self.control.stop_task()
-            # self.control.stop()
-

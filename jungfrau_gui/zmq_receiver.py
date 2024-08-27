@@ -1,4 +1,3 @@
-import sys
 import zmq
 import time
 import logging

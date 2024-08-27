@@ -1,7 +1,7 @@
 import math
-import json
 import logging
 import numpy as np
+from ... import globals
 import pyqtgraph as pg
 from datetime import datetime
 from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
@@ -11,18 +11,12 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QCheckBox, QGraphicsEllipseItem,
                                 QGraphicsRectItem)
 
-# from .plot_dialog import PlotDialog
-from .plot_dialog_bis import PlotDialog
+from .toolbox.plot_dialog import PlotDialog
 from .gaussian_fitter import GaussianFitter
-# from .gaussian_fitter_mp import GaussianFitter
 
-from ... import globals
 from ...ui_components.toggle_button import ToggleButton
-
-from ...ui_components.tem_controls.ui_temspecific import TEMStageCtrl, TEMTasks
-
-# from ...ui_components.tem_controls.tem_action import TEMAction
-from ...ui_components.tem_controls.tem_action_test import TEMAction
+from .ui_tem_specific import TEMStageCtrl, TEMTasks
+from .tem_action import TEMAction
 
 class TemControls(QGroupBox):
     def __init__(self, parent):
@@ -77,7 +71,6 @@ class TemControls(QGroupBox):
             self.tem_tasks = TEMTasks(self)
             self.tem_stagectrl = TEMStageCtrl()
             tem_section.addWidget(self.tem_tasks)
-            # self.tem_tasks.exit_button.clicked.connect(self.do_exit)
             self.tem_action = TEMAction(self, self.parent)
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
@@ -110,49 +103,8 @@ class TemControls(QGroupBox):
 
             tem_section.addLayout(BeamFocus_layout)
             
-        
         tem_section.addStretch()
         self.setLayout(tem_section)
-
-    """ *********************************************** """
-    """ Multiprocessing Version of the gaussian fitting """
-    """ *********************************************** """
-    """ def toggle_gaussianFit(self):
-        if not self.btnBeamFocus.started:
-            if self.fitter is None:
-                self.fitter = GaussianFitter()
-            logging.debug(f"0.Fitter is Ready? {globals.fitterWorkerReady.value}")
-            self.fitter.updateParams(self.parent.imageItem, self.parent.roi)
-            logging.debug(f"1/2.Fitter should be Ready! Is it? --> {globals.fitterWorkerReady.value}")
-            self.fitter.finished.connect(self.updateFitParams) 
-            self.fitter.start()
-            logging.debug(f"1.Fitter is Ready? {globals.fitterWorkerReady.value}")
-            self.btnBeamFocus.setText("Stop Fitting")
-            self.btnBeamFocus.started = True
-            # Pop-up Window
-            if self.checkbox.isChecked():
-                self.showPlotDialog()   
-            # Timer started
-            self.parent.timer_fit.start(10)
-        else:
-            self.btnBeamFocus.setText("Beam Gaussian Fit")
-            self.btnBeamFocus.started = False
-            self.parent.timer_fit.stop()  
-            # Close Pop-up Window
-            if self.plotDialog != None:
-                self.plotDialog.close()
-            self.fitter.finished.disconnect()
-            self.fitter.stop()
-            self.fitter = None
-            globals.fitterWorkerReady.value = False
-            self.removeAxes()
-
-    def getFitParams(self):
-        self.fitter.check_output_queue()
-        logging.debug(f"2.Fitter is Ready? {globals.fitterWorkerReady.value}")
-        if not globals.fitterWorkerReady.value:
-            self.fitter.updateParams(self.parent.imageItem, self.parent.roi)  
-    """
 
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
@@ -212,7 +164,6 @@ class TemControls(QGroupBox):
     """ ***************************************** """
     """ **** END OF THREADING VERSION METHODS *** """        
     """ ***************************************** """
-
 
     def showPlotDialog(self):
         self.plotDialog = PlotDialog(self)

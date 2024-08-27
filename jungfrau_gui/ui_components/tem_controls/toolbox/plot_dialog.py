@@ -4,7 +4,7 @@ from collections import deque
 from PySide6.QtWidgets import QPushButton, QVBoxLayout, QDialog
 from PySide6.QtCore import QTime
 
-from ...ui_components import palette
+from ... import palette
 
 
 class PlotDialog(QDialog):

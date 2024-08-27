@@ -4,7 +4,7 @@ import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot
 # from line_profiler import LineProfiler
 
-from .fit_beam_intensity import fit_2d_gaussian_roi_test
+from .toolbox.fit_beam_intensity import fit_2d_gaussian_roi_test
 
 class GaussianFitter(QObject):
     finished = Signal(object, object)

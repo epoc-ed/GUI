@@ -1,6 +1,5 @@
 import os
 import logging
-import datetime
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
@@ -13,8 +12,7 @@ from .stream_writer import StreamWriter
 from .frame_accumulator_mp import FrameAccumulator
 
 # import reuss
-import tifffile
-import numpy as np
+# import tifffile
 from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
@@ -29,6 +27,7 @@ def save_captures(fname, data):
     tifffile.imwrite(fname, data.astype(np.int32)) """
 
 class FileOperations(QGroupBox):
+    trigger_update_h5_index_box = Signal()
     start_H5_recording = Signal()
     stop_H5_recording = Signal()
     
@@ -36,6 +35,7 @@ class FileOperations(QGroupBox):
         super().__init__("File Operations")
         self.parent = parent
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.trigger_update_h5_index_box.connect(self.update_index_box)
         self.initUI()
         
 
@@ -182,8 +182,6 @@ class FileOperations(QGroupBox):
         path = self.outPath_input.text()
         if os.path.exists(path): 
             self.h5_folder_name = path
-        # else:
-        #     QMessageBox.critical(self, "Wrong Path", "The entered path does not exist!\nPlease create it or use the dedicated button for folder selection...", QMessageBox.Ok)
 
     def open_directory_dialog(self):
         initial_dir = self.h5_folder_name or self.outPath_input.text()
@@ -231,13 +229,18 @@ class FileOperations(QGroupBox):
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
             self.streamWriter.stop()
-            self.index_box.setValue( self.cfg.file_id )
+            if not self.parent.tem_controls.tem_tasks.rotation_button.started:
+                self.cfg.file_id += 1 
+                self.update_index_box()
             # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             # logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
     
     def update_h5_file_index(self, index):
             self.h5_file_index = index
+            
     def update_measurement_tag(self):
         self.cfg.measurement_tag = self.prefix_input.text()
-            
+
+    def update_index_box(self):
+        self.index_box.setValue(self.cfg.file_id)

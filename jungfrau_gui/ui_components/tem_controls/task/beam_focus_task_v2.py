@@ -1,13 +1,8 @@
 import time
-import json
-import math
 import logging
-import threading
-import numpy as np
-import pyqtgraph as pg
 from datetime import datetime
-from PySide6.QtCore import Slot
-from ....ui_components.tem_controls.task.task_test import Task
+
+from .task import Task
 
 from simple_tem import TEMClient
 
@@ -21,7 +16,7 @@ class BeamFitTask(Task):
         self.estimateds_duration = self.duration_s + 0.1
         self.control = control_worker
         self.is_first_beamfit = True        
-        self.client = TEMClient("localhost", 3535)
+        self.client = TEMClient("temserver", 3535)
 
 
         # self.control.fit_complete.connect(self.process_fit_results)

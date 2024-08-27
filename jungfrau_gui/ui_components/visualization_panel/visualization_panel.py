@@ -4,18 +4,17 @@ import numpy as np
 from boost_histogram import Histogram
 from boost_histogram.axis import Regular
 from PySide6.QtCore import Qt, QThread, QMetaObject
-from PySide6.QtWidgets import (QWidget, QGroupBox, QVBoxLayout, QHBoxLayout,
-                                QLabel, QPushButton, QFrame, QSpinBox,
+from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout,
+                                QLabel, QPushButton, QSpinBox,
                                 QGridLayout, QSizePolicy)
+
+from epoc import ConfigurationClient, auth_token, redis_host
 
 from .reader import Reader
 
-# from reuss import config as cfg
-from epoc import ConfigurationClient, auth_token, redis_host
-
-from ...ui_components.toggle_button import ToggleButton
 from ... import globals
-from ...ui_components.tem_controls.ui_temspecific import TEMDetector
+from ...ui_components.toggle_button import ToggleButton
+from ..tem_controls.ui_tem_specific import TEMDetector
 from ...ui_components.utils import create_horizontal_line_with_margin
 
 class VisualizationPanel(QGroupBox):
@@ -62,7 +61,6 @@ class VisualizationPanel(QGroupBox):
         )
         self.stream_view_button.setMaximumHeight(50)
         self.stream_view_button.clicked.connect(self.toggle_viewStream)
-        """ contrast_box = QVBoxLayout() """
         self.autoContrastBtn = ToggleButton('Apply Auto Contrast', self)
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
         self.autoContrastBtn.clicked.connect(self.toggle_autoContrast)

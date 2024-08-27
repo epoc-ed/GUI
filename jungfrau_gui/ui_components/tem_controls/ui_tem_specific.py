@@ -1,9 +1,7 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
-                               QRadioButton, QSpinBox, QPushButton, QCheckBox,
-                               QDoubleSpinBox, QGraphicsEllipseItem, QGraphicsLineItem,
-                               QGraphicsRectItem, QSizePolicy)
-from ...ui_components.toggle_button import ToggleButton
-from ...ui_components.utils import create_horizontal_line_with_margin
+                               QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy)
+from ..toggle_button import ToggleButton
+from ..utils import create_horizontal_line_with_margin
 
 class TEMDetector(QGroupBox):
     def __init__(self):
@@ -73,16 +71,11 @@ class TEMStageCtrl(QGroupBox):
 
         for i in self.rb_speeds.buttons():
             self.hbox_rot.addWidget(i, 1)
-            # i.setEnabled(enables)
-            """ ************** """
-            i.setEnabled(True)
-            """ ************** """
+            i.setEnabled(False)
+
         for i in self.movestages.buttons():
             self.hbox_move.addWidget(i, 1)
-            # i.setEnabled(enables)
-            """ ************** """
-            i.setEnabled(True)
-            """ ************** """
+            i.setEnabled(False)
         
         self.setLayout(stage_ctrl_section)
 
@@ -98,14 +91,12 @@ class TEMTasks(QGroupBox):
         CTN_group = QVBoxLayout()
         CTN_section = QHBoxLayout()
         CTN_label = QLabel("Connection", self)
-        self.connecttem_button = ToggleButton('Connect to TEM', self)
-        self.connecttem_button.setEnabled(False)
+        self.connecttem_button = ToggleButton('Check TEM Connection', self)
+        self.connecttem_button.setEnabled(True)
         self.gettem_button = QPushButton("Get TEM status", self)
         self.gettem_checkbox = QCheckBox("recording", self)
-        """ #################### """
-        # self.gettem_button.setEnabled(True)
-        # self.gettem_checkbox.setChecked(True) #False
-        """ #################### """
+        self.gettem_button.setEnabled(False)
+        self.gettem_checkbox.setChecked(False) #False
         self.centering_button = ToggleButton("Click-on-Centering", self)
         self.centering_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.centering_button.setEnabled(False) # not secured function
@@ -114,6 +105,7 @@ class TEMTasks(QGroupBox):
         BEAM_label = QLabel("Beam Sweep & Focus", self)
 
         self.beamAutofocus = ToggleButton('Beam Autofocus', self)
+        self.beamAutofocus.setEnabled(False)
         self.popup_checkbox = self.parent.checkbox
         self.plotDialog = self.parent.plotDialog
 
@@ -155,8 +147,6 @@ class TEMTasks(QGroupBox):
         END_layout.addWidget(end_angle)
         END_layout.addWidget(self.update_end_angle)
 
-        """ self.exit_button = QPushButton("Exit", self) """
-
         CTN_group.addWidget(CTN_label)
         CTN_section.addWidget(self.connecttem_button)
         CTN_section.addWidget(self.gettem_button)
@@ -171,9 +161,8 @@ class TEMTasks(QGroupBox):
         BEAM_group.addWidget(self.beamAutofocus)
         BEAM_group.addWidget(self.popup_checkbox)
         
-        
         BeamFocus_layout = QVBoxLayout()
-        """ REMOVE ? """
+
         gauss_H_layout = QHBoxLayout()
         gauss_H_layout.addWidget(self.parent.label_gauss_height)  
         gauss_H_layout.addWidget(self.parent.gauss_height_spBx)
@@ -190,7 +179,7 @@ class TEMTasks(QGroupBox):
         rot_angle_layout.addWidget(self.parent.label_rot_angle)  
         rot_angle_layout.addWidget(self.parent.angle_spBx)         
         BeamFocus_layout.addLayout(rot_angle_layout)
-        """ ********** """
+        
         BEAM_group.addLayout(BeamFocus_layout)
 
         tasks_section.addLayout(BEAM_group)
@@ -206,9 +195,5 @@ class TEMTasks(QGroupBox):
         ROT_section_2.addLayout(END_layout)
         ROT_group.addLayout(ROT_section_2)
         tasks_section.addLayout(ROT_group)
-
-        # tasks_section.addWidget(self.input_start_angle)
-        # tasks_section.addWidget(self.update_end_angle)
-        """ tasks_section.addWidget(self.exit_button) """
         
         self.setLayout(tasks_section)
