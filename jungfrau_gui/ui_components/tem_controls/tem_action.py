@@ -6,7 +6,7 @@ from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject
 from .toolbox.tool import *
 from .toolbox import config as cfg_jf
 
-from .task.task_manager_v2 import *
+from .task.task_manager import *
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
