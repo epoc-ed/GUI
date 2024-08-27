@@ -93,8 +93,7 @@ full_mapping = create_full_mapping(INFO_QUERIES, MORE_QUERIES, INFO_QUERIES_CLIE
 
 class ControlWorker(QObject):
     """
-    The 'ControlWorker' object controls communication with the TEM over a TCP channel and redirects requests to the GUI.
-    It also coordinates the execution of tasks.
+    The 'ControlWorker' object coordinates the execution of tasks and redirects requests to the GUI.
     """
     connected = Signal()
     finished = Signal()
@@ -172,6 +171,12 @@ class ControlWorker(QObject):
         # self.send.emit("stage.Setf1OverRateTxNum(2)")
         logging.info("Initialized control thread")
 
+    @Slot()
+    def on_task_finished(self):
+        self.finished_task.emit()
+        if isinstance(self.task, RecordTask):
+            self.finished_record_task.emit()
+
     def start_task(self, task):
         logging.debug("Control is starting a Task...")
         self.last_task = self.task
@@ -186,17 +191,72 @@ class ControlWorker(QObject):
         self.finished_record_task.connect(self.stop_task)
 
         self.task.moveToThread(self.task_thread)
+        self.task_thread.started.connect(self.task.start.emit)
         self.task_thread.start()
+
         if isinstance(self.task, BeamFitTask):
             self.sweepingWorkerReady = True
-        self.task_thread.started.connect(self.task.start.emit)
 
+    @Slot(str)
+    def getteminfo(self, gui=''):
+        logging.info("Start GetInfo")
+        if self.task is not None:
+            if self.task.running:
+                self.stop_task()
+        # self.send.emit("stage.Setf1OverRateTxNum(2)")
+        command='TEMstatus'
+        if gui=='':
+            x = input(f'Write TEM status on a file? If YES, give a filename or "Y" ({command}_[timecode].log). [N]\n')
+            task = GetInfoTask(self, x)
+        else:
+            task = GetInfoTask(self, gui)
+        self.start_task(task)
 
     @Slot()
-    def on_task_finished(self):
-        self.finished_task.emit()
-        if isinstance(self.task, RecordTask):
-            self.finished_record_task.emit()
+    def start_record(self):
+        logging.info("Start Rotation/Record")
+        if self.task is not None:
+            if self.task.running:
+                self.stop_task()
+        end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
+        logging.info(f"End angle = {end_angle}")
+        ### filename_suffix = self.tem_action.formatted_filename[:-3]
+        ### filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
+        filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
+        ###
+        # self.client.SetSelector(11)
+        ###
+        if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
+            task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
+        else:
+            task = RecordTask(self, end_angle, filename_suffix)
+        self.start_task(task)
+
+    @Slot()
+    def start_beam_fit(self):
+        logging.info("Start AutoFocus")
+        if self.task is not None:
+            if self.task.running:
+                logging.warning('task already running')
+                return           
+        ###
+        # if os.name == 'nt': # test on Win-Win
+        #     while True:
+        #         self.send_to_tem('#more')
+        #         time.sleep(0.12)
+        #         if self.tem_status['eos.GetFunctionMode'][0] != -1: break
+        ###
+        if self.tem_status['eos.GetFunctionMode'][1] != 4:
+            logging.info('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
+            
+            self.client.SelectFunctionMode(4)
+
+        task = BeamFitTask(self)
+        self.start_task(task)
+
+    def set_worker_not_ready(self):
+        logging.debug("Sweeping worker ready --> FALSE")
+        self.sweepingWorkerReady = False
 
     @Slot(dict)
     def update_tem_status(self, response):
@@ -221,10 +281,7 @@ class ControlWorker(QObject):
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
-
-            logging.debug("Before emission")
             self.updated.emit()
-            logging.debug("After emission")
         except Exception as e:
             logging.error(f"Error: {e}")
 
@@ -299,19 +356,6 @@ class ControlWorker(QObject):
             logging.error(f"Error: {e}")
 
     @Slot()
-    def shutdown(self):
-        logging.info("Shutting down control")
-        try:
-            # self.send_to_tem("#quit")
-            self.client.exit()
-            time.sleep(0.12)
-            # self.tem_socket.close()
-            logging.info("disconnected")
-            self.task_thread.quit()
-        except:
-            pass
-
-    @Slot()
     def stop_task(self):
         if self.task:
             if isinstance(self.task, BeamFitTask):
@@ -340,67 +384,19 @@ class ControlWorker(QObject):
         self.client.StopStage()
         self.finished_task.emit()
         pass
-    
-    @Slot()
-    def start_record(self):
-        logging.info("Start Rotation/Record")
-        if self.task is not None:
-            if self.task.running:
-                self.stop_task()
-        end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
-        logging.info(f"End angle = {end_angle}")
-        ### filename_suffix = self.tem_action.formatted_filename[:-3]
-        ### filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
-        filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
-        ###
-        # self.client.SetSelector(11)
-        ###
-        if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
-            task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
-        else:
-            task = RecordTask(self, end_angle, filename_suffix)
-        self.start_task(task)
 
     @Slot()
-    def start_beam_fit(self):
-        logging.info("Start AutoFocus")
-        if self.task is not None:
-            if self.task.running:
-                logging.warning('task already running')
-                return           
-        ###
-        if os.name == 'nt': # test on Win-Win
-            while True:
-                self.send_to_tem('#more')
-                time.sleep(0.12)
-                if self.tem_status['eos.GetFunctionMode'][0] != -1: break
-        ###
-        if self.tem_status['eos.GetFunctionMode'][1] != 4:
-            logging.info('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
-            
-            self.client.SelectFunctionMode(4)
-
-        task = BeamFitTask(self)
-        self.start_task(task)
-
-    def set_worker_not_ready(self):
-        logging.debug("Sweeping worker ready --> FALSE")
-        self.sweepingWorkerReady = False
-
-    @Slot(str)
-    def getteminfo(self, gui=''):
-        logging.info("Start GetInfo")
-        if self.task is not None:
-            if self.task.running:
-                self.stop_task()
-        # self.send.emit("stage.Setf1OverRateTxNum(2)")
-        command='TEMstatus'
-        if gui=='':
-            x = input(f'Write TEM status on a file? If YES, give a filename or "Y" ({command}_[timecode].log). [N]\n')
-            task = GetInfoTask(self, x)
-        else:
-            task = GetInfoTask(self, gui)
-        self.start_task(task)
+    def shutdown(self):
+        logging.info("Shutting down control")
+        try:
+            # self.send_to_tem("#quit")
+            self.client.exit()
+            time.sleep(0.12)
+            # self.tem_socket.close()
+            logging.info("disconnected")
+            self.task_thread.quit()
+        except:
+            pass
 
     """ 
     @Slot()
