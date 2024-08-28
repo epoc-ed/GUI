@@ -71,6 +71,7 @@ class TEMAction(QObject):
         self.tem_detector.scale_checkbox.setEnabled(enables)
         for i in self.tem_stagectrl.rb_speeds.buttons():
             i.setEnabled(enables)
+        self.toggle_rb_speeds()
         for i in self.tem_stagectrl.movestages.buttons():
             i.setEnabled(enables)
         self.tem_tasks.gettem_button.setEnabled(False) # Not functional yet
@@ -169,8 +170,8 @@ class TEMAction(QObject):
             self.tem_detector.input_det_distance.setText(detector_distance)
             self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
 
-        # rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
-        # self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
+        self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         # if not self.tem_tasks.rotation_button.started:
         #     if self.tem_tasks.withwriter_checkbox.isChecked():
         #         self.tem_tasks.rotation_button.setText("Rotation/Record")
