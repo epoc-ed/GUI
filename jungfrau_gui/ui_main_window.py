@@ -7,12 +7,27 @@ from pyqtgraph.dockarea import Dock
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget,
                                 QHBoxLayout, QPushButton,
                                 QMessageBox, QTabWidget)
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QObject, QEvent, QTimer
 from .ui_components.visualization_panel.visualization_panel import VisualizationPanel
 from .ui_components.tem_controls.tem_controls import TemControls
 from .ui_components.file_operations.file_operations import FileOperations
 from .ui_components.utils import create_gaussian
 
+class EventFilter(QObject):
+    def __init__(self, histogram, parent=None):
+        super().__init__(parent)
+        self.histogram = histogram
+
+    def eventFilter(self, obj, event):
+        logging.debug(f"Event detected: {event.type()}")  # More general debug statement
+        if event.type() == QEvent.HoverEnter:
+            logging.debug("Hover Enter Detected")
+            self.histogram.show()
+        elif event.type() == QEvent.HoverLeave:
+            logging.debug("Hover Leave Detected")
+            self.histogram.hide()
+        return super().eventFilter(obj, event)
+    
 class ApplicationWindow(QMainWindow):
     def __init__(self, receiver, app):
         super().__init__()
@@ -34,19 +49,26 @@ class ApplicationWindow(QMainWindow):
         pg.setConfigOptions(imageAxisOrder='row-major')
         pg.mkQApp()
         
-        # Create image area
-        # self.create_dock_area()
         self.dock = Dock("Image", size=(1000, 350))
         self.glWidget = pg.GraphicsLayoutWidget(self)
         self.plot = self.glWidget.addPlot(title="")
         self.dock.addWidget(self.glWidget)
+        
+        self.histogram = pg.HistogramLUTItem()
         self.imageItem = pg.ImageItem()
         self.plot.addItem(self.imageItem)
-        self.histogram = pg.HistogramLUTItem()
         self.histogram.setImageItem(self.imageItem)
         self.glWidget.addItem(self.histogram)
         self.histogram.setLevels(0, 255)
+        self.histogram.hide()  # Start hidden
         self.plot.setAspectLocked(True)
+
+        # Set up event filter for hover and apply it correctly
+        self.hoverFilter = EventFilter(self.histogram, self)
+        self.glWidget.setAttribute(Qt.WA_Hover, True)  # Explicitly enable hover events
+        self.glWidget.installEventFilter(self.hoverFilter)
+
+        # ROI setup
         self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
         self.plot.addItem(self.roi)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
