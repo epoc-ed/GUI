@@ -14,7 +14,10 @@ from .adjustZ_task import AdjustZ
 from .get_teminfo_task import GetInfoTask
 from .stage_centering_task import CenteringTask
 
-from ..gaussian_fitter import GaussianFitter
+# from ..gaussian_fitter import GaussianFitter
+from ..gaussian_fitter_autofocus import GaussianFitter
+
+import copy
 
 from simple_tem import TEMClient
 
@@ -93,6 +96,18 @@ MORE_QUERIES_CLIENT = [
 
 # Creating the full mapping
 full_mapping = create_full_mapping(INFO_QUERIES, MORE_QUERIES, INFO_QUERIES_CLIENT, MORE_QUERIES_CLIENT)
+
+def create_roi_coord_tuple(roi):
+    roiPos = roi.pos()
+    roiSize = roi.size()
+
+    roi_start_row = int(np.floor(roiPos.y()))
+    roi_end_row = int(np.ceil(roiPos.y() + roiSize.y()))
+    roi_start_col = int(np.floor(roiPos.x()))
+    roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
+    roi_coords = (roi_start_row, roi_end_row, roi_start_col, roi_end_col)
+
+    return roi_coords
 
 class ControlWorker(QObject):
     """
@@ -267,19 +282,23 @@ class ControlWorker(QObject):
             self.do_fit(il1_value)  # Run do_fit the first time
             self.task.is_first_beamfit = False  # Set flag to False after the first run
         else:
-            self.getFitParams(il1_value) 
+            self.getFitParams(il1_value)
 
     def do_fit(self, il1_value):
         if self.task is not None:
-            im = self.tem_action.parent.imageItem
-            roi = self.tem_action.parent.roi
+            im_data = self.tem_action.parent.imageItem.image
+            roi_coords = create_roi_coord_tuple(self.tem_action.parent.roi)
+
+            im_data_copy = copy.deepcopy(im_data)
+            roi_coords_copy = copy.deepcopy(roi_coords)
 
             self.thread_fit = QThread()
-            self.fitter = GaussianFitter(imageItem=im, roi=roi, il1_value = il1_value)
+            # self.fitter = GaussianFitter(imageItem=im, roi=roi, il1_value = il1_value)
+            self.fitter = GaussianFitter(image=im_data_copy, roi_coords=roi_coords_copy, il1_value= il1_value)
             self.tem_action.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
             self.initializeFitter(self.thread_fit, self.fitter, il1_value) # Initialize the worker thread and fitter
-            self.thread_fit.start()
             self.fitterWorkerReady = True # Flag to indicate worker is ready
+            self.thread_fit.start()
             logging.info("Starting fitting process")
         else:
             logging.warning("Fitting worker has been deleted ! ")
@@ -298,14 +317,18 @@ class ControlWorker(QObject):
     def getFitterReady(self):
         self.fitterWorkerReady = True
 
-    def updateWorkerParams(self, imageItem, roi, il1_value):
+    def updateWorkerParams(self, im_data, roi_coords, il1_value):
         if self.thread_fit.isRunning():
-            self.fitter.updateParamsSignal.emit(imageItem, roi, il1_value)  
+            self.fitter.updateParamsSignal.emit(im_data, roi_coords, il1_value)  
 
     def getFitParams(self, il1_value):
         if self.fitterWorkerReady:
             self.fitterWorkerReady = False
-            self.updateWorkerParams(self.tem_action.parent.imageItem, self.tem_action.parent.roi, il1_value)
+
+            im_data_copy = copy.deepcopy(self.tem_action.parent.imageItem.image)
+            roi_coords_copy = copy.deepcopy(create_roi_coord_tuple(self.tem_action.parent.roi))
+
+            self.updateWorkerParams(im_data_copy, roi_coords_copy, il1_value)
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
 
     def process_fit_results(self, fit_result, il1_value):
