@@ -9,7 +9,7 @@ from line_profiler import LineProfiler
 
 from .... import globals
 
-def filter_outliers(im_roi, lower_percentile=1, upper_percentile=99.999):
+def filter_outliers(im_roi, lower_percentile=1, upper_percentile=99.99):
     """
     Filter outliers based on percentile thresholds in an image ROI.
     
@@ -53,10 +53,8 @@ def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
 # @profile
 def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col):
     
-    logging.debug(f"type(im) is {type(im[0,0])}")
-
     im_roi = im[roi_start_row:roi_end_row, roi_start_col:roi_end_col]
-    logging.debug(f"type(im_roi) is {type(im_roi[0,0])}")
+    filtered_im_roi = filter_outliers(im_roi) # remove outliers
 
     n_columns_roi, n_rows_roi = im_roi.shape[1], im_roi.shape[0]
 
@@ -70,7 +68,8 @@ def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_c
     # Create model and parameters for ROI fitting
     model_roi = Model(gaussian2d_rotated, independent_vars=['x','y'], nan_policy='omit')
     params_roi = Parameters()
-    params_roi.add('amplitude', value=np.max(im_roi), min=1, max=1.0*np.max(im_roi))
+    # params_roi.add('amplitude', value=np.max(im_roi), min=1, max=1.2*np.max(filtered_im_roi))
+    params_roi.add('amplitude', value=0.5*np.max(im_roi), min=1, max=10*np.max(im_roi))
     params_roi.add('xo', value=n_columns_roi//2, min=0, max=n_columns_roi)
     params_roi.add('yo', value=n_rows_roi//2, min=0,max=n_rows_roi)
     params_roi.add('sigma_x', value=n_columns_roi//4, min=1, max=diag_roi//2)  # Adjusted for likely ROI size

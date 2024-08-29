@@ -150,7 +150,7 @@ class VisualizationPanel(QGroupBox):
             self.thread_read = QThread()
             self.streamReader = Reader(self.parent.receiver)
             self.parent.threadWorkerPairs.append((self.thread_read, self.streamReader))                              
-            self.initializeWorker(self.thread_read, self.streamReader) # Initialize the worker thread and fitter
+            self.initializeReader(self.thread_read, self.streamReader) # Initialize the worker thread and fitter
             self.thread_read.start()
             self.readerWorkerReady = True # Flag to indicate worker is ready
             logging.info("Starting reading process")
@@ -176,11 +176,11 @@ class VisualizationPanel(QGroupBox):
             self.parent.file_operations.streamWriterButton.setEnabled(False)
             # Wait for thread to actually stop
             if self.thread_read is not None:
-                logging.info("** Read-thread forced to sleep **")
+                logging.debug("** Read-thread forced to sleep **")
                 time.sleep(0.1) 
             self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
 
-    def initializeWorker(self, thread, worker):
+    def initializeReader(self, thread, worker):
         worker.moveToThread(thread)
         logging.info(f"{worker.__str__()} is Ready!")
         thread.started.connect(worker.run)

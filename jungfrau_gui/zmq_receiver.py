@@ -50,7 +50,7 @@ class ZmqReceiver:
                 image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
                 return image, frame_nr
             except zmq.error.Again:
-                logging.warning("Timeout or no messages received, attempting to reconnect...")
+                # logging.warning("Timeout or no messages received, attempting to reconnect...")
                 self.reconnect()
                 return None, None
             except Exception as e:
@@ -71,7 +71,7 @@ class ZmqReceiver:
             except zmq.ZMQError as e:
                 logging.debug(f"Failed to reconnect due to a ZeroMQ error: {e}\nTrying again...")
                 time.sleep(0.1)
-        logging.info("Failed to reconnect after several attempts.")
+        # logging.info("Failed to reconnect after several attempts.")
 
 if __name__ == "__main__":
     receiver = ZmqReceiver("tcp://localhost:4545")

@@ -83,7 +83,7 @@ class TEMAction(QObject):
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
-            self.control.init.emit()
+            # self.control.init.emit()
             self.connect_thread = QThread()
             self.temConnector = TEM_Connector()
             self.parent.threadWorkerPairs.append((self.connect_thread, self.temConnector))
@@ -226,7 +226,7 @@ class TEMAction(QObject):
             
     def toggle_beamAutofocus(self):
         if not self.tem_tasks.beamAutofocus.started:
-            self.control.init.emit()
+            # self.control.init.emit()
             self.control.actionFit_Beam.emit()
             self.tem_tasks.beamAutofocus.setText("Stop Autofocus")
             self.tem_tasks.beamAutofocus.started = True

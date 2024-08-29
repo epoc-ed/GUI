@@ -277,6 +277,47 @@ class ControlWorker(QObject):
         logging.debug("Beam Sweeping worker is NOT ready!!")
         self.sweepingWorkerReady = False
 
+    """ *********************************************** """
+    """ Multiprocessing Version of the gaussian fitting """
+    """ *********************************************** """
+    """ 
+    def toggle_gaussianFit(self):
+        if not self.btnBeamFocus.started:
+            if self.fitter is None:
+                self.fitter = GaussianFitter()
+            logging.debug(f"0.Fitter is Ready? {globals.fitterWorkerReady.value}")
+            self.fitter.updateParams(self.parent.imageItem, self.parent.roi)
+            logging.debug(f"1/2.Fitter should be Ready! Is it? --> {globals.fitterWorkerReady.value}")
+            self.fitter.finished.connect(self.updateFitParams) 
+            self.fitter.start()
+            logging.debug(f"1.Fitter is Ready? {globals.fitterWorkerReady.value}")
+            self.btnBeamFocus.setText("Stop Fitting")
+            self.btnBeamFocus.started = True
+            # Pop-up Window
+            if self.checkbox.isChecked():
+                self.showPlotDialog()   
+            # Timer started
+            self.parent.timer_fit.start(10)
+        else:
+            self.btnBeamFocus.setText("Beam Gaussian Fit")
+            self.btnBeamFocus.started = False
+            self.parent.timer_fit.stop()  
+            # Close Pop-up Window
+            if self.plotDialog != None:
+                self.plotDialog.close()
+            self.fitter.finished.disconnect()
+            self.fitter.stop()
+            self.fitter = None
+            globals.fitterWorkerReady.value = False
+            self.removeAxes()
+
+    def getFitParams(self):
+        self.fitter.check_output_queue()
+        logging.debug(f"2.Fitter is Ready? {globals.fitterWorkerReady.value}")
+        if not globals.fitterWorkerReady.value:
+            self.fitter.updateParams(self.parent.imageItem, self.parent.roi)  
+    """
+
     def handle_request_fit(self, il1_value):
         if self.task.is_first_beamfit:
             self.do_fit(il1_value)  # Run do_fit the first time
@@ -310,9 +351,9 @@ class ControlWorker(QObject):
         worker.finished.connect(self.emit_fit_complete_signal)
         worker.finished.connect(self.getFitterReady)
 
-    def emit_fit_complete_signal(self, fit_result_best_values, il1_value):
+    def emit_fit_complete_signal(self, im, fit_result_best_values, il1_value):
         self.fit_complete.emit(fit_result_best_values, il1_value)
-        self.process_fit_results(fit_result_best_values, il1_value)
+        self.process_fit_results(im, fit_result_best_values, il1_value)
 
     def getFitterReady(self):
         self.fitterWorkerReady = True
@@ -326,19 +367,19 @@ class ControlWorker(QObject):
             self.fitterWorkerReady = False
 
             im_data_copy = copy.deepcopy(self.tem_action.parent.imageItem.image)
-            roi_coords_copy = copy.deepcopy(create_roi_coord_tuple(self.tem_action.parent.roi))
+            roi_coords = create_roi_coord_tuple(self.tem_action.parent.roi)
+            roi_coords_copy = copy.deepcopy(roi_coords)
 
             self.updateWorkerParams(im_data_copy, roi_coords_copy, il1_value)
+            time.sleep(0.01) # ensure update goes through before fitting starts 
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
 
-    def process_fit_results(self, fit_result, il1_value):
+    def process_fit_results(self, im, fit_result, il1_value):
         amplitude = float(fit_result['amplitude'])
-        self.task.amp_il1_map[amplitude] = il1_value 
+        self.task.amp_il1_map[amplitude] = (il1_value, im) 
         if amplitude > self.task.max_amplitude:
             self.task.max_amplitude = amplitude
         logging.info(dt.now().strftime(" PROCESSED @ %H:%M:%S.%f")[:-3])
-        # logging.info(f"Processed il1_value {il1_value} with amplitude {amplitude}")
-        # logging.info(f"Current best focus at position {self.task.amp_il1_map[self.task.max_amplitude] } with amplitude {self.task.max_amplitude}")
 
     @Slot(dict)
     def update_tem_status(self, response):

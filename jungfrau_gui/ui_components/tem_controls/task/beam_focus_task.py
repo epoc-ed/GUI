@@ -1,14 +1,16 @@
+import os
 import time
 import logging
 from datetime import datetime
-
+import numpy as np
 from .task import Task
 
 from simple_tem import TEMClient
 
 IL1_0 = 21902 #40345 40736
 ILs_0 = [33040, 32688] #[32856, 32856]
-wait_time_s = 0.2 # 70ms
+wait_time_s = 0.5 # TODO: optimize value
+
 class BeamFitTask(Task):
     def __init__(self, control_worker):
         super().__init__(control_worker, "BeamFit")
@@ -24,8 +26,9 @@ class BeamFitTask(Task):
     def run(self, init_IL1=IL1_0):
         logging.info("################ Start IL1 rough-sweeping ################")
         self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 550, 50)
-        il1_guess1 = self.amp_il1_map[self.max_amplitude]
+        il1_guess1, _capture_im = self.amp_il1_map[self.max_amplitude]
         logging.info(f"{datetime.now()}, ROUGH OPTIMAL VALUE IS {il1_guess1}")
+        self.control.remove_ellipse.emit()  
         print("------------------------------ BIG SLEEP ------------------------------")
         time.sleep(1)
         # Once task finished, move lens to optimal position 
@@ -38,23 +41,41 @@ class BeamFitTask(Task):
 
         logging.info("################ Start IL1 fine-sweeping ################")
         self.sweep_il1_linear(il1_guess1 - 45, il1_guess1 + 50, 5)
-        il1_guess2 = self.amp_il1_map[self.max_amplitude]
+        il1_guess2, _capture_im = self.amp_il1_map[self.max_amplitude]
         logging.info(f"{datetime.now()}, FINE OPTIMAL VALUE IS {il1_guess2}")
+        self.control.remove_ellipse.emit()  
         # Once task finished, move lens to optimal position 
         print("------------------------------ BIG SLEEP ------------------------------")
         time.sleep(1)
-        for il1_value in range(il1_guess1 - 45, il1_guess2+15, 5): # upper = {il1_guess2 + 5} ???
+        for il1_value in range(il1_guess1 - 45, il1_guess2 + 15, 5): # upper = {il1_guess2 + 5} ???
             self.client.SetILFocus(il1_value)
             time.sleep(wait_time_s)
         self.client.SetILFocus(il1_guess2)
         time.sleep(1)
-    
-        # Write the computed map of Gaussian peaks to lens positions to a file
+
+        """ ************************************ """
+        """ ************* DEBUGGING ************ """
+        """ ****** Ensure Right Frames are ***** """
+        """ ****** being used for fitting ****** """
+        """ ************************************ """
+        # Write the computed map of Gaussian peaks to (lens positions, captured_frame) to a file
         with open('amplitude_to_il1_map.txt', 'w') as file:
             file.write("Amplitude to IL1 Map:\n")
-            for amplitude, il1 in self.amp_il1_map.items():
-                file.write(f"Amplitude: {amplitude}, IL1: {il1}\n")
+            for amplitude, il1_im in self.amp_il1_map.items():
+                file.write(f"Amplitude: {amplitude}, IL1: {il1_im[0]}\n")
         logging.info("Amplitude to IL1 map written to file.")
+        # Prepare the dictionary to save
+        save_dict = {'Peak Value: '+str(amp)+' - Lens: '+str(il1_im[0]): il1_im[1] for amp, il1_im in self.amp_il1_map.items()}
+        # Specify the directory where you want to save the .npz file
+        directory = '/home/psi/software/viewer_2.0/GUI/data'  # Replace with your desired directory
+        os.makedirs(directory, exist_ok=True)
+        # Full path for the .npz file
+        file_path = os.path.join(directory, 'frames_for_fitting.npz')
+        # Save to the specified directory
+        np.savez(file_path, **save_dict)
+        """ ************************************ """
+        """ ************************************ """
+        """ ************************************ """
 
         if self.control.sweepingWorkerReady == True:
             self.control.tem_action.tem_tasks.beamAutofocus.setText("Remove axis / pop-up")   

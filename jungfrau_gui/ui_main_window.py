@@ -47,7 +47,7 @@ class ApplicationWindow(QMainWindow):
         self.glWidget.addItem(self.histogram)
         self.histogram.setLevels(0, 255)
         self.plot.setAspectLocked(True)
-        self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        self.roi = pg.RectROI([335, 75], [250, 200], pen=(9,6)) # self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
         self.plot.addItem(self.roi)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
@@ -56,8 +56,12 @@ class ApplicationWindow(QMainWindow):
         self.roi.sigRegionChanged.connect(self.roiChanged)
 
         # Initial data (optional)
-        data = create_gaussian(globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
+        data = np.load('./data/frame_1.npy')    # peak = 17822853.64 [factor =10] | 15415351.19 [factor = 1.2] 
+        # data = np.load('./data/frame_2.npy')  # peak = 17921872.89 [factor =10] | 15516322.80 [factor = 1.2] 
+        # data = np.load('./data/frame_3.npy')  # peak = 17937735.93 [factor =10] | 15415351.19 [factor = 1.2] |
+        # data = create_gaussian(globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
         # data = np.random.rand(globals.nrow,globals.ncol).astype(globals.dtype)
+
         logging.debug(f"type(data) is {type(data[0,0])}")
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         
