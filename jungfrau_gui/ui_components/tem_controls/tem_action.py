@@ -71,7 +71,8 @@ class TEMAction(QObject):
         self.tem_detector.scale_checkbox.setEnabled(enables)
         for i in self.tem_stagectrl.rb_speeds.buttons():
             i.setEnabled(enables)
-        self.toggle_rb_speeds()
+        if enables:
+            self.toggle_rb_speeds()
         for i in self.tem_stagectrl.movestages.buttons():
             i.setEnabled(enables)
         self.tem_tasks.gettem_button.setEnabled(False) # Not functional yet
