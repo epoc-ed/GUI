@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 20 Aug 2024
+This document was updated on 05 Sep 2024
 - [Activation](#Activation)
 - [Deactivation](#Deactivation)
 - [Main Function](#Main-Function)
@@ -64,7 +64,8 @@ Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem se
  - 'Write Stream in H5': Save an hdf-movie at the defined data path with prefix in lineedits. The output file ends with '_master.h5'.
  
 #### *[TEM-control Function](screenshot/ver_16Aug2024.PNG)*
- - 'Connect to TEM': (deactivated) Starts communication with TEM.
+ - 'Check TEM Connection': Checks communication with TEM
+    **Necessary to enable Stage Control buttons (Re-click to disable once the Connection is OK)   
  - 'Get TEM status': (deactivated) Updates the TEM information and shows in the terminal. If an hdf file with the defined filename exists, the information will be added to the header.
      - 'recording': (deactivated) save the TEM values in the log file in the current directory.
  - 'Click-on-Centring': (deactivated) Activates stage control by clicking the streaming image
