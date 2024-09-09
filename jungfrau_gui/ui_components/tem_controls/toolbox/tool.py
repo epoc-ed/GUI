@@ -6,13 +6,38 @@ import logging
 from ....ui_components.tem_controls.toolbox import config as cfg_jf
 from PySide6.QtCore import QObject, Signal
 
-def ev2angstrom(voltage): # in ev
+def eV2angstrom(voltage):
+    """
+    Converts electron voltages to Angstroms.
+
+    This function computes the wavelength corresponding to a given energy 
+    specified in electron volts. The calculation uses fundamental constants:
+    - Planck constant (h)
+    - Electron mass (m0)
+    - Elementary charge (e)
+    - Speed of light (c)
+    
+    The result is returned in Angstroms, which are used to describe atomic scale lengths.
+    """
     h, m0, e, c = 6.62607004e-34, 9.10938356e-31, 1.6021766208e-19, 299792458.0
     return h/np.sqrt(2*m0*e*voltage*(1.+e*voltage/2./m0/c**2)) * 1.e10
 
-def d2radius_in_px(d=1, camlen=660, ht=200, pixel=0.075): # angstrom, mm, keV, mm
-    wavelength = ev2angstrom(ht*1e3)
-    radius = camlen * np.tan(np.arcsin(wavelength/2/d)*2) / pixel
+def d2radius_in_px(d=1, camlen=660, ht=200, pixel=0.075):  # d in Angstroms, camlen in mm, ht in keV, pixel in mm
+    """
+    Calculates the radius of an electron diffraction pattern in pixels.
+    
+    Inputs:
+    - d: Interplanar spacing in Angstroms.
+    - camlen: Camera length in millimeters.
+    - ht: High tension or acceleration voltage in kiloelectron volts.
+    - pixel: Pixel size in millimeters.
+    
+    This function first converts the high tension (acceleration voltage) to a wavelength using the 
+    eV2angstrom function. It then calculates the diffraction angle and converts this to the radius 
+    of the diffraction pattern in pixels using the camera's geometry.
+    """
+    wavelength = eV2angstrom(ht * 1e3)
+    radius = camlen * np.tan(np.arcsin(wavelength / 2 / d) * 2) / pixel
     return radius
 
 class TEMTools(QObject):
@@ -21,7 +46,7 @@ class TEMTools(QObject):
         super().__init__()
         self.tem_action = tem_action
         self.ht = 200 # keV  # <- HT3
-        self.wavelength = ev2angstrom(self.ht*1e3) # Angstrom   
+        self.wavelength = eV2angstrom(self.ht*1e3) # Angstrom   
         self.trigger_addinfo_to_hdf5.connect(self.addinfo_to_hdf)     
  
     def addinfo_to_hdf(self, pixel=0.075):
