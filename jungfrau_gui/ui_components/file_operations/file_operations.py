@@ -229,7 +229,11 @@ class FileOperations(QGroupBox):
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
             self.streamWriter.stop()
-            if not self.parent.tem_controls.tem_tasks.rotation_button.started:
+            if globals.tem_mode:
+                if not self.parent.tem_controls.tem_tasks.rotation_button.started:
+                    self.cfg.file_id += 1 
+                    self.update_index_box()
+            else:
                 self.cfg.file_id += 1 
                 self.update_index_box()
             # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
