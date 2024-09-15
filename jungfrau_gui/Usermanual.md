@@ -12,8 +12,10 @@ This document was updated on 20 Aug 2024
 ### Activation
 **\*TEM-PC, NOT needed when you ONLY use the TEM console panel**
 1. Activate the TEM server
-Open PowerShell console on TEMPC: C:\ProgramData\SinglaGUI, and start the tem server;\
-   ```$ python server_tem.py```  
+   - From the Windows Start Menu, open a Miniconda Powershell Prompt (Anaconda submenu).
+   - Change directory to C:\ProgramData\SinglaGUI
+   - Type ```$conda activate vjem38```
+   - Type ```$ python server_tem.py```
    This must be done **before** starting the GUI below.
 
 **\*CameraPC (hodgkin)**
