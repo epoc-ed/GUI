@@ -9,6 +9,30 @@ from line_profiler import LineProfiler
 
 from .... import globals
 
+def filter_outliers(im_roi, lower_percentile=1, upper_percentile=99.99):
+    """
+    Filter outliers based on percentile thresholds in an image ROI.
+    
+    Parameters:
+        im_roi (np.array): The image region of interest as a numpy array of floats.
+        lower_percentile (int): The lower percentile threshold to remove outliers.
+        upper_percentile (int): The upper percentile threshold to remove outliers.
+        
+    Returns:
+        np.array: The image ROI with outliers filtered out.
+    """
+    # Determine lower and upper bounds based on percentiles
+    lower_bound = np.percentile(im_roi, lower_percentile)
+    upper_bound = np.percentile(im_roi, upper_percentile)
+    
+    # Find median value for possible substitution
+    median_value = np.median(im_roi)
+    
+    # Create a masked array where outliers are replaced by the median value
+    filtered_im_roi = np.where((im_roi < lower_bound) | (im_roi > upper_bound), median_value, im_roi)
+    
+    return filtered_im_roi
+
 # Define a rotated 2D Gaussian function
 def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
     xo = float(xo)
@@ -29,10 +53,8 @@ def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
 # @profile
 def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col):
     
-    logging.debug(f"type(im) is {type(im[0,0])}")
-
-    im_roi = im[roi_start_row:roi_end_row, roi_start_col:roi_end_col]
-    logging.debug(f"type(im_roi) is {type(im_roi[0,0])}")
+    im_roi = im[roi_start_row:roi_end_row+1, roi_start_col:roi_end_col+1]
+    filtered_im_roi = filter_outliers(im_roi) # remove outliers
 
     n_columns_roi, n_rows_roi = im_roi.shape[1], im_roi.shape[0]
 
@@ -46,7 +68,8 @@ def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_c
     # Create model and parameters for ROI fitting
     model_roi = Model(gaussian2d_rotated, independent_vars=['x','y'], nan_policy='omit')
     params_roi = Parameters()
-    params_roi.add('amplitude', value=np.max(im_roi), min=1, max=1.0*np.max(im_roi))
+    # params_roi.add('amplitude', value=np.max(im_roi), min=1, max=1.2*np.max(filtered_im_roi))
+    params_roi.add('amplitude', value=0.5*np.max(im_roi), min=1, max=1.2*np.max(im_roi))
     params_roi.add('xo', value=n_columns_roi//2, min=0, max=n_columns_roi)
     params_roi.add('yo', value=n_rows_roi//2, min=0,max=n_rows_roi)
     params_roi.add('sigma_x', value=n_columns_roi//4, min=1, max=diag_roi//2)  # Adjusted for likely ROI size
@@ -55,8 +78,20 @@ def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_c
 
     result_roi = model_roi.fit(z_flat_roi, x=x_flat_roi, y=y_flat_roi, params=params_roi)
     fit_result = result_roi
-    fit_result.best_values['xo'] +=  roi_start_col
-    fit_result.best_values['yo'] +=  roi_start_row
+
+    fit_result.best_values['xo'] +=  roi_start_col+0.5
+    fit_result.best_values['yo'] +=  roi_start_row+0.5
+
+    if fit_result.best_values['sigma_x'] < fit_result.best_values['sigma_y']:
+        fit_result.best_values['sigma_x'], fit_result.best_values['sigma_y'] = fit_result.best_values['sigma_y'], fit_result.best_values['sigma_x']
+        fit_result.best_values['theta'] += np.pi/2
+
+    if fit_result.best_values['theta'] > np.pi/2:
+        fit_result.best_values['theta'] -= np.pi
+    elif fit_result.best_values['theta'] < -np.pi/2:
+        fit_result.best_values['theta'] += np.pi
+
+    fit_result.best_values['theta'] =  fit_result.best_values['theta']*180 / np.pi
 
     return fit_result
 

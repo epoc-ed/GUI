@@ -42,7 +42,8 @@ class TemControls(QGroupBox):
         self.label_gauss_height.setText("Gaussian height")
         self.gauss_height_spBx = QDoubleSpinBox()
         self.gauss_height_spBx.setValue(1)
-        self.gauss_height_spBx.setMaximum(1e8)
+        self.gauss_height_spBx.setMaximum(1e10)
+        self.gauss_height_spBx.setReadOnly(True)
 
         self.label_sigma_x = QLabel()
         self.label_sigma_x.setText("Sigma x (px)")
@@ -51,6 +52,7 @@ class TemControls(QGroupBox):
         self.sigma_x_spBx.setStyleSheet('color: blue;')
         self.sigma_x_spBx.setValue(1)
         self.sigma_x_spBx.setSingleStep(0.1)
+        self.sigma_x_spBx.setReadOnly(True)
 
         self.label_sigma_y = QLabel()
         self.label_sigma_y.setText("Sigma y (px)")
@@ -59,13 +61,15 @@ class TemControls(QGroupBox):
         self.sigma_y_spBx.setStyleSheet('color: red;')
         self.sigma_y_spBx.setValue(1)
         self.sigma_y_spBx.setSingleStep(0.1)
+        self.sigma_y_spBx.setReadOnly(True)
 
         self.label_rot_angle = QLabel()
         self.label_rot_angle.setText("Theta (deg)")
-        self.angle_spBx = QSpinBox()
+        self.angle_spBx = QDoubleSpinBox()
         self.angle_spBx.setMinimum(-90)
         self.angle_spBx.setMaximum(90)
-        self.angle_spBx.setSingleStep(15)
+        self.angle_spBx.setSingleStep(1)
+        self.angle_spBx.setReadOnly(True)
         
         if globals.tem_mode:
             self.tem_tasks = TEMTasks(self)
@@ -178,7 +182,7 @@ class TemControls(QGroupBox):
         yo = float(fit_result_best_values['yo'])        
         sigma_x = float(fit_result_best_values['sigma_x'])
         sigma_y = float(fit_result_best_values['sigma_y'])
-        theta_deg = 180*float(fit_result_best_values['theta'])/np.pi
+        theta_deg = float(fit_result_best_values['theta'])
         # Show fitting parameters 
         self.gauss_height_spBx.setValue(amplitude)
         self.sigma_x_spBx.setValue(sigma_x)
@@ -194,7 +198,7 @@ class TemControls(QGroupBox):
     def drawFittingEllipse(self, xo, yo, sigma_x, sigma_y, theta_deg):
         # p = 0.5 is equivalent to using the Full Width at Half Maximum (FWHM)
         # where FWHM = 2*sqrt(2*ln(2))*sigma ~ 2.3548*sigma
-        p = 0.2
+        p = 0.368 #0.2
         alpha = 2*np.sqrt(-2*math.log(p))
         width = alpha * max(sigma_x, sigma_y) # Use 
         height = alpha * min(sigma_x, sigma_y) # 
