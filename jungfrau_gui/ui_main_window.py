@@ -59,7 +59,9 @@ class ApplicationWindow(QMainWindow):
         self.plot.addItem(self.imageItem)
         self.histogram.setImageItem(self.imageItem)
         self.glWidget.addItem(self.histogram)
-        self.histogram.setLevels(0, 255)
+        self.histogram.setLevels(0, 5000)
+        # self.histogram.setHistogramRange(0, 255, padding=0)
+        # self.histogram.autoHistogramRange = False
         self.histogram.hide()  # Start hidden
         self.plot.setAspectLocked(True)
 
