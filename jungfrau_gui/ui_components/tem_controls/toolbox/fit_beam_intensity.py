@@ -54,9 +54,24 @@ def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
 def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col):
     
     im_roi = im[roi_start_row:roi_end_row+1, roi_start_col:roi_end_col+1]
-    filtered_im_roi = filter_outliers(im_roi) # remove outliers
+    # filtered_im_roi = filter_outliers(im_roi) # remove outliers
+    # mean_intensity = np.mean(filtered_im_roi)
+    # std_intensity = np.std(filtered_im_roi)
+    # adaptive_factor = mean_intensity + 2 * std_intensity
 
     n_columns_roi, n_rows_roi = im_roi.shape[1], im_roi.shape[0]
+
+    total_intensity = im_roi.sum()
+    
+    # Weighted average of the columns indices (xo_init)
+    col_sums = im_roi.sum(axis=0)  # Sum along the rows (column-wise sum)
+    linspace_cols = np.linspace(0, n_columns_roi-1, n_columns_roi) 
+    xo_init = np.dot(col_sums, linspace_cols) / total_intensity
+    
+    # Weighted average of the rows indices (yo_init)
+    row_sums = im_roi.sum(axis=1)  # Sum along the columns (row-wise sum)
+    linspace_rows = np.linspace(0, n_rows_roi-1, n_rows_roi) 
+    yo_init = np.dot(row_sums, linspace_rows) / total_intensity
 
     diag_roi = np.sqrt(n_columns_roi*n_columns_roi+n_rows_roi*n_rows_roi)
     
@@ -69,9 +84,9 @@ def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_c
     model_roi = Model(gaussian2d_rotated, independent_vars=['x','y'], nan_policy='omit')
     params_roi = Parameters()
     # params_roi.add('amplitude', value=np.max(im_roi), min=1, max=1.2*np.max(filtered_im_roi))
-    params_roi.add('amplitude', value=0.5*np.max(im_roi), min=1, max=1.2*np.max(im_roi))
-    params_roi.add('xo', value=n_columns_roi//2, min=0, max=n_columns_roi)
-    params_roi.add('yo', value=n_rows_roi//2, min=0,max=n_rows_roi)
+    params_roi.add('amplitude', value=0.5*np.max(im_roi), min=1, max=1.0*np.max(im_roi))
+    params_roi.add('xo', value=xo_init, min=0, max=n_columns_roi)
+    params_roi.add('yo', value=yo_init, min=0,max=n_rows_roi)
     params_roi.add('sigma_x', value=n_columns_roi//4, min=1, max=diag_roi//2)  # Adjusted for likely ROI size
     params_roi.add('sigma_y', value=n_rows_roi//4, min=1, max=diag_roi//2)    # Adjusted for likely ROI size
     params_roi.add('theta', value=0, min=-np.pi/2, max=np.pi/2)
