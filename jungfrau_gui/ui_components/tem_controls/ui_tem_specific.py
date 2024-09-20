@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
                                QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy)
+from PySide6.QtGui import QFont
 from ..toggle_button import ToggleButton
 from ..utils import create_horizontal_line_with_margin
 
@@ -90,7 +91,10 @@ class TEMTasks(QGroupBox):
         
         CTN_group = QVBoxLayout()
         CTN_section = QHBoxLayout()
-        CTN_label = QLabel("Connection", self)
+        CTN_label = QLabel("Connection to TEM", self)
+        font_big = QFont("Arial", 11)
+        font_big.setBold(True)
+        CTN_label.setFont(font_big)
         self.connecttem_button = ToggleButton('Check TEM Connection', self)
         self.connecttem_button.setEnabled(True)
         self.gettem_button = QPushButton("Get TEM status", self)
@@ -103,6 +107,7 @@ class TEMTasks(QGroupBox):
         
         BEAM_group = QVBoxLayout()
         BEAM_label = QLabel("Beam Sweep & Focus", self)
+        BEAM_label.setFont(font_big)
 
         self.beamAutofocus = ToggleButton('Beam Autofocus', self)
         self.beamAutofocus.setEnabled(False)
@@ -111,6 +116,7 @@ class TEMTasks(QGroupBox):
 
         ROT_group = QVBoxLayout()
         ROT_label = QLabel("Rotation & Stage Control", self)
+        ROT_label.setFont(font_big)
 
         ROT_section_1= QHBoxLayout()
 

@@ -5,7 +5,7 @@ from ... import globals
 import pyqtgraph as pg
 from datetime import datetime
 from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
-from PySide6.QtGui import QTransform
+from PySide6.QtGui import QTransform, QFont
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QDoubleSpinBox, QSpinBox, 
                                 QCheckBox, QGraphicsEllipseItem,
@@ -20,7 +20,7 @@ from .tem_action import TEMAction
 
 class TemControls(QGroupBox):
     def __init__(self, parent):
-        super().__init__("TEM Controls")
+        super().__init__()
         self.parent = parent
         self.fitter = None
         self.initUI()
@@ -82,10 +82,16 @@ class TemControls(QGroupBox):
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
         else: 
+            test_fitting_label = QLabel("Test Gaussian Fitting")
+            font_big = QFont("Arial", 11)
+            font_big.setBold(True)
+            test_fitting_label.setFont(font_big)
+
             self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
             self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
 
             BeamFocus_layout = QVBoxLayout()
+            BeamFocus_layout.addWidget(test_fitting_label)
             BeamFocus_layout.addWidget(self.btnBeamFocus)
             BeamFocus_layout.addWidget(self.checkbox)
             gauss_H_layout = QHBoxLayout()

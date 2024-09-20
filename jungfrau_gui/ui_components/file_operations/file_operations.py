@@ -1,6 +1,6 @@
 import os
 import logging
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QFont
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QLineEdit, QSpinBox, QFrame,
@@ -32,7 +32,7 @@ class FileOperations(QGroupBox):
     stop_H5_recording = Signal()
     
     def __init__(self, parent):
-        super().__init__("File Operations")
+        super().__init__()
         self.parent = parent
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_update_h5_index_box.connect(self.update_index_box)
@@ -41,6 +41,12 @@ class FileOperations(QGroupBox):
 
     def initUI(self):
         section3 = QVBoxLayout()
+        TIFF_section_label = QLabel("TIFF Writer", self)
+        font_big = QFont("Arial", 11)
+        font_big.setBold(True)
+        TIFF_section_label.setFont(font_big)
+
+        section3.addWidget(TIFF_section_label)
 
         self.fname = QLabel("TIFF file name", self)
         self.fname_input = QLineEdit(self)
@@ -72,6 +78,11 @@ class FileOperations(QGroupBox):
         section3.addLayout(accumulate_layout)
         
         section3.addWidget(create_horizontal_line_with_margin(15))
+
+        HDF5_section_label = QLabel("HDF5 Writer", self)
+        HDF5_section_label.setFont(font_big)
+
+        section3.addWidget(HDF5_section_label)
 
         # Initialize 
         self.h5_file_index = 0

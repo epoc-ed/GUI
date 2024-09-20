@@ -3,6 +3,7 @@ import logging
 import numpy as np
 from boost_histogram import Histogram
 from boost_histogram.axis import Regular
+from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, QThread, QMetaObject
 from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QPushButton, QSpinBox,
@@ -32,7 +33,13 @@ class VisualizationPanel(QGroupBox):
 
         colors_group = QVBoxLayout()
         colors_layout = QHBoxLayout()
+
+        font_big = QFont("Arial", 11)
+        font_big.setBold(True)
+
         theme_label = QLabel("Color map", self)
+        theme_label.setFont(font_big)
+
         colors_group.addWidget(theme_label)
         self.color_buttons = {
             'viridis': QPushButton('Viridis', self),
@@ -69,6 +76,7 @@ class VisualizationPanel(QGroupBox):
         
         view_contrast_group = QVBoxLayout()
         view_contrast_label = QLabel("Streaming & Contrast")
+        view_contrast_label.setFont(font_big)
         view_contrast_group.addWidget(view_contrast_label)
 
         grid_1 = QGridLayout()
@@ -95,6 +103,7 @@ class VisualizationPanel(QGroupBox):
         if globals.tem_mode:
             tem_detector_layout = QVBoxLayout()
             tem_detector_label = QLabel("Detector")
+            tem_detector_label.setFont(font_big)
 
             self.tem_detector = TEMDetector()
             tem_detector_layout.addWidget(tem_detector_label)
