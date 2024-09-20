@@ -53,14 +53,18 @@ class TEMAction(QObject):
         # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
         
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.execute_command("SetXRel(10000)"))
-        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.execute_command("SetXRel(-10000)"))
+        # self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.execute_command("SetXRel(10000)"))
+        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.client.SetXRel(10000))
+
+        # self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.execute_command("SetXRel(-10000)"))
+        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.client.SetXRel(-10000))
+
         self.tem_stagectrl.move10degp.clicked.connect(
-                    lambda: self.control.client.SetTXRel(10, run_async=True, max_speed=True))
+                    lambda: self.control.client.SetTXRel(10))
         self.tem_stagectrl.move10degn.clicked.connect(
-                    lambda: self.control.client.SetTXRel(-10, run_async=True, max_speed=True))        
+                    lambda: self.control.client.SetTXRel(-10))        
         self.tem_stagectrl.move0deg.clicked.connect(
-                    lambda: self.control.client.SetTiltXAngle(0, run_async=True, max_speed=True))
+                    lambda: self.control.client.SetTiltXAngle(0))
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.datasaving_filepath)

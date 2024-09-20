@@ -67,7 +67,7 @@ class RecordTask(Task):
         self.client.SetBeamBlank(0)
         time.sleep(0.5)
 
-        self.client.SetTiltXAngle(phi1, True, False)
+        self.client.SetTiltXAngle(phi1)
 
         #Wait enough to make the rotation start (can also use other logic)
         time.sleep(0.5) 
@@ -99,7 +99,7 @@ class RecordTask(Task):
         #TODO! Enable auto reset of tilt
         if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
             logging.info("Return the stage tilt to zero.")
-            self.client.SetTiltXAngle(0, True, True)
+            self.client.SetTiltXAngle(0)
             time.sleep(1)
             
         # Waiting for the rotation to end
