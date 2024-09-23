@@ -16,6 +16,7 @@ from .frame_accumulator_mp import FrameAccumulator
 from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
+from ...ui_components.palette import *
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
@@ -40,10 +41,102 @@ class FileOperations(QGroupBox):
         
 
     def initUI(self):
+
+        self.palette = get_palette("dark")
+        self.setPalette(self.palette)
+
         section3 = QVBoxLayout()
-        TIFF_section_label = QLabel("TIFF Writer", self)
         font_big = QFont("Arial", 11)
         font_big.setBold(True)
+
+        Redis_section_label = QLabel("Redis Store Settings", self)
+        Redis_section_label.setFont(font_big)
+
+        section3.addWidget(Redis_section_label)
+        self.redis_fields = []
+
+        # User Name Field
+        self.userName = QLabel("User name", self)
+        self.userName_input = QLineEdit(self)
+        self.redis_fields.append(self.userName_input)
+        self.userName_input.setText(f'{self.cfg.PI_name}')
+
+        self.get_userName = QPushButton("Get", self)
+        self.get_userName.clicked.connect(lambda: print(f"User Name: {self.cfg.PI_name}"))
+
+        self.userName_input.returnPressed.connect(self.update_userName)
+
+        redis_UserName_layout = QHBoxLayout()
+        redis_UserName_layout.addWidget(self.userName)
+        redis_UserName_layout.addWidget(self.userName_input)
+        redis_UserName_layout.addWidget(self.get_userName)
+
+        section3.addLayout(redis_UserName_layout)
+
+        # Project ID Field
+        self.projectID = QLabel("Project ID", self)
+        self.projectID_input = QLineEdit(self)
+        self.redis_fields.append(self.projectID_input)
+        self.projectID_input.setText(f'{self.cfg.project_id}')
+
+        self.get_projectID = QPushButton("Get", self)
+        self.get_projectID.clicked.connect(lambda: print(f"Project ID: {self.cfg.project_id}"))
+
+        self.projectID_input.returnPressed.connect(self.update_projectID)
+
+        redis_projectID_layout = QHBoxLayout()
+        redis_projectID_layout.addWidget(self.projectID)
+        redis_projectID_layout.addWidget(self.projectID_input)
+        redis_projectID_layout.addWidget(self.get_projectID)
+
+        section3.addLayout(redis_projectID_layout)
+
+        # Experiment Class Field
+        self.experiment_class = QLabel("Experiment Class", self)
+        self.experiment_class_input = QLineEdit(self)
+        self.redis_fields.append(self.experiment_class_input)
+        self.experiment_class_input.setText(f'{self.cfg.experiment_class}')
+
+        self.get_experiment_class = QPushButton("Get", self)
+        self.get_experiment_class.clicked.connect(lambda: print(f"Experiment Class: {self.cfg.experiment_class}"))
+
+        self.experiment_class_input.returnPressed.connect(self.update_experiment_class)
+
+        redis_experiment_class_layout = QHBoxLayout()
+        redis_experiment_class_layout.addWidget(self.experiment_class)
+        redis_experiment_class_layout.addWidget(self.experiment_class_input)
+        redis_experiment_class_layout.addWidget(self.get_experiment_class)
+
+        section3.addLayout(redis_experiment_class_layout)
+
+        # Base Data Directory Field
+        self.base_directory = QLabel("Base Data Directory", self)
+        self.base_directory_input = QLineEdit(self)
+        self.redis_fields.append(self.base_directory_input)
+        self.base_directory_input.setText(f'{self.cfg.base_data_dir}')
+
+        self.get_base_directory = QPushButton("Get", self)
+        self.get_base_directory.clicked.connect(lambda: print(f"Base Data Directory: {self.cfg.base_data_dir}"))
+
+        self.base_directory_button = QPushButton()
+        icon_path = os.path.join(os.path.dirname(__file__), "folder_icon.png")
+
+        self.base_directory_button.setIcon(QIcon(icon_path))
+        self.base_directory_button.clicked.connect(self.open_directory_dialog)
+        
+        self.base_directory_input.returnPressed.connect(self.update_base_data_directory)
+
+        redis_base_directory_layout = QHBoxLayout()
+        redis_base_directory_layout.addWidget(self.base_directory)
+        redis_base_directory_layout.addWidget(self.base_directory_input)
+        redis_base_directory_layout.addWidget(self.get_base_directory)
+        redis_base_directory_layout.addWidget(self.base_directory_button)
+
+        section3.addLayout(redis_base_directory_layout)
+        
+        section3.addWidget(create_horizontal_line_with_margin(15))
+
+        TIFF_section_label = QLabel("TIFF Writer", self)
         TIFF_section_label.setFont(font_big)
 
         section3.addWidget(TIFF_section_label)
@@ -88,19 +181,21 @@ class FileOperations(QGroupBox):
         self.h5_file_index = 0
         # Hdf5 file operations
         h5_file_ops_layout = QHBoxLayout()
-        self.prefix = QLabel("HDF5 tag", self)
-        self.prefix_input = QLineEdit(self)
-        self.prefix_input.setText(self.cfg.measurement_tag)
-        self.prefix_input.textChanged.connect(self.update_measurement_tag)
+        self.tag = QLabel("HDF5 tag", self)
+        self.tag_input = QLineEdit(self)
+        self.redis_fields.append(self.tag_input)
+        self.tag_input.setText(self.cfg.measurement_tag)
+
+        self.tag_input.returnPressed.connect(self.update_measurement_tag)
 
         self.index_label = QLabel("index")
         self.index_box = QSpinBox(self)
         self.index_box.setValue( self.cfg.file_id )
-        self.index_box.setDisabled(True)
+        self.index_box.setReadOnly(True)
         # self.index_box.valueChanged.connect(self.update_h5_file_index)
 
-        h5_file_ops_layout.addWidget(self.prefix) 
-        h5_file_ops_layout.addWidget(self.prefix_input)
+        h5_file_ops_layout.addWidget(self.tag) 
+        h5_file_ops_layout.addWidget(self.tag_input)
         h5_file_ops_layout.addWidget(self.index_label)
         h5_file_ops_layout.addWidget(self.index_box)
 
@@ -110,18 +205,14 @@ class FileOperations(QGroupBox):
         self.outPath = QLabel("H5 Output Path", self)
         self.outPath_input = QLineEdit(self)
         self.outPath_input.setText(self.cfg.data_dir.as_posix())
-        self.outPath_input.textChanged.connect(self.modify_path_manually)
-        self.h5_folder_name = self.outPath_input.text()
-        self.folder_button = QPushButton()
-        icon_path = os.path.join(os.path.dirname(__file__), "folder_icon.png")
-
-        self.folder_button.setIcon(QIcon(icon_path))
-        self.folder_button.setDisabled(True)
-        # self.folder_button.clicked.connect(self.open_directory_dialog)
+        self.outPath_input.setDisabled(True)
+        self.background_color = self.palette.color(QPalette.Base).name()
+        self.outPath_input.setStyleSheet(f"QLineEdit {{ color: light grey; background-color: {self.background_color}; }}")
+        # self.outPath_input.textChanged.connect(self.modify_path_manually)
+        # self.h5_folder_name = self.outPath_input.text()
         
         output_folder_layout.addWidget(self.outPath, 2)
         output_folder_layout.addWidget(self.outPath_input, 7)
-        output_folder_layout.addWidget(self.folder_button, 1)
 
         section3.addLayout(output_folder_layout)
 
@@ -142,6 +233,10 @@ class FileOperations(QGroupBox):
         # self.total_frame_nb.setMaximum(100000000)
         # hdf5_writer_layout.addWidget(self.nb_frame)
         # hdf5_writer_layout.addWidget(self.total_frame_nb)
+
+        # Change text color to orange when text is modified
+        for line_edit in self.redis_fields:
+            line_edit.textChanged.connect(lambda _, le=line_edit: self.text_modified(le))  # Pass QLineEdit reference directly
 
         section3.addLayout(hdf5_writer_layout)
         section3.addStretch()
@@ -189,19 +284,10 @@ class FileOperations(QGroupBox):
         # Upadate file number for next take
         self.findex_input.setValue(file_index+1)
 
-    def modify_path_manually(self):
-        path = self.outPath_input.text()
-        if os.path.exists(path): 
-            self.h5_folder_name = path
-
-    def open_directory_dialog(self):
-        initial_dir = self.h5_folder_name or self.outPath_input.text()
-        folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
-        if not folder_name:
-            return
-        self.h5_folder_name = folder_name
-        self.outPath_input.setText(self.h5_folder_name)
-        logging.info(f"H5 output path set to: {self.h5_folder_name}")
+    # def modify_path_manually(self):
+    #     path = self.outPath_input.text()
+    #     if os.path.exists(path): 
+    #         self.h5_folder_name = path
     
     def toggle_hdf5Writer_ON(self):
         if not self.streamWriterButton.started:
@@ -213,7 +299,7 @@ class FileOperations(QGroupBox):
 
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
-            # prefix = self.prefix_input.text().strip()
+            # prefix = self.tag_input.text().strip()
             # if not prefix:
             #     logging.error("Error: Prefix is missing! Please specify prefix of the written file(s).")# Handle error: Prefix is mandatory
             #     QMessageBox.critical(self, "Prefix Missing", "Prefix of written files is missing!\nPlease specify one under the field 'HDF5 prefix'.", QMessageBox.Ok)
@@ -251,11 +337,76 @@ class FileOperations(QGroupBox):
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             # logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
     
+    def text_modified(self, line_edit): 
+        if isinstance(line_edit, QLineEdit):
+            line_edit.setStyleSheet(f"QLineEdit {{ color: orange; background-color: {self.background_color}; }}")
+
+    def update_userName(self):
+        self.cfg.PI_name = self.userName_input.text() # Update the configuration when button is clicked
+        self.reset_style(self.userName_input) # Reset style to default
+        logging.info(f"User name (PI_name): {self.cfg.PI_name}")
+        self.update_data_directory()
+
+    def update_projectID(self):
+        self.cfg.project_id = self.projectID_input.text()
+        self.reset_style(self.projectID_input)
+        logging.info(f"Project ID: {self.cfg.project_id}")
+        self.update_data_directory()
+
+    def update_experiment_class(self):
+        experiment_class = self.experiment_class_input.text()
+        if experiment_class in ['UniVie', 'External', 'IP']:
+            self.cfg.experiment_class = self.experiment_class_input.text()
+            self.reset_style(self.experiment_class_input)
+            logging.info(f"Experiment Class: {self.cfg.experiment_class}")
+            self.update_data_directory()
+        else:
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setText("Invalid entry value.\nPlease enter one of the recognized values: 'UniVie', 'External', 'IP'")
+            msg_box.setWindowTitle("Warning: Invalid Entry")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.exec()
+
+    def update_base_data_directory(self):
+        path = self.base_directory_input.text()
+        if os.path.exists(path):
+            self.cfg.base_data_dir = path
+            self.reset_style(self.base_directory_input)
+            logging.info(f"Base Directory: {self.cfg.base_data_dir}")
+            self.update_data_directory()
+        else:
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setText("The entered folder does not exist.")
+            msg_box.setWindowTitle("Warning: Invalid Path")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.exec()
+            
+    def open_directory_dialog(self):
+        initial_dir = self.base_directory_input.text()
+        folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
+        if not folder_name:
+            return
+        self.base_directory_input.setText(folder_name)
+        self.update_base_data_directory()
+
+    def update_data_directory(self):
+        self.outPath_input.setText(self.cfg.data_dir.as_posix())
+        logging.info(f"Data is now saved at {self.cfg.data_dir.as_posix()}")
+
     def update_h5_file_index(self, index):
             self.h5_file_index = index
-            
+
     def update_measurement_tag(self):
-        self.cfg.measurement_tag = self.prefix_input.text()
+        self.cfg.measurement_tag = self.tag_input.text()
+        self.reset_style(self.tag_input)
+        logging.info(f"Measurement Tag: {self.cfg.measurement_tag}")
 
     def update_index_box(self):
         self.index_box.setValue(self.cfg.file_id)
+        logging.info(f"H5 file index updated: {self.cfg.file_id}")
+
+    def reset_style(self, line_edit):
+        text_color = self.palette.color(QPalette.Text).name()
+        line_edit.setStyleSheet(f"QLineEdit {{ color: {text_color}; background-color: {self.background_color}; }}")

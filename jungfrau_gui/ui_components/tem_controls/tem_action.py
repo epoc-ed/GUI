@@ -68,7 +68,7 @@ class TEMAction(QObject):
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.datasaving_filepath)
-        self.file_operations.h5_folder_name = self.datasaving_filepath
+        # self.file_operations.h5_folder_name = self.datasaving_filepath
         self.file_operations.fname_input.setText(self.datasaving_filepath + '/file')
 
     def enabling(self, enables=True):
