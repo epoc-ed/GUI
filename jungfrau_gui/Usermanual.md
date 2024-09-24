@@ -82,19 +82,19 @@ This document was updated on 24 Sept 2024
 #### *[File Operations](screenshot/ver_24Sept2024.PNG)*
  - Section: 'Redis Store Settings'
     - 'Experiment Class': Switch to specify for whom the data are collected. Possible inputs are UniVie, External or IP (Intellectual Property) 
-    - 'User Name*': Line Edit to enter the PI (Person of Interest)
-    - 'Project Id*': Line Edit to specify the project identifier like 'epoc' for the EPOC project
-    - 'Base Data Root*': Specifies the root directory for data saving. Path can be either (i) entered manually (+press Enter) or (ii) chosen by clicking on the "Folder button" after navigating the directory tree.
+    - 'User Name' **: Line Edit to enter the PI (Person of Interest)
+    - 'Project Id' **: Line Edit to specify the project identifier like 'epoc' for the EPOC project
+    - 'Base Data Root' **: Specifies the root directory for data saving. Path can be either (i) entered manually (+press Enter) or (ii) chosen by clicking on the "Folder button" after navigating the directory tree.
  - Section: 'TIFF Writer'
     - 'Tiff File name': Line Edit to enter the prefix in the filename 
     - 'index': Spin box to specify the file index in the filename
     - 'Accumulate in TIFF': Button to accumulate a number of frames specified in the neighboring spin box.
  - Section: 'HDF5 Writer'
-    - 'HDF5 tag*': Line Edit to enter the prefix in the filename. Only accepts 7-bit ASCII characters and the underscore (_). No special characters allowed. 
-    - 'index*': Spin box to specify the hdf5 file index. Initially disabled. Can be enabled by checking the "Edit" checkbox.   
+    - 'HDF5 tag' **: Line Edit to enter the prefix in the filename. Only accepts 7-bit ASCII characters and the underscore (_). No special characters allowed. 
+    - 'index' **: Spin box to specify the hdf5 file index. Initially disabled. Can be enabled by checking the "Edit" checkbox.   
     - 'H5 Output Path': Read-only field where the full path to the saved datasets is specified. Cannot be modified and reflects instantaneously any changes made to the Redis Database parameters (ref. the section 'Redis Store Settings')  
 
-    * all the fields annoted with asterisk represent stored parameters in the Redis database. They are modifiable. Entries will be colored in orange meaning they are being specified i.e. not yet stored in the redis database. To save any changes, you will need to press the Enter key. The theme will then be reset to default (white writing over grey background) and changes would been uploaded to the database 
+    **N.B.** all the fields annoted with the double asterisk (**) represent stored parameters in the Redis database. They are modifiable. Entries will be colored in orange meaning they are being specified i.e. not yet stored in the redis database. To save any changes, you will need to press the Enter key. The theme will then be reset to default (white text over grey background) and changes would been uploaded to the database.
  
 ***
 ### Data-recording workflow
