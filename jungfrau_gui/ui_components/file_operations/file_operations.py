@@ -1,11 +1,11 @@
 import os
 import logging
-from PySide6.QtGui import QIcon, QFont
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtGui import QIcon, QFont, QRegularExpressionValidator
+from PySide6.QtCore import Signal, Qt, QRegularExpression
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
-                                QLabel, QLineEdit, QSpinBox, QFrame,
+                                QLabel, QLineEdit, QSpinBox, QButtonGroup,
                                 QPushButton, QFileDialog, QCheckBox,
-                                QMessageBox, QGridLayout)
+                                QMessageBox, QGridLayout, QRadioButton)
 
 from .stream_writer import StreamWriter
 # from .frame_accumulator import FrameAccumulator
@@ -55,7 +55,39 @@ class FileOperations(QGroupBox):
         section3.addWidget(Redis_section_label)
         self.redis_fields = []
 
+        ########################
+        # Experiment Class Field
+        ########################
+        self.experiment_class = QLabel("Experiment Class", self)
+        self.rb_univie = QRadioButton("UniVie", self)
+        self.rb_external = QRadioButton("External", self)
+        self.rb_ip = QRadioButton("IP", self)
+
+        self.rb_experiment_class = QButtonGroup()
+        self.rb_experiment_class.addButton(self.rb_univie, 0)
+        self.rb_experiment_class.addButton(self.rb_external, 1)
+        self.rb_experiment_class.addButton(self.rb_ip, 2)
+        for rb in self.rb_experiment_class.buttons():
+            if rb.text() == self.cfg.experiment_class:
+                rb.setChecked(True)
+                break
+
+        self.rb_experiment_class.buttonClicked.connect(self.update_experiment_class)
+
+        self.get_experiment_class = QPushButton("Get", self)
+        self.get_experiment_class.clicked.connect(lambda: print(f"Experiment Class: {self.cfg.experiment_class}"))
+
+        redis_experiment_class_layout = QHBoxLayout()
+        redis_experiment_class_layout.addWidget(self.experiment_class)
+        for rb in self.rb_experiment_class.buttons():
+            redis_experiment_class_layout.addWidget(rb, 1)
+        redis_experiment_class_layout.addWidget(self.get_experiment_class)
+
+        section3.addLayout(redis_experiment_class_layout)
+        
+        #################
         # User Name Field
+        #################
         self.userName = QLabel("User name", self)
         self.userName_input = QLineEdit(self)
         self.redis_fields.append(self.userName_input)
@@ -73,7 +105,9 @@ class FileOperations(QGroupBox):
 
         section3.addLayout(redis_UserName_layout)
 
+        ##################
         # Project ID Field
+        ##################
         self.projectID = QLabel("Project ID", self)
         self.projectID_input = QLineEdit(self)
         self.redis_fields.append(self.projectID_input)
@@ -91,25 +125,11 @@ class FileOperations(QGroupBox):
 
         section3.addLayout(redis_projectID_layout)
 
-        # Experiment Class Field
-        self.experiment_class = QLabel("Experiment Class", self)
-        self.experiment_class_input = QLineEdit(self)
-        self.redis_fields.append(self.experiment_class_input)
-        self.experiment_class_input.setText(f'{self.cfg.experiment_class}')
+        section3.addSpacing(20)
 
-        self.get_experiment_class = QPushButton("Get", self)
-        self.get_experiment_class.clicked.connect(lambda: print(f"Experiment Class: {self.cfg.experiment_class}"))
-
-        self.experiment_class_input.returnPressed.connect(self.update_experiment_class)
-
-        redis_experiment_class_layout = QHBoxLayout()
-        redis_experiment_class_layout.addWidget(self.experiment_class)
-        redis_experiment_class_layout.addWidget(self.experiment_class_input)
-        redis_experiment_class_layout.addWidget(self.get_experiment_class)
-
-        section3.addLayout(redis_experiment_class_layout)
-
+        ###########################
         # Base Data Directory Field
+        ###########################
         self.base_directory = QLabel("Base Data Directory", self)
         self.base_directory_input = QLineEdit(self)
         self.redis_fields.append(self.base_directory_input)
@@ -136,6 +156,9 @@ class FileOperations(QGroupBox):
         
         section3.addWidget(create_horizontal_line_with_margin(15))
 
+        #####################
+        # TIFF Writer Section
+        #####################
         TIFF_section_label = QLabel("TIFF Writer", self)
         TIFF_section_label.setFont(font_big)
 
@@ -172,6 +195,9 @@ class FileOperations(QGroupBox):
         
         section3.addWidget(create_horizontal_line_with_margin(15))
 
+        #####################
+        # HDF5 Writer Section
+        #####################
         HDF5_section_label = QLabel("HDF5 Writer", self)
         HDF5_section_label.setFont(font_big)
 
@@ -186,18 +212,29 @@ class FileOperations(QGroupBox):
         self.redis_fields.append(self.tag_input)
         self.tag_input.setText(self.cfg.measurement_tag)
 
+        # Define a regex that matches only valid Unix filename characters
+        valid_tag_regex = QRegularExpression("^[a-zA-Z0-9_.-]+$")
+        self.tag_input.setValidator(QRegularExpressionValidator(valid_tag_regex, self))
+
         self.tag_input.returnPressed.connect(self.update_measurement_tag)
 
         self.index_label = QLabel("index")
         self.index_box = QSpinBox(self)
-        self.index_box.setValue( self.cfg.file_id )
-        self.index_box.setReadOnly(True)
-        # self.index_box.valueChanged.connect(self.update_h5_file_index)
+        self.redis_fields.append(self.index_box)
+        self.index_box.setValue(self.cfg.file_id)
+        self.index_box.setEnabled(False)
+
+        self.index_box.editingFinished.connect(self.update_file_index)
+        # self.index_box.valueChanged.connect(self.update_file_index) #Immediate change (better??)
+
+        self.edit_checkbox = QCheckBox("Edit", self)
+        self.edit_checkbox.stateChanged.connect(self.toggle_editability)
 
         h5_file_ops_layout.addWidget(self.tag) 
         h5_file_ops_layout.addWidget(self.tag_input)
         h5_file_ops_layout.addWidget(self.index_label)
         h5_file_ops_layout.addWidget(self.index_box)
+        h5_file_ops_layout.addWidget(self.edit_checkbox)
 
         section3.addLayout(h5_file_ops_layout)
 
@@ -208,8 +245,6 @@ class FileOperations(QGroupBox):
         self.outPath_input.setDisabled(True)
         self.background_color = self.palette.color(QPalette.Base).name()
         self.outPath_input.setStyleSheet(f"QLineEdit {{ color: light grey; background-color: {self.background_color}; }}")
-        # self.outPath_input.textChanged.connect(self.modify_path_manually)
-        # self.h5_folder_name = self.outPath_input.text()
         
         output_folder_layout.addWidget(self.outPath, 2)
         output_folder_layout.addWidget(self.outPath_input, 7)
@@ -228,15 +263,14 @@ class FileOperations(QGroupBox):
         hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
         # hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
 
-        # self.nb_frame = QLabel("Number Written Frames:", self)
-        # self.total_frame_nb = QSpinBox(self)
-        # self.total_frame_nb.setMaximum(100000000)
-        # hdf5_writer_layout.addWidget(self.nb_frame)
-        # hdf5_writer_layout.addWidget(self.total_frame_nb)
-
         # Change text color to orange when text is modified
-        for line_edit in self.redis_fields:
-            line_edit.textChanged.connect(lambda _, le=line_edit: self.text_modified(le))  # Pass QLineEdit reference directly
+        for field in self.redis_fields:
+            if isinstance(field, QLineEdit):
+                field.textChanged.connect(lambda _, le=field: self.text_modified(le))  # Pass QLineEdit reference directly
+            elif isinstance(field, QSpinBox):
+                field.valueChanged.connect(lambda value: self.spin_box_modified(field))
+            else:
+                logging.error("Only QLineEdit and QSpinBox objects are supported!")
 
         section3.addLayout(hdf5_writer_layout)
         section3.addStretch()
@@ -338,8 +372,10 @@ class FileOperations(QGroupBox):
             # logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
     
     def text_modified(self, line_edit): 
-        if isinstance(line_edit, QLineEdit):
-            line_edit.setStyleSheet(f"QLineEdit {{ color: orange; background-color: {self.background_color}; }}")
+        line_edit.setStyleSheet(f"QLineEdit {{ color: orange; background-color: {self.background_color}; }}")
+
+    def spin_box_modified(self, spin_box):
+        spin_box.setStyleSheet(f"QSpinBox {{ color: orange; background-color: {self.background_color}; }}")
 
     def update_userName(self):
         self.cfg.PI_name = self.userName_input.text() # Update the configuration when button is clicked
@@ -353,20 +389,25 @@ class FileOperations(QGroupBox):
         logging.info(f"Project ID: {self.cfg.project_id}")
         self.update_data_directory()
 
-    def update_experiment_class(self):
-        experiment_class = self.experiment_class_input.text()
-        if experiment_class in ['UniVie', 'External', 'IP']:
-            self.cfg.experiment_class = self.experiment_class_input.text()
-            self.reset_style(self.experiment_class_input)
-            logging.info(f"Experiment Class: {self.cfg.experiment_class}")
-            self.update_data_directory()
-        else:
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setText("Invalid entry value.\nPlease enter one of the recognized values: 'UniVie', 'External', 'IP'")
-            msg_box.setWindowTitle("Warning: Invalid Entry")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec()
+    def update_experiment_class(self, button):
+        self.cfg.experiment_class = button.text()
+        logging.info(f"Experiment Class updated to: {self.cfg.experiment_class}")
+        self.update_data_directory()
+
+    # def update_experiment_class(self):
+    #     experiment_class = self.experiment_class_input.text()
+    #     if experiment_class in ['UniVie', 'External', 'IP']:
+    #         self.cfg.experiment_class = self.experiment_class_input.text()
+    #         self.reset_style(self.experiment_class_input)
+    #         logging.info(f"Experiment Class: {self.cfg.experiment_class}")
+    #         self.update_data_directory()
+    #     else:
+    #         msg_box = QMessageBox()
+    #         msg_box.setIcon(QMessageBox.Warning)
+    #         msg_box.setText("Invalid entry value.\nPlease enter one of the recognized values: 'UniVie', 'External', 'IP'")
+    #         msg_box.setWindowTitle("Warning: Invalid Entry")
+    #         msg_box.setStandardButtons(QMessageBox.Ok)
+    #         msg_box.exec()
 
     def update_base_data_directory(self):
         path = self.base_directory_input.text()
@@ -395,18 +436,26 @@ class FileOperations(QGroupBox):
         self.outPath_input.setText(self.cfg.data_dir.as_posix())
         logging.info(f"Data is now saved at {self.cfg.data_dir.as_posix()}")
 
-    def update_h5_file_index(self, index):
-            self.h5_file_index = index
-
     def update_measurement_tag(self):
         self.cfg.measurement_tag = self.tag_input.text()
         self.reset_style(self.tag_input)
         logging.info(f"Measurement Tag: {self.cfg.measurement_tag}")
 
+    def toggle_editability(self, state):
+        self.index_box.setEnabled(state == 2) # 0 (Unchecked), 1 (PartiallyChecked), or 2 (Checked)
+
+    def update_file_index(self):
+        self.cfg.file_id = self.index_box.value()
+        self.reset_style(self.index_box)
+        logging.info(f'H5 file index manually updated by user. Value of "file_id" equal to: {self.cfg.file_id}')
+
     def update_index_box(self):
         self.index_box.setValue(self.cfg.file_id)
-        logging.info(f"H5 file index updated: {self.cfg.file_id}")
+        logging.info(f"H5 file index updated after writing process. Next file will have index: {self.cfg.file_id}")
 
-    def reset_style(self, line_edit):
+    def reset_style(self, field):
         text_color = self.palette.color(QPalette.Text).name()
-        line_edit.setStyleSheet(f"QLineEdit {{ color: {text_color}; background-color: {self.background_color}; }}")
+        if isinstance(field, QLineEdit):
+            field.setStyleSheet(f"QLineEdit {{ color: {text_color}; background-color: {self.background_color}; }}")
+        elif isinstance(field,QSpinBox):
+            field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
