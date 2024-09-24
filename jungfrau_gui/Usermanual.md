@@ -85,6 +85,7 @@ This document was updated on 24 Sept 2024
     - 'User Name' **: Line Edit to enter the PI (Person of Interest)
     - 'Project Id' **: Line Edit to specify the project identifier like 'epoc' for the EPOC project
     - 'Base Data Root' **: Specifies the root directory for data saving. Path can be either (i) entered manually (+press Enter) or (ii) chosen by clicking on the "Folder button" after navigating the directory tree.
+    **N.B.1** All the [Get] buttons are temporary and for degugging purposes
  - Section: 'TIFF Writer'
     - 'Tiff File name': Line Edit to enter the prefix in the filename 
     - 'index': Spin box to specify the file index in the filename
@@ -94,7 +95,7 @@ This document was updated on 24 Sept 2024
     - 'index' **: Spin box to specify the hdf5 file index. Initially disabled. Can be enabled by checking the "Edit" checkbox.   
     - 'H5 Output Path': Read-only field where the full path to the saved datasets is specified. Cannot be modified and reflects instantaneously any changes made to the Redis Database parameters (ref. the section 'Redis Store Settings')  
 
-    **N.B.** all the fields annoted with the double asterisk (**) represent stored parameters in the Redis database. They are modifiable. Entries will be colored in orange meaning they are being specified i.e. not yet stored in the redis database. To save any changes, you will need to press the Enter key. The theme will then be reset to default (white text over grey background) and changes would been uploaded to the database.
+**N.B.2** all the fields annoted with the double asterisk (**) represent stored parameters in the Redis database. They are modifiable. Entries will be colored in orange meaning they are being specified i.e. not yet stored in the redis database. To save any changes, you will need to press the Enter key. The theme will then be reset to default (white text over grey background) and changes would been uploaded to the database.
  
 ***
 ### Data-recording workflow

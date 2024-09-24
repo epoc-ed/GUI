@@ -452,6 +452,7 @@ class FileOperations(QGroupBox):
     def update_index_box(self):
         self.index_box.setValue(self.cfg.file_id)
         logging.info(f"H5 file index updated after writing process. Next file will have index: {self.cfg.file_id}")
+        self.reset_style(self.index_box)
 
     def reset_style(self, field):
         text_color = self.palette.color(QPalette.Text).name()
