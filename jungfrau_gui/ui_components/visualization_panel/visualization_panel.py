@@ -11,7 +11,8 @@ from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QGridLayout, QSizePolicy, QSpacerItem)
 
 from epoc import ConfigurationClient, auth_token, redis_host
-from reuss import ReceiverClient
+# from reuss import ReceiverClient
+from ...summing_receiver_client import ReceiverClient
 
 from .reader import Reader
 
@@ -25,16 +26,17 @@ import psutil
 def is_process_running(process_name):
     for proc in psutil.process_iter(['cmdline']):  # Fetch command line arguments for each process
         try:
-            # Check each command line argument to find 'srecv'
+            # Check each command line argument to find for e.g. 'ReceiverServer' when running 'python ReceiverServer.py -t 12'
             if any(process_name in arg for arg in proc.info['cmdline']):
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied):
-            # Handle exceptions if the process terminates or if access is denied
+            # TODO Handle exceptions if the process terminates or if access is denied
             continue
     return False
 
 class VisualizationPanel(QGroupBox):
     trigger_update_frames_to_sum = Signal(int)
+    trigger_disable_receiver_controls = Signal()
 
     def __init__(self, parent):
         # super().__init__("Visualization Panel")
@@ -43,6 +45,7 @@ class VisualizationPanel(QGroupBox):
         self.cfg =  ConfigurationClient(redis_host(), token=auth_token())
         # self.receiver_client = ReceiverClient(host="localhost", port = 5555, verbose=True)
         self.trigger_update_frames_to_sum.connect(self.update_frames_to_sum)
+        self.trigger_disable_receiver_controls.connect(self.enable_receiver_controls)
         self.initUI()
 
     def initUI(self):
@@ -127,19 +130,24 @@ class VisualizationPanel(QGroupBox):
         self.connectToSreceiver = ToggleButton('Connect to Receiver', self)
         self.connectToSreceiver.setMaximumHeight(50)
         self.connectToSreceiver.clicked.connect(self.connect_and_start_receiver_client)
+
+        self.startReceiverStream = QPushButton('Start Stream', self)
+        self.startReceiverStream.setDisabled(True)
+        self.startReceiverStream.clicked.connect(lambda: self.send_command_to_srecv('start'))
         
         self.stopSreceiverBtn = QPushButton('Stop Receiver', self)
         self.stopSreceiverBtn.setDisabled(True)
         self.stopSreceiverBtn.clicked.connect(lambda: self.send_command_to_srecv('stop'))
 
-        grid_2 = QGridLayout()
-        grid_2.addWidget(self.connectToSreceiver, 0, 0, 2, 3)
-        grid_2.addWidget(self.stopSreceiverBtn, 0, 3, 2, 3)
+        grid_comm_receiver = QGridLayout()
+        grid_comm_receiver.addWidget(self.connectToSreceiver, 0, 0, 2, 2)
+        grid_comm_receiver.addWidget(self.startReceiverStream, 0, 2, 2, 2)
+        grid_comm_receiver.addWidget(self.stopSreceiverBtn, 0, 4, 2, 2)
 
         spacer = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
-        grid_2.addItem(spacer)
+        grid_comm_receiver.addItem(spacer)
 
-        receiver_control_group.addLayout(grid_2)
+        receiver_control_group.addLayout(grid_comm_receiver)
 
         Frames_Sum_layout=QVBoxLayout() 
         Frames_Sum_section_label = QLabel("Summming Parameters")
@@ -215,13 +223,15 @@ class VisualizationPanel(QGroupBox):
 
     # TODO: rewrite in a better way
     def enable_receiver_controls(self, enables=False):
-        if enables:
+        if enables==True:
+            self.startReceiverStream.setEnabled(enables)
             self.stopSreceiverBtn.setEnabled(enables)
             self.setFramesToSumBtn.setEnabled(enables)
             self.frames_to_sum.setEnabled(enables)
             self.recordPedestalBtn.setEnabled(enables)
             self.recordGain0Btn.setEnabled(enables)
         else:
+            self.startReceiverStream.setDisabled(True)
             self.stopSreceiverBtn.setDisabled(True)
             self.setFramesToSumBtn.setDisabled(True)
             self.frames_to_sum.setDisabled(True)
@@ -237,31 +247,40 @@ class VisualizationPanel(QGroupBox):
 
     def connect_and_start_receiver_client(self):
         if self.connectToSreceiver.started == False:
+            self.connectToSreceiver.started = True
             if self.is_summingReceiver_running('ReceiverServer'):
                 logging.info("Sreceiver already running!!")
-                self.connectToSreceiver.started = True
                 self.receiver_client = ReceiverClient(host="localhost", port = 5555, verbose=True)
                 try:
-                    self.receiver_client.ping()
-                    self.connectToSreceiver.setStyleSheet('background-color: green; color: white;')
-                    self.connectToSreceiver.setText("Communication OK")
-                    self.send_command_to_srecv('start') # How to avoid sending again??
-                    self.enable_receiver_controls(True)
-                    time.sleep(0.1)
-                    self.send_command_to_srecv("get_frames_to_sum")
-                except Exception as e:
-                    logging.error(f"An error occurred: {e}")
+                    if self.receiver_client.ping():
+                        self.connectToSreceiver.setStyleSheet('background-color: green; color: white;')
+                        self.connectToSreceiver.setText("Communication OK")
+                        self.enable_receiver_controls(True)
+                        time.sleep(0.01)
+                        self.send_command_to_srecv("get_frames_to_sum")
+                except TimeoutError as e:
+                    logging.error(f"Connection attempt timed out: {e}")
+                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                    self.connectToSreceiver.setText("Connection Timed Out")
+                except ConnectionError as e:
+                    logging.error(f"Connection failed: {e}")
+                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                    self.connectToSreceiver.setText("Connection Failed")
+                except ValueError as e:
+                    logging.error(f"Unexpected server response: {e}")
                     self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
                     self.connectToSreceiver.setText("Connection Failed")
             else:
-                pass
+                logging.warning("ReceiverServer not running")
+                self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                self.connectToSreceiver.setText("Receiver Not Running")
         else:
             self.connectToSreceiver.started = False
             self.connectToSreceiver.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.connectToSreceiver.setText('Connect to Receiver')
 
     def send_command_to_srecv(self, command):
-        def thread_function():
+        def thread_command_relay():
             try:
                 if command == 'start':
                     self.receiver_client.start()
@@ -281,15 +300,14 @@ class VisualizationPanel(QGroupBox):
                     self.receiver_client.frames_to_sum = new_summing_factor
                     logging.info(f"Summing factor in receiver set to {new_summing_factor}")
                 elif command == 'stop':
-                    self.receiver_client.stop()
+                    self.trigger_disable_receiver_controls.emit()      
                     logging.info(f"Stopping Receiver...") 
-                    time.sleep(0.1)
-                    self.enable_receiver_controls(False)      
+                    self.receiver_client.stop()
             except Exception as e:
-                logging.error(f"An error occurred: {e}")
+                logging.error(f"GUI caught relayed error: {e}")
 
         # Start the network operation in a new thread
-        threading.Thread(target=thread_function, daemon=True).start()
+        threading.Thread(target=thread_command_relay, daemon=True).start()
 
     def send_set_frames_command(self):
         value = self.frames_to_sum.value()
@@ -370,7 +388,9 @@ class VisualizationPanel(QGroupBox):
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")
                 time.sleep(0.1) 
-            self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
+            if self.autoContrastBtn.started:
+                # self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
+                self.toggle_autoContrast()
 
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
@@ -389,4 +409,6 @@ class VisualizationPanel(QGroupBox):
 
     def updateUI(self, image, frame_nr):
         self.parent.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False)
+        # self.parent.histogram.setLevels(0, 5000)  # Reinforce level settings
+        # self.parent.histogram.setHistogramRange(0, 5000, padding=0) 
         self.parent.statusBar().showMessage(f'Frame: {frame_nr}')
