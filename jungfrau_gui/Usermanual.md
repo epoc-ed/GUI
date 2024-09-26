@@ -67,7 +67,7 @@ This document was updated on 26 Sept 2024
  - 'Accumulate in TIFF': Save a tiff-snapshot at the defined data path in lineedit.
  - 'Write Stream in H5': Save an hdf-movie at the defined data path with prefix in lineedits. The output file ends with '_master.h5'.
 
-#### *[Summing Receiver Controls](screenshot/ver_26Sept2024.png)*
+#### *[Summing Receiver Controls](screenshot/ver_26Sept2024.PNG.png)*
 **Important:** The integrated controls are only compatible with the new Summing Receiver coded in the **ReceiverServer.py** script located at **~/software/v2/reuss/python/reuss**.
 > To run the receiver (also called 'receiver server-side'), use the following command:
    ```$ python ReceiverServer.py -t 12```
