@@ -1,9 +1,11 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 24 Sept 2024
+This document was updated on 26 Sept 2024
 - [Activation](#Activation)
 - [Deactivation](#Deactivation)
 - [Main Function](#Main-Function)
+- [Summing Receiver Controls](#Summing-Receiver-Controls)
 - [TEM-control Function](#TEM-control-Function)
+- [File-Operation & Redis](#File-Operation-&-Redis)
 - [Data-recording workflow](#Data-recording-workflow)
 - [Data-recording workflow with Testing version](#Data-recording-workflow-with-Testing-version)
 - [Data-procesing notes](#Data-processing-notes,-6-7-Jun-2024)
@@ -64,6 +66,25 @@ This document was updated on 24 Sept 2024
     - *only at tem mode.*
  - 'Accumulate in TIFF': Save a tiff-snapshot at the defined data path in lineedit.
  - 'Write Stream in H5': Save an hdf-movie at the defined data path with prefix in lineedits. The output file ends with '_master.h5'.
+
+#### *[Summing Receiver Controls](screenshot/ver_26Sept2024.PNG)*
+**Important** The integrated controls of the Summing Receiver are only compatible with the **ReceiverServer.py** script located at **~/software/v2/reuss/python/reuss**.
+*\*To run the receiver (also called 'receiver server side'), use the following command:
+   ```$ python ReceiverServer.py -t 12```
+ - Main operations:
+    - 'Connect to Receiver': Pushbutton to establish connection with the receiver (server side).
+       *The button turns GREEN when the server script (ReceiverServer.py) is running.
+         **Only in this case are the rest of the controls enabled!**
+       *The buttons turns RED, if the user has not started the summing receiver server script
+       *Errors can be returned on the console in case of 'bad' termination of the ReceiverServer. 
+    - 'Start Stream': Relays the ```r.start()``` command and starts the streaming of assembled and summed frames to be received by the viewer through a ZeroMQ socket (for details ref. **zmq_receiver.py** and **reader.py**)
+    - 'Stop Receiver': Relays the ```r.stop()``` command and stops the summing receiver.
+        **The Stop operation is not reliable ([#issue42 @ repo: slsdetectorgroup/reuss](https://github.com/slsdetectorgroup/reuss/issues/42))
+- More operations:
+    - 'Summing Factor': Spinbox that accepts an integer value
+    - 'Set Frames Number': Relays the ```r.set_frames_to_sum(N)``` with N equal to the integer value in the above spinbox.
+    - 'Record Full Pedestal': Relays the ```r.collect_pedestal()``` (eq to ```r.record-pedestal(1)``` in old receiver) which records the full pedestal and substracts the dark frame from each summed frame hence converting raw data into physical data (deposited energy) 
+    - 'Record Gain G0': Relays the ```r.tune_pedestal()``` (eq to ```r.record-pedestal(2)``` in old receiver) to record the pedestal for gain G0.
  
 #### *[TEM-control Function](screenshot/ver_16Aug2024.PNG)*
  - 'Connect to TEM': (deactivated) Starts communication with TEM.
@@ -79,7 +100,7 @@ This document was updated on 24 Sept 2024
      **The rotation speed buttion should be clicked right before starting rotation. [This will be fixed.](https://github.com/epoc-ed/GUI/issues/37)**
  - 'Stage Ctrl': Moves the stage quickly by a constant values.
 
-#### *[File Operations](screenshot/ver_24Sept2024.PNG)*
+#### *[File Operations & Redis](screenshot/ver_24Sept2024.PNG)*
  - Section: 'Redis Store Settings'
     - 'Experiment Class': Switch to specify for whom the data are collected. Possible inputs are UniVie, External or IP (Intellectual Property) 
     - 'User Name' **: Line Edit to enter the PI (Person of Interest)
