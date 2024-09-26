@@ -12,7 +12,7 @@ from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout,
 
 from epoc import ConfigurationClient, auth_token, redis_host
 # from reuss import ReceiverClient
-from ...summing_receiver_client import ReceiverClient
+from ...summing_receiver.ReceiverClient import ReceiverClient
 
 from .reader import Reader
 
