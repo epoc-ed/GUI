@@ -95,11 +95,9 @@ class RecordTask(Task):
 
         self.client.SetTiltXAngle(phi1)
 
-        # #Wait enough to make the rotation start (can also use other logic)
-        # time.sleep(0.5) 
-
         try:
-            self.client.wait_until_rotate_starts() # Wait for rotation to start before entering the loop
+            # Attempt to wait for the rotation to start
+            self.client.wait_until_rotate_starts()
             logging.info("Stage has initiated rotation.\nAsynchronous writing of H5 and logfile is starting now...")
 
             #If enabled we start writing files 
@@ -107,59 +105,87 @@ class RecordTask(Task):
                 self.tem_action.file_operations.start_H5_recording.emit() 
         
             t0 = time.time()
-            while self.client.is_rotating:
-                try:
-                    pos = self.client.GetStagePosition()
-                    t = time.time()
-                    logfile.write(f"{t - t0:20.6f}  {pos[3]:8.3f} deg\n")
-                    time.sleep(0.1)
-                except Exception as e:
-                    logging.error(f"Error during getting stage position: {e}")
-                    break
+            try:
+                while self.client.is_rotating:
+                    try:
+                        pos = self.client.GetStagePosition()
+                        t = time.time()
+                        logfile.write(f"{t - t0:20.6f}  {pos[3]:8.3f} deg\n")
+                        time.sleep(0.1)
+                    except Exception as e:
+                        logging.error(f"Error getting stage position, skipping iteration: {e}")
+                        continue
+            except TimeoutError as te:
+                logging.error(f"TimeoutError during rotation: {te}")
+            except Exception as e:
+                logging.error(f"Unexpected error caught for TEMClient::is_rotating(): {e}")                
 
             # Stop the file writing
             if self.writer and self.tem_action.file_operations.streamWriterButton.started:
-                print(" *********************** Stopping the Writer **********************")
+                logging.info(" ********************  Stopping H5 writer...")
                 self.tem_action.file_operations.stop_H5_recording.emit()
+            
+            time.sleep(0.01)
+            self.client.SetBeamBlank(1)
+
+            try:
+                phi1 = self.client.GetTiltXAngle()
+                if os.access(os.path.dirname(self.log_suffix), os.W_OK):            
+                    logfile.write(f"# Final Angle (measured):   {phi1:.3f} deg\n")
+            except Exception as e:
+                logging.error(f"Failed to get final tilt angle: {e}")   
+
+            logfile.close()
+            logging.info(f"Stage rotation end at {phi1:.1f} deg.")
+
+            # Enable auto reset of tilt
+            if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
+                logging.info("Return the stage tilt to zero.")
+                self.client.SetTiltXAngle(0)
+                time.sleep(1)
+                
+            # Waiting for the rotation to end
+            try:
+                while self.client.is_rotating:
+                    time.sleep(0.01)
+            except Exception as e:
+                logging.error(f'Error during "Auto-Reset" rotation: {e}')
+
+            # GUI updates
+            try:
+                self.control.send_to_tem("#more")  # Update tem_status map and GUI 
+            except Exception as e:
+                logging.error("Error updating TEM status: {e}")
+
+            # Add H5 info and file finalization
+            if self.writer:
+                logging.info(" ******************** Adding Info to H5...")
+                self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
+                # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+                os.rename(self.log_suffix + '.log', (self.tem_action.file_operations.formatted_filename).with_suffix('.log'))
+
+                logging.info(" ******************** Updating file_id in DB...")
+                self.cfg.after_write()
+                self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+
+            self.tem_action.tem_tasks.rotation_button.setText("Rotation")
+            self.tem_action.tem_tasks.rotation_button.started = False
+            self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+
+            print("------REACHED END OF TASK----------")
+
+        except TimeoutError as e:
+            # Log the timeout error and exit early to avoid writing files
+            logging.error(f"Stage failed to start rotation: {e}")
+            return
 
         except Exception as e:
             logging.error(f"Unexpected error while waiting for rotation to start: {e}")
+        finally:
+            logfile.close()  # Ensure the logfile is closed in case of any errors
+            if self.writer and self.tem_action.file_operations.streamWriterButton.started:
+                self.tem_action.file_operations.stop_H5_recording.emit()
         
-        self.client.SetBeamBlank(1)
-        phi1 = self.client.GetTiltXAngle()
-        if os.access(os.path.dirname(self.log_suffix), os.W_OK):            
-            logfile.write(f"# Final Angle (measured):   {phi1:.3f} deg\n")
-            logfile.close()
-        logging.info(f"Stage rotation end at {phi1:.1f} deg.")
-
-        # Enable auto reset of tilt
-        if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
-            logging.info("Return the stage tilt to zero.")
-            self.client.SetTiltXAngle(0)
-            time.sleep(1)
-            
-        # Waiting for the rotation to end
-        try:
-            while self.client.is_rotating:
-                time.sleep(0.1)
-        except Exception as e:
-            logging.error(f'Error during "Auto-Reset" rotation: {e}')
-
-        self.control.send_to_tem("#more")  # Update tem_status map and GUI 
-
-        if self.writer:
-            self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-            # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-            os.rename(self.log_suffix + '.log', (self.tem_action.file_operations.formatted_filename).with_suffix('.log'))
-            self.cfg.after_write()
-            self.tem_action.file_operations.trigger_update_h5_index_box.emit()
-
-        self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-        self.tem_action.tem_tasks.rotation_button.started = False
-        self.tem_action.file_operations.streamWriterButton.setEnabled(True)
-
-        print("------REACHED END OF TASK----------")
-
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
         #                    self.tem_action.xds_template_filepath)

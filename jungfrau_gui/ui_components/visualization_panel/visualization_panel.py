@@ -221,22 +221,13 @@ class VisualizationPanel(QGroupBox):
         section_visual.addStretch()
         self.setLayout(section_visual)
 
-    # TODO: rewrite in a better way
     def enable_receiver_controls(self, enables=False):
-        if enables==True:
-            self.startReceiverStream.setEnabled(enables)
-            self.stopSreceiverBtn.setEnabled(enables)
-            self.setFramesToSumBtn.setEnabled(enables)
-            self.frames_to_sum.setEnabled(enables)
-            self.recordPedestalBtn.setEnabled(enables)
-            self.recordGain0Btn.setEnabled(enables)
-        else:
-            self.startReceiverStream.setDisabled(True)
-            self.stopSreceiverBtn.setDisabled(True)
-            self.setFramesToSumBtn.setDisabled(True)
-            self.frames_to_sum.setDisabled(True)
-            self.recordPedestalBtn.setDisabled(True)
-            self.recordGain0Btn.setDisabled(True)     
+        self.startReceiverStream.setEnabled(enables)
+        self.stopSreceiverBtn.setEnabled(enables)
+        self.setFramesToSumBtn.setEnabled(enables)
+        self.frames_to_sum.setEnabled(enables)
+        self.recordPedestalBtn.setEnabled(enables)
+        self.recordGain0Btn.setEnabled(enables)   
 
     def is_summingReceiver_running(self, process_name):
         if not is_process_running(process_name):

@@ -166,7 +166,10 @@ class ControlWorker(QObject):
     @Slot()
     def _init(self):
         threading.current_thread().setName("ControlThread")      
-        self.send_to_tem("#more") # Update tem_status map and GUI                        
+        try:
+            self.send_to_tem("#more") # Update tem_status map and GUI   
+        except Exception as e:
+            logging.error(f"Error occured when initializing task manager: {e}")                     
         self.sweepingWorkerReady = False
         # self.send.emit("stage.Setf1OverRateTxNum(2)")
         logging.info("Initialized control thread")
