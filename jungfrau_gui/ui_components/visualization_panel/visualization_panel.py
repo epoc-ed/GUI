@@ -187,7 +187,9 @@ class VisualizationPanel(QGroupBox):
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")
                 time.sleep(0.1) 
-            self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
+            if self.autoContrastBtn.started:
+                # self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
+                self.toggle_autoContrast()
 
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
