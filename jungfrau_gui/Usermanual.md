@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 26 Sept 2024
+This document was updated on 27 Sept 2024
 - [Activation](#Activation)
 - [Deactivation](#Deactivation)
 - [Main Function](#Main-Function)
@@ -24,28 +24,31 @@ This document was updated on 26 Sept 2024
 1. When we login as 'psi', the environment has been setup.
 1.  ```$ p config ~/jf.config```
 1.  ```$ p start```
-1.  ```$ cd /home/psi/software/v2/reuss/build```
-1.  ```$ ./srecv -t 12``` \
+1.  ```$ cd /home/psi/software/v2/reuss/python/reuss```
+1.  ```$ python ReceiverServer.py -t 12``` \
     *\*Using 12 threads*
 1.  ```$ cd /home/psi/software/viewer_2.0/GUI```
-    <!-- *\*'PSI' version. 'Testing' version is at /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0* \
-    *\*'Testing' version will be renamed as 'Stable' version after the bug-fix* -->
-1.  ```$ git switch testing``` (or ```$ git checkout testing```)
+1.  ```$ git switch feature/redis_coonfig``` (or ```$ git checkout feature/redis_coonfig```)
 1.  ```$ git branch --contains```\
-    *Confirm you are under the 'testing' branch.*
+    *Confirm you are under the 'feature/redis_coonfig' branch.*
 1.  ```$ python launch_gui.py```\
     *\*To use TEM control functions, ```$ python launch_gui.py -t```*
-1. Start streaming in the Jungfrau_GUI, without incident beam.
-1.  ```>>> r.record_pedestal(1)``` *at the terminal window where the receiver (srecv) is running\
-    ****\*To be more careful of the threshold, reset the value before pedestaling as: ```r.set_threshold(-50)```****
-1. 'Acquisition Interval (ms)' in GUI should be changed to '20' to reduce the dealy.
-
+1. Start streaming in the Jungfrau_GUI, without incident beam. For that, Click on ```View Stream```
+1. Click on ```Connect to Receiver```. Once the button turns green, all controls are enabled.
+1. Click on ```Start Stream``` to start receiving the frames. 
+    <!--****\*To be more careful of the threshold, reset the value before pedestaling as: ```r.set_threshold(-50)```****-->
+1. Adjust the ```Acquisition Interval (ms)``` value in the spinbox in GUI.\
+   > To reduce the delay, set the value to '20'. To avoid the display of the loggings, you can increase the value (try '50' or '60')
+1. Click on ```Record Full Pedestal``` to subtract the dark frames.
+   >**More detail on the receiver controls in the [Summing Receiver Controls] section**
 
 ### Deactivation
 **\*CameraPC (hodgkin)**
+1. Stop the receiver by clicking on the ```Stop Rceiver``` pushbutton. This operation may take several seconds.
+   > The stop operation is not reliable. In case of failure, you can open another terminal and kill the process\
+   > ```$ ps aux | grep ReceiverServer```\
+   > ```$ kill -9 [process-id]```
 1. Stop streaming and Exit the viewer
-1. Stop the receiver from the terminal window. This may take several tens of seconds.\
-    ```>>> r.stop()``` 
 1. ```$ p stop```
 
 **\*TEM-PC**
@@ -55,79 +58,89 @@ This document was updated on 26 Sept 2024
 
 ***
 ### Main Function
- - 'View Stream': Reads the stream of frames sent by the receiver.
- - 'Auto Contrast': Dynamically adjusts the contrast of the displayed frames.
- - 'Exit': Exits the GUI. The connection to TEM is disconnected before exiting.
- - ['[A]'](screenshot/ver_21Jun2024.png) at the bottom left of the viewer panel can reset the viewer scale.
- - 'Beam Gaussian Fit': Starts the gaussian fitting of the beam elliptical spot shape.
+ - ```View Stream```: Reads the stream of frames published by the receiver.
+ - ```Apply Auto Contrast```: Dynamically adjusts the contrast of the displayed frames.
+ - ```Exit```: Exits the GUI. The connection to TEM is disconnected before exiting.
+ - [```[A]```](screenshot/ver_21Jun2024.png) at the bottom left of the viewer panel can reset the viewer scale.
+ - ```Beam Gaussian Fit```: Starts the gaussian fitting of the beam elliptical spot shape.
     - *only at non-tem mode. at the moment, useful as a quantifying indicator for manual-focusing.*
- - 'Magnification', 'Distance': Indicates magnification/distance value obtained at the previous recoring
+ - ```Magnification```, ```Distance```: Indicates magnification/distance value obtained at the previous recoring
 <!--      - 'scale' for displaying a scale bar for imaging (1 um length) or the Debye-ring for diffraction (1 A circle) -->
     - *only at tem mode.*
- - 'Accumulate in TIFF': Save a tiff-snapshot at the defined data path in lineedit.
- - 'Write Stream in H5': Save an hdf-movie at the defined data path with prefix in lineedits. The output file ends with '_master.h5'.
+ - ```Accumulate in TIFF```: Save a tiff-snapshot at the defined data path in the LineEdit.
+ - ```Write Stream in H5```: Save an hdf-movie at the defined data path with prefix in lineedits. The output file ends with '_master.h5'.
 
 #### *[Summing Receiver Controls](screenshot/ver_26Sept2024.PNG.png)*
-**Important:** The integrated controls are only compatible with the new Summing Receiver coded in the **ReceiverServer.py** script located at **~/software/v2/reuss/python/reuss**.
-> To run the receiver (also called 'receiver server-side'), use the following command:
+**Important:** The integrated controls are only compatible with the new receiver **~/software/v2/reuss/python/reuss/ReceiverServer.py**.
+> To run the receiver, use the following command:\
    ```$ python ReceiverServer.py -t 12```
  - Main operations:
-    - 'Connect to Receiver': Pushbutton to establish connection with the receiver (server side).
-       >The button turns GREEN when the server script (ReceiverServer.py) is running.
-      **Only in this case are the rest of the controls enabled!**
+    - ```Connect to Receiver```: Pushbutton to establish a connection with the receiver (server side).
+       > The button turns GREEN when the server script (ReceiverServer.py) is running.
+         **Only in this case are the rest of the controls enabled!**
        
        > The button turns RED, if the user has not started the ReceiverServer
        
        > Error loggings can appear on the console in case of 'bad' termination of the ReceiverServer. 
-    - 'Start Stream': Relays the ```r.start()``` command and starts the streaming of assembled and summed frames to be received by the viewer through a ZeroMQ socket (for details ref. **zmq_receiver.py** and **reader.py**)
-    - 'Stop Receiver': Relays the ```r.stop()``` command and stops the summing receiver.
+    - ```Start Stream```: Relays the ```r.start()``` command and starts the streaming of assembled and summed frames to be received by the viewer through a ZeroMQ socket (for details ref. **zmq_receiver.py** and **reader.py**)
+    - ```Stop Receiver```: Relays the ```r.stop()``` command and stops the summing receiver.
       
         > **The Stop operation is not reliable ([#issue42 @ repo: slsdetectorgroup/reuss](https://github.com/slsdetectorgroup/reuss/issues/42))**
 - More operations:
-    - 'Summing Factor': Spinbox that accepts an integer value ```N```
-    - 'Set Frames Number': Relays the ```r.set_frames_to_sum(N)``` with N equal to the integer value in the above spinbox.
-    - 'Record Full Pedestal': Relays the ```r.collect_pedestal()``` (eq to ```r.record-pedestal(1)``` in old receiver) which records the full pedestal and substracts the dark frame from each summed frame hence converting raw data into physical data (deposited energy) 
-    - 'Record Gain G0': Relays the ```r.tune_pedestal()``` (eq to ```r.record-pedestal(2)``` in old receiver) to record the pedestal for gain G0.
+    - ```Summing Factor```: Spinbox that accepts an integer value ```N```
+    - ```Set Frames Number```: Relays the ```r.set_frames_to_sum(N)``` with N equal to the integer value in the above spinbox.
+    - ```Record Full Pedestal```: Relays the ```r.collect_pedestal()``` (eq to ```r.record_pedestal(1)``` in the old receiver) which records the full pedestal and substracts the dark frame from each summed frame hence converting raw data into physical data (deposited energy) 
+    - ```Record Gain G0```: Relays the ```r.tune_pedestal()``` (eq to ```r.record_pedestal(2)``` in the old receiver) to record the pedestal for gain G0.
  
 #### *[TEM-control Function](screenshot/ver_16Aug2024.PNG)*
- - 'Connect to TEM': (deactivated) Starts communication with TEM.
- - 'Get TEM status': (deactivated) Updates the TEM information and shows in the terminal. If an hdf file with the defined filename exists, the information will be added to the header.
-     - 'recording': (deactivated) save the TEM values in the log file in the current directory.
- - 'Click-on-Centring': (deactivated) Activates stage control by clicking the streaming image
- - 'Beam Autofocus': (**! Not ready for use!**) Sweeps IL1 and ILstig values linearly, roughly and finely 
- - 'Rotation': Starts stage rotation until the input tilt degree (in the lower box, 'Target angle'), and reports the setting parameters. When the beam is blanked, it will be unblanked on starting the rotation. When the rotation ends, the beam will be blanked. The rotation can be interrupted either by clicking this button again or touching the tilt button of the TEM console.\
-     *'Start angle' only indicates the current value (not real-time) and can not be modified.'*
-     - 'with Writer': The HDF writer ('Write Stream in H5') is synchronized with the rotation.
-     - 'Auto reset': The stage tilt will be reset to 0 deg after the rotation.
-     - 'Rotation Speed': Changes rotation speed settings and indicates the current value.\
+ - ```Connect to TEM```: Starts communication with TEM.\
+    One Click will enquire about the connection status:
+      > (i) When the connection is OK: (1) the button turns green, (2) enabling the TEM controls and (3) will check the status for every 3s\
+      > *\* Re-click on the button to disable the checks in point (3)*
+      
+      > (ii) When the connection fails: **TODO: Error handling on the GUI side**
+ - ```Get TEM status```: (deactivated) Updates the TEM information and shows in the terminal. If an hdf file with the defined filename exists, the information will be added to the header.
+     - ```recording```: (deactivated) save the TEM values in the log file in the current directory.
+ - ```Click-on-Centring```: (deactivated) Activates stage control by clicking the streaming image
+ - ```Beam Autofocus```: (**! Not ready for use!**) Sweeps IL1 and ILstig values linearly, roughly and finely 
+ - ```Rotation```: Starts stage rotation until the input tilt degree (in the lower box, 'Target angle'), and reports the setting parameters. When the beam is blanked, it will be unblanked on starting the rotation. When the rotation ends, the beam will be blanked. The rotation can be interrupted either by clicking this button again or touching the tilt button of the TEM console.\
+     *```Start angle``` only indicates the current value (not real-time) and can not be modified.'*
+     - ```with Writer```: The HDF writer ('Write Stream in H5') is synchronized with the rotation.
+     - ```Auto reset```: The stage tilt will be reset to 0 deg after the rotation.
+     - ```Rotation Speed```: Changes rotation speed settings and indicates the current value.\
      **The rotation speed buttion should be clicked right before starting rotation. [This will be fixed.](https://github.com/epoc-ed/GUI/issues/37)**
- - 'Stage Ctrl': Moves the stage quickly by a constant values.
+ - ```Stage Ctrl```: Moves the stage quickly by a constant values.
 
 #### *[File Operations & Redis](screenshot/ver_24Sept2024.PNG)*
  - Section: 'Redis Store Settings'
-    - 'Experiment Class': Switch to specify for whom the data are collected. Possible inputs are UniVie, External or IP (Intellectual Property) 
-    - 'User Name' **: Line Edit to enter the PI (Person of Interest)
-    - 'Project Id' **: Line Edit to specify the project identifier like 'epoc' for the EPOC project
-    - 'Base Data Root' **: Specifies the root directory for data saving. Path can be either (i) entered manually (+press Enter) or (ii) chosen by clicking on the "Folder button" after navigating the directory tree.
-    **N.B.1** All the [Get] buttons are temporary and for degugging purposes
+    - ```Experiment Class```: Switch to specify for whom the data are collected. Possible inputs are UniVie, External or IP (Intellectual Property) 
+    - ```User Name```**: Line Edit to enter the PI (Person of Interest)
+    - ```Project Id```**: Line Edit to specify the project identifier like 'epoc' for the EPOC project
+    - ```Base Data Root```**: Specifies the root directory for data saving. Path can be either (i) entered manually (+press ```Enter```) or (ii) chosen by clicking on the "Folder button" after navigating the directory tree.
+    **N.B.1** All the ```Get``` buttons are temporary and for degugging purposes
  - Section: 'TIFF Writer'
-    - 'Tiff File name': Line Edit to enter the prefix in the filename 
-    - 'index': Spin box to specify the file index in the filename
-    - 'Accumulate in TIFF': Button to accumulate a number of frames specified in the neighboring spin box.
+    - ```Tiff File name```: Line Edit to enter the prefix in the filename 
+    - ```index```: Spinbox to specify the file index in the filename
+    - ```Accumulate in TIFF```: Button to accumulate a number of frames ```N``` specified in the neighboring spin box set to ```10 frames``` by default.
  - Section: 'HDF5 Writer'
-    - 'HDF5 tag' **: Line Edit to enter the prefix in the filename. Only accepts 7-bit ASCII characters and the underscore (_). No special characters allowed. 
-    - 'index' **: Spin box to specify the hdf5 file index. Initially disabled. Can be enabled by checking the "Edit" checkbox.   
-    - 'H5 Output Path': Read-only field where the full path to the saved datasets is specified. Cannot be modified and reflects instantaneously any changes made to the Redis Database parameters (ref. the section 'Redis Store Settings')  
+    - ```HDF5 tag```**: Line Edit to enter the prefix in the filename. Only accepts 7-bit ASCII characters and the underscore (_). **No special characters are allowed.** 
+    - ```index```**: Spin box to specify the hdf5 file index. Initially disabled. Modifications can be enabled by checking the ```Edit``` checkbox.   
+    - ```H5 Output Path```: Read-only field where the full path to the saved datasets is specified.\
+      - Path format: `[base_data_dir]/{experiment_class}/(PI)\[project_id]/<date>`
+      - An example is `[data/jungfrau/instruments/jem2100plus]/{UniVie}/(Erik)\[epoc]/<2024-09-27>`
+      - The path cannot be directly modified through the LineEdit and reflects instantaneously any changes made to the Redis Database parameters (described in the section 'Redis Store Settings')  
 
-**N.B.2** all the fields annoted with the double asterisk (**) represent stored parameters in the Redis database. They are modifiable. Entries will be colored in orange meaning they are being specified i.e. not yet stored in the redis database. To save any changes, you will need to press the Enter key. The theme will then be reset to default (white text over grey background) and changes would been uploaded to the database.
+**N.B.2** All the fields annoted with the double asterisk (**) represent stored parameters in the Redis database. They are modifiable. Entries will be coloured in orange meaning they are being specified i.e. not yet stored in the Redis database.\ 
+To save any changes, press the ```Enter``` key. The theme will then be reset to default (white text over grey background) and changes will be uploaded to the database.
  
 ***
 ### Data-recording workflow
 <!-- , 21 May 2024 -->
 1. Setup the beam and stage of TEM for data collection.
-1. Define the data output path on the 'H5 Output Path' lineedit via a folder icon.
-1. Start the stage rotation of TEM for example, and immediately click 'Write Stream in H5'
-1. Click 'Stop Writing' right before the rotation ends.
+1. Confirm the data output path on the ```H5 Output Path``` line-edit (non-editable).\
+   > Modifications to the path are to be made through controls in the [Redis Store Settings] section. (ref. details in the above [**File Operations & Redis**] paragraph)
+1. Start the stage rotation of TEM for example, and immediately click ```Write Stream in H5```
+1. Click ```Stop Writing``` right before the rotation ends.
 <!-- 1. When 'Prepare for XDS processing' is checked, the ouput filename is end with '_master.h5' -->
 <!-- 1. Modify the 'Acquisition Interval (ms)' -->
 
@@ -135,10 +148,11 @@ This document was updated on 26 Sept 2024
 ### Data-recording workflow with Testing version (*'-t'*)
 1. Setup the beam and stage of TEM for data collection.
 1. Blank the beam to avoid the sample damage.
-1. Confirm/modify the data output path on the 'H5 Output Path' line-edit via a folder icon or manually (but cannot create an inexistent folder).
+1. Confirm the data output path on the ```H5 Output Path``` line-edit (non-editable).\
+   > Modifications to the path are to be made through controls in the [Redis Store Settings] section. (ref. details in the above [**File Operations & Redis**] paragraph)
 1. Confirm/modify the stage rotation speed and the end angle of the rotation.
-1. Check the 'with Writer' box. Check/uncheck the 'Auto reset' box.
-1. Click 'Rotation' button, then start the rotation and recording synchronously.
+1. Check the ```with Writer``` box. Check/uncheck the ```Auto reset``` box.
+1. Click ```Rotation``` button, then start the rotation and recording synchronously.
 1. The rotation/recording continues until reaching the end angle or being interrupted.
 1. Take a tiff image if you need. The tiff image is not tied with the HDF file at the moment.
 
@@ -178,7 +192,5 @@ This document was updated on 26 Sept 2024
     *Open another PowerShell console and kill the corresponding python process*\
     ```$ Get-Process python```  
     ```$ kill [pid]```
-- **[Fixed]** Hdf files are not output to the defined path.\
-    *Modity the H5 Output Path via the folder icon (activates file-browser system).*
 - The TEM-control button does not respond immediately.\
     *There will be a delay of a few seconds in responding, especially the first time. Please wait a few moments.*
