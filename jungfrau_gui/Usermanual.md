@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 20 Aug 2024
+Latest update: on 29 Sep 2024 by KT
 - [Activation](#Activation)
 - [Deactivation](#Deactivation)
 - [Main Function](#Main-Function)
@@ -12,32 +12,34 @@ This document was updated on 20 Aug 2024
 ### Activation
 **\*TEM-PC, NOT needed when you ONLY use the TEM console panel**
 1. Activate the TEM server
+   - log-in with user 'JEM User'.
    - From the Windows Start Menu, open a Miniconda Powershell Prompt (Anaconda submenu).
-   - Change directory to C:\ProgramData\SinglaGUI
-   - Type ```$conda activate vjem38```
+   - Change directory to C:\ProgramData\EPOC
+   - Type ```$ conda activate vjem38```
    - Type ```$ python server_tem.py```
    This must be done **before** starting the GUI below.
 
 **\*CameraPC (hodgkin)**
 1. When we login as 'psi', the environment has been setup.
-1.  ```$ p config ~/jf.config```
-1.  ```$ p start```
+1. Check the JF status with ```$ g status```
+1. If the JF is not configurated, ```$ p config ~/jf.config``` and start it with ```$ p start```
+1. If the configuration is ready, just start the JF with ```$ p start```
 1.  ```$ cd /home/psi/software/v2/reuss/build```
 1.  ```$ ./srecv -t 12``` \
-    *\*Using 12 threads*
+    *\*Using 12 threads*\
+    ***\*Do not use another one at /home/psi/software/v2/python/app/srecv***
 1.  ```$ cd /home/psi/software/viewer_2.0/GUI```
-    <!-- *\*'PSI' version. 'Testing' version is at /home/psi/software/viewer_2.0/GUI_temctrl/viewer_2.0* \
-    *\*'Testing' version will be renamed as 'Stable' version after the bug-fix* -->
+    <!-- *\*'testing' version will be renamed as 'stable' version after the bug-fix* -->
 1.  ```$ git switch testing``` (or ```$ git checkout testing```)
 1.  ```$ git branch --contains```\
     *Confirm you are under the 'testing' branch.*
 1.  ```$ python launch_gui.py```\
     *\*To use TEM control functions, ```$ python launch_gui.py -t```*
-1. Start streaming in the Jungfrau_GUI, without incident beam.
+1. Start streaming in the GUI, without incident beam.
 1.  ```>>> r.record_pedestal(1)``` *at the terminal window where the receiver (srecv) is running\
     ****\*To be more careful of the threshold, reset the value before pedestaling as: ```r.set_threshold(-50)```****
-1. 'Acquisition Interval (ms)' in GUI should be changed to '20' to reduce the dealy.
-
+1. [optional] ```>>> r.record_pedestal(2)```
+1. [optional] 'Acquisition Interval (ms)' in GUI could be changed to '20' to reduce the dealy. A flow of error messages generated can be ignored.
 
 ### Deactivation
 **\*CameraPC (hodgkin)**
@@ -52,6 +54,7 @@ This document was updated on 20 Aug 2024
     ```$ kill [process-id]```
 
 ***
+#### **Information below is for versions up to the end of July 2024.**
 ### Main Function
  - 'View Stream': Reads the stream of frames sent by the receiver.
  - 'Auto Contrast': Dynamically adjusts the contrast of the displayed frames.
