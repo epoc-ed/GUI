@@ -57,7 +57,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.client.SetXRel(10000))
 
         # self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.execute_command("SetXRel(-10000)"))
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.client.SetXRel(-10000))
+        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.client.SetXRel(-10000))
 
         self.tem_stagectrl.move10degp.clicked.connect(
                     lambda: self.control.client.SetTXRel(10))
