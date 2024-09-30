@@ -140,9 +140,9 @@ More:\
 
 #### Redis Store Settings
 - `Experiment Class`: Specifies for whom the data is collected (e.g., UniVie, External, IP).
-- `User Name`: Enter the PI.
+- `User Name`: Enter the PI (Person of Interest).
 - `Project Id`: Enter the project identifier.
-- `Base Data Root`: Specifies the root directory for data saving.
+- `Base Data Directory`: Specifies the root directory for data saving.
 
 #### TIFF Writer
 - `Tiff File Name`: Enter the file prefix.
@@ -195,6 +195,7 @@ More:\
 ## Troubleshooting
 
 - **PowerShell console not responding after disconnecting from GUI**: Open another PowerShell console and kill the python process:
+
    ```bash
    Get-Process python
    kill [pid]

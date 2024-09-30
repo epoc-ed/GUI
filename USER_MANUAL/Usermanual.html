@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>User Manual for Jungfrau GUI</title>
+  <title>Usermanual</title>
   <style>
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
@@ -80,9 +80,6 @@
   <link rel="stylesheet" href="github-markdown.css" />
 </head>
 <body>
-<header id="title-block-header">
-<h1 class="title">User Manual for Jungfrau GUI</h1>
-</header>
 <h1 id="new-receiver-and-viewer-of-jungfrau-for-ed-ccsa-uniwien">New
 Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien</h1>
 <p>This document was updated on 30 Sept 2024</p>
@@ -265,10 +262,10 @@ href="screenshot/ver_24Sept2024.PNG">File Operation and Redis</a></h3>
 <ul>
 <li><code>Experiment Class</code>: Specifies for whom the data is
 collected (e.g., UniVie, External, IP).</li>
-<li><code>User Name</code>: Enter the PI.</li>
+<li><code>User Name</code>: Enter the PI (Person of Interest).</li>
 <li><code>Project Id</code>: Enter the project identifier.</li>
-<li><code>Base Data Root</code>: Specifies the root directory for data
-saving.</li>
+<li><code>Base Data Directory</code>: Specifies the root directory for
+data saving.</li>
 </ul>
 <h4 id="tiff-writer">TIFF Writer</h4>
 <ul>
@@ -325,20 +322,23 @@ recording.</li>
 <ul>
 <li><strong>XDS</strong>: The plugin derived from Neggia requires
 <code>_master.h5</code> in the filename. Create a symbolic link:<br />
-<code>$ ln -s [full-path-of-hdffile] linked_master.h5</code></li>
+<code>ln -s [full-path-of-hdffile] linked_master.h5</code></li>
 <li><strong>DIALS</strong>: Install the <a
 href="https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py">updated
 Format Class</a> to read the HDF file directly:<br />
-<code>$ dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660</code></li>
+<code>dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660</code></li>
 </ul>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <ul>
-<li><strong>PowerShell console not responding after disconnecting from
-GUI</strong>: Open another PowerShell console and kill the python
-process: <code>bash  Get-Process python  kill [pid]</code></li>
-<li><strong>TEM-control button delay</strong>: There may be a few
+<li><p><strong>PowerShell console not responding after disconnecting
+from GUI</strong>: Open another PowerShell console and kill the python
+process:</p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">Get-Process</span> python</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> [pid]</span></code></pre></div></li>
+<li><p><strong>TEM-control button delay</strong>: There may be a few
 seconds of delay when responding, especially the first time. Please
-wait.</li>
+wait.</p></li>
 </ul>
 </body>
 </html>
