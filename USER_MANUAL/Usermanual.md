@@ -1,107 +1,192 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-Latest update: on 29 Sep 2024 by KT
-- [Activation](#Activation)
-- [Deactivation](#Deactivation)
-- [Main Function](#Main-Function)
-- [TEM-control Function](#TEM-control-Function)
-- [Data-recording workflow](#Data-recording-workflow)
-- [Data-recording workflow with Testing version](#Data-recording-workflow-with-Testing-version)
-- [Data-procesing notes](#Data-processing-notes,-6-7-Jun-2024)
-- [Troubleshooting](#Troubleshooting)
+**Latest update**: 30 Sep 2024
 
-### Activation
-**\*TEM-PC, NOT needed when you ONLY use the TEM console panel**
-1. Activate the TEM server
-   - log-in with user 'JEM User'.
-   - From the Windows Start Menu, open a Miniconda Powershell Prompt (Anaconda submenu).
-   - Change directory to C:\ProgramData\EPOC
-   - Type ```$ conda activate vjem38```
-   - Type ```$ python server_tem.py```
-   This must be done **before** starting the GUI below.
+## Table of Contents
+- [Activation](#activation)
+- [Deactivation](#deactivation)
+- [Main Function](#main-function)
+- [TEM-control Function](#tem-control-function)
+- [Data-recording Workflow](#data-recording-workflow)
+- [Data-recording Workflow with Testing Version](#data-recording-workflow-with-testing-version)
+- [Data-processing Notes](#data-processing-notes-6-7-jun-2024)
+- [Troubleshooting](#troubleshooting)
 
-**\*CameraPC (hodgkin)**
-1. When we login as 'psi', the environment has been setup.
-1. Check the JF status with ```$ g status```
-1. If the JF is not configurated, ```$ p config ~/jf.config``` and start it with ```$ p start```
-1. If the configuration is ready, just start the JF with ```$ p start```
-1.  ```$ cd /home/psi/software/v2/reuss/build```
-1.  ```$ ./srecv -t 12``` \
-    *\*Using 12 threads*\
-    ***\*Do not use another one at /home/psi/software/v2/python/app/srecv***
-1.  ```$ cd /home/psi/software/viewer_2.0/GUI```
-    <!-- *\*'testing' version will be renamed as 'stable' version after the bug-fix* -->
-1.  ```$ git switch testing``` (or ```$ git checkout testing```)
-1.  ```$ git branch --contains```\
-    *Confirm you are under the 'testing' branch.*
-1.  ```$ python launch_gui.py```\
-    *\*To use TEM control functions, ```$ python launch_gui.py -t```*
-1. Start streaming in the GUI, without incident beam.
-1.  ```>>> r.record_pedestal(1)``` *at the terminal window where the receiver (srecv) is running\
-    ****\*To be more careful of the threshold, reset the value before pedestaling as: ```r.set_threshold(-50)```****
-1. [optional] ```>>> r.record_pedestal(2)```
-1. [optional] 'Acquisition Interval (ms)' in GUI could be changed to '20' to reduce the dealy. A flow of error messages generated can be ignored.
+## Activation
 
-### Deactivation
-**\*CameraPC (hodgkin)**
-1. Stop streaming and Exit the viewer
-1. Stop the receiver from the terminal window. This may take several tens of seconds.\
-    ```>>> r.stop()``` 
-1. ```$ p stop```
+### TEM-PC (not required if using only the TEM console panel)
+1. Log in with the user 'JEM User'.
+2. Open a **Miniconda PowerShell Prompt** (Anaconda submenu) from the Windows Start Menu.
+3. Navigate to the `C:\ProgramData\EPOC` directory:
+   ```bash
+   cd C:\ProgramData\EPOC
+   ```
+4. Activate the environment:
+   ```bash
+   conda activate vjem38
+   ```
+5. Start the TEM server:
+   ```bash
+   python server_tem.py
+   ```
+   > **Note:** This must be done **before** starting the GUI.
 
-**\*TEM-PC**
-1. Open another PowerShell console and kill the corresponding python process\
-    ```$ Get-Process python```  
-    ```$ kill [process-id]```
+### CameraPC (hodgkin)
+1. Log in as 'psi', the environment is already set up.
+2. Check the JF status:
+   ```bash
+   g status
+   ```
+3. If the JF is not configured, set it up and start it:
+   ```bash
+   p config ~/jf.config
+   p start
+   ```
+4. If the configuration is ready, simply start the JF:
+   ```bash
+   p start
+   ```
+5. Navigate to the build directory:
+   ```bash
+   cd /home/psi/software/v2/reuss/build
+   ```
+6. Start the receiver with 12 threads:
+   ```bash
+   ./srecv -t 12
+   ```
+   > **Note:** Do not use the `srecv` located in `/home/psi/software/v2/python/app/srecv`.
+
+7. Navigate to the GUI directory:
+   ```bash
+   cd /home/psi/software/viewer_2.0/GUI
+   ```
+   <!-- The 'testing' version will be renamed as 'stable' after the bug fix -->
+
+8. Switch to the `testing` branch:
+   ```bash
+   git switch testing
+   ```
+   or
+   ```bash
+   git checkout testing
+   ```
+
+9. Confirm you are on the `testing` branch:
+   ```bash
+   git branch --contains
+   ```
+
+10. Start the GUI:
+    
+    ```bash
+    python launch_gui.py
+    ```
+    
+    **To use TEM control functions**, run:
+    
+    ```bash
+    python launch_gui.py -t
+    ```
+
+11. Start streaming in the GUI without the incident beam.
+
+12. Run the following in the terminal window, where the receiver (`srecv`) is running, to record the pedestal:
+
+    ```bash
+    r.record_pedestal(1)
+    ```
+
+    **Tip:** To adjust the threshold before pedestaling, run:
+    
+    ```bash
+    r.set_threshold(-50)
+    ```
+
+13. (Optional) Record pedestal with gain:
+    
+    ```bash
+    r.record_pedestal(2)
+    ```
+
+
+14. (Optional) Adjust the acquisition interval in the GUI to reduce the delay:
+    - Change 'Acquisition Interval (ms)' to 20. Any error messages generated can be ignored.
+
+## Deactivation
+
+### CameraPC (hodgkin)
+1. Stop streaming and exit the viewer.
+2. Stop the receiver from the terminal window (this may take several seconds):
+   ```bash
+   r.stop()
+   ```
+3. Stop the JF process:
+   ```bash
+   p stop
+   ```
+
+### TEM-PC
+1. Open another PowerShell console and kill the corresponding Python process:
+   ```bash
+   Get-Process python
+   kill [process-id]
+   ```
 
 ***
-#### **Information below is for versions up to the end of July 2024.**
-### Main Function
- - 'View Stream': Reads the stream of frames sent by the receiver.
- - 'Auto Contrast': Dynamically adjusts the contrast of the displayed frames.
- - 'Exit': Exits the GUI. The connection to TEM is disconnected before exiting.
- - ['[A]'](screenshot/ver_21Jun2024.png) at the bottom left of the viewer panel can reset the viewer scale.
- - 'Beam Gaussian Fit': Starts the gaussian fitting of the beam elliptical spot shape.
-    - *only at non-tem mode. at the moment, useful as a quantifying indicator for manual-focusing.*
- - 'Magnification', 'Distance': Indicates magnification/distance value obtained at the previous recoring
-<!--      - 'scale' for displaying a scale bar for imaging (1 um length) or the Debye-ring for diffraction (1 A circle) -->
-    - *only at tem mode.*
- - 'Accumulate in TIFF': Save a tiff-snapshot at the defined data path in lineedit.
- - 'Write Stream in H5': Save an hdf-movie at the defined data path with prefix in lineedits. The output file ends with '_master.h5'.
- 
-#### *[TEM-control Function](screenshot/ver_16Aug2024.PNG)*
- - 'Connect to TEM': (deactivated) Starts communication with TEM.
- - 'Get TEM status': (deactivated) Updates the TEM information and shows in the terminal. If an hdf file with the defined filename exists, the information will be added to the header.
-     - 'recording': (deactivated) save the TEM values in the log file in the current directory.
- - 'Click-on-Centring': (deactivated) Activates stage control by clicking the streaming image
- - 'Beam Autofocus': (**! Not ready for use!**) Sweeps IL1 and ILstig values linearly, roughly and finely 
- - 'Rotation': Starts stage rotation until the input tilt degree (in the lower box, 'Target angle'), and reports the setting parameters. When the beam is blanked, it will be unblanked on starting the rotation. When the rotation ends, the beam will be blanked. The rotation can be interrupted either by clicking this button again or touching the tilt button of the TEM console.\
-     *'Start angle' only indicates the current value (not real-time) and can not be modified.'*
-     - 'with Writer': The HDF writer ('Write Stream in H5') is synchronized with the rotation.
-     - 'Auto reset': The stage tilt will be reset to 0 deg after the rotation.
-     - 'Rotation Speed': Changes rotation speed settings and indicates the current value.\
-     **The rotation speed buttion should be clicked right before starting rotation. [This will be fixed.](https://github.com/epoc-ed/GUI/issues/37)**
- - 'Stage Ctrl': Moves the stage quickly by a constant values.
- 
-***
-### Data-recording workflow
-<!-- , 21 May 2024 -->
-1. Setup the beam and stage of TEM for data collection.
-1. Define the data output path on the 'H5 Output Path' lineedit via a folder icon.
-1. Start the stage rotation of TEM for example, and immediately click 'Write Stream in H5'
-1. Click 'Stop Writing' right before the rotation ends.
-<!-- 1. When 'Prepare for XDS processing' is checked, the ouput filename is end with '_master.h5' -->
-<!-- 1. Modify the 'Acquisition Interval (ms)' -->
+
+## Main Function
+- **View Stream**: Reads the stream of frames sent by the receiver.
+- **Auto Contrast**: Dynamically adjusts the contrast of the displayed frames.
+- **Exit**: Exits the GUI. Disconnects the TEM before exiting.
+- **[A]**: Resets the viewer scale (bottom left of the viewer panel).
+- **Beam Gaussian Fit**: Starts fitting the beam's elliptical spot shape.
+   - *For non-TEM mode only, useful for manual focusing.*
+- **Magnification**, **Distance**: Displays values from the previous recording.
+   - *Available in TEM mode only.*
+- **Accumulate in TIFF**: Saves a TIFF snapshot to the specified data path in the line edit.
+- **Write Stream in H5**: Saves an HDF movie to the specified data path with the given prefix. The output file ends with `_master.h5`.
 
 ***
-### Data-recording workflow with Testing version (*'-t'*)
-1. Setup the beam and stage of TEM for data collection.
-1. Blank the beam to avoid the sample damage.
-1. Confirm/modify the data output path on the 'H5 Output Path' line-edit via a folder icon or manually (but cannot create an inexistent folder).
-1. Confirm/modify the stage rotation speed and the end angle of the rotation.
-1. Check the 'with Writer' box. Check/uncheck the 'Auto reset' box.
-1. Click 'Rotation' button, then start the rotation and recording synchronously.
-1. The rotation/recording continues until reaching the end angle or being interrupted.
-1. Take a tiff image if you need. The tiff image is not tied with the HDF file at the moment.
+
+## TEM-control Function
+- **Connect to TEM**: (deactivated) Starts communication with TEM.
+- **Get TEM Status**: (deactivated) Updates the TEM information and shows it in the terminal. If an HDF file with the defined filename exists, the information is added to the header.
+- **Recording**: (deactivated) Saves the TEM values in the log file in the current directory.
+- **Click-on-Centring**: (deactivated) Activates stage control by clicking the streaming image.
+- **Beam Autofocus**: (**Not ready for use**) Sweeps IL1 and ILstig values roughly and finely.
+- **Rotation**: Starts stage rotation to the input tilt degree ('Target angle') and reports the parameters.
+   - The beam is unblanked when the rotation starts and blanked when it ends.
+   - Rotation can be interrupted by clicking the button again or using the TEM console tilt button.
+   - *The start angle only indicates the current value and cannot be modified.*
+   - **With Writer**: Synchronizes the HDF writer with the rotation.
+   - **Auto Reset**: Resets the stage tilt to 0° after rotation.
+   - **Rotation Speed**: Changes the rotation speed and indicates the current value.\
+     > **Note:** Click the rotation speed button right before starting rotation. [This will be fixed.](https://github.com/epoc-ed/GUI/issues/37)
+- **Stage Ctrl**: Moves the stage quickly by constant values.
+
+***
+
+## Data-recording Workflow
+
+1. Set up the beam and stage of the TEM for data collection.
+2. Define the data output path on the 'H5 Output Path' line edit via the folder icon.
+3. Start the stage rotation of TEM and immediately click **Write Stream in H5**.
+4. Click **Stop Writing** just before the rotation ends.
+
+<!-- 1. When 'Prepare for XDS processing' is checked, the output filename will end with `_master.h5`. -->
+<!-- 1. Modify the 'Acquisition Interval (ms)'. -->
+
+***
+
+## Data-recording Workflow with Testing Version (*'-t'*)
+
+1. Set up the beam and stage of the TEM for data collection.
+2. Blank the beam to avoid sample damage.
+3. Confirm/modify the data output path in the 'H5 Output Path' line edit (via folder icon or manually). *Cannot create an inexistent folder*.
+4. Confirm/modify the stage rotation speed and the end angle of the rotation.
+5. Check the **With Writer** box. Check/uncheck the **Auto Reset** box.
+6. Click **Rotation** to start the rotation and recording synchronously.
+7. The rotation/recording continues until the end angle is reached or interrupted.
+8. Take a TIFF image if needed. *The TIFF image is not tied to the HDF file at the moment*.
 
 <!-- ***
 ### Data-recording workflow with Development version, 4 Jul 2024
@@ -115,13 +200,20 @@ Latest update: on 29 Sep 2024 by KT
 *\*TEM information will be written in the HDF when 'Write during rotaion' is checked.* -->
 
 ***
-### Data-processing notes, 6-7 Jun 2024
-- Read with XDS:\
-    The plugin derived from Neggia one requires '_master.h5' in the input filename, and a symbolic link with the suffix should be additionally prepared (to be corrected).\
-    ```[working-directory]$ ln -s [full-path of hdffile] linked_master.h5```
-- Read with DIALS:\
-    [An updated Format Class](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py) must be installed. Then DIALS can read the HDF directly;\
-    ```dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660```
+
+## Data-processing Notes, 6-7 Jun 2024
+
+- **Read with XDS**: The plugin derived from Neggia requires `_master.h5` in the input filename, and a symbolic link with the suffix should be additionally prepared:
+
+   ```bash
+   ln -s [full-path-of-hdffile] linked_master.h5
+   ```
+
+- **Read with DIALS**: Install the updated [Format Class](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py) to read the HDF file directly:
+   
+   ```bash
+   dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660
+   ```
 
 <!--
 #### Data-processing workflow, 21 May 2024
@@ -134,12 +226,16 @@ Latest update: on 29 Sep 2024 by KT
 -->
 
 ***
-### Troubleshooting
-- The PowerShell console does not recover after disconnecting to the GUI.\
-    *Open another PowerShell console and kill the corresponding python process*\
-    ```$ Get-Process python```  
-    ```$ kill [pid]```
-- **[Fixed]** Hdf files are not output to the defined path.\
-    *Modity the H5 Output Path via the folder icon (activates file-browser system).*
-- The TEM-control button does not respond immediately.\
-    *There will be a delay of a few seconds in responding, especially the first time. Please wait a few moments.*
+
+## Troubleshooting
+- **PowerShell console does not recover after disconnecting from GUI**:
+    Open another PowerShell console and kill the corresponding Python process:
+
+    ```bash
+    Get-Process python
+    kill [pid]
+    ```
+- **HDF files are not output to the defined path**:
+    Modify the H5 Output Path via the folder icon (activates the file-browser system).
+- **TEM-control button does not respond immediately**:
+    There may be a delay of a few seconds in responding, especially the first time. Please wait a few moments.

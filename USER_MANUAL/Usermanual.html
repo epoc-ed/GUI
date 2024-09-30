@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Usermanual</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="github-markdown.css" />
+</head>
+<body>
+<h1 id="new-receiver-and-viewer-of-jungfrau-for-ed-ccsa-uniwien">New
+Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien</h1>
+<p><strong>Latest update</strong>: 30 Sep 2024</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#activation">Activation</a></li>
+<li><a href="#deactivation">Deactivation</a></li>
+<li><a href="#main-function">Main Function</a></li>
+<li><a href="#tem-control-function">TEM-control Function</a></li>
+<li><a href="#data-recording-workflow">Data-recording Workflow</a></li>
+<li><a
+href="#data-recording-workflow-with-testing-version">Data-recording
+Workflow with Testing Version</a></li>
+<li><a href="#data-processing-notes-6-7-jun-2024">Data-processing
+Notes</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+<h2 id="activation">Activation</h2>
+<h3 id="tem-pc-not-required-if-using-only-the-tem-console-panel">TEM-PC
+(not required if using only the TEM console panel)</h3>
+<ol type="1">
+<li><p>Log in with the user ‘JEM User’.</p></li>
+<li><p>Open a <strong>Miniconda PowerShell Prompt</strong> (Anaconda
+submenu) from the Windows Start Menu.</p></li>
+<li><p>Navigate to the <code>C:\ProgramData\EPOC</code> directory:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> C:<span class="dt">\P</span>rogramData<span class="dt">\E</span>POC</span></code></pre></div></li>
+<li><p>Activate the environment:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate vjem38</span></code></pre></div></li>
+<li><p>Start the TEM server:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> server_tem.py</span></code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> This must be done <strong>before</strong>
+starting the GUI.</p>
+</blockquote></li>
+</ol>
+<h3 id="camerapc-hodgkin">CameraPC (hodgkin)</h3>
+<ol type="1">
+<li><p>Log in as ‘psi’, the environment is already set up.</p></li>
+<li><p>Check the JF status:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">g</span> status</span></code></pre></div></li>
+<li><p>If the JF is not configured, set it up and start it:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">p</span> config ~/jf.config</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">p</span> start</span></code></pre></div></li>
+<li><p>If the configuration is ready, simply start the JF:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">p</span> start</span></code></pre></div></li>
+<li><p>Navigate to the build directory:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /home/psi/software/v2/reuss/build</span></code></pre></div></li>
+<li><p>Start the receiver with 12 threads:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./srecv</span> <span class="at">-t</span> 12</span></code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> Do not use the <code>srecv</code> located in
+<code>/home/psi/software/v2/python/app/srecv</code>.</p>
+</blockquote></li>
+<li><p>Navigate to the GUI directory:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /home/psi/software/viewer_2.0/GUI</span></code></pre></div>
+<!-- The 'testing' version will be renamed as 'stable' after the bug fix --></li>
+<li><p>Switch to the <code>testing</code> branch:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch testing</span></code></pre></div>
+<p>or</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout testing</span></code></pre></div></li>
+<li><p>Confirm you are on the <code>testing</code> branch:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> branch <span class="at">--contains</span></span></code></pre></div></li>
+<li><p>Start the GUI:</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> launch_gui.py</span></code></pre></div>
+<p><strong>To use TEM control functions</strong>, run:</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> launch_gui.py <span class="at">-t</span></span></code></pre></div></li>
+<li><p>Start streaming in the GUI without the incident beam.</p></li>
+<li><p>Run the following in the terminal window, where the receiver
+(<code>srecv</code>) is running, to record the pedestal:</p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">r.record_pedestal</span><span class="er">(</span><span class="ex">1</span><span class="kw">)</span></span></code></pre></div>
+<p><strong>Tip:</strong> To adjust the threshold before pedestaling,
+run:</p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">r.set_threshold</span><span class="er">(</span><span class="ex">-50</span><span class="kw">)</span></span></code></pre></div></li>
+<li><p>(Optional) Record pedestal with gain:</p>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="ex">r.record_pedestal</span><span class="er">(</span><span class="ex">2</span><span class="kw">)</span></span></code></pre></div></li>
+<li><p>(Optional) Adjust the acquisition interval in the GUI to reduce
+the delay:</p>
+<ul>
+<li>Change ‘Acquisition Interval (ms)’ to 20. Any error messages
+generated can be ignored.</li>
+</ul></li>
+</ol>
+<h2 id="deactivation">Deactivation</h2>
+<h3 id="camerapc-hodgkin-1">CameraPC (hodgkin)</h3>
+<ol type="1">
+<li><p>Stop streaming and exit the viewer.</p></li>
+<li><p>Stop the receiver from the terminal window (this may take several
+seconds):</p>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">r.stop()</span></span></code></pre></div></li>
+<li><p>Stop the JF process:</p>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="ex">p</span> stop</span></code></pre></div></li>
+</ol>
+<h3 id="tem-pc">TEM-PC</h3>
+<ol type="1">
+<li><p>Open another PowerShell console and kill the corresponding Python
+process:</p>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="ex">Get-Process</span> python</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> [process-id]</span></code></pre></div></li>
+</ol>
+<hr />
+<h2 id="main-function">Main Function</h2>
+<ul>
+<li><strong>View Stream</strong>: Reads the stream of frames sent by the
+receiver.</li>
+<li><strong>Auto Contrast</strong>: Dynamically adjusts the contrast of
+the displayed frames.</li>
+<li><strong>Exit</strong>: Exits the GUI. Disconnects the TEM before
+exiting.</li>
+<li><strong>[A]</strong>: Resets the viewer scale (bottom left of the
+viewer panel).</li>
+<li><strong>Beam Gaussian Fit</strong>: Starts fitting the beam’s
+elliptical spot shape.
+<ul>
+<li><em>For non-TEM mode only, useful for manual focusing.</em></li>
+</ul></li>
+<li><strong>Magnification</strong>, <strong>Distance</strong>: Displays
+values from the previous recording.
+<ul>
+<li><em>Available in TEM mode only.</em></li>
+</ul></li>
+<li><strong>Accumulate in TIFF</strong>: Saves a TIFF snapshot to the
+specified data path in the line edit.</li>
+<li><strong>Write Stream in H5</strong>: Saves an HDF movie to the
+specified data path with the given prefix. The output file ends with
+<code>_master.h5</code>.</li>
+</ul>
+<hr />
+<h2 id="tem-control-function">TEM-control Function</h2>
+<ul>
+<li><strong>Connect to TEM</strong>: (deactivated) Starts communication
+with TEM.</li>
+<li><strong>Get TEM Status</strong>: (deactivated) Updates the TEM
+information and shows it in the terminal. If an HDF file with the
+defined filename exists, the information is added to the header.</li>
+<li><strong>Recording</strong>: (deactivated) Saves the TEM values in
+the log file in the current directory.</li>
+<li><strong>Click-on-Centring</strong>: (deactivated) Activates stage
+control by clicking the streaming image.</li>
+<li><strong>Beam Autofocus</strong>: (<strong>Not ready for
+use</strong>) Sweeps IL1 and ILstig values roughly and finely.</li>
+<li><strong>Rotation</strong>: Starts stage rotation to the input tilt
+degree (‘Target angle’) and reports the parameters.
+<ul>
+<li>The beam is unblanked when the rotation starts and blanked when it
+ends.</li>
+<li>Rotation can be interrupted by clicking the button again or using
+the TEM console tilt button.</li>
+<li><em>The start angle only indicates the current value and cannot be
+modified.</em></li>
+<li><strong>With Writer</strong>: Synchronizes the HDF writer with the
+rotation.</li>
+<li><strong>Auto Reset</strong>: Resets the stage tilt to 0° after
+rotation.</li>
+<li><strong>Rotation Speed</strong>: Changes the rotation speed and
+indicates the current value.<br />
+&gt; <strong>Note:</strong> Click the rotation speed button right before
+starting rotation. <a
+href="https://github.com/epoc-ed/GUI/issues/37">This will be
+fixed.</a></li>
+</ul></li>
+<li><strong>Stage Ctrl</strong>: Moves the stage quickly by constant
+values.</li>
+</ul>
+<hr />
+<h2 id="data-recording-workflow">Data-recording Workflow</h2>
+<ol type="1">
+<li>Set up the beam and stage of the TEM for data collection.</li>
+<li>Define the data output path on the ‘H5 Output Path’ line edit via
+the folder icon.</li>
+<li>Start the stage rotation of TEM and immediately click <strong>Write
+Stream in H5</strong>.</li>
+<li>Click <strong>Stop Writing</strong> just before the rotation
+ends.</li>
+</ol>
+<!-- 1. When 'Prepare for XDS processing' is checked, the output filename will end with `_master.h5`. -->
+<!-- 1. Modify the 'Acquisition Interval (ms)'. -->
+<hr />
+<h2 id="data-recording-workflow-with-testing-version--t">Data-recording
+Workflow with Testing Version (<em>‘-t’</em>)</h2>
+<ol type="1">
+<li>Set up the beam and stage of the TEM for data collection.</li>
+<li>Blank the beam to avoid sample damage.</li>
+<li>Confirm/modify the data output path in the ‘H5 Output Path’ line
+edit (via folder icon or manually). <em>Cannot create an inexistent
+folder</em>.</li>
+<li>Confirm/modify the stage rotation speed and the end angle of the
+rotation.</li>
+<li>Check the <strong>With Writer</strong> box. Check/uncheck the
+<strong>Auto Reset</strong> box.</li>
+<li>Click <strong>Rotation</strong> to start the rotation and recording
+synchronously.</li>
+<li>The rotation/recording continues until the end angle is reached or
+interrupted.</li>
+<li>Take a TIFF image if needed. <em>The TIFF image is not tied to the
+HDF file at the moment</em>.</li>
+</ol>
+<!-- ***
+### Data-recording workflow with Development version, 4 Jul 2024
+1. Setup the beam and stage of TEM for data collection.
+1. Define the data output path on the 'H5 Output Path' lineedit. *a '/' at the last part of the path may cause an error.
+1. Check 'Write during rotaion'
+1. Define the end angle
+1. Click 'Rotation/Record' to start the rotation and recording.
+1. Rotation/recording can be stopped by clicking 'Stop' (the same button) or interrupption by TEM console. Otherwise the recording will continue until tilted to the end angle.
+*\*The frame rate in recording is 50 ms and independent from the value at 'Aquisition Interval'. At this rate, recording with 1 deg/s means 0.05 deg/frame.*
+*\*TEM information will be written in the HDF when 'Write during rotaion' is checked.* -->
+<hr />
+<h2 id="data-processing-notes-6-7-jun-2024">Data-processing Notes, 6-7
+Jun 2024</h2>
+<ul>
+<li><p><strong>Read with XDS</strong>: The plugin derived from Neggia
+requires <code>_master.h5</code> in the input filename, and a symbolic
+link with the suffix should be additionally prepared:</p>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ln</span> <span class="at">-s</span> [full-path-of-hdffile] linked_master.h5</span></code></pre></div></li>
+<li><p><strong>Read with DIALS</strong>: Install the updated <a
+href="https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py">Format
+Class</a> to read the HDF file directly:</p>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="ex">dials.import</span> [filename.h5] slow_fast_beam_center=257,515 distance=660</span></code></pre></div></li>
+</ul>
+<!--
+#### Data-processing workflow, 21 May 2024
+*\* The complete feasibility (including structure refinement) of the new data has not been established yet on 28th May 2024*
+- Read with DIALS:\
+    When the Format Class [https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE01.py] is installed, DIALS can read the HDF directly;\
+    ```dials.import ******_master.h5```
+- Read with XDS:\
+    XDS can read the HDF file with a plugin command 'LIB= [plugin_path]'. A modified Neggia plugin [https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia/src/dectris/neggia/plugin] can be used.\
+-->
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<ul>
+<li><p><strong>PowerShell console does not recover after disconnecting
+from GUI</strong>: Open another PowerShell console and kill the
+corresponding Python process:</p>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="ex">Get-Process</span> python</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> [pid]</span></code></pre></div></li>
+<li><p><strong>HDF files are not output to the defined path</strong>:
+Modify the H5 Output Path via the folder icon (activates the
+file-browser system).</p></li>
+<li><p><strong>TEM-control button does not respond immediately</strong>:
+There may be a delay of a few seconds in responding, especially the
+first time. Please wait a few moments.</p></li>
+</ul>
+</body>
+</html>
