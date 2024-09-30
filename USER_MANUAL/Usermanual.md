@@ -1,0 +1,202 @@
+# New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
+This document was updated on 30 Sept 2024
+
+## Table of Contents
+- [Activation](#activation)
+- [Deactivation](#deactivation)
+- [Main Function](#main-function)
+- [Summing Receiver Controls](#summing-receiver-controls)
+- [TEM-control Function](#tem-control-function)
+- [File Operation and Redis](#file-operation-and-redis)
+- [Data-recording workflow](#data-recording-workflow)
+- [Data-recording workflow with Testing version](#data-recording-workflow-with-testing-version)
+- [Data-processing notes](#data-processing-notes)
+- [Troubleshooting](#troubleshooting)
+
+## Activation
+
+### TEM-PC (not needed when you ONLY use the TEM console panel)
+1. Activate the TEM server:
+   - Open a Miniconda PowerShell Prompt (Anaconda submenu) from the Windows Start Menu.
+   - Navigate to `C:\ProgramData\EPOC`
+   - Activate the environment:
+     ```bash
+     conda activate vjem38
+     ```
+   - Start the TEM server:
+     ```bash
+     python server_tem.py
+     ```
+   This must be done **before** starting the GUI below.
+
+### CameraPC (hodgkin)
+1. When logged in as `psi`, the environment has been set up.
+2. Configure the detector:
+   ```bash
+   p config ~/jf.config
+   ```
+3. Start detector acquisition:
+   ```bash
+   p start
+   ```
+4. Change to the receiver directory:
+   ```bash
+   cd /home/psi/software/v2/reuss/python/reuss
+   ```
+5. Start the receiver server using 12 threads for e.g.:
+   ```bash
+   python ReceiverServer.py -t 12
+   ```
+6. Change to the GUI directory:
+   ```bash
+   cd /home/psi/software/viewer_2.0/GUI
+   ```
+7. Switch to the correct branch:
+   ```bash
+   git switch feature/redis_config
+   ```
+   or
+   ```bash
+   git checkout feature/redis_config
+   ```
+8. Confirm you are on the `feature/redis_config` branch:
+   ```bash
+   git branch --contains
+   ```
+9. Start the GUI:
+   ```bash
+   python launch_gui.py
+   ```
+   To use TEM control functions, run:
+   ```bash
+   python launch_gui.py -t
+   ```
+10. In the Jungfrau_GUI, start streaming without the incident beam by clicking on `View Stream`.
+11. Click on `Connect to Receiver`. Once the button turns green, all controls are enabled.
+12. Click `Start Stream` to start receiving frames.
+13. Adjust the `Acquisition Interval (ms)` in the spinbox. To reduce the delay, set it to `20`. For less logging, increase the value to `50` or `60`.
+14. Click `Record Full Pedestal` to subtract dark frames.
+
+   > More details on the receiver controls are in the [Summing Receiver Controls](#summing-receiver-controls) section.
+
+## Deactivation
+
+### CameraPC (hodgkin)
+1. Stop the receiver by clicking the `Stop Receiver` pushbutton. This may take several seconds.\
+   > If the stop operation fails, open another terminal and kill the process manually:
+   ```bash
+   ps aux | grep ReceiverServer
+   kill -9 [process-id]
+   ```
+2. Stop streaming and exit the viewer.
+3. Abort detector acquistion:
+   ```bash
+   p stop
+   ```
+
+### TEM-PC
+1. Open another PowerShell console and kill the corresponding python process:
+   ```bash
+   Get-Process python
+   kill [process-id]
+   ```
+
+## Main Functionalities
+
+- `View Stream`: Reads the stream of frames published by the receiver.
+- `Apply Auto Contrast`: Dynamically adjusts the contrast of displayed frames.
+- `Exit`: Disconnects the TEM and exits the GUI.
+- `Beam Gaussian Fit`: Starts fitting the beam's elliptical spot shape (non-TEM mode only, useful for manual focusing).
+- `Magnification`, `Distance`: Displays the magnification and distance values from the previous recording (TEM mode only).
+- `Accumulate in TIFF`: Saves a TIFF snapshot to the specified data path.
+- `Write Stream in H5`: Saves an HDF movie to the specified data path.
+
+### [Summing Receiver Controls](screenshot/ver_26Sept2024.PNG.png)
+**Important:** The below controls are compatible with the new receiver `~/software/v2/reuss/python/reuss/ReceiverServer.py`.
+
+Main operations:\
+- `Connect to Receiver`: Establishes a connection with the receiver. The button turns green if the server script is running.\
+- `Start Stream`: Starts streaming assembled and summed frames via ZeroMQ.\
+- `Stop Receiver`: Stops the summing receiver. (Note: the stop operation is not always reliable. See [issue #42](https://github.com/slsdetectorgroup/reuss/issues/42).)
+
+More:\
+- `Summing Factor`: Set the number of frames to sum.\
+- `Set Frames Number`: Sets the number of frames to sum using the summing factor.\
+- `Record Full Pedestal`: Records and subtracts the dark frames (equivalent to `r.record_pedestal(1)` in the old receiver).\
+- `Record Gain G0`: Records the pedestal for gain G0 (equivalent to `r.record_pedestal(2)`).
+
+### [TEM-control Function](screenshot/ver_16Aug2024.PNG)
+
+- `Connect to TEM`: Starts communication with TEM.
+- `Get TEM status`: (deactivated) Displays the TEM status in the terminal.
+- `Click-on-Centring`: (deactivated) Activates stage control by clicking the image.
+- `Beam Autofocus`: (Not ready for use) Sweeps IL1 and ILstig values.
+- `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
+- `with Writer`: Synchronizes the HDF writer with rotation.
+- `Auto reset`: Resets the tilt to 0 degrees after rotation.
+- `Rotation Speed`: Adjusts rotation speed before starting the rotation.
+
+### [File Operation and Redis](screenshot/ver_24Sept2024.PNG)
+
+#### Redis Store Settings
+- `Experiment Class`: Specifies for whom the data is collected (e.g., UniVie, External, IP).
+- `User Name`: Enter the PI.
+- `Project Id`: Enter the project identifier.
+- `Base Data Root`: Specifies the root directory for data saving.
+
+#### TIFF Writer
+- `Tiff File Name`: Enter the file prefix.
+- `index`: Set the file index for the TIFF file.
+- `Accumulate in TIFF`: Accumulates a specified number of frames in the TIFF file.
+
+#### HDF5 Writer
+- `HDF5 Tag`: Enter the file prefix (ASCII characters and underscores only).
+- `index`: Set the file index for the HDF5 file.
+- `H5 Output Path`: Read-only field showing the path where datasets are saved.
+
+## Data-recording workflow
+
+1. Set up the beam and stage of TEM.
+2. Confirm the data output path on the `H5 Output Path` line-edit.
+3. Start stage rotation and immediately click `Write Stream in H5`.
+4. Stop writing by pressing ```Stop Writing``` just before the rotation ends.
+<!-- 5. When 'Prepare for XDS processing' is checked, the ouput filename is end with '_master.h5' -->
+<!-- 6. Modify the 'Acquisition Interval (ms)' -->
+
+## Data-recording workflow with Testing version
+
+1. Set up the beam and stage of TEM.
+2. Blank the beam to avoid sample damage.
+3. Confirm the data output path on the `H5 Output Path` line-edit.
+4. Modify the stage rotation speed and end angle.
+5. Check the `with Writer` box.
+6. Click `Rotation` to start the rotation and recording.
+7. Continue until the end angle is reached or interrupted.
+8. Take a TIFF image if needed.
+
+<!-- ***
+### Data-recording workflow with Development version, 4 Jul 2024
+1. Setup the beam and stage of TEM for data collection.
+1. Define the data output path on the 'H5 Output Path' lineedit. *a '/' at the last part of the path may cause an error.
+1. Check 'Write during rotaion'
+1. Define the end angle
+1. Click 'Rotation/Record' to start the rotation and recording.
+1. Rotation/recording can be stopped by clicking 'Stop' (the same button) or interrupption by TEM console. Otherwise the recording will continue until tilted to the end angle.
+*\*The frame rate in recording is 50 ms and independent from the value at 'Aquisition Interval'. At this rate, recording with 1 deg/s means 0.05 deg/frame.*
+*\*TEM information will be written in the HDF when 'Write during rotaion' is checked.* -->
+
+## Data-processing notes
+
+- **XDS**: The plugin derived from Neggia requires `_master.h5` in the filename. Create a symbolic link:\
+   ``` ln -s [full-path-of-hdffile] linked_master.h5 ```
+- **DIALS**: Install the [updated Format Class](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py) to read the HDF file directly:\
+   ``` dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660 ```
+
+## Troubleshooting
+
+- **PowerShell console not responding after disconnecting from GUI**: Open another PowerShell console and kill the python process:
+   ```bash
+   Get-Process python
+   kill [pid]
+   ```
+- **TEM-control button delay**: There may be a few seconds of delay when responding, especially the first time. Please wait.
