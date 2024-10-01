@@ -148,7 +148,7 @@
 ***
 
 ## TEM-control Function
-- **Connect to TEM**: (deactivated) Starts communication with TEM.
+- **Check TEM Connection**: Starts communication with TEM [enables all the functionalities when connection OK]
 - **Get TEM Status**: (deactivated) Updates the TEM information and shows it in the terminal. If an HDF file with the defined filename exists, the information is added to the header.
 - **Recording**: (deactivated) Saves the TEM values in the log file in the current directory.
 - **Click-on-Centring**: (deactivated) Activates stage control by clicking the streaming image.
