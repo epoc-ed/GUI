@@ -34,13 +34,13 @@ class TEMAction(QObject):
         self.timer_tem_connexion.timeout.connect(self.checkTemConnexion)
         
         # Initialization
-        cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
         self.scale = None
         self.formatted_filename = ''
-        self.beamcenter = cfg.beam_center # TODO! read the value when needed!
-        # self.xds_template_filepath = cfg.XDS_template
-        self.datasaving_filepath = cfg.data_dir.as_posix()
+        self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
+        # self.xds_template_filepath = self.cfg.XDS_template
+        self.datasaving_filepath = self.cfg.data_dir.as_posix()
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
@@ -123,11 +123,12 @@ class TEMAction(QObject):
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: green; color: white;')
             self.tem_tasks.connecttem_button.setText("Connection OK")
             # self.control.trigger_getteminfo.emit('N')
-            self.control.send_to_tem("#more")
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: red; color: white;')
             self.tem_tasks.connecttem_button.setText("Disconnected")
-        self.enabling(tem_connected)
+        self.enabling(tem_connected) #also disables buttons if tem-gui connection is cut
+        if tem_connected:
+            self.control.send_to_tem("#more")
         
     def callGetInfoTask(self):
         self.control.init.emit()
@@ -202,10 +203,14 @@ class TEMAction(QObject):
             self.scale.setPen(pg.mkPen('w', width=2))
             self.parent.plot.addItem(self.scale)        
             
-    def toggle_rb_speeds(self):
-        # if self.tem_tasks.connecttem_button.started:
-            # self.control.send.emit("stage.Setf1OverRateTxNum("+ str(self.tem_stagectrl.rb_speeds.checkedId()) +")")            
-        self.control.execute_command("Setf1OverRateTxNum("+ str(self.tem_stagectrl.rb_speeds.checkedId()) +")")
+    def toggle_rb_speeds(self):   
+        self.update_rotation_speed_idx_from_ui()
+        self.control.execute_command("Setf1OverRateTxNum("+ str(self.cfg.rotation_speed_idx) +")")
+
+    def update_rotation_speed_idx_from_ui(self):
+        self.cfg.rotation_speed_idx = self.tem_stagectrl.rb_speeds.checkedId()
+        print(f" **************************** checked button is with index {self.cfg.rotation_speed_idx}")
+        logging.info(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
 
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:

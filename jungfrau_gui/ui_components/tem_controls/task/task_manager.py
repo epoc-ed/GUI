@@ -16,6 +16,8 @@ from .stage_centering_task import CenteringTask
 from simple_tem import TEMClient
 from ..toolbox import tool as tools
 
+from epoc import ConfigurationClient, auth_token, redis_host
+
 class ControlWorker(QObject):
     """
     The 'ControlWorker' object coordinates the execution of tasks and redirects requests to the GUI.
@@ -48,7 +50,7 @@ class ControlWorker(QObject):
 
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
-        
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.client = TEMClient("temserver", 3535)
 
         self.task = Task(self, "Dummy")
@@ -72,7 +74,7 @@ class ControlWorker(QObject):
         
         self.trigger_tem_update.connect(self.update_tem_status)
         
-        self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": 0.5,
+        self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": [0, 'X', 'X0k'],
                            "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k']}
         
