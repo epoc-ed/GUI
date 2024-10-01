@@ -11,6 +11,8 @@ class GetInfoTask(Task):
         self.command = command
 
     def run(self):
+        print("------ START GET-INFO ----------")
+
         while True:
             if self.control.tem_status['eos.GetMagValue'][0] != 0:
                 prev_timestamp = self.control.tem_update_times['stage.GetPos'][0]
@@ -32,7 +34,7 @@ class GetInfoTask(Task):
         buffer += f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n"
         # BEAM
         buffer += f"# spot_size:               {self.control.tem_status['eos.GetSpotSize']+1}\n"
-        buffer += f"# alpha_angle:             {self.control.tem_status['eos.GetAlpha']+1}\n"
+        buffer += f"# alpha_angle:             {self.control.tem_status['eos.GetAlpha']}\n"
         # APERTURE
         buffer += f"# CL#:                     {self.control.tem_status['apt.GetSize(1)']}\n"
         buffer += f"# SA#:                     {self.control.tem_status['apt.GetSize(4)']}\n"
@@ -59,4 +61,4 @@ class GetInfoTask(Task):
             logfile.write(buffer)
             logfile.close()
             
-        logging.info("End of GetInfo task")
+        print("------REACHED END OF TASK----------")

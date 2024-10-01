@@ -143,7 +143,8 @@ class RecordTask(Task):
                     send_with_retries(self.client.SetTiltXAngle, 0)
                     time.sleep(1)
                 except Exception as e:
-                    logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}")               
+                    # logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
+                    pass              
                 
             # Waiting for the rotation to end
             try:

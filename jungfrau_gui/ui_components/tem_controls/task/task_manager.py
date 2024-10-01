@@ -91,10 +91,10 @@ class ControlWorker(QObject):
     @Slot()
     def _init(self):
         threading.current_thread().setName("ControlThread")      
-        try:
-            self.send_to_tem("#more") # Update tem_status map and GUI   
-        except Exception as e:
-            logging.error(f"Error occured when initializing task manager: {e}")                     
+        # try:
+        #     self.send_to_tem("#more") # Update tem_status map and GUI   
+        # except Exception as e:
+        #     logging.error(f"Error occured when initializing task manager: {e}")                     
         self.sweepingWorkerReady = False
         # self.send.emit("stage.Setf1OverRateTxNum(2)")
         logging.info("Initialized control thread")
@@ -103,7 +103,10 @@ class ControlWorker(QObject):
     def on_task_finished(self):
         self.finished_task.emit()
         if isinstance(self.task, RecordTask):
-            self.finished_record_task.emit()
+            # self.finished_record_task.emit()
+            self.stop_task()
+        elif isinstance(self.task, GetInfoTask):
+            self.stop_task()
 
     def start_task(self, task):
         logging.debug("Control is starting a Task...")
@@ -117,7 +120,7 @@ class ControlWorker(QObject):
 
         # why the two layers? TODO: IMPROVE
         self.task.finished.connect(self.on_task_finished)
-        self.finished_record_task.connect(self.stop_task)
+        # self.finished_record_task.connect(self.stop_task)
 
         self.task.moveToThread(self.task_thread)
         self.task_thread.started.connect(self.task.start.emit)
@@ -178,7 +181,7 @@ class ControlWorker(QObject):
         if self.tem_status['eos.GetFunctionMode'][1] != 4:
             logging.info('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
-            self.client.SelectFunctionMode(4)
+            self.client.SelectFunctionMode(4) # Diffraction Mode
 
         task = BeamFitTask(self)
         self.start_task(task)
@@ -212,7 +215,7 @@ class ControlWorker(QObject):
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
             self.updated.emit()
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logging.error(f"Error during updating tem_status map: {e}")
 
     @Slot(str) 
     def send_to_tem(self, message):
@@ -237,7 +240,7 @@ class ControlWorker(QObject):
             results[query] = self.execute_command(tools.full_mapping[query])
             logging.debug(f"results[query] is {results[query]}")
             toc = time.perf_counter()
-            logging.info("Getting info for", query, "Took", toc - tic, "seconds")
+            logging.info(f"Getting info for {query} took {toc - tic} seconds")
 
         return results
     
@@ -295,7 +298,8 @@ class ControlWorker(QObject):
                 try:
                     tools.send_with_retries(self.client.StopStage)
                 except Exception as e:
-                    logging.error(f"Unexpected error @ client.StopStage() : {e}")
+                    # logging.error(f"Unexpected error @ client.StopStage() : {e}")
+                    pass
             elif isinstance(self.task, GetInfoTask):
                 logging.info("Stopping the - GetInfo - task!!!")
         
