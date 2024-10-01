@@ -127,7 +127,7 @@ More:\
 
 ### [TEM-control Function](screenshot/ver_16Aug2024.PNG)
 
-- `Connect to TEM`: Starts communication with TEM.
+- `Check TEM connection`: Starts communication with TEM.
 - `Get TEM status`: (deactivated) Displays the TEM status in the terminal.
 - `Click-on-Centring`: (deactivated) Activates stage control by clicking the image.
 - `Beam Autofocus`: (Not ready for use) Sweeps IL1 and ILstig values.
