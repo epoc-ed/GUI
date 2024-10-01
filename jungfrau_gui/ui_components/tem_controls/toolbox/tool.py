@@ -6,6 +6,134 @@ import logging
 from ....ui_components.tem_controls.toolbox import config as cfg_jf
 from PySide6.QtCore import QObject, Signal
 
+def create_full_mapping(info_queries, more_queries, info_queries_client, more_queries_client):
+    """
+    Creates a mapping between two sets of queries and their corresponding client-side equivalents.
+
+    Parameters:
+    ----------
+    info_queries : list
+        List of primary queries.
+    more_queries : list
+        List of additional queries.
+    info_queries_client : list
+        Client-side equivalents of primary queries.
+    more_queries_client : list
+        Client-side equivalents of additional queries.
+
+    Returns:
+    -------
+    dict
+        Dictionary mapping queries to their client-side counterparts.
+    """
+    mapping = {}
+
+    # Mapping for INFO_QUERIES to INFO_QUERIES_CLIENT
+    for info_query, client_query in zip(info_queries, info_queries_client):
+        mapping[info_query] = client_query
+
+    # Mapping for MORE_QUERIES to MORE_QUERIES_CLIENT
+    for more_query, client_query in zip(more_queries, more_queries_client):
+        mapping[more_query] = client_query
+
+    return mapping
+
+# Example usage
+INFO_QUERIES = [
+    "stage.GetPos", 
+    "stage.GetStatus", 
+    "eos.GetMagValue", 
+    "eos.GetFunctionMode", 
+    "stage.Getf1OverRateTxNum"
+]
+
+MORE_QUERIES = [
+    "stage.GetPos", 
+    "stage.GetStatus", 
+    "eos.GetMagValue", 
+    "eos.GetFunctionMode",
+    "stage.Getf1OverRateTxNum",
+    "apt.GetSize(1)", 
+    "apt.GetSize(4)",  # 1=CL, 4=SA
+    "eos.GetSpotSize", 
+    "eos.GetAlpha", 
+    "lens.GetCL3", 
+    "lens.GetIL1", 
+    "lens.GetOLf",
+    "lens.GetIL3", 
+    "lens.GetOLc",  # OLf = defocus(fine)
+    "defl.GetILs", 
+    "defl.GetPLA", 
+    "defl.GetBeamBlank",
+    "stage.GetMovementValueMeasurementMethod"  # 0=encoder/1=potentio
+]
+
+INFO_QUERIES_CLIENT = [
+    "GetStagePosition()", 
+    "GetStageStatus()", 
+    "GetMagValue()", 
+    "GetFunctionMode()", 
+    "Getf1OverRateTxNum()"
+]
+
+MORE_QUERIES_CLIENT = [
+    "GetStagePosition()", 
+    "GetStageStatus()", 
+    "GetMagValue()", 
+    "GetFunctionMode()",
+    "Getf1OverRateTxNum()",
+    "GetAperatureSize(1)", 
+    "GetAperatureSize(4)",  # 1=CL, 4=SA
+    "GetSpotSize()", 
+    "GetAlpha()", 
+    "GetCL3()", 
+    "GetIL1()", 
+    "GetOLf()",
+    "GetIL3()", 
+    "GetOLc()",  # OLf = defocus(fine)
+    "GetILs()", 
+    "GetPLA()", 
+    "GetBeamBlank()",
+    "GetMovementValueMeasurementMethod()"  # 0=encoder/1=potentio
+]
+
+# Creating the full mapping
+full_mapping = create_full_mapping(INFO_QUERIES, MORE_QUERIES, INFO_QUERIES_CLIENT, MORE_QUERIES_CLIENT)
+
+def send_with_retries(client_method, *args, retries=3, delay=0.1, **kwargs):
+    """
+    A reusable method that attempts to call a TEMClient method with retries in case of TimeoutError.
+
+    Parameters:
+    - client_method: The TEMClient method to call (e.g., self.client.SetTiltXAngle).
+    - *args: Positional arguments to pass to the client method.
+    - retries (int): Number of retry attempts before giving up.
+    - delay (int): Delay in seconds between retries.
+    - **kwargs: Keyword arguments to pass to the client method.
+
+    Returns:
+    - The result of the client method if successful.
+    
+    Raises:
+    - TimeoutError: If all retry attempts fail.
+    - Exception: Any other exception raised by the client method.
+    """
+    for attempt in range(retries):
+        try:
+            logging.info(f"Attempting {client_method.__name__} with args {args} (Attempt {attempt + 1}/{retries})")
+            # Dynamically call the method with args and kwargs
+            result = client_method(*args, **kwargs)
+            return result  # Exit early if successful
+        except TimeoutError as e:
+            logging.error(f"TimeoutError during {client_method.__name__}: {e}")
+            if attempt == retries - 1:
+                logging.error(f"Max retry attempts reached for {client_method.__name__}. Giving up.")
+                raise
+            time.sleep(delay)  # Optional delay between retries
+        except Exception as e:
+            logging.error(f"Error during {client_method.__name__}: {e}")
+            raise  # Raise other exceptions immediately
+
 def eV2angstrom(voltage):
     """
     Converts electron voltages to Angstroms.

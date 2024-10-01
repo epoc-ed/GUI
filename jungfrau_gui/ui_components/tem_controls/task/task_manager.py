@@ -14,82 +14,7 @@ from .get_teminfo_task import GetInfoTask
 from .stage_centering_task import CenteringTask
 
 from simple_tem import TEMClient
-
-
-def create_full_mapping(info_queries, more_queries, info_queries_client, more_queries_client):
-    mapping = {}
-
-    # Mapping for INFO_QUERIES to INFO_QUERIES_CLIENT
-    for info_query, client_query in zip(info_queries, info_queries_client):
-        mapping[info_query] = client_query
-
-    # Mapping for MORE_QUERIES to MORE_QUERIES_CLIENT
-    for more_query, client_query in zip(more_queries, more_queries_client):
-        mapping[more_query] = client_query
-
-    return mapping
-
-# Example usage
-INFO_QUERIES = [
-    "stage.GetPos", 
-    "stage.GetStatus", 
-    "eos.GetMagValue", 
-    "eos.GetFunctionMode", 
-    "stage.Getf1OverRateTxNum"
-]
-
-MORE_QUERIES = [
-    "stage.GetPos", 
-    "stage.GetStatus", 
-    "eos.GetMagValue", 
-    "eos.GetFunctionMode",
-    "stage.Getf1OverRateTxNum",
-    "apt.GetSize(1)", 
-    "apt.GetSize(4)",  # 1=CL, 4=SA
-    "eos.GetSpotSize", 
-    "eos.GetAlpha", 
-    "lens.GetCL3", 
-    "lens.GetIL1", 
-    "lens.GetOLf",
-    "lens.GetIL3", 
-    "lens.GetOLc",  # OLf = defocus(fine)
-    "defl.GetILs", 
-    "defl.GetPLA", 
-    "defl.GetBeamBlank",
-    "stage.GetMovementValueMeasurementMethod"  # 0=encoder/1=potentio
-]
-
-INFO_QUERIES_CLIENT = [
-    "GetStagePosition()", 
-    "GetStageStatus()", 
-    "GetMagValue()", 
-    "GetFunctionMode()", 
-    "Getf1OverRateTxNum()"
-]
-
-MORE_QUERIES_CLIENT = [
-    "GetStagePosition()", 
-    "GetStageStatus()", 
-    "GetMagValue()", 
-    "GetFunctionMode()",
-    "Getf1OverRateTxNum()",
-    "GetAperatureSize(1)", 
-    "GetAperatureSize(4)",  # 1=CL, 4=SA
-    "GetSpotSize()", 
-    "GetAlpha()", 
-    "GetCL3()", 
-    "GetIL1()", 
-    "GetOLf()",
-    "GetIL3()", 
-    "GetOLc()",  # OLf = defocus(fine)
-    "GetILs()", 
-    "GetPLA()", 
-    "GetBeamBlank()",
-    "GetMovementValueMeasurementMethod()"  # 0=encoder/1=potentio
-]
-
-# Creating the full mapping
-full_mapping = create_full_mapping(INFO_QUERIES, MORE_QUERIES, INFO_QUERIES_CLIENT, MORE_QUERIES_CLIENT)
+from ..toolbox import tool as tools
 
 class ControlWorker(QObject):
     """
@@ -190,6 +115,7 @@ class ControlWorker(QObject):
 
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
 
+        # why the two layers? TODO: IMPROVE
         self.task.finished.connect(self.on_task_finished)
         self.finished_record_task.connect(self.stop_task)
 
@@ -303,12 +229,12 @@ class ControlWorker(QObject):
 
     def get_state(self):
         results = {}
-        for query in INFO_QUERIES:
+        for query in tools.INFO_QUERIES:
             tic = time.perf_counter()
             logging.debug(" ++++++++++++++++ ")
             logging.debug(f"Command from list {query}")
-            logging.debug(f"Command as executed {full_mapping[query]}")
-            results[query] = self.execute_command(full_mapping[query])
+            logging.debug(f"Command as executed {tools.full_mapping[query]}")
+            results[query] = self.execute_command(tools.full_mapping[query])
             logging.debug(f"results[query] is {results[query]}")
             toc = time.perf_counter()
             logging.info("Getting info for", query, "Took", toc - tic, "seconds")
@@ -317,10 +243,10 @@ class ControlWorker(QObject):
     
     def get_state_detailed(self):
         results = {}
-        for query in MORE_QUERIES:
+        for query in tools.MORE_QUERIES:
             result = {}
             result["tst_before"] = time.time()
-            result["val"] = self.execute_command(full_mapping[query])
+            result["val"] = self.execute_command(tools.full_mapping[query])
             result["tst_after"] = time.time()
             results[query] = result
         return results
@@ -366,7 +292,10 @@ class ControlWorker(QObject):
                 self.trigger_stop_autofocus.emit() # self.set_worker_not_ready()
             elif isinstance(self.task, RecordTask):
                 logging.info("Stopping the - Record - task!!!")
-                self.client.StopStage()
+                try:
+                    tools.send_with_retries(self.client.StopStage)
+                except Exception as e:
+                    logging.error(f"Unexpected error @ client.StopStage() : {e}")
             elif isinstance(self.task, GetInfoTask):
                 logging.info("Stopping the - GetInfo - task!!!")
         
@@ -384,7 +313,7 @@ class ControlWorker(QObject):
 
     @Slot()
     def stop(self):
-        self.client.StopStage()
+        tools.send_with_retries(self.client.StopStage)
         self.finished_task.emit()
         pass
 
@@ -473,12 +402,6 @@ class ControlWorker(QObject):
             task = CenteringTask(self, pixels)
             self.start_task(task) 
         """
-    
-    def with_max_speed(self, tem_command):
-        speed = self.client.Getf1OverRateTxNum()
-        self.client.Setf1OverRateTxNum(0)
-        self.execute_command(tem_command)
-        self.client.Setf1OverRateTxNum(speed)
     
     def update_rotation_info(self, reset=False):
         if reset:

@@ -132,6 +132,7 @@ class TEMAction(QObject):
         self.enabling(tem_connected)
         
     def callGetInfoTask(self):
+        self.control.init.emit()
         if self.tem_tasks.gettem_checkbox.isChecked():
             self.control.trigger_getteminfo.emit('Y')
             # if os.path.isfile(self.formatted_filename):

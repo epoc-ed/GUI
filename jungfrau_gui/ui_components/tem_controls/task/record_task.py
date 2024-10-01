@@ -8,6 +8,7 @@ from .dectris2xds import XDSparams
 
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
+from ..toolbox.tool import send_with_retries
 
 class RecordTask(Task):
     def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None):
@@ -34,71 +35,68 @@ class RecordTask(Task):
         self.phi_dot = stage_rates[phi_dot_idx]
         self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
 
-        # if os.access(os.path.dirname(self.log_suffix), os.W_OK):
-        print("\n\n\n---------OPEN LOG-----------------\n\n\n")
-        # self.control.send_to_tem("#more")
-        logfile = open(self.log_suffix + '.log', 'w')
-        logfile.write("# TEM Record\n")
-        logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")
-        logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
-        logfile.write(f"# Final Angle (scheduled): {phi1:6.3f} deg\n")
-        logfile.write(f"# angular Speed:           {self.phi_dot:6.2f} deg/s\n")
-        logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n")
-        logfile.write(f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n")
-    #     # BEAM
-    #     logfile.write(f"# spot_size:               {self.client.GetSpotSize()}\n")
-    #     logfile.write(f"# alpha_angle:             {self.client.GetAlpha()}\n")
-    # #     # APERTURE
-    #     logfile.write(f"# CL#:                     {self.client.GetAperatureSize(1)}\n") # should refer look-up table
-    #     logfile.write(f"# SA#:                     {self.client.GetAperatureSize(4)}\n") # should refer look-up table
-    # #     # LENS
-    #     logfile.write(f"# brightness:              {self.client.GetCL3()}\n")
-    #     logfile.write(f"# diff_focus:              {self.client.GetIL1()}\n")
-    #     logfile.write(f"# IL_focus:                {self.client.GetILs()}\n")
-    #     logfile.write(f"# PL_align:                {self.client.GetPLA()}\n")
-    # #     # STAGE
-    #     logfile.write(f"# stage_position:          {self.client.GetStagePosition()}\n")
+        try:
+            # if os.access(os.path.dirname(self.log_suffix), os.W_OK):
+            print("\n\n\n---------OPEN LOG-----------------\n\n\n")
+            # self.control.send_to_tem("#more")
+            logfile = open(self.log_suffix + '.log', 'w')
+            logfile.write("# TEM Record\n")
+            logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")
+            logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
+            logfile.write(f"# Final Angle (scheduled): {phi1:6.3f} deg\n")
+            logfile.write(f"# angular Speed:           {self.phi_dot:6.2f} deg/s\n")
+            logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n")
+            logfile.write(f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n")
 
-        # Beam parameters
-        try:
-            logfile.write(f"# spot_size:               {self.client.GetSpotSize()}\n")
-            logfile.write(f"# alpha_angle:             {self.client.GetAlpha()}\n")
-        except Exception as e:
-            logging.error(f"Error retrieving beam parameters: {e}")
-        
-        # Aperture sizes
-        try:
-            logfile.write(f"# CL#:                     {self.client.GetAperatureSize(1)}\n")
-            logfile.write(f"# SA#:                     {self.client.GetAperatureSize(4)}\n")
-        except Exception as e:
-            logging.error(f"Error retrieving aperture sizes: {e}")
-        
-        # Lens parameters
-        try:
-            logfile.write(f"# brightness:              {self.client.GetCL3()}\n")
-            logfile.write(f"# diff_focus:              {self.client.GetIL1()}\n")
-            logfile.write(f"# IL_focus:                {self.client.GetILs()}\n")
-            logfile.write(f"# PL_align:                {self.client.GetPLA()}\n")
-        except Exception as e:
-            logging.error(f"Error retrieving lens parameters: {e}")
-        
-        # Stage position
-        try:
-            logfile.write(f"# stage_position:          {self.client.GetStagePosition()}\n")
-        except Exception as e:
-            logging.error(f"Error retrieving stage position: {e}")
+            # Beam parameters
+            try:
+                logfile.write(f"# spot_size:               {self.client.GetSpotSize()}\n")
+                logfile.write(f"# alpha_angle:             {self.client.GetAlpha()}\n")
+            except Exception as e:
+                logging.error(f"Error retrieving beam parameters: {e}")
+            
+            # Aperture sizes
+            try:
+                logfile.write(f"# CL#:                     {self.client.GetAperatureSize(1)}\n")
+                logfile.write(f"# SA#:                     {self.client.GetAperatureSize(4)}\n")
+            except Exception as e:
+                logging.error(f"Error retrieving aperture sizes: {e}")
+            
+            # Lens parameters
+            try:
+                logfile.write(f"# brightness:              {self.client.GetCL3()}\n")
+                logfile.write(f"# diff_focus:              {self.client.GetIL1()}\n")
+                logfile.write(f"# IL_focus:                {self.client.GetILs()}\n")
+                logfile.write(f"# PL_align:                {self.client.GetPLA()}\n")
+            except Exception as e:
+                logging.error(f"Error retrieving lens parameters: {e}")
+            
+            # Stage position
+            try:
+                logfile.write(f"# stage_position:          {self.client.GetStagePosition()}\n")
+            except Exception as e:
+                logging.error(f"Error retrieving stage position: {e}")
 
-        self.client.Setf1OverRateTxNum(phi_dot_idx)
-        time.sleep(1) 
-        self.client.SetBeamBlank(0)
-        time.sleep(0.5)
+            self.client.Setf1OverRateTxNum(phi_dot_idx)
+            time.sleep(1) 
+            self.client.SetBeamBlank(0)
+            time.sleep(0.5)
 
-        self.client.SetTiltXAngle(phi1)
-
-        try:
-            # Attempt to wait for the rotation to start
-            self.client.wait_until_rotate_starts()
-            logging.info("Stage has initiated rotation.\nAsynchronous writing of H5 and logfile is starting now...")
+            # Send SetTiltXAngle with retry mechanism
+            try:
+                send_with_retries(self.client.SetTiltXAngle, phi1)
+            except Exception as e:
+                logging.error(f"Unexpected error: {e}") # Only catch other exceptions if necessary
+                return
+            
+            try:
+                # Attempt to wait for the rotation to start
+                logging.info("Waiting for stage rotation to start...")
+                self.client.wait_until_rotate_starts()
+                logging.info("Stage has initiated rotation.\nAsynchronous writing of H5 and logfile is starting now...")
+            except TimeoutError as rotation_error:
+                logging.error(f"TimeoutError: Stage rotation failed to start: {rotation_error}")
+                return 
 
             #If enabled we start writing files 
             if self.writer: 
@@ -141,8 +139,11 @@ class RecordTask(Task):
             # Enable auto reset of tilt
             if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
                 logging.info("Return the stage tilt to zero.")
-                self.client.SetTiltXAngle(0)
-                time.sleep(1)
+                try:
+                    send_with_retries(self.client.SetTiltXAngle, 0)
+                    time.sleep(1)
+                except Exception as e:
+                    logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}")               
                 
             # Waiting for the rotation to end
             try:
@@ -182,7 +183,8 @@ class RecordTask(Task):
         except Exception as e:
             logging.error(f"Unexpected error while waiting for rotation to start: {e}")
         finally:
-            logfile.close()  # Ensure the logfile is closed in case of any errors
+            if logfile:
+                logfile.close()  # Ensure the logfile is closed in case of any errors
             if self.writer and self.tem_action.file_operations.streamWriterButton.started:
                 self.tem_action.file_operations.stop_H5_recording.emit()
         
