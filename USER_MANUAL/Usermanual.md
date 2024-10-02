@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 30 Sept 2024
+This document was updated on 02 Oct 2024
 
 ## Table of Contents
 - [Activation](#activation)
@@ -145,6 +145,8 @@ More:\
 - `Project Id`*: Enter the project identifier.
 - `Base Data Directory`*: Specifies the root directory for data saving.
 
+**Note:** The [Get] buttons were coded for debugging purposes. They will be removed for the stable version.
+
 #### TIFF Writer
 - `Tiff File Name`: Enter the file prefix.
 - `index`: Set the file index for the TIFF file.
@@ -155,7 +157,7 @@ More:\
 - `index`*: Set the file index for the HDF5 file.
 - `H5 Output Path`: Read-only field showing the path where datasets are saved.
 
-**Important:** All the fields with (*) are manually editable. During edition, the entered values will be display in orange and you would need to press the [ENTER] key to confirm changes and upload them in the data base.
+**Important:** All the fields with (*) are manually editable. During edition, the entered values/text will be displayed in orange i.e. temporary values. By pressing the [ENTER] key, modifications are confirmed and new values uploaded to the data base.
 
 ## Data-recording workflow
 
