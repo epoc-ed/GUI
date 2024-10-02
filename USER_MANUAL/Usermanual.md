@@ -151,12 +151,18 @@ More:\
 - `Experiment Class`: Specifies for whom the data is collected (e.g., UniVie, External, IP).
 - `User Name`*: Enter the PI (Person of Interest).
 - `Project Id`*: Enter the project identifier.
-- `Base Data Directory`*: Specifies the root directory for data saving.
+- `Base Data Directory`: Specifies the root directory for data saving.
 
 **Note:** The [Get] buttons were coded for debugging purposes. They will be removed for the stable version.
 
 #### TIFF Writer
-- `Tiff File Name`: Enter the file prefix.
+- `Tiff File Name`: Area to define the name of the TIFF file and its index. It contains:\
+   <small>
+   - First line-edit is read-only and displays the folder where TIFF files are saved.
+   - Second line-edit is modifiable (ASCII characters and underscores only) and is meant for the file name.
+   - Spinbox is modifiable, is incremented after each writing and represents the index of the written TIFF.
+
+   </small>
 - `index`: Set the file index for the TIFF file.
 - `Accumulate in TIFF`: Accumulates a specified number of frames in the TIFF file.
 

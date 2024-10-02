@@ -170,6 +170,11 @@ class FileOperations(QGroupBox):
         self.tiff_path.setReadOnly(True)
         self.fname_input = QLineEdit(self)
         self.fname_input.setText('file_name')
+
+        # Define a regex that matches only valid Unix filename characters
+        valid_regex = QRegularExpression("^[a-zA-Z0-9_.-]+$")
+        self.fname_input.setValidator(QRegularExpressionValidator(valid_regex, self))
+
         self.findex_input = QSpinBox(self)  
 
         tiff_file_layout = QHBoxLayout()
@@ -214,9 +219,7 @@ class FileOperations(QGroupBox):
         self.redis_fields.append(self.tag_input)
         self.tag_input.setText(self.cfg.measurement_tag)
 
-        # Define a regex that matches only valid Unix filename characters
-        valid_tag_regex = QRegularExpression("^[a-zA-Z0-9_.-]+$")
-        self.tag_input.setValidator(QRegularExpressionValidator(valid_tag_regex, self))
+        self.tag_input.setValidator(QRegularExpressionValidator(valid_regex, self))
 
         self.tag_input.returnPressed.connect(self.update_measurement_tag)
 

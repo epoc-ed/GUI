@@ -281,14 +281,25 @@ href="screenshot/ver_24Sept2024.PNG">File Operation and Redis</a></h3>
 collected (e.g., UniVie, External, IP).</li>
 <li><code>User Name</code>*: Enter the PI (Person of Interest).</li>
 <li><code>Project Id</code>*: Enter the project identifier.</li>
-<li><code>Base Data Directory</code>*: Specifies the root directory for
+<li><code>Base Data Directory</code>: Specifies the root directory for
 data saving.</li>
 </ul>
 <p><strong>Note:</strong> The [Get] buttons were coded for debugging
 purposes. They will be removed for the stable version.</p>
 <h4 id="tiff-writer">TIFF Writer</h4>
 <ul>
-<li><code>Tiff File Name</code>: Enter the file prefix.</li>
+<li><code>Tiff File Name</code>: Area to define the name of the TIFF
+file and its index. It contains:<br />
+<small>
+<ul>
+<li>First line-edit is read-only and displays the folder where TIFF
+files are saved.</li>
+<li>Second line-edit is modifiable (ASCII characters and underscores
+only) and is meant for the file name.</li>
+<li>Spinbox is modifiable, is incremented after each writing and
+represents the index of the written TIFF</li>
+</ul>
+</small></li>
 <li><code>index</code>: Set the file index for the TIFF file.</li>
 <li><code>Accumulate in TIFF</code>: Accumulates a specified number of
 frames in the TIFF file.</li>
