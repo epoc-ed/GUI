@@ -34,13 +34,13 @@ class TEMAction(QObject):
         self.timer_tem_connexion.timeout.connect(self.checkTemConnexion)
         
         # Initialization
-        cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
         self.scale = None
         self.formatted_filename = ''
-        self.beamcenter = cfg.beam_center # TODO! read the value when needed!
-        # self.xds_template_filepath = cfg.XDS_template
-        self.datasaving_filepath = cfg.data_dir.as_posix()
+        self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
+        # self.xds_template_filepath = self.cfg.XDS_template
+        self.datasaving_filepath = self.cfg.data_dir.as_posix()
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
@@ -53,10 +53,7 @@ class TEMAction(QObject):
         # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
         
-        # self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.execute_command("SetXRel(10000)"))
         self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.client.SetXRel(10000))
-
-        # self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.execute_command("SetXRel(-10000)"))
         self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.client.SetXRel(-10000))
 
         self.tem_stagectrl.move10degp.clicked.connect(
@@ -98,7 +95,7 @@ class TEMAction(QObject):
             self.connectorWorkerReady = True
             logging.info("Starting tem-connecting process")
             self.tem_tasks.connecttem_button.started = True
-            self.timer_tem_connexion.start(3000)
+            self.timer_tem_connexion.start(5000)
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")
@@ -129,9 +126,12 @@ class TEMAction(QObject):
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: red; color: white;')
             self.tem_tasks.connecttem_button.setText("Disconnected")
-        self.enabling(tem_connected)
+        self.enabling(tem_connected) #also disables buttons if tem-gui connection is cut
+        if tem_connected:
+            self.control.send_to_tem("#more")
         
     def callGetInfoTask(self):
+        self.control.init.emit()
         if self.tem_tasks.gettem_checkbox.isChecked():
             self.control.trigger_getteminfo.emit('Y')
             # if os.path.isfile(self.formatted_filename):
@@ -140,28 +140,8 @@ class TEMAction(QObject):
         else:
             self.control.trigger_getteminfo.emit('N')
     
-    # @Slot(int, str)
-    # def on_sockstatus_change(self, state, error_msg):
-    #     if state == QAbstractSocket.SocketState.ConnectedState:
-    #         message, color = "Connected!", "green"
-    #         self.tem_tasks.connecttem_button.started = True
-    #     elif state == QAbstractSocket.SocketState.ConnectingState:
-    #         message, color = "Connecting", "orange"
-    #         self.tem_tasks.connecttem_button.started = True
-    #     elif error_msg:
-    #         message = "Error (" + error_msg + ")"
-    #         color = "red"
-    #         self.tem_tasks.connecttem_button.started = False
-    #     else:
-    #         message, color = "Disconnected", "red"
-    #         self.tem_tasks.connecttem_button.started = False
-    #     self.tem_tasks.connecttem_button.setText(message)
-    #     self.enabling(self.tem_tasks.connecttem_button.started)
-    #     print(message, color) # '*can be ignored'
-    #     ## return message, color
-
     def on_tem_update(self):
-        logging.info("Updating GUI with last TEM Status")
+        logging.info("Updating GUI with last TEM Status...")
         # self.beamcenter = float(fit_result_best_values['xo']), float(fit_result_best_values['yo'])
         angle_x = self.control.tem_status["stage.GetPos"][3]
         self.tem_tasks.input_start_angle.setValue(angle_x)
@@ -170,7 +150,7 @@ class TEMAction(QObject):
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_magnification.setText(magnification)
             self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
-        if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
+        elif self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_det_distance.setText(detector_distance)
             self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
@@ -208,6 +188,7 @@ class TEMAction(QObject):
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:
             self.control.init.emit()
+            self.control.send_to_tem("#more")
             self.control.trigger_record.emit()
             self.tem_tasks.rotation_button.setText("Stop")
             self.tem_tasks.rotation_button.started = True
@@ -233,6 +214,7 @@ class TEMAction(QObject):
     def toggle_beamAutofocus(self):
         if not self.tem_tasks.beamAutofocus.started:
             self.control.init.emit()
+            self.control.send_to_tem("#more")
             self.control.actionFit_Beam.emit()
             self.tem_tasks.beamAutofocus.setText("Stop Autofocus")
             self.tem_tasks.beamAutofocus.started = True
