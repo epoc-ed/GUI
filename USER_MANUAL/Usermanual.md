@@ -61,11 +61,11 @@ This document was updated on 02 Oct 2024
    ```
 7. Switch to the correct branch:
    ```bash
-   git switch feature/redis_config
+   git switch feature/redis_coonfig
    ```
    or
    ```bash
-   git checkout feature/redis_config
+   git checkout feature/redis_coonfig
    ```
 8. Confirm you are on the `feature/redis_config` branch:
    ```bash
