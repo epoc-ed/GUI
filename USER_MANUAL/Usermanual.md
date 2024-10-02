@@ -128,7 +128,8 @@ More:\
 ### [TEM-control Function](screenshot/ver_16Aug2024.PNG)
 
 - `Check TEM connection`: Starts communication with TEM.
-- `Get TEM status`: (deactivated) Displays the TEM status in the terminal.
+- `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file]
+   -`recording`: When checked, allows to save the TEM status in a .log file
 - `Click-on-Centring`: (deactivated) Activates stage control by clicking the image.
 - `Beam Autofocus`: (Not ready for use) Sweeps IL1 and ILstig values.
 - `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
@@ -140,9 +141,9 @@ More:\
 
 #### Redis Store Settings
 - `Experiment Class`: Specifies for whom the data is collected (e.g., UniVie, External, IP).
-- `User Name`: Enter the PI (Person of Interest).
-- `Project Id`: Enter the project identifier.
-- `Base Data Directory`: Specifies the root directory for data saving.
+- `User Name`*: Enter the PI (Person of Interest).
+- `Project Id`*: Enter the project identifier.
+- `Base Data Directory`*: Specifies the root directory for data saving.
 
 #### TIFF Writer
 - `Tiff File Name`: Enter the file prefix.
@@ -150,9 +151,11 @@ More:\
 - `Accumulate in TIFF`: Accumulates a specified number of frames in the TIFF file.
 
 #### HDF5 Writer
-- `HDF5 Tag`: Enter the file prefix (ASCII characters and underscores only).
-- `index`: Set the file index for the HDF5 file.
+- `HDF5 Tag`*: Enter the file prefix (ASCII characters and underscores only).
+- `index`*: Set the file index for the HDF5 file.
 - `H5 Output Path`: Read-only field showing the path where datasets are saved.
+
+**Important:** All the fields with (*) are manually editable. During edition, the entered values will be display in orange and you would need to press the [ENTER] key to confirm changes and upload them in the data base.
 
 ## Data-recording workflow
 

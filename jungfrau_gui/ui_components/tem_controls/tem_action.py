@@ -209,7 +209,6 @@ class TEMAction(QObject):
 
     def update_rotation_speed_idx_from_ui(self):
         self.cfg.rotation_speed_idx = self.tem_stagectrl.rb_speeds.checkedId()
-        print(f" **************************** checked button is with index {self.cfg.rotation_speed_idx}")
         logging.info(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
 
     def toggle_rotation(self):

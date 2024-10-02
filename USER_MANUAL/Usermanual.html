@@ -239,7 +239,8 @@ receiver).<br />
 <h3 id="tem-control-function"><a
 href="screenshot/ver_16Aug2024.PNG">TEM-control Function</a></h3>
 <ul>
-<li><code>Connect to TEM</code>: Starts communication with TEM.</li>
+<li><code>Check TEM connection</code>: Starts communication with
+TEM.</li>
 <li><code>Get TEM status</code>: (deactivated) Displays the TEM status
 in the terminal.</li>
 <li><code>Click-on-Centring</code>: (deactivated) Activates stage
@@ -262,9 +263,9 @@ href="screenshot/ver_24Sept2024.PNG">File Operation and Redis</a></h3>
 <ul>
 <li><code>Experiment Class</code>: Specifies for whom the data is
 collected (e.g., UniVie, External, IP).</li>
-<li><code>User Name</code>: Enter the PI (Person of Interest).</li>
-<li><code>Project Id</code>: Enter the project identifier.</li>
-<li><code>Base Data Directory</code>: Specifies the root directory for
+<li><code>User Name</code>*: Enter the PI (Person of Interest).</li>
+<li><code>Project Id</code>*: Enter the project identifier.</li>
+<li><code>Base Data Directory</code>*: Specifies the root directory for
 data saving.</li>
 </ul>
 <h4 id="tiff-writer">TIFF Writer</h4>
@@ -276,12 +277,16 @@ frames in the TIFF file.</li>
 </ul>
 <h4 id="hdf5-writer">HDF5 Writer</h4>
 <ul>
-<li><code>HDF5 Tag</code>: Enter the file prefix (ASCII characters and
+<li><code>HDF5 Tag</code>*: Enter the file prefix (ASCII characters and
 underscores only).</li>
-<li><code>index</code>: Set the file index for the HDF5 file.</li>
+<li><code>index</code>*: Set the file index for the HDF5 file.</li>
 <li><code>H5 Output Path</code>: Read-only field showing the path where
 datasets are saved.</li>
 </ul>
+<p><strong>Important:</strong> All the fields with (*) are manually
+editable. During edition, the entered values will be display in orange
+and you would need to press the [ENTER] key to confirm change and upload
+then in the data base.</p>
 <h2 id="data-recording-workflow">Data-recording workflow</h2>
 <ol type="1">
 <li>Set up the beam and stage of TEM.</li>

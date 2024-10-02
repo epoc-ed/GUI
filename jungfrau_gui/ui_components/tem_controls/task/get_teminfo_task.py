@@ -33,7 +33,7 @@ class GetInfoTask(Task):
         buffer += f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n"
         buffer += f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n"
         # BEAM
-        buffer += f"# spot_size:               {self.control.tem_status['eos.GetSpotSize']+1}\n"
+        buffer += f"# spot_size:               {self.control.tem_status['eos.GetSpotSize']}\n"
         buffer += f"# alpha_angle:             {self.control.tem_status['eos.GetAlpha']}\n"
         # APERTURE
         buffer += f"# CL#:                     {self.control.tem_status['apt.GetSize(1)']}\n"
