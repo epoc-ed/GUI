@@ -66,7 +66,7 @@ class TEMAction(QObject):
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.datasaving_filepath)
         # self.file_operations.h5_folder_name = self.datasaving_filepath
-        self.file_operations.fname_input.setText(self.datasaving_filepath + '/file')
+        self.file_operations.tiff_path.setText(self.datasaving_filepath + '/')
 
     def enabling(self, enables=True):
         self.tem_detector.scale_checkbox.setEnabled(enables)

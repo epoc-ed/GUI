@@ -88,13 +88,13 @@ class FileOperations(QGroupBox):
         #################
         # User Name Field
         #################
-        self.userName = QLabel("User name", self)
+        self.userName = QLabel("PI name", self)
         self.userName_input = QLineEdit(self)
         self.redis_fields.append(self.userName_input)
         self.userName_input.setText(f'{self.cfg.PI_name}')
 
         self.get_userName = QPushButton("Get", self)
-        self.get_userName.clicked.connect(lambda: print(f"User Name: {self.cfg.PI_name}"))
+        self.get_userName.clicked.connect(lambda: print(f"PI Name: {self.cfg.PI_name}"))
 
         self.userName_input.returnPressed.connect(self.update_userName)
 
@@ -134,23 +134,24 @@ class FileOperations(QGroupBox):
         self.base_directory_input = QLineEdit(self)
         self.redis_fields.append(self.base_directory_input)
         self.base_directory_input.setText(f'{self.cfg.base_data_dir}')
+        self.base_directory_input.setReadOnly(True)
 
         self.get_base_directory = QPushButton("Get", self)
         self.get_base_directory.clicked.connect(lambda: print(f"Base Data Directory: {self.cfg.base_data_dir}"))
 
-        self.base_directory_button = QPushButton()
-        icon_path = os.path.join(os.path.dirname(__file__), "folder_icon.png")
+        # self.base_directory_button = QPushButton()
+        # icon_path = os.path.join(os.path.dirname(__file__), "folder_icon.png")
 
-        self.base_directory_button.setIcon(QIcon(icon_path))
-        self.base_directory_button.clicked.connect(self.open_directory_dialog)
+        # self.base_directory_button.setIcon(QIcon(icon_path))
+        # self.base_directory_button.clicked.connect(self.open_directory_dialog)
         
-        self.base_directory_input.returnPressed.connect(self.update_base_data_directory)
+        # self.base_directory_input.returnPressed.connect(self.update_base_data_directory)
 
         redis_base_directory_layout = QHBoxLayout()
         redis_base_directory_layout.addWidget(self.base_directory)
         redis_base_directory_layout.addWidget(self.base_directory_input)
         redis_base_directory_layout.addWidget(self.get_base_directory)
-        redis_base_directory_layout.addWidget(self.base_directory_button)
+        # redis_base_directory_layout.addWidget(self.base_directory_button)
 
         section3.addLayout(redis_base_directory_layout)
         
@@ -165,16 +166,17 @@ class FileOperations(QGroupBox):
         section3.addWidget(TIFF_section_label)
 
         self.fname = QLabel("TIFF file name", self)
+        self.tiff_path = QLineEdit(self)
+        self.tiff_path.setReadOnly(True)
         self.fname_input = QLineEdit(self)
-        self.fname_input.setText('file')
-        self.findex = QLabel("index:", self)
+        self.fname_input.setText('file_name')
         self.findex_input = QSpinBox(self)  
 
         tiff_file_layout = QHBoxLayout()
-        tiff_file_layout.addWidget(self.fname)
-        tiff_file_layout.addWidget(self.fname_input)
-        tiff_file_layout.addWidget(self.findex)
-        tiff_file_layout.addWidget(self.findex_input)
+        tiff_file_layout.addWidget(self.fname, 2)
+        tiff_file_layout.addWidget(self.tiff_path, 7)
+        tiff_file_layout.addWidget(self.fname_input, 2)
+        tiff_file_layout.addWidget(self.findex_input, 1)
 
         section3.addLayout(tiff_file_layout)
         
@@ -242,9 +244,8 @@ class FileOperations(QGroupBox):
         self.outPath = QLabel("H5 Output Path", self)
         self.outPath_input = QLineEdit(self)
         self.outPath_input.setText(self.cfg.data_dir.as_posix())
-        self.outPath_input.setDisabled(True)
+        self.outPath_input.setReadOnly(True)
         self.background_color = self.palette.color(QPalette.Base).name()
-        self.outPath_input.setStyleSheet(f"QLineEdit {{ color: light grey; background-color: {self.background_color}; }}")
         
         output_folder_layout.addWidget(self.outPath, 2)
         output_folder_layout.addWidget(self.outPath_input, 7)
@@ -281,7 +282,7 @@ class FileOperations(QGroupBox):
     """ ****************************************** """        
     """ def start_accumulate(self):
         self.file_index = self.findex_input.value()
-        f_name = self.fname_input.text()
+        self.f_name = f'{self.tiff_path.text()}_{self.fname_input.text()}'
         nb_frames_to_take = self.acc_spin.value()
         # Construct the (thread, worker) pair
         self.thread_acc = QThread()
@@ -299,7 +300,7 @@ class FileOperations(QGroupBox):
         worker.moveToThread(thread)
         logging.info(f"{worker.__str__()} is Ready!")
         thread.started.connect(worker.run)
-        worker.finished.connect(lambda x: save_captures(f'{self.fname_input.text()}_{self.file_index}', x))
+        worker.finished.connect(lambda x: save_captures(f'{self.f_name}_{self.file_index}', x))
     """
 
     """ ************************************************ """
@@ -307,7 +308,7 @@ class FileOperations(QGroupBox):
     """ ************************************************ """
     def start_accumulate(self):
         file_index = self.findex_input.value()
-        full_fname = f'{self.fname_input.text()}_{self.findex_input.value()}.tiff'
+        full_fname = f'{self.tiff_path.text()}{self.fname_input.text()}_{self.findex_input.value()}.tiff'
         nb_frames_to_take = self.acc_spin.value()
         self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
                                                                   dtype= globals.dtype,
@@ -394,31 +395,32 @@ class FileOperations(QGroupBox):
         logging.info(f"Experiment Class updated to: {self.cfg.experiment_class}")
         self.update_data_directory()
 
-    def update_base_data_directory(self):
-        path = self.base_directory_input.text()
-        if os.path.exists(path):
-            self.cfg.base_data_dir = path
-            self.reset_style(self.base_directory_input)
-            logging.info(f"Base Directory: {self.cfg.base_data_dir}")
-            self.update_data_directory()
-        else:
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setText("The entered folder does not exist.")
-            msg_box.setWindowTitle("Warning: Invalid Path")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec()
+    # def update_base_data_directory(self):
+    #     path = self.base_directory_input.text()
+    #     if os.path.exists(path):
+    #         self.cfg.base_data_dir = path
+    #         self.reset_style(self.base_directory_input)
+    #         logging.info(f"Base Directory: {self.cfg.base_data_dir}")
+    #         self.update_data_directory()
+    #     else:
+    #         msg_box = QMessageBox()
+    #         msg_box.setIcon(QMessageBox.Warning)
+    #         msg_box.setText("The entered folder does not exist.")
+    #         msg_box.setWindowTitle("Warning: Invalid Path")
+    #         msg_box.setStandardButtons(QMessageBox.Ok)
+    #         msg_box.exec()
             
-    def open_directory_dialog(self):
-        initial_dir = self.base_directory_input.text()
-        folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
-        if not folder_name:
-            return
-        self.base_directory_input.setText(folder_name)
-        self.update_base_data_directory()
+    # def open_directory_dialog(self):
+    #     initial_dir = self.base_directory_input.text()
+    #     folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
+    #     if not folder_name:
+    #         return
+    #     self.base_directory_input.setText(folder_name)
+    #     self.update_base_data_directory()
 
     def update_data_directory(self):
         self.outPath_input.setText(self.cfg.data_dir.as_posix())
+        self.tiff_path.setText(self.cfg.data_dir.as_posix())
         logging.info(f"Data is now saved at {self.cfg.data_dir.as_posix()}")
 
     def update_measurement_tag(self):
