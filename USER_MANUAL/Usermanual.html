@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>Usermanual</title>
+  <title>User Manual for Jungfrau GUI</title>
   <style>
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
@@ -80,9 +80,12 @@
   <link rel="stylesheet" href="github-markdown.css" />
 </head>
 <body>
+<header id="title-block-header">
+<h1 class="title">User Manual for Jungfrau GUI</h1>
+</header>
 <h1 id="new-receiver-and-viewer-of-jungfrau-for-ed-ccsa-uniwien">New
 Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien</h1>
-<p><strong>Latest update</strong>: 30 Sep 2024</p>
+<p><strong>Latest update</strong>: 02 Oct 2024</p>
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
 <li><a href="#activation">Activation</a></li>
@@ -103,7 +106,17 @@ Notes</a></li>
 <ol type="1">
 <li><p>Log in with the user ‘JEM User’.</p></li>
 <li><p>Open a <strong>Miniconda PowerShell Prompt</strong> (Anaconda
-submenu) from the Windows Start Menu.</p></li>
+submenu) from the Windows Start Menu.<br />
+<small> &gt; Preferably disable the Quick Edit mode of the command
+prompt:</p>
+<ul>
+<li>Right-click on the title bar</li>
+<li>Select <code>Properties</code> from the dropdown menu.</li>
+<li>In the <code>Options</code> tab, uncheck the box for
+<code>Quick Edit Mode</code></li>
+<li>Click <code>OK</code>.</li>
+</ul>
+<p></small></p></li>
 <li><p>Navigate to the <code>C:\ProgramData\EPOC</code> directory:</p>
 <div class="sourceCode" id="cb1"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> C:<span class="dt">\P</span>rogramData<span class="dt">\E</span>POC</span></code></pre></div></li>
@@ -229,8 +242,8 @@ specified data path with the given prefix. The output file ends with
 <hr />
 <h2 id="tem-control-function">TEM-control Function</h2>
 <ul>
-<li><strong>Connect to TEM</strong>: (deactivated) Starts communication
-with TEM.</li>
+<li><strong>Check TEM Connection</strong>: Starts communication with TEM
+[enables all the functionalities when connection OK]</li>
 <li><strong>Get TEM Status</strong>: (deactivated) Updates the TEM
 information and shows it in the terminal. If an HDF file with the
 defined filename exists, the information is added to the header.</li>

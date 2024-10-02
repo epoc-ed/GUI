@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-**Latest update**: 30 Sep 2024
+**Latest update**: 02 Oct 2024
 
 ## Table of Contents
 - [Activation](#activation)
@@ -15,7 +15,15 @@
 
 ### TEM-PC (not required if using only the TEM console panel)
 1. Log in with the user 'JEM User'.
-2. Open a **Miniconda PowerShell Prompt** (Anaconda submenu) from the Windows Start Menu.
+2. Open a **Miniconda PowerShell Prompt** (Anaconda submenu) from the Windows Start Menu.\
+   <small>
+   > Preferably disable the Quick Edit mode of the command prompt:
+      - Right-click on the title bar 
+      - Select `Properties` from the dropdown menu.
+      - In the `Options` tab, uncheck the box for `Quick Edit Mode`
+      - Click `OK`.
+
+   </small>
 3. Navigate to the `C:\ProgramData\EPOC` directory:
    ```bash
    cd C:\ProgramData\EPOC
