@@ -111,7 +111,17 @@ id="tem-pc-not-needed-when-you-only-use-the-tem-console-panel">TEM-PC
 <li>Activate the TEM server:
 <ul>
 <li><p>Open a Miniconda PowerShell Prompt (Anaconda submenu) from the
-Windows Start Menu.</p></li>
+Windows Start Menu.<br />
+<small> &gt; Preferably disable the Quick Edit mode of the command
+prompt:</p>
+<ul>
+<li>Right-click on the title bar</li>
+<li>Select <code>Properties</code> from the dropdown menu.</li>
+<li>In the <code>Options</code> tab, uncheck the box for
+<code>Quick Edit Mode</code></li>
+<li>Click <code>OK</code>.</li>
+</ul>
+<p></small></p></li>
 <li><p>Navigate to <code>C:\ProgramData\EPOC</code></p></li>
 <li><p>Activate the environment:</p>
 <div class="sourceCode" id="cb1"><pre
@@ -260,7 +270,8 @@ rotation.</li>
 <li><code>Auto reset</code>: Resets the tilt to 0 degrees after
 rotation.</li>
 <li><code>Rotation Speed</code>: Adjusts rotation speed before starting
-the rotation.</li>
+the rotation. Also updates the <code>rotation_speed_idx</code> variable
+of the Configuration Manager in the data base.</li>
 </ul>
 <h3 id="file-operation-and-redis"><a
 href="screenshot/ver_24Sept2024.PNG">File Operation and Redis</a></h3>
@@ -291,9 +302,9 @@ underscores only).</li>
 datasets are saved.</li>
 </ul>
 <p><strong>Important:</strong> All the fields with (*) are manually
-editable. During edition, the entered values will be displayed in orange
-i.e. temporary values. By pressing the [ENTER] key, modifications are
-confirmed and new values uploaded to the data base.</p>
+editable. During edition, the entered values/text will be displayed in
+orange i.e. temporary values. By pressing the [ENTER] key, modifications
+are confirmed and new values uploaded to the data base.</p>
 <h2 id="data-recording-workflow">Data-recording workflow</h2>
 <ol type="1">
 <li>Set up the beam and stage of TEM.</li>

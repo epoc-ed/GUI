@@ -17,7 +17,15 @@ This document was updated on 02 Oct 2024
 
 ### TEM-PC (not needed when you ONLY use the TEM console panel)
 1. Activate the TEM server:
-   - Open a Miniconda PowerShell Prompt (Anaconda submenu) from the Windows Start Menu.
+   - Open a Miniconda PowerShell Prompt (Anaconda submenu) from the Windows Start Menu.\
+      <small>
+      > Preferably disable the Quick Edit mode of the command prompt:
+       - Right-click on the title bar 
+       - Select `Properties` from the dropdown menu.
+       - In the `Options` tab, uncheck the box for `Quick Edit Mode`
+       - Click `OK`.
+
+      </small>
    - Navigate to `C:\ProgramData\EPOC`
    - Activate the environment:
      ```bash
@@ -135,7 +143,7 @@ More:\
 - `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
 - `with Writer`: Synchronizes the HDF writer with rotation.
 - `Auto reset`: Resets the tilt to 0 degrees after rotation.
-- `Rotation Speed`: Adjusts rotation speed before starting the rotation.
+- `Rotation Speed`: Adjusts rotation speed before starting the rotation. Also updates the `rotation_speed_idx` variable of the Configuration Manager in the data base.
 
 ### [File Operation and Redis](screenshot/ver_24Sept2024.PNG)
 
