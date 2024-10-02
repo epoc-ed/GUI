@@ -312,7 +312,6 @@ class VisualizationPanel(QGroupBox):
         self.parent.histogram.gradient.loadPreset(theme)
 
     def resetContrast(self):
-        # self.parent.histogram.setLevels(0, 255)
         self.parent.timer_contrast.stop()
         self.autoContrastBtn.started = False
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
@@ -380,7 +379,6 @@ class VisualizationPanel(QGroupBox):
                 logging.info("** Read-thread forced to sleep **")
                 time.sleep(0.1) 
             if self.autoContrastBtn.started:
-                # self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
                 self.toggle_autoContrast()
 
     def initializeWorker(self, thread, worker):
@@ -400,6 +398,4 @@ class VisualizationPanel(QGroupBox):
 
     def updateUI(self, image, frame_nr):
         self.parent.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False)
-        # self.parent.histogram.setLevels(0, 5000)  # Reinforce level settings
-        # self.parent.histogram.setHistogramRange(0, 5000, padding=0) 
         self.parent.statusBar().showMessage(f'Frame: {frame_nr}')

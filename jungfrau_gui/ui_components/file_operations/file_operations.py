@@ -394,21 +394,6 @@ class FileOperations(QGroupBox):
         logging.info(f"Experiment Class updated to: {self.cfg.experiment_class}")
         self.update_data_directory()
 
-    # def update_experiment_class(self):
-    #     experiment_class = self.experiment_class_input.text()
-    #     if experiment_class in ['UniVie', 'External', 'IP']:
-    #         self.cfg.experiment_class = self.experiment_class_input.text()
-    #         self.reset_style(self.experiment_class_input)
-    #         logging.info(f"Experiment Class: {self.cfg.experiment_class}")
-    #         self.update_data_directory()
-    #     else:
-    #         msg_box = QMessageBox()
-    #         msg_box.setIcon(QMessageBox.Warning)
-    #         msg_box.setText("Invalid entry value.\nPlease enter one of the recognized values: 'UniVie', 'External', 'IP'")
-    #         msg_box.setWindowTitle("Warning: Invalid Entry")
-    #         msg_box.setStandardButtons(QMessageBox.Ok)
-    #         msg_box.exec()
-
     def update_base_data_directory(self):
         path = self.base_directory_input.text()
         if os.path.exists(path):

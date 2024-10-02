@@ -139,26 +139,6 @@ class TEMAction(QObject):
             #     self.temtools.addinfo_to_hdf()
         else:
             self.control.trigger_getteminfo.emit('N')
-    
-    # @Slot(int, str)
-    # def on_sockstatus_change(self, state, error_msg):
-    #     if state == QAbstractSocket.SocketState.ConnectedState:
-    #         message, color = "Connected!", "green"
-    #         self.tem_tasks.connecttem_button.started = True
-    #     elif state == QAbstractSocket.SocketState.ConnectingState:
-    #         message, color = "Connecting", "orange"
-    #         self.tem_tasks.connecttem_button.started = True
-    #     elif error_msg:
-    #         message = "Error (" + error_msg + ")"
-    #         color = "red"
-    #         self.tem_tasks.connecttem_button.started = False
-    #     else:
-    #         message, color = "Disconnected", "red"
-    #         self.tem_tasks.connecttem_button.started = False
-    #     self.tem_tasks.connecttem_button.setText(message)
-    #     self.enabling(self.tem_tasks.connecttem_button.started)
-    #     print(message, color) # '*can be ignored'
-    #     ## return message, color
 
     def on_tem_update(self):
         logging.info("Updating GUI with last TEM Status...")
