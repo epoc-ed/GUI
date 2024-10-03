@@ -13,6 +13,18 @@ from .ui_components.tem_controls.tem_controls import TemControls
 from .ui_components.file_operations.file_operations import FileOperations
 from .ui_components.utils import create_gaussian
 
+import subprocess
+
+def get_git_info():
+    try:
+        # Run the git describe command to get the latest tag
+        tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8')
+        branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8')
+    except subprocess.CalledProcessError:
+        tag = "x.x.x"  # If there's an error (e.g., no tag), handle it
+        branch = ""
+    return f"{tag}/{branch}"
+
 class EventFilter(QObject):
     def __init__(self, histogram, parent=None):
         super().__init__(parent)
@@ -34,10 +46,7 @@ class ApplicationWindow(QMainWindow):
         self.app = app
         self.receiver = receiver
         self.threadWorkerPairs = []
-        if globals.tem_mode:
-            self.version = 'Viewer 2.0.0/temctrl' # better to be replaced by referring to .github/workflows/release.yml
-        else:
-            self.version = 'Viewer 2.0.0'
+        self.version = 'Viewer ' + get_git_info()
         self.initUI()
 
     def initUI(self):
