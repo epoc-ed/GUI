@@ -26,10 +26,10 @@ import psutil
 def is_process_running(process_name):
     for proc in psutil.process_iter(['cmdline']):  # Fetch command line arguments for each process
         try:
-            # Check each command line argument to find for e.g. 'ReceiverServer' when running 'python ReceiverServer.py -t 12'
-            if any(process_name in arg for arg in proc.info['cmdline']):
+            cmdline = proc.info.get('cmdline')
+            if cmdline and any(process_name in arg for arg in cmdline):
                 return True
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             # TODO Handle exceptions if the process terminates or if access is denied
             continue
     return False
