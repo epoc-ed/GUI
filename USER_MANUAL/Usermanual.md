@@ -4,7 +4,7 @@ This document was updated on 02 Oct 2024
 ## Table of Contents
 - [Activation](#activation)
 - [Deactivation](#deactivation)
-- [Main Function](#main-function)
+- [Main Functionalities](#main-functionalities)
 - [Summing Receiver Controls](#summing-receiver-controls)
 - [TEM-control Function](#tem-control-function)
 - [File Operation and Redis](#file-operation-and-redis)
@@ -113,13 +113,14 @@ This document was updated on 02 Oct 2024
 
 - `View Stream`: Reads the stream of frames published by the receiver.
 - `Apply Auto Contrast`: Dynamically adjusts the contrast of displayed frames.
+- `Reset Contrast`: Turn off the auto-contrast and reload preset contrast values (from Redis)
 - `Exit`: Disconnects the TEM and exits the GUI.
 - `Beam Gaussian Fit`: Starts fitting the beam's elliptical spot shape (non-TEM mode only, useful for manual focusing).
-- `Magnification`, `Distance`: Displays the magnification and distance values from the previous recording (TEM mode only).
+- `Magnification`, `Distance`: Displays the magnification and distance values from the previous recording (TEM mode only). `scale` checkbox displays the scale bar/ring (not works correctly at the moment).
 - `Accumulate in TIFF`: Saves a TIFF snapshot to the specified data path.
 - `Write Stream in H5`: Saves an HDF movie to the specified data path.
 
-### [Summing Receiver Controls](screenshot/ver_26Sept2024.PNG.png)
+### [Summing Receiver Controls](../jungfrau_gui/screenshot/ver_26Sept2024.PNG.png)
 **Important:** The below controls are compatible with the new receiver `~/software/v2/reuss/python/reuss/ReceiverServer.py`.
 
 Main operations:\
@@ -133,9 +134,9 @@ More:\
 - `Record Full Pedestal`: Records and subtracts the dark frames (equivalent to `r.record_pedestal(1)` in the old receiver).\
 - `Record Gain G0`: Records the pedestal for gain G0 (equivalent to `r.record_pedestal(2)`).
 
-### [TEM-control Function](screenshot/ver_16Aug2024.PNG)
+### [TEM-control Function](../jungfrau_gui/screenshot/ver_16Aug2024.PNG)
 
-- `Check TEM connection`: Starts communication with TEM.
+- `Check TEM connection`: Starts communication with TEM. After the connection can be confirmed, **click again** to stop pinging.
 - `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file]
    -`recording`: When checked, allows to save the TEM status in a .log file
 - `Click-on-Centring`: (deactivated) Activates stage control by clicking the image.
@@ -144,13 +145,14 @@ More:\
 - `with Writer`: Synchronizes the HDF writer with rotation.
 - `Auto reset`: Resets the tilt to 0 degrees after rotation.
 - `Rotation Speed`: Adjusts rotation speed before starting the rotation. Also updates the `rotation_speed_idx` variable of the Configuration Manager in the data base.
+- `Stage Ctrl`: moves the stage in specific direction. \*Rotations are not automatically quicken.
 
-### [File Operation and Redis](screenshot/ver_24Sept2024.PNG)
+### [File Operation and Redis](../jungfrau_gui/screenshot/ver_24Sept2024.PNG)
 
 #### Redis Store Settings
 - `Experiment Class`: Specifies for whom the data is collected (e.g., UniVie, External, IP).
 - `User Name`*: Enter the PI (Person of Interest).
-- `Project Id`*: Enter the project identifier.
+- `Project ID`*: Enter the project identifier.
 - `Base Data Directory`: Specifies the root directory for data saving.
 
 **Note:** The [Get] buttons were coded for debugging purposes. They will be removed for the stable version.
