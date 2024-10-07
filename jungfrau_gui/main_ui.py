@@ -71,6 +71,7 @@ class CustomFormatter(logging.Formatter):
 
 def main():
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
     
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--stream', type=str, default="tcp://localhost:4545", help="zmq stream")
