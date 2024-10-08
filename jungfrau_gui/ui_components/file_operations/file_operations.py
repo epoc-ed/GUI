@@ -310,7 +310,7 @@ class FileOperations(QGroupBox):
     """ ************************************************ """
     def start_accumulate(self):
         file_index = self.findex_input.value()
-        full_name = (Path(self.tiff_path.text())/f'{self.fname_input.text()}_{self.findex_input.value()}.tiff').as_posix()
+        full_fname = (Path(self.tiff_path.text())/f'{self.fname_input.text()}_{self.findex_input.value()}.tiff').as_posix()
 
         nb_frames_to_take = self.acc_spin.value()
         self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
