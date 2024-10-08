@@ -1,4 +1,3 @@
-import os
 import logging
 from PySide6.QtGui import QIcon, QFont, QRegularExpressionValidator
 from PySide6.QtCore import Signal, Qt, QRegularExpression
@@ -8,17 +7,17 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QMessageBox, QGridLayout, QRadioButton)
 
 from .stream_writer import StreamWriter
-# from .frame_accumulator import FrameAccumulator
 from .frame_accumulator_mp import FrameAccumulator
 
-# import reuss
-# import tifffile
+
 from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
 from ...ui_components.palette import *
 
 from epoc import ConfigurationClient, auth_token, redis_host
+
+from pathlib import Path
 
 
 """ #Useful for Threading version of TIFF file Writing (below)
@@ -311,7 +310,8 @@ class FileOperations(QGroupBox):
     """ ************************************************ """
     def start_accumulate(self):
         file_index = self.findex_input.value()
-        full_fname = f'{self.tiff_path.text()}{self.fname_input.text()}_{self.findex_input.value()}.tiff'
+        full_name = (Path(self.tiff_path.text())/f'{self.fname_input.text()}_{self.findex_input.value()}.tiff').as_posix()
+
         nb_frames_to_take = self.acc_spin.value()
         self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
                                                                   dtype= globals.dtype,
