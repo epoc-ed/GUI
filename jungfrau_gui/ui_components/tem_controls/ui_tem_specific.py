@@ -81,6 +81,25 @@ class TEMStageCtrl(QGroupBox):
         for i in self.movestages.buttons():
             self.hbox_move.addWidget(i, 1)
             i.setEnabled(False)
+
+        self.hbox_magmode = QHBoxLayout()
+        mode_label = QLabel("Mag Mode:", self)
+        self.mag_modes = QButtonGroup()
+        self.mode_lowmag = QRadioButton('Low MAG', self)
+        self.mode_mag =    QRadioButton('MAG', self)
+        self.mode_difmag = QRadioButton('Diff MAG', self)
+        #self.contrast_checkbox = QCheckBox("fixed contrast", self)
+        #self.contrast_checkbox.setChecked(False)
+        self.mag_modes.addButton(self.mode_lowmag, 2)
+        self.mag_modes.addButton(self.mode_mag, 0)
+        self.mag_modes.addButton(self.mode_difmag, 4)
+        self.mag_modes.button(0).setChecked(True)
+        self.hbox_magmode.addWidget(mode_label, 1)
+        stage_ctrl_section.addLayout(self.hbox_magmode)
+
+        for i in self.mag_modes.buttons():
+            self.hbox_magmode.addWidget(i, 1)
+        #self.hbox_magmode.addWidget(self.contrast_checkbox, 1)
         
         self.setLayout(stage_ctrl_section)
 
@@ -152,7 +171,7 @@ class TEMTasks(QGroupBox):
         self.update_end_angle.setMinimum(-71)
         self.update_end_angle.setSuffix('°')
         self.update_end_angle.setDecimals(1)
-        self.update_end_angle.setValue(65) # will be replaced with configuration file
+        self.update_end_angle.setValue(60) # will be replaced with configuration file
 
         END_layout.addWidget(end_angle)
         END_layout.addWidget(self.update_end_angle)
