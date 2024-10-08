@@ -310,7 +310,10 @@ class FileOperations(QGroupBox):
     """ ************************************************ """
     def start_accumulate(self):
         file_index = self.findex_input.value()
-        full_fname = (Path(self.tiff_path.text())/f'{self.fname_input.text()}_{self.findex_input.value()}.tiff').as_posix()
+        fpath = Path(self.tiff_path.text())
+        fpath.mkdir(parents=True, exist_ok=True)
+        #TODO! How do we report errors form here? 
+        full_fname = (fpath/f'{self.fname_input.text()}_{self.findex_input.value()}.tiff').as_posix()
 
         nb_frames_to_take = self.acc_spin.value()
         self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
