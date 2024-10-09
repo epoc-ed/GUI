@@ -345,7 +345,7 @@ class FileOperations(QGroupBox):
                 self.update_index_box()
             # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
-            # logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
+            logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
     
     def text_modified(self, line_edit): 
         line_edit.setStyleSheet(f"QLineEdit {{ color: orange; background-color: {self.background_color}; }}")

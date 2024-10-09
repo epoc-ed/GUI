@@ -398,4 +398,5 @@ class VisualizationPanel(QGroupBox):
 
     def updateUI(self, image, frame_nr):
         self.parent.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False)
-        self.parent.statusBar().showMessage(f'Frame: {frame_nr}')
+        if frame_nr is not None:
+            self.parent.statusBar().showMessage(f'Frame: {frame_nr}')
