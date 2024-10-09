@@ -224,8 +224,12 @@ class VisualizationPanel(QGroupBox):
     def enable_receiver_controls(self, enables=False):
         self.startReceiverStream.setEnabled(enables)
         self.stopSreceiverBtn.setEnabled(enables)
-        self.setFramesToSumBtn.setEnabled(enables)
-        self.frames_to_sum.setEnabled(False) #TODO! At the moment not safe to change from GUI 
+        
+        #TODO! Fix changing frames to sum
+        # At the moment not safe to change while the receiver is running
+        self.setFramesToSumBtn.setEnabled(False)
+        self.frames_to_sum.setEnabled(False) 
+
         self.recordPedestalBtn.setEnabled(enables)
         self.recordGain0Btn.setEnabled(enables)   
 
