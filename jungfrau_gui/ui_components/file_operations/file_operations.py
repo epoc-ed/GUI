@@ -309,20 +309,9 @@ class FileOperations(QGroupBox):
 
     def toggle_hdf5Writer(self):
         if not self.streamWriterButton.started:
-            # prefix = self.tag_input.text().strip()
-            # if not prefix:
-            #     logging.error("Error: Prefix is missing! Please specify prefix of the written file(s).")# Handle error: Prefix is mandatory
-            #     QMessageBox.critical(self, "Prefix Missing", "Prefix of written files is missing!\nPlease specify one under the field 'HDF5 prefix'.", QMessageBox.Ok)
-            #     return
-            
             logging.debug("TCP address for Hdf5 writer to bind to is ", globals.stream)
             logging.debug("Data type to build the streamWriter object ", globals.file_dt)
 
-            # """ If manually entered path is wrong, back to the latest correct path """
-            # if self.outPath_input.text() != self.h5_folder_name:
-            #     self.outPath_input.setText(self.h5_folder_name)
-
-            # self.formatted_filename = self.generate_h5_filename(prefix)
             self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
             self.formatted_filename = self.cfg.data_dir/self.cfg.fname
             self.streamWriter = StreamWriter(filename=self.formatted_filename, 
@@ -369,29 +358,6 @@ class FileOperations(QGroupBox):
         self.cfg.experiment_class = button.text()
         logging.info(f"Experiment Class updated to: {self.cfg.experiment_class}")
         self.update_data_directory()
-
-    # def update_base_data_directory(self):
-    #     path = self.base_directory_input.text()
-    #     if os.path.exists(path):
-    #         self.cfg.base_data_dir = path
-    #         self.reset_style(self.base_directory_input)
-    #         logging.info(f"Base Directory: {self.cfg.base_data_dir}")
-    #         self.update_data_directory()
-    #     else:
-    #         msg_box = QMessageBox()
-    #         msg_box.setIcon(QMessageBox.Warning)
-    #         msg_box.setText("The entered folder does not exist.")
-    #         msg_box.setWindowTitle("Warning: Invalid Path")
-    #         msg_box.setStandardButtons(QMessageBox.Ok)
-    #         msg_box.exec()
-            
-    # def open_directory_dialog(self):
-    #     initial_dir = self.base_directory_input.text()
-    #     folder_name = QFileDialog.getExistingDirectory(self, "Select Directory", initial_dir)
-    #     if not folder_name:
-    #         return
-    #     self.base_directory_input.setText(folder_name)
-    #     self.update_base_data_directory()
 
     def update_data_directory(self):
         self.outPath_input.setText(self.cfg.data_dir.as_posix())

@@ -225,7 +225,7 @@ class VisualizationPanel(QGroupBox):
         self.startReceiverStream.setEnabled(enables)
         self.stopSreceiverBtn.setEnabled(enables)
         self.setFramesToSumBtn.setEnabled(enables)
-        self.frames_to_sum.setEnabled(enables)
+        self.frames_to_sum.setEnabled(False) #TODO! At the moment not safe to change from GUI 
         self.recordPedestalBtn.setEnabled(enables)
         self.recordGain0Btn.setEnabled(enables)   
 
