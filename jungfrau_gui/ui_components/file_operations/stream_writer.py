@@ -72,7 +72,6 @@ class StreamWriter:
                     logging.info(f"First written frame number is  {self.first_frame_number.value}")
                 image = np.frombuffer(msgs[1], dtype = globals.stream_dt).reshape(self.image_size)
                 converted_image = image.astype(globals.file_dt)
-                print(image[100,100], converted_image[100,100])
                 f.write(converted_image, frame_nr)
                 logging.debug("Hdf5 is being written...")
                 self.last_frame_number.value = frame_nr
