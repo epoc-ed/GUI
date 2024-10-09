@@ -22,5 +22,8 @@ acc_image = np.zeros((nrow,ncol), dtype = dtype)
 exit_flag = mp.Value(ctypes.c_bool)
 exit_flag.value = False
 
-
+#Data type to write to file
 file_dt = np.int32
+
+#Data type to receive from the stream
+stream_dt = np.float32

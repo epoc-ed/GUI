@@ -56,6 +56,7 @@ class Hdf5File:
             self.file = h5py.File(self.filename, self.mode)
 
             compression = hdf5plugin.Bitshuffle(nelems=0, cname='lz4')
+
             nxentry = self.file.create_group("entry")
             create_string_attr(nxentry, "NX_class", "NXentry")
             nxdata = nxentry.create_group("data")
@@ -66,7 +67,7 @@ class Hdf5File:
                 dtype=self.dt,
                 maxshape=(None, *self._image_size),
                 chunks=(1, *self._image_size),
-                **compression,
+                compression=compression,
             )
             self.ds.attrs["image_nr_low"] = np.int32(0)
 
@@ -76,7 +77,7 @@ class Hdf5File:
             nxentry.create_dataset('instrument/detector/x_pixel_size', data=self._pixel_size[1], dtype='float32')
             nxentry.create_dataset('instrument/detector/y_pixel_size', data=self._pixel_size[0], dtype='float32')
             inst = nxentry.create_group("instrument/detector/detectorSpecific")
-            inst.create_dataset("pixel_mask", data=pixel_mask.astype(np.uint8), **compression)
+            inst.create_dataset("pixel_mask", data=pixel_mask.astype(np.uint8), compression=compression)
 
             # Python convention is image[row, column]
             inst.create_dataset('x_pixels_in_detector', data=self._image_size[1], dtype='uint64') # x = columns
@@ -89,7 +90,7 @@ class Hdf5File:
                 dtype='int64',
                 maxshape=(None,),
                 chunks=(1,),
-                **compression,
+                compression=compression,
             )
 
         elif self.mode == 'r':
