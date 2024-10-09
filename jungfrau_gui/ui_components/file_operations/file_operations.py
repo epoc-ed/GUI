@@ -20,12 +20,6 @@ from epoc import ConfigurationClient, auth_token, redis_host
 from pathlib import Path
 
 
-""" #Useful for Threading version of TIFF file Writing (below)
-def save_captures(fname, data):
-    logging.info(f'Saving: {fname}')
-    # reuss.io.save_tiff(fname, data)
-    tifffile.imwrite(fname, data.astype(np.int32)) """
-
 class FileOperations(QGroupBox):
     trigger_update_h5_index_box = Signal()
     start_H5_recording = Signal()
@@ -279,31 +273,6 @@ class FileOperations(QGroupBox):
         section3.addStretch()
         self.setLayout(section3)
 
-    """ ****************************************** """
-    """ Threading Version of the TIFF file Writing """
-    """ ****************************************** """        
-    """ def start_accumulate(self):
-        self.file_index = self.findex_input.value()
-        self.f_name = f'{self.tiff_path.text()}_{self.fname_input.text()}'
-        nb_frames_to_take = self.acc_spin.value()
-        # Construct the (thread, worker) pair
-        self.thread_acc = QThread()
-        self.accumulator = FrameAccumulator(nb_frames_to_take)
-        self.parent.threadWorkerPairs.append((self.thread_acc, self.accumulator))
-        self.initializeWorker(self.thread_acc, self.accumulator)
-        # Connect signals to relevant slots for operations
-        self.accumulator.finished.connect(self.thread_acc.quit)
-        self.accumulator.finished.connect(lambda: self.parent.stopWorker(self.thread_acc, self.accumulator))
-        self.thread_acc.start()
-        # Upadate file number for next take
-        self.findex_input.setValue(self.file_index+1)
-    
-    def initializeWorker(self, thread, worker):
-        worker.moveToThread(thread)
-        logging.info(f"{worker.__str__()} is Ready!")
-        thread.started.connect(worker.run)
-        worker.finished.connect(lambda x: save_captures(f'{self.f_name}_{self.file_index}', x))
-    """
 
     """ ************************************************ """
     """ Multiprocessing Version of the TIFF file Writing """
@@ -347,7 +316,7 @@ class FileOperations(QGroupBox):
             #     return
             
             logging.debug("TCP address for Hdf5 writer to bind to is ", globals.stream)
-            logging.debug("Data type to build the streamWriter object ", globals.dtype)
+            logging.debug("Data type to build the streamWriter object ", globals.file_dt)
 
             # """ If manually entered path is wrong, back to the latest correct path """
             # if self.outPath_input.text() != self.h5_folder_name:
@@ -359,7 +328,7 @@ class FileOperations(QGroupBox):
             self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                              endpoint=globals.stream, 
                                              image_size = (globals.nrow,globals.ncol),
-                                             dtype=globals.dtype)
+                                             dtype=globals.file_dt)
             self.streamWriter.start()
             self.streamWriterButton.setText("Stop Writing")
             self.streamWriterButton.started = True

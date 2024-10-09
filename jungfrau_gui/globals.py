@@ -21,3 +21,6 @@ acc_image = np.zeros((nrow,ncol), dtype = dtype)
 
 exit_flag = mp.Value(ctypes.c_bool)
 exit_flag.value = False
+
+
+file_dt = np.int32
