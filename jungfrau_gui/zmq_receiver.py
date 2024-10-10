@@ -50,8 +50,11 @@ class ZmqReceiver:
                 image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
                 return image, frame_nr
             except zmq.error.Again:
-                logging.warning("Timeout or no messages received, attempting to reconnect...")
-                self.reconnect()
+                # Modified by Erik: Silently retry on timeout
+                # This only means that there is no new frame ready yet
+                # add back reconnect if we see issues
+                # logging.warning("Timeout or no messages received, attempting to reconnect...")
+                # self.reconnect()
                 return None, None
             except Exception as e:
                 logging.error(f"An unexpected error occurred: {e}")

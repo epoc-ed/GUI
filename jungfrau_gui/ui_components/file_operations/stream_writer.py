@@ -6,6 +6,7 @@ from pathlib import Path
 import multiprocessing as mp
 
 from .hdf5_file import Hdf5File
+from ... import globals
 
 class StreamWriter:
     def __init__(self, filename, endpoint, mode='w', image_size = (512,1024), dtype = np.float32, pixel_mask = None, fformat = 'h5'):
@@ -30,9 +31,12 @@ class StreamWriter:
         self.last_frame_number = mp.Value(ctypes.c_int64)
         self.last_frame_number.value = -1
 
+        logging.info(f"Writing data as {self.dt}")
+
     @property
     def number_frames_witten(self):
-        return self.last_frame_number.value - self.first_frame_number.value +1
+        #TODO! Read summing value from ConfigurationClient
+        return int((self.last_frame_number.value - self.first_frame_number.value)/100 +1)
 
     def start(self):
         self.write_process = mp.Process(target=self._write, args=[])
@@ -46,7 +50,6 @@ class StreamWriter:
 
     def _write(self):
         logging.info("Starting write process" )
-        
         if self.fformat in ['h5','hdf5', 'hdf']:
             f = Hdf5File(self.filename, self.mode, self.image_size, self.dt, self.pixel_mask)
         else:
@@ -68,9 +71,9 @@ class StreamWriter:
                 if self.first_frame_number.value < 0:  # Set the first frame number if it's the first message
                     self.first_frame_number.value = frame_nr
                     logging.info(f"First written frame number is  {self.first_frame_number.value}")
-                image = np.frombuffer(msgs[1], dtype = self.dt).reshape(self.image_size)
-                image_int32 = image.astype(np.int32)
-                f.write(image_int32, frame_nr)
+                image = np.frombuffer(msgs[1], dtype = globals.stream_dt).reshape(self.image_size)
+                converted_image = image.astype(globals.file_dt)
+                f.write(converted_image, frame_nr)
                 logging.debug("Hdf5 is being written...")
                 self.last_frame_number.value = frame_nr
             except zmq.error.Again:

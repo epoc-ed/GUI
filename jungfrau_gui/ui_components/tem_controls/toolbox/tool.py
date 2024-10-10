@@ -177,6 +177,8 @@ class TEMTools(QObject):
         self.tem_action = tem_action
         self.ht = 200 # keV  # <- HT3
         self.wavelength = eV2angstrom(self.ht*1e3) # Angstrom   
+        self.stage_rates = [10.0, 2.0, 1.0, 0.5]
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_addinfo_to_hdf5.connect(self.addinfo_to_hdf)     
  
     def addinfo_to_hdf(self, pixel=0.075):
@@ -238,6 +240,7 @@ class TEMTools(QObject):
                     # f.create_dataset('entry/instrument/stage/stage_tx_start', data = self.tem_status['stage.GetPos'][2], dtype='float')
                     # f.create_dataset('entry/instrument/stage/stage_tx_end', data = self.tem_status['stage.GetPos'][2], dtype='float')
                     f.create_dataset('entry/instrument/stage/stage_tx_speed_ID', data = self.tem_status['stage.Getf1OverRateTxNum'], dtype='float')
+                    f.create_dataset('entry/instrument/stage/velocity_data_collection', data = self.stage_rates[self.cfg.rotation_speed_idx], dtype='float')
                     # f.create_dataset('entry/instrument/stage/stage_tx_speed_nominal', data = self.tem_status['stage.GetPos'][2], dtype='float') <- LUT
                     # f.create_dataset('entry/instrument/stage/stage_tx_speed_measured', data = self.tem_status['stage.GetPos'][2], dtype='float') <- LUT
                     # f.create_dataset('entry/instrument/stage/stage_tx_speed_unit', data = 'deg/s')

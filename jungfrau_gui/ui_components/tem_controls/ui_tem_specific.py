@@ -4,6 +4,8 @@ from PySide6.QtGui import QFont
 from ..toggle_button import ToggleButton
 from ..utils import create_horizontal_line_with_margin
 
+from epoc import ConfigurationClient, auth_token, redis_host
+
 class TEMDetector(QGroupBox):
     def __init__(self):
         super().__init__() # "Detector"
@@ -37,6 +39,8 @@ class TEMStageCtrl(QGroupBox):
         self.initUI()
 
     def initUI(self):
+        cfg = ConfigurationClient(redis_host(), token=auth_token())
+
         stage_ctrl_section = QVBoxLayout()
 
         self.hbox_rot = QHBoxLayout()
@@ -50,7 +54,7 @@ class TEMStageCtrl(QGroupBox):
         self.rb_speeds.addButton(self.rb_speed_1, 2)
         self.rb_speeds.addButton(self.rb_speed_2, 1)
         self.rb_speeds.addButton(self.rb_speed_10, 0)
-        self.rb_speeds.button(2).setChecked(True)
+        self.rb_speeds.button(cfg.rotation_speed_idx).setChecked(True)
         self.hbox_rot.addWidget(rot_label, 1)
         stage_ctrl_section.addLayout(self.hbox_rot)
         

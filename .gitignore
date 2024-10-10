@@ -2,6 +2,7 @@ dump.rdb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
+__python__/
 *.py[cod]
 *$py.class
 

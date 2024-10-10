@@ -1,15 +1,18 @@
 import time
 import logging
 import numpy as np
+import threading
 from boost_histogram import Histogram
 from boost_histogram.axis import Regular
 from PySide6.QtGui import QFont
-from PySide6.QtCore import Qt, QThread, QMetaObject
+from PySide6.QtCore import Qt, QThread, QMetaObject, Signal
 from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QPushButton, QSpinBox,
-                                QGridLayout, QSizePolicy)
+                                QGridLayout, QSizePolicy, QSpacerItem)
 
 from epoc import ConfigurationClient, auth_token, redis_host
+# from reuss import ReceiverClient
+from ...summing_receiver.ReceiverClient import ReceiverClient
 
 from .reader import Reader
 
@@ -18,12 +21,31 @@ from ...ui_components.toggle_button import ToggleButton
 from ..tem_controls.ui_tem_specific import TEMDetector
 from ...ui_components.utils import create_horizontal_line_with_margin
 
+import psutil
+
+def is_process_running(process_name):
+    for proc in psutil.process_iter(['cmdline']):  # Fetch command line arguments for each process
+        try:
+            cmdline = proc.info.get('cmdline')
+            if cmdline and any(process_name in arg for arg in cmdline):
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            # TODO Handle exceptions if the process terminates or if access is denied
+            continue
+    return False
+
 class VisualizationPanel(QGroupBox):
+    trigger_update_frames_to_sum = Signal(int)
+    trigger_disable_receiver_controls = Signal()
+
     def __init__(self, parent):
         # super().__init__("Visualization Panel")
         super().__init__()
         self.parent = parent
         self.cfg =  ConfigurationClient(redis_host(), token=auth_token())
+        # self.receiver_client = ReceiverClient(host="localhost", port = 5555, verbose=True)
+        self.trigger_update_frames_to_sum.connect(self.update_frames_to_sum)
+        self.trigger_disable_receiver_controls.connect(self.enable_receiver_controls)
         self.initUI()
 
     def initUI(self):
@@ -100,6 +122,89 @@ class VisualizationPanel(QGroupBox):
         section_visual.addLayout(time_interval_layout)
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
+        receiver_control_group = QVBoxLayout()
+        receiver_control_label = QLabel("Summming Receiver Controls")
+        receiver_control_label.setFont(font_big)
+        receiver_control_group.addWidget(receiver_control_label)
+
+        self.connectToSreceiver = ToggleButton('Connect to Receiver', self)
+        self.connectToSreceiver.setMaximumHeight(50)
+        self.connectToSreceiver.clicked.connect(self.connect_and_start_receiver_client)
+
+        self.startReceiverStream = QPushButton('Start Stream', self)
+        self.startReceiverStream.setDisabled(True)
+        self.startReceiverStream.clicked.connect(lambda: self.send_command_to_srecv('start'))
+        
+        self.stopSreceiverBtn = QPushButton('Stop Receiver', self)
+        self.stopSreceiverBtn.setDisabled(True)
+        self.stopSreceiverBtn.clicked.connect(lambda: self.send_command_to_srecv('stop'))
+
+        grid_comm_receiver = QGridLayout()
+        grid_comm_receiver.addWidget(self.connectToSreceiver, 0, 0, 2, 2)
+        grid_comm_receiver.addWidget(self.startReceiverStream, 0, 2, 2, 2)
+        grid_comm_receiver.addWidget(self.stopSreceiverBtn, 0, 4, 2, 2)
+
+        spacer = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
+        grid_comm_receiver.addItem(spacer)
+
+        receiver_control_group.addLayout(grid_comm_receiver)
+
+        Frames_Sum_layout=QVBoxLayout() 
+        Frames_Sum_section_label = QLabel("Summming Parameters")
+        font_small = QFont("Arial", 10)  # Specify the font name and size
+        Frames_Sum_section_label.setFont(font_small)
+
+        Frame_number_layout = QHBoxLayout()
+
+        self.frames_to_sum_lb = QLabel("Summing Factor:", self)
+        self.frames_to_sum = QSpinBox(self)
+        self.frames_to_sum.setMaximum(200)
+        self.frames_to_sum.setDisabled(True)
+        self.frames_to_sum.setSingleStep(10)
+
+        Frame_number_layout.addWidget(self.frames_to_sum_lb)
+        Frame_number_layout.addWidget(self.frames_to_sum)
+
+        Frame_buttons_layout = QHBoxLayout()
+        # self.getFramesToSumBtn = QPushButton('Get Frames Number', self)
+        # self.getFramesToSumBtn.clicked.connect(lambda: self.send_command_to_srecv("get_frames_to_sum"))
+
+        self.setFramesToSumBtn = QPushButton('Set Frames Number', self)
+        self.setFramesToSumBtn.setDisabled(True) 
+        self.setFramesToSumBtn.clicked.connect(self.send_set_frames_command)
+
+        # Frame_buttons_layout.addWidget(self.getFramesToSumBtn)
+        Frame_buttons_layout.addWidget(self.setFramesToSumBtn)
+
+        Frames_Sum_layout.addWidget(Frames_Sum_section_label)
+        Frames_Sum_layout.addLayout(Frame_number_layout)
+        Frames_Sum_layout.addLayout(Frame_buttons_layout)
+
+        spacer2 = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
+        Frames_Sum_layout.addItem(spacer2)
+        
+        receiver_control_group.addLayout(Frames_Sum_layout) 
+       
+        pedestal_layout = QVBoxLayout()
+        pedestal_section_label = QLabel("Dark Frame controls")
+        pedestal_section_label.setFont(font_small)
+
+        self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
+        self.recordPedestalBtn.setDisabled(True)
+        self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_srecv('collect_pedestal'))
+        
+        self.recordGain0Btn = QPushButton('Record Gain G0', self)
+        self.recordGain0Btn.setDisabled(True)
+        self.recordGain0Btn.clicked.connect(lambda: self.send_command_to_srecv('tune_pedestal'))
+
+        pedestal_layout.addWidget(pedestal_section_label)
+        pedestal_layout.addWidget(self.recordPedestalBtn)
+        pedestal_layout.addWidget(self.recordGain0Btn)
+
+        receiver_control_group.addLayout(pedestal_layout)
+
+        section_visual.addLayout(receiver_control_group)
+
         if globals.tem_mode:
             tem_detector_layout = QVBoxLayout()
             tem_detector_label = QLabel("Detector")
@@ -116,11 +221,101 @@ class VisualizationPanel(QGroupBox):
         section_visual.addStretch()
         self.setLayout(section_visual)
 
+    def enable_receiver_controls(self, enables=False):
+        self.startReceiverStream.setEnabled(enables)
+        self.stopSreceiverBtn.setEnabled(enables)
+        
+        #TODO! Fix changing frames to sum
+        # At the moment not safe to change while the receiver is running
+        self.setFramesToSumBtn.setEnabled(False)
+        self.frames_to_sum.setEnabled(False) 
+
+        self.recordPedestalBtn.setEnabled(enables)
+        self.recordGain0Btn.setEnabled(enables)   
+
+    def is_summingReceiver_running(self, process_name):
+        if not is_process_running(process_name):
+            logging.warning("Summing Receiver (Server) is not running...\nSumming Receiver controls are only available if the receiver's server is already running!")
+            return False
+        else:
+            return True
+
+    def connect_and_start_receiver_client(self):
+        if self.connectToSreceiver.started == False:
+            self.connectToSreceiver.started = True
+            if self.is_summingReceiver_running('ReceiverServer'):
+                logging.info("Sreceiver already running!!")
+                self.receiver_client = ReceiverClient(host="localhost", port = 5555, verbose=True)
+                try:
+                    if self.receiver_client.ping():
+                        self.connectToSreceiver.setStyleSheet('background-color: green; color: white;')
+                        self.connectToSreceiver.setText("Communication OK")
+                        self.enable_receiver_controls(True)
+                        time.sleep(0.01)
+                        self.send_command_to_srecv("get_frames_to_sum")
+                except TimeoutError as e:
+                    logging.error(f"Connection attempt timed out: {e}")
+                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                    self.connectToSreceiver.setText("Connection Timed Out")
+                except ConnectionError as e:
+                    logging.error(f"Connection failed: {e}")
+                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                    self.connectToSreceiver.setText("Connection Failed")
+                except ValueError as e:
+                    logging.error(f"Unexpected server response: {e}")
+                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                    self.connectToSreceiver.setText("Connection Failed")
+            else:
+                logging.warning("ReceiverServer not running")
+                self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                self.connectToSreceiver.setText("Receiver Not Running")
+        else:
+            self.connectToSreceiver.started = False
+            self.connectToSreceiver.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            self.connectToSreceiver.setText('Connect to Receiver')
+
+    def send_command_to_srecv(self, command):
+        def thread_command_relay():
+            try:
+                if command == 'start':
+                    self.receiver_client.start()
+                    logging.info("Communication with the Receiver Server is established.\nPlease proceed with desired operation through availbale buttons... ")
+                elif command == 'collect_pedestal':
+                    self.receiver_client.collect_pedestal()
+                    logging.info("Full pedestal collected!")
+                elif command == 'tune_pedestal':
+                    self.receiver_client.tune_pedestal()
+                    logging.info("Pedestal tuned i.e. collected pedestal for gain G0")
+                elif command == 'get_frames_to_sum':
+                    summing_factor = self.receiver_client.frames_to_sum
+                    self.trigger_update_frames_to_sum.emit(int(summing_factor))
+                    logging.info(f"Recorded the default summing factor {summing_factor}")
+                elif command[:10] == 'set_frames':
+                    new_summing_factor = int(command.split('(')[1].split(')')[0])
+                    self.receiver_client.frames_to_sum = new_summing_factor
+                    logging.info(f"Summing factor in receiver set to {new_summing_factor}")
+                elif command == 'stop':
+                    self.trigger_disable_receiver_controls.emit()      
+                    logging.info(f"Stopping Receiver...") 
+                    self.receiver_client.stop()
+            except Exception as e:
+                logging.error(f"GUI caught relayed error: {e}")
+
+        # Start the network operation in a new thread
+        threading.Thread(target=thread_command_relay, daemon=True).start()
+
+    def send_set_frames_command(self):
+        value = self.frames_to_sum.value()
+        command = f"set_frames_to_sum({value})"
+        self.send_command_to_srecv(command)
+
+    def update_frames_to_sum(self, value):
+        self.frames_to_sum.setValue(value)
+
     def change_theme(self, theme):
         self.parent.histogram.gradient.loadPreset(theme)
 
     def resetContrast(self):
-        # self.parent.histogram.setLevels(0, 255)
         self.parent.timer_contrast.stop()
         self.autoContrastBtn.started = False
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
@@ -188,7 +383,6 @@ class VisualizationPanel(QGroupBox):
                 logging.info("** Read-thread forced to sleep **")
                 time.sleep(0.1) 
             if self.autoContrastBtn.started:
-                # self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
                 self.toggle_autoContrast()
 
     def initializeWorker(self, thread, worker):
@@ -208,4 +402,5 @@ class VisualizationPanel(QGroupBox):
 
     def updateUI(self, image, frame_nr):
         self.parent.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False)
-        self.parent.statusBar().showMessage(f'Frame: {frame_nr}')
+        if frame_nr is not None:
+            self.parent.statusBar().showMessage(f'Frame: {frame_nr}')

@@ -65,8 +65,8 @@ class TEMAction(QObject):
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.datasaving_filepath)
-        self.file_operations.h5_folder_name = self.datasaving_filepath
-        self.file_operations.fname_input.setText(self.datasaving_filepath + '/file')
+        # self.file_operations.h5_folder_name = self.datasaving_filepath
+        self.file_operations.tiff_path.setText(self.datasaving_filepath + '/')
 
     def enabling(self, enables=True):
         self.tem_detector.scale_checkbox.setEnabled(enables)
@@ -76,8 +76,8 @@ class TEMAction(QObject):
             self.toggle_rb_speeds()
         for i in self.tem_stagectrl.movestages.buttons():
             i.setEnabled(enables)
-        self.tem_tasks.gettem_button.setEnabled(False) # Not functional yet
-        self.tem_tasks.gettem_checkbox.setEnabled(False) # Not functional yet
+        self.tem_tasks.gettem_button.setEnabled(enables)
+        self.tem_tasks.gettem_checkbox.setEnabled(enables)
         self.tem_tasks.centering_button.setEnabled(False) # Not functional yet
         self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
@@ -139,7 +139,7 @@ class TEMAction(QObject):
             #     self.temtools.addinfo_to_hdf()
         else:
             self.control.trigger_getteminfo.emit('N')
-    
+
     def on_tem_update(self):
         logging.info("Updating GUI with last TEM Status...")
         # self.beamcenter = float(fit_result_best_values['xo']), float(fit_result_best_values['yo'])
@@ -157,11 +157,14 @@ class TEMAction(QObject):
 
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
         self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
-        # if not self.tem_tasks.rotation_button.started:
-        #     if self.tem_tasks.withwriter_checkbox.isChecked():
-        #         self.tem_tasks.rotation_button.setText("Rotation/Record")
-        #     else:
-        #         self.tem_tasks.rotation_button.setText("Rotation")
+
+        if not self.tem_tasks.rotation_button.started:
+            if self.tem_tasks.withwriter_checkbox.isChecked():
+                self.tem_tasks.rotation_button.setText("Rotation/Record")
+            else:
+                self.tem_tasks.rotation_button.setText("Rotation")
+
+        logging.info("GUI updated with lastest TEM Status")
 
     def drawscale_overlay(self, xo=0, yo=0, l_draw=1, pixel=0.075):
         if self.scale != None:
@@ -180,10 +183,13 @@ class TEMAction(QObject):
             self.scale.setPen(pg.mkPen('w', width=2))
             self.parent.plot.addItem(self.scale)        
             
-    def toggle_rb_speeds(self):
-        # if self.tem_tasks.connecttem_button.started:
-            # self.control.send.emit("stage.Setf1OverRateTxNum("+ str(self.tem_stagectrl.rb_speeds.checkedId()) +")")            
-        self.control.execute_command("Setf1OverRateTxNum("+ str(self.tem_stagectrl.rb_speeds.checkedId()) +")")
+    def toggle_rb_speeds(self):   
+        self.update_rotation_speed_idx_from_ui()
+        self.control.execute_command("Setf1OverRateTxNum("+ str(self.cfg.rotation_speed_idx) +")")
+
+    def update_rotation_speed_idx_from_ui(self):
+        self.cfg.rotation_speed_idx = self.tem_stagectrl.rb_speeds.checkedId()
+        logging.info(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
 
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:

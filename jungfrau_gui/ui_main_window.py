@@ -120,14 +120,6 @@ class ApplicationWindow(QMainWindow):
 
         main_layout.addLayout(tools_layout)
 
-        # if globals.tem_mode:
-        #     self.tem_tasks = TEMTasks()
-        #     main_layout.addWidget(self.tem_tasks)
-        #     self.tem_tasks.exit_button.clicked.connect(self.do_exit)
-        #     self.tem_action = TEMAction(self)
-        #     self.tem_action.enabling(False)
-        #     self.tem_action.set_configuration()
-        # else:
         self.exit_button = QPushButton("Exit", self)
         main_layout.addWidget(self.exit_button)
         self.exit_button.clicked.connect(self.do_exit)
@@ -137,27 +129,6 @@ class ApplicationWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         logging.info("Viewer ready!")
-
-
-    """ def create_dock_area(self):
-        self.dock = Dock("Image", size=(1000, 350))
-        self.glWidget = pg.GraphicsLayoutWidget(self)
-        self.plot = self.glWidget.addPlot(title="")
-        self.dock.addWidget(self.glWidget)
-        self.imageItem = pg.ImageItem()
-        self.plot.addItem(self.imageItem)
-        self.histogram = pg.HistogramLUTItem()
-        self.histogram.setImageItem(self.imageItem)
-        self.glWidget.addItem(self.histogram)
-        self.histogram.setLevels(0, 255)
-        self.plot.setAspectLocked(True)
-        self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
-        self.plot.addItem(self.roi)
-        self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
-        self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
-        self.roi.addScaleHandle([0.5, 0], [0.5, 0.5])
-        self.roi.addScaleHandle([1, 0.5], [0.5, 0.5])
-        self.roi.sigRegionChanged.connect(self.roiChanged) """
 
     def roiChanged(self):
         roiPos = self.roi.pos()

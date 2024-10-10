@@ -62,5 +62,4 @@ class FrameAccumulator:
         
     def save_captures(self, fname, data):
         logging.info(f'Saving: {fname}')
-        # io.save_tiff(fname, data)
-        tifffile.imwrite(fname, data.astype(np.int32))
+        tifffile.imwrite(fname, data.astype(globals.file_dt))
