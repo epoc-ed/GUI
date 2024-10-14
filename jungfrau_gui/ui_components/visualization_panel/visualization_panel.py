@@ -11,8 +11,8 @@ from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QGridLayout, QSizePolicy, QSpacerItem)
 
 from epoc import ConfigurationClient, auth_token, redis_host
-# from reuss import ReceiverClient
-from ...summing_receiver.ReceiverClient import ReceiverClient
+from reuss import ReceiverClient
+# from ...summing_receiver.ReceiverClient import ReceiverClient
 
 from .reader import Reader
 
