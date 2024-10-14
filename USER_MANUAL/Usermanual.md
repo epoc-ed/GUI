@@ -62,13 +62,13 @@ This document was updated on 14 Oct 2024
    ```
 7. Switch to the correct branch:
    ```bash
-   git switch feature/redis_coonfig
+   git switch feature/testing
    ```
    or
    ```bash
-   git checkout feature/redis_coonfig
+   git checkout testing
    ```
-8. Confirm you are on the `feature/redis_config` branch:
+8. Confirm you are on the `feature/testing` branch:
    ```bash
    git branch --contains
    ```
