@@ -7,6 +7,8 @@ from ... import globals
 # from reuss import io
 import tifffile
 
+import time
+
 class FrameAccumulator:
     def __init__(self, endpoint, dtype, image_size, nframes, fname):
         # Messages formatting
@@ -22,44 +24,65 @@ class FrameAccumulator:
         self.acc_image = np.zeros(self.image_size, dtype=self.dt)
         self.fname = fname
         self.finish_event = mp.Event()  # Event to signal completion
+        self.error_queue = mp.Queue()   # Queue to report errors
+        self.timeout_duration = 5  # Allowable timeout duration in seconds
 
     def start(self):
-        self.accumulate_process = mp.Process(target=self._accumulate, args=[])
+        self.accumulate_process = mp.Process(target=self._accumulate, args=(self.error_queue,))
         self.accumulate_process.start()
-        # self.accumulate_process.join()
 
-    def _accumulate(self):
-        logging.info("Starting accumulation process" )
+    def _accumulate(self, error_queue):
+        try:
+            logging.info("Starting accumulation process" )
 
-        context = zmq.Context()
-        socket = context.socket(zmq.SUB)
-        socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
-        socket.setsockopt(zmq.RCVHWM, self.buffer_size_in_frames)
-        socket.setsockopt(zmq.RCVBUF, self.buffer_size_in_frames*1024**2*np.dtype(self.dt).itemsize)
-        socket.connect(self.endpoint)
-        logging.debug(f"Connected to: {self.endpoint}")
-        socket.setsockopt(zmq.SUBSCRIBE, b"")
-        logging.info(f'{self.nframes_to_add} frames to add')
-    
-        while self.nframes_to_add>0:
-            try:
-                msgs = socket.recv_multipart() #receiver.get_frame()  
-                frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0] 
-                print(f"Adding frame #{frame_nr}")               
-                image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
-                if image is not None:   
-                    tmp = np.copy(image)
-                    self.acc_image += tmp
-                    self.nframes_to_add -= 1
-                    # time.sleep(0.1)
-            except zmq.error.Again:
-                pass
-                # print('Error of Connection')
+            context = zmq.Context()
+            socket = context.socket(zmq.SUB)
+            socket.setsockopt(zmq.RCVTIMEO, self.timeout_ms)
+            socket.setsockopt(zmq.RCVHWM, self.buffer_size_in_frames)
+            socket.setsockopt(zmq.RCVBUF, self.buffer_size_in_frames*1024**2*np.dtype(self.dt).itemsize)
+            socket.connect(self.endpoint)
+            logging.debug(f"Connected to: {self.endpoint}")
+            socket.setsockopt(zmq.SUBSCRIBE, b"")
+            logging.info(f'{self.nframes_to_add} frames to add')
+
+            last_received_time = time.time()  # Track the last received frame time
         
-        self.save_captures(self.fname, self.acc_image.copy())
-        socket.close()
-        logging.info(f'TIFF file ready!')
-        
+            # Frame accumulation loop
+            while self.nframes_to_add > 0:
+                try:
+                    msgs = socket.recv_multipart() #receiver.get_frame()
+                    frame_nr = np.frombuffer(msgs[0], dtype=np.int64)[0]
+                    logging.info(f"Adding frame #{frame_nr}")
+                    image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
+                    if image is not None:
+                        tmp = np.copy(image)
+                        self.acc_image += tmp
+                        self.nframes_to_add -= 1
+                        last_received_time = time.time()  # Reset the timer on successful frame receipt
+
+                except zmq.error.Again:
+                    # Log and check if timeout duration has been exceeded
+                    logging.debug(f"No frame received, continuing to wait...")
+                    if time.time() - last_received_time > self.timeout_duration:
+                        logging.warning(f"No frames received for {self.timeout_duration} seconds. Exiting.")
+                        break  # Exit the loop after the timeout duration has been exceeded
+
+            # Save the accumulated image if frames were received
+            if self.nframes_to_add == 0:
+                try:
+                    self.save_captures(self.fname, self.acc_image.copy())
+                    logging.info(f'TIFF file ready!')  # Log only if save was successful
+                except Exception as e:
+                    logging.error(f"Error saving TIFF file: {e}")
+                    error_queue.put(e)  # Send the error back to the main process
+
+            socket.close()
+
+        except Exception as e:
+            # Pass the error message back to the main process via the error queue
+            logging.error(f"Error occurred: {e}")
+            error_queue.put(e)
+
     def save_captures(self, fname, data):
         logging.info(f'Saving: {fname}')
         tifffile.imwrite(fname, data.astype(globals.file_dt))

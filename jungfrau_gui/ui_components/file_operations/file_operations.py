@@ -132,19 +132,10 @@ class FileOperations(QGroupBox):
         self.get_base_directory = QPushButton("Get", self)
         self.get_base_directory.clicked.connect(lambda: print(f"Base Data Directory: {self.cfg.base_data_dir}"))
 
-        # self.base_directory_button = QPushButton()
-        # icon_path = os.path.join(os.path.dirname(__file__), "folder_icon.png")
-
-        # self.base_directory_button.setIcon(QIcon(icon_path))
-        # self.base_directory_button.clicked.connect(self.open_directory_dialog)
-        
-        # self.base_directory_input.returnPressed.connect(self.update_base_data_directory)
-
         redis_base_directory_layout = QHBoxLayout()
         redis_base_directory_layout.addWidget(self.base_directory)
         redis_base_directory_layout.addWidget(self.base_directory_input)
         redis_base_directory_layout.addWidget(self.get_base_directory)
-        # redis_base_directory_layout.addWidget(self.base_directory_button)
 
         section3.addLayout(redis_base_directory_layout)
         
@@ -278,21 +269,48 @@ class FileOperations(QGroupBox):
     """ Multiprocessing Version of the TIFF file Writing """
     """ ************************************************ """
     def start_accumulate(self):
-        file_index = self.findex_input.value()
-        fpath = Path(self.tiff_path.text())
-        fpath.mkdir(parents=True, exist_ok=True)
-        #TODO! How do we report errors form here? 
-        full_fname = (fpath/f'{self.fname_input.text()}_{self.findex_input.value()}.tiff').as_posix()
+        try:
+            # Retrieve the file index and file path
+            file_index = self.findex_input.value()
+            fpath = Path(self.tiff_path.text())
+            
+            # Attempt to create the directory path if it doesn't exist
+            fpath.mkdir(parents=True, exist_ok=True)
+            
+            # Construct the full filename
+            full_fname = (fpath / f'{self.fname_input.text()}_{file_index}.tiff').as_posix()
+            
+            # If the folder and file name were successfully created, proceed with accumulation
+            nb_frames_to_take = self.acc_spin.value()
 
-        nb_frames_to_take = self.acc_spin.value()
-        self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
-                                                                  dtype= globals.dtype,
-                                                                  image_size=(globals.nrow, globals.ncol),
-                                                                  nframes=nb_frames_to_take,
-                                                                  fname=full_fname)
-        self.frameAccumulator.start()
-        # Upadate file number for next take
-        self.findex_input.setValue(file_index+1)
+            # Initialize FrameAccumulator and start accumulation
+            self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
+                                                    dtype=globals.dtype,
+                                                    image_size=(globals.nrow, globals.ncol),
+                                                    nframes=nb_frames_to_take,
+                                                    fname=full_fname)
+            self.frameAccumulator.start()
+            
+            # Wait for the process to finish
+            self.frameAccumulator.accumulate_process.join()
+
+            # Check if any error was reported in the error queue
+            if not self.frameAccumulator.error_queue.empty():
+                error = self.frameAccumulator.error_queue.get_nowait()
+                raise error
+        
+            # Update file number for the next take
+            self.findex_input.setValue(file_index + 1)
+
+        except OSError as e:
+            # Handle file system-related errors (e.g., permission denied, invalid path...)
+            error_message = f"File system error: {e}"
+            QMessageBox.critical(self, "Error", error_message)
+            
+        except Exception as e:
+            # Handle any other unexpected errors
+            error_message = f"An unexpected error occurred: {e}"
+            QMessageBox.critical(self, "Error", error_message)
 
     # def modify_path_manually(self):
     #     path = self.outPath_input.text()
