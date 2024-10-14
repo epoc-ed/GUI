@@ -62,13 +62,13 @@ This document was updated on 14 Oct 2024
    ```
 7. Switch to the correct branch:
    ```bash
-   git switch feature/testing
+   git switch testing
    ```
    or
    ```bash
    git checkout testing
    ```
-8. Confirm you are on the `feature/testing` branch:
+8. Confirm you are on the `testing` branch:
    ```bash
    git branch --contains
    ```
