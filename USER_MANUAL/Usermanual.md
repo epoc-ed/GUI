@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 02 Oct 2024
+This document was updated on 14 Oct 2024
 
 ## Table of Contents
 - [Activation](#activation)
@@ -12,6 +12,7 @@ This document was updated on 02 Oct 2024
 - [Data-recording workflow with Testing version](#data-recording-workflow-with-testing-version)
 - [Data-processing notes](#data-processing-notes)
 - [Troubleshooting](#troubleshooting)
+    - [Launching previous system](#Launching-previous-system)
 
 ## Activation
 
@@ -147,7 +148,7 @@ More:\
 - `Rotation Speed`: Adjusts rotation speed before starting the rotation. Also updates the `rotation_speed_idx` variable of the Configuration Manager in the data base.
 - `Stage Ctrl`: moves the stage in specific direction. \*Rotations are not automatically quicken.
 
-### [File Operation and Redis](../jungfrau_gui/screenshot/ver_24Sept2024.PNG)
+### [File Operation and Redis](../jungfrau_gui/screenshot/ver_24Sept2024.png)
 
 #### Redis Store Settings
 - `Experiment Class`: Specifies for whom the data is collected (e.g., UniVie, External, IP).
@@ -208,8 +209,14 @@ More:\
 
 ## Data-processing notes
 
-- **XDS**: The plugin derived from Neggia requires `_master.h5` in the filename. Create a symbolic link:\
-   ``` ln -s [full-path-of-hdffile] linked_master.h5 ```
+- **XDS**:  
+    - [Version before 20.Aug.2024](https://github.com/epoc-ed/epoc-utils/commit/2198487645fbb5390e2f629b570ac0dbf18db268) [The plugin derived from Neggia](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) requires `_master.h5` in the filename. Create a symbolic link:
+        ```
+        ln -s [full-path-of-hdffile] linked_master.h5
+        ```
+    - [Version before 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with float32 format. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can work. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can not.
+    - [Version after 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with int32 format and compressed. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can work. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can not.
+
 - **DIALS**: Install the [updated Format Class](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py) to read the HDF file directly:\
    ``` dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660 ```
 
@@ -222,3 +229,24 @@ More:\
    kill [pid]
    ```
 - **TEM-control button delay**: There may be a few seconds of delay when responding, especially the first time. Please wait.
+
+### Launching previous system
+- Usage of previous rotation commands/scripts under PyJEM3.8 environment
+1. Open a Miniconda PowerShell Prompt (Anaconda submenu) from the Windows Start Menu.
+1. activate 'vjem38' virtual environment
+    ```
+   conda activate vjem38
+    ```
+1. Navigate to `C:\ProgramData\xxxxxx`
+1. start python, and load PyJEM module and use the commands
+    ```
+    python
+    >>> from PyJEM import TEM3
+    >>> stage = TEM3.Stage3()
+    >>> stage.Setf1OverRateTxNum(1)
+    >>> stage.SetTiltXAngle(60)
+    ```
+1. Or just call a python script
+    ```
+    python rotational_devel.py
+    ```
