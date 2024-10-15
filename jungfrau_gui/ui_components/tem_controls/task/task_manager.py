@@ -156,6 +156,8 @@ class ControlWorker(QObject):
         logging.info(f"End angle = {end_angle}")
         ### filename_suffix = self.tem_action.formatted_filename[:-3]
         ### filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
+        self.tem_action.datasaving_filepath = self.cfg.data_dir.as_posix() # Update the datasaving_filepath from redis before writing of Log 
+        self.tem_action.set_configuration() # Update the GUI with the new datasaving_filepath [ in both TIFF and HDF5 sections]
         filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
         ###
         # self.client.SetSelector(11)
