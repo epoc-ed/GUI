@@ -330,15 +330,21 @@ class FileOperations(QGroupBox):
             logging.debug("TCP address for Hdf5 writer to bind to is ", globals.stream)
             logging.debug("Data type to build the streamWriter object ", globals.file_dt)
 
-            self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
-            self.formatted_filename = self.cfg.data_dir/self.cfg.fname
-            self.streamWriter = StreamWriter(filename=self.formatted_filename, 
+            try:
+                self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
+           
+                self.formatted_filename = self.cfg.data_dir/self.cfg.fname
+                self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                              endpoint=globals.stream, 
                                              image_size = (globals.nrow,globals.ncol),
                                              dtype=globals.file_dt)
-            self.streamWriter.start()
-            self.streamWriterButton.setText("Stop Writing")
-            self.streamWriterButton.started = True
+                self.streamWriter.start()
+                self.streamWriterButton.setText("Stop Writing")
+                self.streamWriterButton.started = True  
+            except Exception as e:
+                # Handle any other unexpected errors
+                error_message = f"An unexpected error occurred: {e}"
+                QMessageBox.critical(self, "Error", error_message)
         else:
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
