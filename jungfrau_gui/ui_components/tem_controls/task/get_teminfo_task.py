@@ -3,12 +3,14 @@ import logging
 import numpy as np
 
 from .task import Task
+from epoc import ConfigurationClient, auth_token, redis_host
 
 class GetInfoTask(Task):
     def __init__(self, control_worker, command=''):
         super().__init__(control_worker, "GetInfo")
         self.control = control_worker
         self.command = command
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
     def run(self):
         print("------ START GET-INFO ----------")
@@ -57,7 +59,7 @@ class GetInfoTask(Task):
             else:
                 filename = self.command + time.strftime("_%Y%m%d-%H%M%S.log", stoptime)
             logging.info(f'Status written: {filename}')
-            logfile = open(filename, 'w')
+            logfile = open(self.cfg.data_dir + '/' + filename, 'w')
             logfile.write(buffer)
             logfile.close()
             
