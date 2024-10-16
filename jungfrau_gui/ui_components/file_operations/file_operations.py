@@ -388,7 +388,7 @@ class FileOperations(QGroupBox):
 
     def update_data_directory(self):
         self.outPath_input.setText(self.cfg.data_dir.as_posix())
-        self.tiff_path.setText(self.cfg.data_dir.as_posix())
+        self.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
         logging.info(f"Data is now saved at {self.cfg.data_dir.as_posix()}")
 
     def update_measurement_tag(self):

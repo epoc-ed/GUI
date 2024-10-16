@@ -56,6 +56,7 @@ class ControlWorker(QObject):
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
         self.tem_action = tem_action
+        self.file_operations = self.tem_action.parent.file_operations
         self.last_task: Task = None
         
         self.setObjectName("control Thread")
@@ -156,6 +157,8 @@ class ControlWorker(QObject):
         logging.info(f"End angle = {end_angle}")
         ### filename_suffix = self.tem_action.formatted_filename[:-3]
         ### filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
+        self.tem_action.datasaving_filepath = self.cfg.data_dir.as_posix() # Update the datasaving_filepath from redis before writing of Log 
+        self.file_operations.update_base_data_directory() # Update the GUI
         filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
         ###
         # self.client.SetSelector(11)
