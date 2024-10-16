@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from .task import Task
 from .dectris2xds import XDSparams
+from PySide6.QtWidgets import QMessageBox
 
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
@@ -33,13 +34,32 @@ class RecordTask(Task):
         phi_dot_idx = self.client.Getf1OverRateTxNum()
 
         self.phi_dot = stage_rates[phi_dot_idx]
-        self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
-
         try:
+            self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
+        except Exception as e:
+            # Handle any other unexpected errors
+            error_message = f"An unexpected error occurred: {e}"
+            QMessageBox.critical(self, "Error", error_message)
+        try:
+            logfile = None  # Initialize logfile to None
+
             # if os.access(os.path.dirname(self.log_suffix), os.W_OK):
             print("\n\n\n---------OPEN LOG-----------------\n\n\n")
             # self.control.send_to_tem("#more")
-            logfile = open(self.log_suffix + '.log', 'w')
+            
+            # Attempt to open the logfile and catch potential issues
+            try:
+                logfile = open(self.log_suffix + '.log', 'w')
+            except FileNotFoundError as fnf_error:
+                logging.error(f"FileNotFoundError: Directory does not exist for logfile: {fnf_error}")
+                return
+            except PermissionError as perm_error:
+                logging.error(f"PermissionError: No write access to logfile: {perm_error}")
+                return
+            except Exception as e:
+                logging.error(f"Unexpected error while opening logfile: {e}")
+                return
+            
             logfile.write("# TEM Record\n")
             logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")
             logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
@@ -184,7 +204,7 @@ class RecordTask(Task):
         except Exception as e:
             logging.error(f"Unexpected error while waiting for rotation to start: {e}")
         finally:
-            if logfile:
+            if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
             if self.writer and self.tem_action.file_operations.streamWriterButton.started:
                 self.tem_action.file_operations.stop_H5_recording.emit()
