@@ -334,15 +334,21 @@ class FileOperations(QGroupBox):
 
             self.update_base_data_directory() # update GUI in case base_dir is manually changed after gui start
 
-            self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
-            self.formatted_filename = self.cfg.data_dir/self.cfg.fname
-            self.streamWriter = StreamWriter(filename=self.formatted_filename, 
-                                             endpoint=globals.stream, 
-                                             image_size = (globals.nrow,globals.ncol),
-                                             dtype=globals.file_dt)
-            self.streamWriter.start()
-            self.streamWriterButton.setText("Stop Writing")
-            self.streamWriterButton.started = True
+            try:
+                self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
+           
+                self.formatted_filename = self.cfg.data_dir/self.cfg.fname
+                self.streamWriter = StreamWriter(filename=self.formatted_filename, 
+                                                endpoint=globals.stream, 
+                                                image_size = (globals.nrow,globals.ncol),
+                                                dtype=globals.file_dt)
+                self.streamWriter.start()
+                self.streamWriterButton.setText("Stop Writing")
+                self.streamWriterButton.started = True
+            except Exception as e:
+                # Handle any unexpected errors
+                error_message = f"An unexpected error occurred: {e}"
+                QMessageBox.critical(self, "Error", error_message)
         else:
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
