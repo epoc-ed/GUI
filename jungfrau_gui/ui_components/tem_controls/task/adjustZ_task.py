@@ -18,7 +18,7 @@ class AdjustZ(Task):
     def __init__(self, control_worker):
         super().__init__(control_worker, "AdjustZ")
         self.control = control_worker
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("localhost", 3535,  verbose=False)
         
     def px2um(self, px):
         magnification = int(self.control.tem_status['eos.GetMagValue'][0])

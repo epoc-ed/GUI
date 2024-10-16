@@ -51,7 +51,7 @@ class ControlWorker(QObject):
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("localhost", 3535,  verbose=False)
 
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()

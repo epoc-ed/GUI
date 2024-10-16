@@ -21,7 +21,7 @@ class RecordTask(Task):
         self.rotations_angles = []
         self.log_suffix = log_suffix
         logging.info("RecordTask initialized")
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("localhost", 3535,  verbose=False)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
     def run(self):

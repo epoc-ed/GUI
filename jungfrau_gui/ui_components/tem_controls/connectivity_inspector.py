@@ -9,7 +9,7 @@ class TEM_Connector(QObject):
 
     def __init__(self):
         super(TEM_Connector, self).__init__()
-        self.client = TEMClient("temserver", 3535) 
+        self.client = TEMClient("localhost", 3535, verbose=False) 
     
     @Slot()
     def run(self):
