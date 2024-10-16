@@ -104,25 +104,42 @@ class ControlWorker(QObject):
     @Slot()
     def on_task_finished(self):
         self.finished_task.emit()
+
         if isinstance(self.task, RecordTask):
             # self.finished_record_task.emit()
+            logging.info("RecordTask has finished, performing cleanup...")
             self.stop_task()
+
         elif isinstance(self.task, GetInfoTask):
+            logging.info("GetInfoTask has finished, performing cleanup...")
             self.stop_task()
+
+        # After stopping the task, safely delete the task and the thread
+        if self.task is not None:
+            logging.info(f"Deleting task: {self.task.task_name}")
+            self.task.deleteLater()  # Safe deletion after thread stops
+
+        # Ensure thread is also cleaned up
+        if self.task_thread:
+            self.task_thread.quit()
+            self.task_thread.wait()
+            self.task_thread.deleteLater()  # Clean up the thread itself
+
+        self.task = None
+        self.task_thread = None  # Reset thread for the next task
 
     def start_task(self, task):
         logging.debug("Control is starting a Task...")
         self.last_task = self.task
         self.task = task
-        logging.info(f"Task name is {self.task.task_name}")
 
-        # self.send_to_tem("#more")
+        # Create a new QThread for each task to avoid reuse issues
+        self.task_thread = QThread()  
+        logging.info(f"Task name is {self.task.task_name}")
 
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
 
-        # why the two layers? TODO: IMPROVE
         self.task.finished.connect(self.on_task_finished)
-        # self.finished_record_task.connect(self.stop_task)
 
         self.task.moveToThread(self.task_thread)
         self.task_thread.started.connect(self.task.start.emit)
@@ -289,21 +306,32 @@ class ControlWorker(QObject):
         except Exception as e:
             logging.error(f"Error: {e}")
 
-    @Slot()
     def stop_task(self):
         if self.task:
             if isinstance(self.task, BeamFitTask):
-                logging.info("Stopping the - Sweeping - task !")
-                self.trigger_stop_autofocus.emit() # self.set_worker_not_ready()
+                logging.info("Stopping the - Sweeping - task!")
+                self.trigger_stop_autofocus.emit()
+
             elif isinstance(self.task, RecordTask):
-                logging.info("Stopping the - Record - task!!!")
+                logging.info("Stopping the - Record - task!")
                 try:
                     tools.send_with_retries(self.client.StopStage)
                 except Exception as e:
-                    # logging.error(f"Unexpected error @ client.StopStage() : {e}")
+                    logging.error(f"Unexpected error @ client.StopStage(): {e}")
                     pass
+
             elif isinstance(self.task, GetInfoTask):
-                logging.info("Stopping the - GetInfo - task!!!")
+                logging.info("Stopping the - GetInfo - task!")
+
+        # Ensure the thread is fully stopped before starting a new task
+        if self.task_thread and self.task_thread.isRunning():
+            logging.info(f"Quitting {self.task.task_name} Thread")
+            self.task_thread.quit()
+            self.task_thread.wait()
+
+        # Do not delete task here; deletion is handled in `on_task_finished`
+        self.task = None
+        self.task_thread = None
         
         if isinstance(self.task, BeamFitTask):
                 logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
