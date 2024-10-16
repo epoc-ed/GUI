@@ -34,12 +34,14 @@ class RecordTask(Task):
         phi_dot_idx = self.client.Getf1OverRateTxNum()
 
         self.phi_dot = stage_rates[phi_dot_idx]
+
         try:
             self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
         except Exception as e:
-            # Handle any other unexpected errors
+            # Handle any unexpected errors
             error_message = f"An unexpected error occurred: {e}"
             QMessageBox.critical(self, "Error", error_message)
+
         try:
             logfile = None  # Initialize logfile to None
 
