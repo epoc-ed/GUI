@@ -153,42 +153,51 @@ class ControlWorker(QObject):
         logging.info("Start GetInfo")
         if self.task is not None:
             if self.task.running:
+                logging.warning("Stopping the currently running  - \033[1mGetInfoTask\033[0m - task before starting a new one.")
                 self.stop_task()
-        # self.send.emit("stage.Setf1OverRateTxNum(2)")
+                return
+
         command='TEMstatus'
+
         if gui=='':
             x = input(f'Write TEM status on a file? If YES, give a filename or "Y" ({command}_[timecode].log). [N]\n')
             task = GetInfoTask(self, x)
         else:
             task = GetInfoTask(self, gui)
+
         self.start_task(task)
 
     @Slot()
     def start_record(self):
         logging.info("Start Rotation/Record")
+
+        # Check if a task is already running, and stop it if so
         if self.task is not None:
             if self.task.running:
-                self.stop_task()
+                logging.warning("Stopping the currently running  - \033[1mRecordTask\033[0m - task before starting a new one.")
+                self.stop_task()  # Ensure that the current task is fully stopped
+                return
+
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
-        ### filename_suffix = self.tem_action.formatted_filename[:-3]
-        ### filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
+        
         filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
-        ###
-        # self.client.SetSelector(11)
-        ###
+
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
         else:
             task = RecordTask(self, end_angle, filename_suffix)
+
         self.start_task(task)
 
     @Slot()
     def start_beam_fit(self):
         logging.info("Start AutoFocus")
+
         if self.task is not None:
             if self.task.running:
-                logging.warning('task already running')
+                logging.warning("Stopping the currently running  - \033[1mAutoFocus\033[0m - task before starting a new one.")
+                self.stop_task()
                 return           
         ###
         # if os.name == 'nt': # test on Win-Win
@@ -309,11 +318,11 @@ class ControlWorker(QObject):
     def stop_task(self):
         if self.task:
             if isinstance(self.task, BeamFitTask):
-                logging.info("Stopping the - Sweeping - task!")
+                logging.info("Stopping the - \033[1mSweeping\033[0m - task!")
                 self.trigger_stop_autofocus.emit()
 
             elif isinstance(self.task, RecordTask):
-                logging.info("Stopping the - Record - task!")
+                logging.info("Stopping the - \033[1mRecord\033[0m - task!")
                 try:
                     tools.send_with_retries(self.client.StopStage)
                 except Exception as e:
@@ -321,7 +330,7 @@ class ControlWorker(QObject):
                     pass
 
             elif isinstance(self.task, GetInfoTask):
-                logging.info("Stopping the - GetInfo - task!")
+                logging.info("Stopping the - \033[1mGetInfo\033[0m - task!")
 
         # Ensure the thread is fully stopped before starting a new task
         if self.task_thread and self.task_thread.isRunning():

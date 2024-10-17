@@ -93,7 +93,7 @@ class RecordTask(Task):
                 # Attempt to wait for the rotation to start
                 logging.info("Waiting for stage rotation to start...")
                 self.client.wait_until_rotate_starts()
-                logging.info("Stage has initiated rotation.\nAsynchronous writing of H5 and logfile is starting now...")
+                logging.info("Stage has initiated rotation.\nAsynchronous writing of files is starting now...")
             except TimeoutError as rotation_error:
                 logging.error(f"TimeoutError: Stage rotation failed to start: {rotation_error}")
                 return 
