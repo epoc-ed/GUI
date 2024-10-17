@@ -345,9 +345,11 @@ class FileOperations(QGroupBox):
             self.streamWriter.stop()
             if globals.tem_mode:
                 if not self.parent.tem_controls.tem_tasks.rotation_button.started:
+                    logging.info(" -------------------- Updating file_id in DB...")
                     self.cfg.file_id += 1 
                     self.update_index_box()
             else:
+                logging.info(" ++++++++++++++++++++ Updating file_id in DB...")
                 self.cfg.file_id += 1 
                 self.update_index_box()
             # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)

@@ -105,7 +105,7 @@ class TEMAction(QObject):
 
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
-        logging.info(f"{worker.__str__()} is Ready!")
+        logging.info(f"{worker.task_name} is Ready!")
         thread.started.connect(worker.run)
         worker.finished.connect(self.updateTemControls)
         worker.finished.connect(self.getConnectorReady)
@@ -201,14 +201,25 @@ class TEMAction(QObject):
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(False)
         else:
-            self.tem_tasks.rotation_button.setText("Rotation")
-            self.tem_tasks.rotation_button.started = False
+            """ 
+            Important to 'toggle_hdf5Writer()' to OFF state 
+            before shifting 'rotation_button.started = False',
+            Otherwise you would increment 'cfd.file_id' twice 
+            """ 
+            self.control.task.finished.disconnect() # This would avoid triggering 'stop_task()' twice
+            time.sleep(0.01) # TODO Necessary ??? DELETE?
+
             if self.file_operations.streamWriterButton.started:
-                self.file_operations.toggle_hdf5Writer()
+                self.file_operations.toggle_hdf5Writer() # from ON to OFF
+
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(True)
-            # self.control.stop_task()
-            self.control.trigger_record.emit()
+            
+            self.control.stop_task() 
+
+            time.sleep(0.01) # Ensure that the 'self.file_operations.toggle_hdf5Writer()' went through
+            self.tem_tasks.rotation_button.setText("Rotation")
+            self.tem_tasks.rotation_button.started = False
             
     # def toggle_centering(self):
     #     if not self.centering_button.started:
@@ -229,10 +240,12 @@ class TEMAction(QObject):
             if self.tem_tasks.popup_checkbox.isChecked():
                 self.tem_tasks.parent.showPlotDialog()  
         else:
+            self.control.task.finished.disconnect()
+
             self.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
             self.tem_tasks.beamAutofocus.started = False
             # Close Pop-up Window
             if self.tem_tasks.parent.plotDialog != None:
                 self.tem_tasks.parent.plotDialog.close_window()
-            # self.control.stop_task()
-            self.control.actionFit_Beam.emit()
+
+            self.control.stop_task()

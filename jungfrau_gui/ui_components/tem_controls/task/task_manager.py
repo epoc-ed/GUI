@@ -18,6 +18,8 @@ from ..toolbox import tool as tools
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
+import jungfrau_gui.ui_threading_helpers as th
+
 class ControlWorker(QObject):
     """
     The 'ControlWorker' object coordinates the execution of tasks and redirects requests to the GUI.
@@ -101,52 +103,61 @@ class ControlWorker(QObject):
         # self.send.emit("stage.Setf1OverRateTxNum(2)")
         logging.info("Initialized control thread")
 
-    @Slot()
-    def on_task_finished(self):
-        self.finished_task.emit()
-
+    def handle_task_cleanup(self):
         if isinstance(self.task, RecordTask):
             logging.info("RecordTask has finished, performing cleanup...")
             self.stop_task()
-
         elif isinstance(self.task, GetInfoTask):
             logging.info("GetInfoTask has finished, performing cleanup...")
             self.stop_task()
+
+    @Slot()
+    def on_task_finished(self):
+        logging.warning(f"Finished task {self.task.task_name}")
+        self.finished_task.emit()
+
+        self.handle_task_cleanup()
+
+        # Pass task and task_thread to the generic functions
+        th.disconnect_worker_signals(self.task)
+        th.terminate_thread(self.task_thread)
+        th.remove_worker_thread_pair(self.tem_action.parent.threadWorkerPairs, self.task_thread)
+        th.reset_worker_and_thread(self.task, self.task_thread)
         
-        # Disconnect the finished signal to avoid issues when the task is restarted
-        if self.task:
-            try:
-                self.task.finished.disconnect()
-            except Exception as e:
-                logging.warning(f"Could not disconnect finished signal: {e}")
+        # # Disconnect the finished signal to avoid issues when the task is restarted
+        # if self.task:
+        #     try:
+        #         self.task.finished.disconnect()
+        #     except Exception as e:
+        #         logging.warning(f"Could not disconnect finished signal: {e}")
 
-        # Quit and wait for the thread to finish
-        if self.task_thread:
-            self.task_thread.quit()
-            self.task_thread.wait()
+        # # Quit and wait for the thread to finish
+        # if self.task_thread:
+        #     self.task_thread.quit()
+        #     self.task_thread.wait()
 
-        """
-        Remove the worker/thread pair from the parent's list after completion
-        """
-        index_to_delete = None
-        for i, (t, worker) in enumerate(self.tem_action.parent.threadWorkerPairs):
-            if t == self.task_thread:
-                if worker is not None:
-                    logging.info(f"Deleting task: {worker.task_name}")
-                    worker.deleteLater() # Schedule the worker for deletion
-                    logging.info(f"{worker.task_name} successfully stopped!")
-                index_to_delete = i
-                break # because always only one instance of a thread/worker pair type
-        if index_to_delete is not None:
-            del self.tem_action.parent.threadWorkerPairs[index_to_delete]
+        # """
+        # Remove the worker/thread pair from the parent's list after completion
+        # """
+        # index_to_delete = None
+        # for i, (t, worker) in enumerate(self.tem_action.parent.threadWorkerPairs):
+        #     if t == self.task_thread:
+        #         if worker is not None:
+        #             logging.info(f"Deleting task: {worker.task_name}")
+        #             worker.deleteLater() # Schedule the worker for deletion
+        #             logging.info(f"{worker.task_name} successfully stopped!")
+        #         index_to_delete = i
+        #         break # because always only one instance of a thread/worker pair type
+        # if index_to_delete is not None:
+        #     del self.tem_action.parent.threadWorkerPairs[index_to_delete]
         
-        # Schedule the thread for deletion after it finishes
-        if self.task_thread:
-            self.task_thread.deleteLater()
+        # # Schedule the thread for deletion after it finishes
+        # if self.task_thread:
+        #     self.task_thread.deleteLater()
 
-        # Reset task and thread resferences
-        self.task = None
-        self.task_thread = None
+        # # Reset task and thread resferences
+        # self.task = None
+        # self.task_thread = None
 
     def start_task(self, task):
         logging.debug("Control is starting a Task...")
@@ -352,13 +363,13 @@ class ControlWorker(QObject):
             elif isinstance(self.task, GetInfoTask):
                 logging.info("Stopping the - \033[1mGetInfo\033[0m\033[34m - task!")
 
-        # Ensure the thread is fully stopped before starting a new task
-        if self.task_thread and self.task_thread.isRunning():
-            logging.info(f"Quitting {self.task.task_name} Thread")
-            self.task_thread.quit()
-            self.task_thread.wait()
+        # No need to handle thread quitting or task deletion here;
+        # it's now handled in `on_task_finished()`        
+        # if self.task_thread and self.task_thread.isRunning():
+        #     logging.info(f"Quitting {self.task.task_name} Thread")
+        #     self.task_thread.quit()
+        #     self.task_thread.wait()
 
-        # Do not delete task here; deletion is handled in `on_task_finished`
         # self.task = None
         # self.task_thread = None
         
@@ -384,11 +395,10 @@ class ControlWorker(QObject):
     def shutdown(self):
         logging.info("Shutting down control")
         try:
-            # self.send_to_tem("#quit")
-            self.client.exit()
-            time.sleep(0.12)
-            # self.tem_socket.close()
-            logging.info("disconnected")
+            # self.client.exit_server()
+            # logging.warning("TEM server is OFF")
+            # time.sleep(0.12)
+            logging.warning("GUI diconnected from TEM")
             self.task_thread.quit()
         except Exception as e:
             logging.error(f'Shutdown of Task Manager triggered error: {e}')

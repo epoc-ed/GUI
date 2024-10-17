@@ -172,7 +172,7 @@ class ApplicationWindow(QMainWindow):
         for i, (t, worker) in enumerate(self.threadWorkerPairs):
             if t == thread:
                 if worker is not None:
-                    logging.info(f"Stopping {worker.__str__()}!")
+                    logging.info(f"Stopping {worker.task_name}!")
                     worker.deleteLater() # Schedule the worker for deletion
                     worker = None
                     logging.info("Process stopped!")

@@ -147,7 +147,7 @@ class TemControls(QGroupBox):
 
     def initializeWorker(self, thread, worker):
         worker.moveToThread(thread)
-        logging.info(f"{worker.__str__()} is Ready!")
+        logging.info(f"{worker.task_name} is Ready!")
         thread.started.connect(worker.run)
         worker.finished.connect(self.updateFitParams)
         worker.finished.connect(self.getFitterReady)

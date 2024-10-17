@@ -10,6 +10,7 @@ class FrameAccumulator(QObject):
     def __init__(self, nframes):
         super(FrameAccumulator, self).__init__()
         self.nframes_to_capture = nframes
+        self.task_name = "Tiff Frame Accumulator"
 
     def run(self):
         logging.info("Starting write process of TIFF")
