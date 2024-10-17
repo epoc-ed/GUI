@@ -184,7 +184,7 @@ class ApplicationWindow(QMainWindow):
         thread = None
 
     def do_exit(self):
-        running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
+        running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread and thread.isRunning()]
         if running_threadWorkerPairs:
             # Show warning dialog
             reply = QMessageBox.question(self, 'Thread still running',

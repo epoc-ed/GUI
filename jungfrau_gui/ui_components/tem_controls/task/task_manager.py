@@ -106,27 +106,47 @@ class ControlWorker(QObject):
         self.finished_task.emit()
 
         if isinstance(self.task, RecordTask):
-            # self.finished_record_task.emit()
             logging.info("RecordTask has finished, performing cleanup...")
             self.stop_task()
 
         elif isinstance(self.task, GetInfoTask):
             logging.info("GetInfoTask has finished, performing cleanup...")
             self.stop_task()
+        
+        # Disconnect the finished signal to avoid issues when the task is restarted
+        if self.task:
+            try:
+                self.task.finished.disconnect()
+            except Exception as e:
+                logging.warning(f"Could not disconnect finished signal: {e}")
 
-        # After stopping the task, safely delete the task and the thread
-        if self.task is not None:
-            logging.info(f"Deleting task: {self.task.task_name}")
-            self.task.deleteLater()  # Safe deletion after thread stops
-
-        # Ensure thread is also cleaned up
+        # Quit and wait for the thread to finish
         if self.task_thread:
             self.task_thread.quit()
             self.task_thread.wait()
-            self.task_thread.deleteLater()  # Clean up the thread itself
 
+        """
+        Remove the worker/thread pair from the parent's list after completion
+        """
+        index_to_delete = None
+        for i, (t, worker) in enumerate(self.tem_action.parent.threadWorkerPairs):
+            if t == self.task_thread:
+                if worker is not None:
+                    logging.info(f"Deleting task: {self.task.task_name}")
+                    worker.deleteLater() # Schedule the worker for deletion
+                    logging.info(f"{self.task.task_name} successfully stopped!")
+                index_to_delete = i
+                break # because always only one instance of a thread/worker pair type
+        if index_to_delete is not None:
+            del self.tem_action.parent.threadWorkerPairs[index_to_delete]
+        
+        # Schedule the thread for deletion after it finishes
+        if self.task_thread:
+            self.task_thread.deleteLater()
+
+        # Reset task and thread resferences
         self.task = None
-        self.task_thread = None  # Reset thread for the next task
+        self.task_thread = None
 
     def start_task(self, task):
         logging.debug("Control is starting a Task...")
@@ -339,8 +359,8 @@ class ControlWorker(QObject):
             self.task_thread.wait()
 
         # Do not delete task here; deletion is handled in `on_task_finished`
-        self.task = None
-        self.task_thread = None
+        # self.task = None
+        # self.task_thread = None
         
         if isinstance(self.task, BeamFitTask):
                 logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
@@ -370,7 +390,8 @@ class ControlWorker(QObject):
             # self.tem_socket.close()
             logging.info("disconnected")
             self.task_thread.quit()
-        except:
+        except Exception as e:
+            logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
 
     """ 
