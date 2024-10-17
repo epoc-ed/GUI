@@ -175,27 +175,27 @@ class TEMTools(QObject):
     def __init__(self, tem_action):
         super().__init__()
         self.tem_action = tem_action
-        self.ht = 200 # keV  # <- HT3
-        self.wavelength = eV2angstrom(self.ht*1e3) # Angstrom   
-        self.stage_rates = [10.0, 2.0, 1.0, 0.5]
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_addinfo_to_hdf5.connect(self.addinfo_to_hdf)     
  
     def addinfo_to_hdf(self, pixel=0.075):
-        self.tem_status = self.tem_action.control.tem_status
-        self.filename = self.cfg.data_dir/self.cfg.fname
-        self.beamcenter = self.tem_action.beamcenter
-        self.interval = self.tem_action.visualization_panel.update_interval.value()
+        tem_status = self.tem_action.control.tem_status
+        filename = self.cfg.data_dir/self.cfg.fname
+        beamcenter = self.tem_action.beamcenter
+        interval = self.tem_action.visualization_panel.update_interval.value()
+        ht = 200 # keV  # <- HT3
+        wavelength = eV2angstrom(ht*1e3) # Angstrom   
+        stage_rates = [10.0, 2.0, 1.0, 0.5]
         try:
-            with h5py.File(self.filename, 'a') as f:
+            with h5py.File(filename, 'a') as f:
                 try:
                     # tagname mimiced from dectris HDF
                     f.create_dataset('entry/instrument/detector/detector_name', data = 'JUNGFRAU FOR ED AT UNIVERSITY OF VIENNA')
-                    f.create_dataset('entry/instrument/detector/beam_center_x', data = self.beamcenter[0], dtype='float') # <- FITTING
-                    f.create_dataset('entry/instrument/detector/beam_center_y', data = self.beamcenter[1], dtype='float') # <- FITTING
-                    detector_distance = cfg_jf.lookup(cfg_jf.lut.distance, self.tem_status['eos.GetMagValue_DIFF'][2], 'displayed', 'calibrated')
+                    f.create_dataset('entry/instrument/detector/beam_center_x', data = beamcenter[0], dtype='float') # <- FITTING
+                    f.create_dataset('entry/instrument/detector/beam_center_y', data = beamcenter[1], dtype='float') # <- FITTING
+                    detector_distance = cfg_jf.lookup(cfg_jf.lut.distance, tem_status['eos.GetMagValue_DIFF'][2], 'displayed', 'calibrated')
                     f.create_dataset('entry/instrument/detector/detector_distance', data = detector_distance, dtype='uint64') # <- LUT
-                    f.create_dataset('entry/instrument/detector/frame_time', data = self.interval*1e-3, dtype='float')
+                    f.create_dataset('entry/instrument/detector/frame_time', data = interval*1e-3, dtype='float')
                     # f.create_dataset('entry/instrument/detector/frame_time_unit', data = 's')
                     f.create_dataset('entry/instrument/detector/saturation_value', data = 2e32-1, dtype='float')
                     f.create_dataset('entry/instrument/detector/sensor_material', data = 'Si')
@@ -213,60 +213,60 @@ class TEMTools(QObject):
                     # ED-specific, optics
                     f.create_dataset('entry/instrument/optics/info_acquisition_date_time', data = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
                     f.create_dataset('entry/instrument/optics/microscope_name', data = 'JEOL JEM2100Plus')
-                    f.create_dataset('entry/instrument/optics/accelerationVoltage', data = self.ht, dtype='float')
-                    f.create_dataset('entry/instrument/optics/wavelength', data = self.wavelength, dtype='float')
-                    f.create_dataset('entry/instrument/optics/magnification', data = self.tem_status['eos.GetMagValue_MAG'][0], dtype='uint16')
-                    f.create_dataset('entry/instrument/optics/distance_nominal', data = self.tem_status['eos.GetMagValue_DIFF'][0], dtype='uint16')
-                    f.create_dataset('entry/instrument/optics/end_tilt_angle', data = self.tem_status['stage.GetPos'][3], dtype='float')
-                    f.create_dataset('entry/instrument/optics/spot_size', data = self.tem_status['eos.GetSpotSize']+1, dtype='uint16')
-                    f.create_dataset('entry/instrument/optics/alpha_angle', data = self.tem_status['eos.GetAlpha']+1, dtype='uint16')
-                    f.create_dataset('entry/instrument/optics/CL_ID', data = self.tem_status['apt.GetSize(1)'], dtype='uint16')
-                    aperture_size = cfg_jf.lookup(cfg_jf.lut.cl, self.tem_status['apt.GetSize(1)'], 'ID', 'size')
+                    f.create_dataset('entry/instrument/optics/accelerationVoltage', data = ht, dtype='float')
+                    f.create_dataset('entry/instrument/optics/wavelength', data = wavelength, dtype='float')
+                    f.create_dataset('entry/instrument/optics/magnification', data = tem_status['eos.GetMagValue_MAG'][0], dtype='uint16')
+                    f.create_dataset('entry/instrument/optics/distance_nominal', data = tem_status['eos.GetMagValue_DIFF'][0], dtype='uint16')
+                    f.create_dataset('entry/instrument/optics/end_tilt_angle', data = tem_status['stage.GetPos'][3], dtype='float')
+                    f.create_dataset('entry/instrument/optics/spot_size', data = tem_status['eos.GetSpotSize']+1, dtype='uint16')
+                    f.create_dataset('entry/instrument/optics/alpha_angle', data = tem_status['eos.GetAlpha']+1, dtype='uint16')
+                    f.create_dataset('entry/instrument/optics/CL_ID', data = tem_status['apt.GetSize(1)'], dtype='uint16')
+                    aperture_size = cfg_jf.lookup(cfg_jf.lut.cl, tem_status['apt.GetSize(1)'], 'ID', 'size')
                     f.create_dataset('entry/instrument/optics/CL_size', data = f'{aperture_size} um') # <- LUT
-                    f.create_dataset('entry/instrument/optics/SA_ID', data = self.tem_status['apt.GetSize(4)'], dtype='uint16')
-                    aperture_size = cfg_jf.lookup(cfg_jf.lut.sa, self.tem_status['apt.GetSize(4)'], 'ID', 'size')
+                    f.create_dataset('entry/instrument/optics/SA_ID', data = tem_status['apt.GetSize(4)'], dtype='uint16')
+                    aperture_size = cfg_jf.lookup(cfg_jf.lut.sa, tem_status['apt.GetSize(4)'], 'ID', 'size')
                     f.create_dataset('entry/instrument/optics/SA_size', data = f'{aperture_size} um') # <- LUT
-                    f.create_dataset('entry/instrument/optics/brightness', data = self.tem_status['lens.GetCL3'], dtype='uint32')
-                    f.create_dataset('entry/instrument/optics/diff_focus', data = self.tem_status['lens.GetIL1'], dtype='uint32')
-                    f.create_dataset('entry/instrument/optics/il_stigm_x', data = self.tem_status['defl.GetILs'][0], dtype='uint32')
-                    f.create_dataset('entry/instrument/optics/il_stigm_y', data = self.tem_status['defl.GetILs'][1], dtype='uint32')
-                    f.create_dataset('entry/instrument/optics/pl_align_x', data = self.tem_status['defl.GetPLA'][0], dtype='uint32')
-                    f.create_dataset('entry/instrument/optics/pl_align_y', data = self.tem_status['defl.GetPLA'][1], dtype='uint32')
+                    f.create_dataset('entry/instrument/optics/brightness', data = tem_status['lens.GetCL3'], dtype='uint32')
+                    f.create_dataset('entry/instrument/optics/diff_focus', data = tem_status['lens.GetIL1'], dtype='uint32')
+                    f.create_dataset('entry/instrument/optics/il_stigm_x', data = tem_status['defl.GetILs'][0], dtype='uint32')
+                    f.create_dataset('entry/instrument/optics/il_stigm_y', data = tem_status['defl.GetILs'][1], dtype='uint32')
+                    f.create_dataset('entry/instrument/optics/pl_align_x', data = tem_status['defl.GetPLA'][0], dtype='uint32')
+                    f.create_dataset('entry/instrument/optics/pl_align_y', data = tem_status['defl.GetPLA'][1], dtype='uint32')
                     # ED-specific, stage
-                    f.create_dataset('entry/instrument/stage/stage_x', data = self.tem_status['stage.GetPos'][0]/1e3, dtype='float')
-                    f.create_dataset('entry/instrument/stage/stage_y', data = self.tem_status['stage.GetPos'][1]/1e3, dtype='float')
-                    f.create_dataset('entry/instrument/stage/stage_z', data = self.tem_status['stage.GetPos'][2], dtype='float')
+                    f.create_dataset('entry/instrument/stage/stage_x', data = tem_status['stage.GetPos'][0]/1e3, dtype='float')
+                    f.create_dataset('entry/instrument/stage/stage_y', data = tem_status['stage.GetPos'][1]/1e3, dtype='float')
+                    f.create_dataset('entry/instrument/stage/stage_z', data = tem_status['stage.GetPos'][2], dtype='float')
                     f.create_dataset('entry/instrument/stage/stage_xyz_unit', data ='um')
-                    # f.create_dataset('entry/instrument/stage/stage_tx_start', data = self.tem_status['stage.GetPos'][2], dtype='float')
-                    # f.create_dataset('entry/instrument/stage/stage_tx_end', data = self.tem_status['stage.GetPos'][2], dtype='float')
-                    f.create_dataset('entry/instrument/stage/stage_tx_speed_ID', data = self.tem_status['stage.Getf1OverRateTxNum'], dtype='float')
-                    f.create_dataset('entry/instrument/stage/velocity_data_collection', data = self.stage_rates[self.cfg.rotation_speed_idx], dtype='float')
-                    # f.create_dataset('entry/instrument/stage/stage_tx_speed_nominal', data = self.tem_status['stage.GetPos'][2], dtype='float') <- LUT
-                    # f.create_dataset('entry/instrument/stage/stage_tx_speed_measured', data = self.tem_status['stage.GetPos'][2], dtype='float') <- LUT
+                    # f.create_dataset('entry/instrument/stage/stage_tx_start', data = tem_status['stage.GetPos'][2], dtype='float')
+                    # f.create_dataset('entry/instrument/stage/stage_tx_end', data = tem_status['stage.GetPos'][2], dtype='float')
+                    f.create_dataset('entry/instrument/stage/stage_tx_speed_ID', data = tem_status['stage.Getf1OverRateTxNum'], dtype='float')
+                    f.create_dataset('entry/instrument/stage/velocity_data_collection', data = stage_rates[self.cfg.rotation_speed_idx], dtype='float')
+                    # f.create_dataset('entry/instrument/stage/stage_tx_speed_nominal', data = tem_status['stage.GetPos'][2], dtype='float') <- LUT
+                    # f.create_dataset('entry/instrument/stage/stage_tx_speed_measured', data = tem_status['stage.GetPos'][2], dtype='float') <- LUT
                     # f.create_dataset('entry/instrument/stage/stage_tx_speed_unit', data = 'deg/s')
                     # ED-specific, crystal image
                     # f.create_dataset('entry/imagedata_endangle', data = , dtype='float32') # at the end angle
                     # f.create_dataset('entry/imagedata_zerotilt', data = , dtype='float32') # at the zero tile\
                     # for cif
                     # f.create_dataset('entry/cif/_diffrn_ambient_temperature', data = '293(2)')
-                    # f.create_dataset('entry/cif/_diffrn_radiation_wavelength', data = f'{self.wavelength:8.5f}')
+                    # f.create_dataset('entry/cif/_diffrn_radiation_wavelength', data = f'{wavelength:8.5f}')
                     # f.create_dataset('entry/cif/_diffrn_radiation_probe', data = 'electron')
                     # f.create_dataset('entry/cif/_diffrn_radiation_type', data = '\'monochromatic beam\'')
                     # f.create_dataset('entry/cif/_diffrn_source', data = '\'transmission electron microscope, LaB6\'')
                     # f.create_dataset('entry/cif/_diffrn_source_type', data = '\'JEOL JEM2100Plus\'')
-                    # f.create_dataset('entry/cif/_diffrn_source_voltage', data = f'{self.ht:3d}')
+                    # f.create_dataset('entry/cif/_diffrn_source_voltage', data = f'{ht:3d}')
                     # f.create_dataset('entry/cif/_diffrn_measurement_device_type', data = '\'single axis tomography holder\'')
                     # f.create_dataset('entry/cif/_diffrn_detector', data = '\'hybrid pixel area detector\'')
                     # f.create_dataset('entry/cif/_diffrn_detector_type', data = '\'JUNGFRAU\'')
                     # # f.create_dataset('entry/cif/_diffrn_detector_dtime', data = '\'single axis tomography holder\'') #20?
                     # f.create_dataset('entry/cif/_diffrn_detector_area_resol_mean', data = f'{1/pixel:6.3f}') # 13.333 = 1/0.075
                     
-                    logging.info(f'Information updated in {self.filename}')
+                    logging.info(f'Information updated in {filename}')
                 except ValueError:
                     pass
             
         except OSError:
-            print(f'Failed to update information in {self.filename}!!!')
+            print(f'Failed to update information in {filename}!!!')
 
     # def get_corrected_detector_distance(self, distance, with_unit=True):
     #     for entry in self.config["distances"]:
