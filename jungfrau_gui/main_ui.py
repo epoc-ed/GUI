@@ -20,6 +20,7 @@ class CustomFormatter(logging.Formatter):
     RED = "\033[31m"
     GREEN = "\033[32m"
     YELLOW = "\033[33m"
+    ORANGE = "\033[38;5;214m"
     BLUE = "\033[34m"
     MAGENTA = "\033[35m"
     CYAN = "\033[36m"

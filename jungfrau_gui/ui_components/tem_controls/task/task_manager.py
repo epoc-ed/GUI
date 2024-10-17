@@ -132,9 +132,9 @@ class ControlWorker(QObject):
         for i, (t, worker) in enumerate(self.tem_action.parent.threadWorkerPairs):
             if t == self.task_thread:
                 if worker is not None:
-                    logging.info(f"Deleting task: {self.task.task_name}")
+                    logging.info(f"Deleting task: {worker.task_name}")
                     worker.deleteLater() # Schedule the worker for deletion
-                    logging.info(f"{self.task.task_name} successfully stopped!")
+                    logging.info(f"{worker.task_name} successfully stopped!")
                 index_to_delete = i
                 break # because always only one instance of a thread/worker pair type
         if index_to_delete is not None:
@@ -173,7 +173,7 @@ class ControlWorker(QObject):
         logging.info("Start GetInfo")
         if self.task is not None:
             if self.task.running:
-                logging.warning("Stopping the currently running  - \033[1mGetInfoTask\033[0m - task before starting a new one.")
+                logging.warning("Stopping the currently running  - \033[38;5;214mGetInfoTask\033[33m - task before starting a new one.")
                 self.stop_task()
                 return
 
@@ -194,7 +194,7 @@ class ControlWorker(QObject):
         # Check if a task is already running, and stop it if so
         if self.task is not None:
             if self.task.running:
-                logging.warning("Stopping the currently running  - \033[1mRecordTask\033[0m - task before starting a new one.")
+                logging.warning("Stopping the currently running  - \033[38;5;214mRecordTask\033[33m - task before starting a new one.")
                 self.stop_task()  # Ensure that the current task is fully stopped
                 return
 
@@ -216,7 +216,7 @@ class ControlWorker(QObject):
 
         if self.task is not None:
             if self.task.running:
-                logging.warning("Stopping the currently running  - \033[1mAutoFocus\033[0m - task before starting a new one.")
+                logging.warning("Stopping the currently running  - \033[38;5;214mAutoFocus\033[33m - task before starting a new one.")
                 self.stop_task()
                 return           
         ###
@@ -338,11 +338,11 @@ class ControlWorker(QObject):
     def stop_task(self):
         if self.task:
             if isinstance(self.task, BeamFitTask):
-                logging.info("Stopping the - \033[1mSweeping\033[0m - task!")
+                logging.info("Stopping the - \033[1mSweeping\033[0m\033[34m - task!")
                 self.trigger_stop_autofocus.emit()
 
             elif isinstance(self.task, RecordTask):
-                logging.info("Stopping the - \033[1mRecord\033[0m - task!")
+                logging.info("Stopping the - \033[1mRecord\033[0m\033[34m - task!")
                 try:
                     tools.send_with_retries(self.client.StopStage)
                 except Exception as e:
@@ -350,7 +350,7 @@ class ControlWorker(QObject):
                     pass
 
             elif isinstance(self.task, GetInfoTask):
-                logging.info("Stopping the - \033[1mGetInfo\033[0m - task!")
+                logging.info("Stopping the - \033[1mGetInfo\033[0m\033[34m - task!")
 
         # Ensure the thread is fully stopped before starting a new task
         if self.task_thread and self.task_thread.isRunning():

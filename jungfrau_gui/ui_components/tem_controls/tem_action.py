@@ -207,7 +207,8 @@ class TEMAction(QObject):
                 self.file_operations.toggle_hdf5Writer()
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(True)
-            self.control.stop_task()
+            # self.control.stop_task()
+            self.control.trigger_record.emit()
             
     # def toggle_centering(self):
     #     if not self.centering_button.started:
@@ -233,4 +234,5 @@ class TEMAction(QObject):
             # Close Pop-up Window
             if self.tem_tasks.parent.plotDialog != None:
                 self.tem_tasks.parent.plotDialog.close_window()
-            self.control.stop_task()
+            # self.control.stop_task()
+            self.control.actionFit_Beam.emit()
