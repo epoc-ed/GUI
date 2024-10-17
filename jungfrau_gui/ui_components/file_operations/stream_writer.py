@@ -36,7 +36,7 @@ class StreamWriter:
     @property
     def number_frames_witten(self):
         #TODO! Read summing value from ConfigurationClient
-        return int((self.last_frame_number.value - self.first_frame_number.value)/100 +1)
+        return int((self.last_frame_number.value - self.first_frame_number.value) +1)
 
     def start(self):
         self.write_process = mp.Process(target=self._write, args=[])

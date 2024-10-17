@@ -183,7 +183,7 @@ class TEMTools(QObject):
  
     def addinfo_to_hdf(self, pixel=0.075):
         self.tem_status = self.tem_action.control.tem_status
-        self.filename = self.tem_action.file_operations.formatted_filename
+        self.filename = self.cfg.data_dir/self.cfg.fname
         self.beamcenter = self.tem_action.beamcenter
         self.interval = self.tem_action.visualization_panel.update_interval.value()
         try:

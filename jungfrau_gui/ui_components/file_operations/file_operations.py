@@ -151,7 +151,7 @@ class FileOperations(QGroupBox):
 
         self.fname = QLabel("TIFF file name", self)
         self.tiff_path = QLineEdit(self)
-        self.tiff_path.setText(f'{self.cfg.data_dir}/')
+        self.tiff_path.setText(f'{self.cfg.data_dir}')
         self.tiff_path.setReadOnly(True)
         self.fname_input = QLineEdit(self)
         self.fname_input.setText('file_name')
@@ -337,8 +337,8 @@ class FileOperations(QGroupBox):
             try:
                 self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
            
-                self.formatted_filename = self.cfg.data_dir/self.cfg.fname
-                self.streamWriter = StreamWriter(filename=self.formatted_filename, 
+                formatted_filename = self.cfg.data_dir/self.cfg.fname
+                self.streamWriter = StreamWriter(filename=formatted_filename, 
                                                 endpoint=globals.stream, 
                                                 image_size = (globals.nrow,globals.ncol),
                                                 dtype=globals.file_dt)
@@ -389,12 +389,12 @@ class FileOperations(QGroupBox):
 
     def update_base_data_directory(self):
         self.base_directory_input.setText(self.cfg.base_data_dir.as_posix())
-        logging.info(f"Root directory has been changed to: {self.cfg.data_dir.as_posix()}")
+        logging.info(f"Root directory has been changed to: {self.cfg.data_dir}")
         self.update_data_directory()
 
     def update_data_directory(self):
         self.outPath_input.setText(self.cfg.data_dir.as_posix())
-        self.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
+        self.tiff_path.setText(self.cfg.data_dir.as_posix())
         logging.info(f"Data is now saved at {self.cfg.data_dir.as_posix()}")
 
     def update_measurement_tag(self):

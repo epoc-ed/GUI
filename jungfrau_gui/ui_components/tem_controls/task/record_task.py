@@ -185,8 +185,7 @@ class RecordTask(Task):
             if self.writer:
                 logging.info(" ******************** Adding Info to H5...")
                 self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-                os.rename(self.log_suffix + '.log', (self.tem_action.file_operations.formatted_filename).with_suffix('.log'))
+                os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
 
                 logging.info(" ******************** Updating file_id in DB...")
                 self.cfg.after_write()
