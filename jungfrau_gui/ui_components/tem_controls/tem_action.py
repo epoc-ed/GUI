@@ -12,6 +12,7 @@ from epoc import ConfigurationClient, auth_token, redis_host
 
 from .connectivity_inspector import TEM_Connector
 
+import jungfrau_gui.ui_threading_helpers as thread_manager
 
 class TEMAction(QObject):
     """
@@ -79,7 +80,7 @@ class TEMAction(QObject):
         self.tem_tasks.gettem_button.setEnabled(enables)
         self.tem_tasks.gettem_checkbox.setEnabled(enables)
         self.tem_tasks.centering_button.setEnabled(False) # Not functional yet
-        self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
+        self.tem_tasks.beamAutofocus.setEnabled(enables) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
@@ -104,9 +105,7 @@ class TEMAction(QObject):
             self.parent.stopWorker(self.connect_thread, self.temConnector)
 
     def initializeWorker(self, thread, worker):
-        worker.moveToThread(thread)
-        logging.info(f"{worker.task_name} is Ready!")
-        thread.started.connect(worker.run)
+        thread_manager.move_worker_to_thread(thread, worker)
         worker.finished.connect(self.updateTemControls)
         worker.finished.connect(self.getConnectorReady)
 
@@ -201,25 +200,18 @@ class TEMAction(QObject):
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(False)
         else:
+            # self.control.task.finished.disconnect()
+            self.control.interruptRotation = True
+            # self.control.on_task_finished()
             """ 
-            Important to 'toggle_hdf5Writer()' to OFF state 
-            before shifting 'rotation_button.started = False',
-            Otherwise you would increment 'cfd.file_id' twice 
-            """ 
-            self.control.task.finished.disconnect() # This would avoid triggering 'stop_task()' twice
-            time.sleep(0.01) # TODO Necessary ??? DELETE?
+            Below operations taken care of at the end of RecordTask 
+            """
+            # self.tem_tasks.rotation_button.setText("Rotation")
+            # self.tem_tasks.rotation_button.started = False
 
-            if self.file_operations.streamWriterButton.started:
-                self.file_operations.toggle_hdf5Writer() # from ON to OFF
-
-            if self.tem_tasks.withwriter_checkbox.isChecked():
-                self.file_operations.streamWriterButton.setEnabled(True)
-            
-            self.control.stop_task() 
-
-            time.sleep(0.01) # Ensure that the 'self.file_operations.toggle_hdf5Writer()' went through
-            self.tem_tasks.rotation_button.setText("Rotation")
-            self.tem_tasks.rotation_button.started = False
+            # # Now, re-make possible clicking on the HDF5 collect button
+            # if self.tem_tasks.withwriter_checkbox.isChecked():
+            #     self.file_operations.streamWriterButton.setEnabled(True)
             
     # def toggle_centering(self):
     #     if not self.centering_button.started:
@@ -240,6 +232,11 @@ class TEMAction(QObject):
             if self.tem_tasks.popup_checkbox.isChecked():
                 self.tem_tasks.parent.showPlotDialog()  
         else:
+            """ 
+            To correct/adapt the interruption case
+            as in the 'toggle_rotation' above 
+            """
+            logging.warning(f"Interrupting Task - {self.control.task.task_name} -")
             self.control.task.finished.disconnect()
 
             self.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
@@ -247,5 +244,5 @@ class TEMAction(QObject):
             # Close Pop-up Window
             if self.tem_tasks.parent.plotDialog != None:
                 self.tem_tasks.parent.plotDialog.close_window()
-
-            self.control.stop_task()
+            self.control.actionFit_Beam.emit()
+            # self.control.stop_task()

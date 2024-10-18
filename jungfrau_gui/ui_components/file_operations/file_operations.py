@@ -340,14 +340,18 @@ class FileOperations(QGroupBox):
             self.streamWriterButton.setText("Stop Writing")
             self.streamWriterButton.started = True
         else:
-            self.streamWriterButton.setText("Write Stream in H5")
-            self.streamWriterButton.started = False
             self.streamWriter.stop()
             if globals.tem_mode:
-                if not self.parent.tem_controls.tem_tasks.rotation_button.started:
+                tem_tasks = self.parent.tem_controls.tem_tasks
+                logging.warning(f" rotation_button.started = True ? {tem_tasks.rotation_button.started == True}")
+                if not tem_tasks.rotation_button.started:
                     logging.info(" -------------------- Updating file_id in DB...")
                     self.cfg.file_id += 1 
                     self.update_index_box()
+                else:
+                    tem_tasks.rotation_button.setText("Rotation")
+                    tem_tasks.rotation_button.started= False
+                    self.streamWriterButton.setEnabled(True) 
             else:
                 logging.info(" ++++++++++++++++++++ Updating file_id in DB...")
                 self.cfg.file_id += 1 
@@ -355,6 +359,9 @@ class FileOperations(QGroupBox):
             # self.total_frame_nb.setValue(self.streamWriter.number_frames_witten)
             logging.info(f"Last written frame number is   {self.streamWriter.last_frame_number.value}")
             logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
+
+            self.streamWriterButton.setText("Write Stream in H5")
+            self.streamWriterButton.started = False
     
     def text_modified(self, line_edit): 
         line_edit.setStyleSheet(f"QLineEdit {{ color: orange; background-color: {self.background_color}; }}")

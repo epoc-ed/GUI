@@ -93,19 +93,28 @@ class RecordTask(Task):
                 # Attempt to wait for the rotation to start
                 logging.info("Waiting for stage rotation to start...")
                 self.client.wait_until_rotate_starts()
-                logging.info("Stage has initiated rotation.\nAsynchronous writing of files is starting now...")
+                logging.info("Stage has initiated rotation")
             except TimeoutError as rotation_error:
                 logging.error(f"TimeoutError: Stage rotation failed to start: {rotation_error}")
                 return 
 
             #If enabled we start writing files 
             if self.writer: 
+                logging.info("\033[1mAsynchronous writing of files is starting now...")
                 self.tem_action.file_operations.start_H5_recording.emit() 
-        
+            
+            # In case the interruption was requested after stage has started rotation 
+            if self.control.interruptRotation:
+                logging.warning("*Interruption request*: Stopping the rotation...")
+                send_with_retries(self.client.StopStage)
+
             t0 = time.time()
             try:
                 while self.client.is_rotating:
                     try:
+                        if self.control.interruptRotation:
+                            logging.warning("*Interruption request*: Stopping the rotation...")
+                            send_with_retries(self.client.StopStage)
                         pos = self.client.GetStagePosition()
                         t = time.time()
                         logfile.write(f"{t - t0:20.6f}  {pos[3]:8.3f} deg\n")
@@ -170,9 +179,11 @@ class RecordTask(Task):
                 self.cfg.after_write()
                 self.tem_action.file_operations.trigger_update_h5_index_box.emit()
 
-            self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-            self.tem_action.tem_tasks.rotation_button.started = False
-            self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+            # time.sleep(0.1)
+            # logging.error("rotation_button.started set to False too fast?")
+            # self.tem_action.tem_tasks.rotation_button.setText("Rotation")
+            # self.tem_action.tem_tasks.rotation_button.started = False
+            # self.tem_action.file_operations.streamWriterButton.setEnabled(True)
 
             print("------REACHED END OF TASK----------")
 
