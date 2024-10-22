@@ -6,7 +6,7 @@ from jungfrau_gui.ui_components.tem_controls.task.beam_focus_task import BeamFit
 
 def move_worker_to_thread(thread, worker):
     worker.moveToThread(thread)
-    logging.info(f"{worker.task_name} is Ready!")
+    logging.info(f"\033[1m{worker.task_name}\033[0m\033[34m is Ready!")
     thread.started.connect(worker.run) 
 
 def handle_tem_task_cleanup(control_worker):
