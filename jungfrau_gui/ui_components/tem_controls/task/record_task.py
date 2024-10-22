@@ -102,11 +102,6 @@ class RecordTask(Task):
             if self.writer: 
                 logging.info("\033[1mAsynchronous writing of files is starting now...")
                 self.tem_action.file_operations.start_H5_recording.emit() 
-            
-            # In case the interruption was requested after stage has started rotation 
-            if self.control.interruptRotation:
-                logging.warning("*Interruption request*: Stopping the rotation...")
-                send_with_retries(self.client.StopStage)
 
             t0 = time.time()
             try:
@@ -179,11 +174,12 @@ class RecordTask(Task):
                 self.cfg.after_write()
                 self.tem_action.file_operations.trigger_update_h5_index_box.emit()
 
-            # time.sleep(0.1)
-            # logging.error("rotation_button.started set to False too fast?")
-            # self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-            # self.tem_action.tem_tasks.rotation_button.started = False
-            # self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+            # Same below is taken care of in FileOperations::toggle_hdf5Writer
+            # in case self.writer is not None
+            if self.writer is None:
+                self.tem_action.tem_tasks.rotation_button.setText("Rotation")
+                self.tem_action.tem_tasks.rotation_button.started = False
+                self.tem_action.file_operations.streamWriterButton.setEnabled(True)
 
             print("------REACHED END OF TASK----------")
 

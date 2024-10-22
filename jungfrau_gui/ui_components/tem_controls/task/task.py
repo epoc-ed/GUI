@@ -29,7 +29,7 @@ class Task(QObject):
     @Slot()
     def _start(self):
         logging.debug("In _start in task.py")
-        logging.info(f"Starting - {self.task_name} task...")
+        logging.info(f"Starting - \033[1m{self.task_name}\033[0m\033[34m - task...")
         self.running = True
         self.start_time = time.monotonic()
         try:

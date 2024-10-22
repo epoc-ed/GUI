@@ -80,7 +80,7 @@ class TEMAction(QObject):
         self.tem_tasks.gettem_button.setEnabled(enables)
         self.tem_tasks.gettem_checkbox.setEnabled(enables)
         self.tem_tasks.centering_button.setEnabled(False) # Not functional yet
-        self.tem_tasks.beamAutofocus.setEnabled(enables) # Not functional yet
+        self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
@@ -200,18 +200,8 @@ class TEMAction(QObject):
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(False)
         else:
-            # self.control.task.finished.disconnect()
+            # Interrupt rotation but end task gracefully
             self.control.interruptRotation = True
-            # self.control.on_task_finished()
-            """ 
-            Below operations taken care of at the end of RecordTask 
-            """
-            # self.tem_tasks.rotation_button.setText("Rotation")
-            # self.tem_tasks.rotation_button.started = False
-
-            # # Now, re-make possible clicking on the HDF5 collect button
-            # if self.tem_tasks.withwriter_checkbox.isChecked():
-            #     self.file_operations.streamWriterButton.setEnabled(True)
             
     # def toggle_centering(self):
     #     if not self.centering_button.started:

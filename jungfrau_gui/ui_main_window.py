@@ -162,36 +162,12 @@ class ApplicationWindow(QMainWindow):
 
     def stopWorker(self, thread, worker):
         if globals.tem_mode:
+            logging.debug(f"Control has - \033[1m{self.tem_controls.tem_action.control.task.task_name}\033[0m\033[34m - task alive!")
             thread_manager.handle_tem_task_cleanup(self.tem_controls.tem_action.control)
         thread_manager.disconnect_worker_signals(worker)
         thread_manager.terminate_thread(thread)
         thread_manager.remove_worker_thread_pair(self.threadWorkerPairs, thread)
         thread_manager.reset_worker_and_thread(worker, thread)
-
-    # def stopWorker(self, thread, worker):
-    #     if worker:
-    #         worker.finished.disconnect()
-    #     if thread is not None:
-    #         if thread.isRunning():
-    #             thread.quit()
-    #             thread.wait() # Wait for the thread to finish
-    #     self.threadCleanup(thread, worker)
-        
-    # def threadCleanup(self, thread, worker):
-    #     index_to_delete = None
-    #     for i, (t, worker) in enumerate(self.threadWorkerPairs):
-    #         if t == thread:
-    #             if worker is not None:
-    #                 logging.info(f"Stopping {worker.task_name}!")
-    #                 worker.deleteLater() # Schedule the worker for deletion
-    #                 worker = None
-    #                 logging.info("Process stopped!")
-    #             index_to_delete = i
-    #             break # because always only one instance of a thread/worker pair type
-    #     if index_to_delete is not None:
-    #         del self.threadWorkerPairs[index_to_delete]
-    #     thread.deleteLater()  # Schedule the thread for deletion
-    #     thread = None
 
     def do_exit(self):
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread and thread.isRunning()]
