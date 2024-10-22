@@ -156,9 +156,8 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
-        datasaving_filepath = self.cfg.data_dir.as_posix() # Update the datasaving_filepath from redis before writing of Log 
         self.file_operations.update_base_data_directory() # Update the GUI
-        filename_suffix = datasaving_filepath + '/RotEDlog_test'
+        filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
 
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
