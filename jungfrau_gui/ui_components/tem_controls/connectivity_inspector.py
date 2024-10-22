@@ -10,7 +10,7 @@ class TEM_Connector(QObject):
     def __init__(self):
         super(TEM_Connector, self).__init__()
         self.task_name = "TEM Connector"
-        self.client = TEMClient("localhost", 3535, verbose=False) 
+        self.client = TEMClient("temserver", 3535, verbose=True) 
     
     @Slot()
     def run(self):
