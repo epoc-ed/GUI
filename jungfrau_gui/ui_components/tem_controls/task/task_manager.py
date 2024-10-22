@@ -180,7 +180,7 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
         
-        filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
+        filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
 
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
