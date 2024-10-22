@@ -11,6 +11,7 @@ class GaussianFitter(QObject):
 
     def __init__(self):
         super(GaussianFitter, self).__init__()
+        self.task_name = "Gaussian Fitter"
         self.imageItem = None
         self.roi = None
         self.updateParamsSignal.connect(self.updateParams)

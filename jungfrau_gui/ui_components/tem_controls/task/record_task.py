@@ -22,7 +22,7 @@ class RecordTask(Task):
         self.rotations_angles = []
         self.log_suffix = log_suffix
         logging.info("RecordTask initialized")
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("temserver", 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
     def run(self):
@@ -115,19 +115,23 @@ class RecordTask(Task):
                 # Attempt to wait for the rotation to start
                 logging.info("Waiting for stage rotation to start...")
                 self.client.wait_until_rotate_starts()
-                logging.info("Stage has initiated rotation.\nAsynchronous writing of H5 and logfile is starting now...")
+                logging.info("Stage has initiated rotation")
             except TimeoutError as rotation_error:
                 logging.error(f"TimeoutError: Stage rotation failed to start: {rotation_error}")
                 return 
 
             #If enabled we start writing files 
             if self.writer: 
+                logging.info("\033[1mAsynchronous writing of files is starting now...")
                 self.tem_action.file_operations.start_H5_recording.emit() 
-        
+
             t0 = time.time()
             try:
                 while self.client.is_rotating:
                     try:
+                        if self.control.interruptRotation:
+                            logging.warning("*Interruption request*: Stopping the rotation...")
+                            send_with_retries(self.client.StopStage)
                         pos = self.client.GetStagePosition()
                         t = time.time()
                         logfile.write(f"{t - t0:20.6f}  {pos[3]:8.3f} deg\n")
@@ -191,9 +195,12 @@ class RecordTask(Task):
                 self.cfg.after_write()
                 self.tem_action.file_operations.trigger_update_h5_index_box.emit()
 
-            self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-            self.tem_action.tem_tasks.rotation_button.started = False
-            self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+            # Same below is taken care of in FileOperations::toggle_hdf5Writer
+            # in case self.writer is not None
+            if self.writer is None:
+                self.tem_action.tem_tasks.rotation_button.setText("Rotation")
+                self.tem_action.tem_tasks.rotation_button.started = False
+                self.tem_action.file_operations.streamWriterButton.setEnabled(True)
 
             print("------REACHED END OF TASK----------")
 

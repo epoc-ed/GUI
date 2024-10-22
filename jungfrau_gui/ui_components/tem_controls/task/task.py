@@ -29,7 +29,7 @@ class Task(QObject):
     @Slot()
     def _start(self):
         logging.debug("In _start in task.py")
-        logging.info(f"Starting task {self.task_name} ...")
+        logging.info(f"Starting - \033[1m{self.task_name}\033[0m\033[34m - task...")
         self.running = True
         self.start_time = time.monotonic()
         try:
@@ -38,7 +38,6 @@ class Task(QObject):
             logging.error(f"Exception occured in task {self.task_name}: {traceback.format_exc()}")
             pass
         self.running = False
-        logging.info(f"Finished task {self.task_name}")
         self.finished.emit()
 
     def get_progress(self):

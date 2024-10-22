@@ -18,6 +18,8 @@ from ..toolbox import tool as tools
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
+import jungfrau_gui.ui_threading_helpers as thread_manager
+
 class ControlWorker(QObject):
     """
     The 'ControlWorker' object coordinates the execution of tasks and redirects requests to the GUI.
@@ -28,7 +30,7 @@ class ControlWorker(QObject):
     received = Signal(str)
     send = Signal(str)
     init = Signal()
-    finished_task = Signal()
+    """ finished_task = Signal() """
     finished_record_task = Signal()
     # tem_socket_status = Signal(int, str)
     
@@ -51,7 +53,7 @@ class ControlWorker(QObject):
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("temserver", 3535,  verbose=True)
 
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
@@ -93,66 +95,89 @@ class ControlWorker(QObject):
         """
     @Slot()
     def _init(self):
-        threading.current_thread().setName("ControlThread")      
-        # try:
-        #     self.send_to_tem("#more") # Update tem_status map and GUI   
-        # except Exception as e:
-        #     logging.error(f"Error occured when initializing task manager: {e}")                     
+        threading.current_thread().setName("ControlThread")
+        self.interruptRotation = False                         
         self.sweepingWorkerReady = False
-        # self.send.emit("stage.Setf1OverRateTxNum(2)")
         logging.info("Initialized control thread")
+
+
+    def handle_task_cleanup(self):
+        """
+        TODO Improve Implementation of stopping mechanism of the Sweep/Fit task
+
+        For the BeamFitTask, at the spontaneous end of the task, the button would 
+        display the text "Remove axis / pop-up" and so you'd need to click on it again
+        to trigger the 'stop_task()' method [ref. toggle_beamAutofocus() in tem_action.py]
+        """
+        if self.task is not None: # TODO This does not seem to be enough 
+            # to prevent entering again after call from ui_main_window [handle_tem_task_cleanup]
+            if isinstance(self.task, RecordTask):
+                logging.info("RecordTask has been ended, performing cleanup...")
+                self.stop_task()
+            elif isinstance(self.task, GetInfoTask):
+                logging.info("GetInfoTask has been ended, performing cleanup...")
+                self.stop_task()
+        
 
     @Slot()
     def on_task_finished(self):
-        self.finished_task.emit()
-        if isinstance(self.task, RecordTask):
-            # self.finished_record_task.emit()
-            self.stop_task()
-        elif isinstance(self.task, GetInfoTask):
-            self.stop_task()
+        """ self.finished_task.emit() """
+        logging.info(f"\033[1mFinished Task [{self.task.task_name}] !")
+        self.handle_task_cleanup()
+        thread_manager.disconnect_worker_signals(self.task)
+        thread_manager.terminate_thread(self.task_thread)
+        thread_manager.remove_worker_thread_pair(self.tem_action.parent.threadWorkerPairs, self.task_thread)
+        thread_manager.reset_worker_and_thread(self.task, self.task_thread)
 
     def start_task(self, task):
         logging.debug("Control is starting a Task...")
         self.last_task = self.task
         self.task = task
-        logging.info(f"Task name is {self.task.task_name}")
+        if isinstance(self.task, BeamFitTask):
+            self.sweepingWorkerReady = True
 
-        # self.send_to_tem("#more")
+        # Create a new QThread for each task to avoid reuse issues
+        self.task_thread = QThread()  
 
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
 
-        # why the two layers? TODO: IMPROVE
         self.task.finished.connect(self.on_task_finished)
-        # self.finished_record_task.connect(self.stop_task)
 
         self.task.moveToThread(self.task_thread)
         self.task_thread.started.connect(self.task.start.emit)
         self.task_thread.start()
-
-        if isinstance(self.task, BeamFitTask):
-            self.sweepingWorkerReady = True
 
     @Slot(str)
     def getteminfo(self, gui=''):
         logging.info("Start GetInfo")
         if self.task is not None:
             if self.task.running:
+                logging.warning("Stopping the currently running  - \033[38;5;214mGetInfoTask\033[33m - task before starting a new one.")
                 self.stop_task()
-        # self.send.emit("stage.Setf1OverRateTxNum(2)")
+                return
+
         command='TEMstatus'
+
         if gui=='':
             x = input(f'Write TEM status on a file? If YES, give a filename or "Y" ({command}_[timecode].log). [N]\n')
             task = GetInfoTask(self, x)
         else:
             task = GetInfoTask(self, gui)
+
         self.start_task(task)
 
     @Slot()
     def start_record(self):
-        logging.info("Start Rotation/Record")
+        logging.info("Starting Rotation/Record")
+
+        # Check if a task is already running, and stop it if so
         if self.task is not None:
             if self.task.running:
-                self.stop_task()
+                logging.warning("\033[38;5;214mRecordTask\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                # self.stop_task()  # Ensure that the current task is fully stopped
+                return
+
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
@@ -163,14 +188,18 @@ class ControlWorker(QObject):
             task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
         else:
             task = RecordTask(self, end_angle, filename_suffix)
+
         self.start_task(task)
 
     @Slot()
     def start_beam_fit(self):
         logging.info("Start AutoFocus")
+
         if self.task is not None:
             if self.task.running:
-                logging.warning('task already running')
+                logging.warning("\033[38;5;214mAutoFocus\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                # self.stop_task()
                 return           
         ###
         # if os.name == 'nt': # test on Win-Win
@@ -288,51 +317,45 @@ class ControlWorker(QObject):
         except Exception as e:
             logging.error(f"Error: {e}")
 
-    @Slot()
     def stop_task(self):
         if self.task:
             if isinstance(self.task, BeamFitTask):
-                logging.info("Stopping the - Sweeping - task !")
-                self.trigger_stop_autofocus.emit() # self.set_worker_not_ready()
+                logging.info("Stopping the - \033[1mSweeping\033[0m\033[34m - task!")
+                self.trigger_stop_autofocus.emit()
+
             elif isinstance(self.task, RecordTask):
-                logging.info("Stopping the - Record - task!!!")
+                logging.info("Stopping the - \033[1mRecord\033[0m\033[34m - task!")
                 try:
                     tools.send_with_retries(self.client.StopStage)
                 except Exception as e:
-                    # logging.error(f"Unexpected error @ client.StopStage() : {e}")
+                    logging.error(f"Unexpected error @ client.StopStage(): {e}")
                     pass
+
             elif isinstance(self.task, GetInfoTask):
-                logging.info("Stopping the - GetInfo - task!!!")
-        
+                logging.info("Stopping the - \033[1mGetInfo\033[0m\033[34m - task!")
+
         if isinstance(self.task, BeamFitTask):
                 logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
                 self.remove_ellipse.emit() 
 
-        if self.task_thread is not None:
-            if self.task_thread.isRunning():
-                logging.info(f"Quitting {self.task.task_name} Thread")
-                self.task_thread.quit()
-                self.task_thread.wait() # Wait for the thread to actually finish
-                self.task.deleteLater() # --> RuntimeError: Internal C++ object (BeamFitTask) already deleted.
-                self.task = None
-
-    @Slot()
+    """ @Slot()
     def stop(self):
         tools.send_with_retries(self.client.StopStage)
         self.finished_task.emit()
         pass
+    """
 
     @Slot()
     def shutdown(self):
         logging.info("Shutting down control")
         try:
-            # self.send_to_tem("#quit")
-            self.client.exit()
-            time.sleep(0.12)
-            # self.tem_socket.close()
-            logging.info("disconnected")
+            # self.client.exit_server()
+            # logging.warning("TEM server is OFF")
+            # time.sleep(0.12)
+            logging.warning("GUI diconnected from TEM")
             self.task_thread.quit()
-        except:
+        except Exception as e:
+            logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
 
     """ 

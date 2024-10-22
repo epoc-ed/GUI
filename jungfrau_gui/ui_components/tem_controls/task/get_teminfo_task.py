@@ -59,7 +59,7 @@ class GetInfoTask(Task):
             else:
                 filename = self.command + time.strftime("_%Y%m%d-%H%M%S.log", stoptime)
             logging.info(f'Status written: {filename}')
-            logfile = open(self.cfg.data_dir + '/' + filename, 'w')
+            logfile = open(self.cfg.data_dir / filename, 'w')
             logfile.write(buffer)
             logfile.close()
             
