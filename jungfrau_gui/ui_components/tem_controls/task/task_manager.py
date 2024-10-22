@@ -56,6 +56,7 @@ class ControlWorker(QObject):
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
         self.tem_action = tem_action
+        self.file_operations = self.tem_action.parent.file_operations
         self.last_task: Task = None
         
         self.setObjectName("control Thread")
@@ -154,12 +155,10 @@ class ControlWorker(QObject):
                 self.stop_task()
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
-        ### filename_suffix = self.tem_action.formatted_filename[:-3]
-        ### filename_suffix = self.tem_action.file_operations.generate_h5_filename(self.tem_action.file_operations.prefix_input.text().strip())[:-3]
-        filename_suffix = self.tem_action.datasaving_filepath + '/RotEDlog_test'
-        ###
-        # self.client.SetSelector(11)
-        ###
+
+        self.file_operations.update_base_data_directory() # Update the GUI
+        filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
+
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
         else:

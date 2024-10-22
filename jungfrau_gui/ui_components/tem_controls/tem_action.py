@@ -37,10 +37,9 @@ class TEMAction(QObject):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
         self.scale = None
-        self.formatted_filename = ''
+        # self.formatted_filename = '' # TODO DELETE? See use in 'callGetInfoTask' below 
         self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
         # self.xds_template_filepath = self.cfg.XDS_template
-        self.datasaving_filepath = self.cfg.data_dir.as_posix()
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
@@ -64,9 +63,8 @@ class TEMAction(QObject):
                     lambda: self.control.client.SetTiltXAngle(0))
 
     def set_configuration(self):
-        self.file_operations.outPath_input.setText(self.datasaving_filepath)
-        # self.file_operations.h5_folder_name = self.datasaving_filepath
-        self.file_operations.tiff_path.setText(self.datasaving_filepath + '/')
+        self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
+        self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
 
     def enabling(self, enables=True):
         self.tem_detector.scale_checkbox.setEnabled(enables)

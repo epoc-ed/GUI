@@ -125,7 +125,7 @@ class FileOperations(QGroupBox):
         ###########################
         self.base_directory = QLabel("Base Data Directory", self)
         self.base_directory_input = QLineEdit(self)
-        self.redis_fields.append(self.base_directory_input)
+        # self.redis_fields.append(self.base_directory_input)
         self.base_directory_input.setText(f'{self.cfg.base_data_dir}')
         self.base_directory_input.setReadOnly(True)
 
@@ -151,6 +151,7 @@ class FileOperations(QGroupBox):
 
         self.fname = QLabel("TIFF file name", self)
         self.tiff_path = QLineEdit(self)
+        self.tiff_path.setText(f'{self.cfg.data_dir}')
         self.tiff_path.setReadOnly(True)
         self.fname_input = QLineEdit(self)
         self.fname_input.setText('file_name')
@@ -272,6 +273,7 @@ class FileOperations(QGroupBox):
         try:
             # Retrieve the file index and file path
             file_index = self.findex_input.value()
+            self.update_base_data_directory() # update in case base_dir is manually changed after gui start
             fpath = Path(self.tiff_path.text())
             
             # Attempt to create the directory path if it doesn't exist
@@ -330,15 +332,23 @@ class FileOperations(QGroupBox):
             logging.debug("TCP address for Hdf5 writer to bind to is ", globals.stream)
             logging.debug("Data type to build the streamWriter object ", globals.file_dt)
 
-            self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
-            self.formatted_filename = self.cfg.data_dir/self.cfg.fname
-            self.streamWriter = StreamWriter(filename=self.formatted_filename, 
-                                             endpoint=globals.stream, 
-                                             image_size = (globals.nrow,globals.ncol),
-                                             dtype=globals.file_dt)
-            self.streamWriter.start()
-            self.streamWriterButton.setText("Stop Writing")
-            self.streamWriterButton.started = True
+            self.update_base_data_directory() # update GUI in case base_dir is manually changed after gui start
+
+            try:
+                self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
+           
+                formatted_filename = self.cfg.data_dir/self.cfg.fname
+                self.streamWriter = StreamWriter(filename=formatted_filename, 
+                                                endpoint=globals.stream, 
+                                                image_size = (globals.nrow,globals.ncol),
+                                                dtype=globals.file_dt)
+                self.streamWriter.start()
+                self.streamWriterButton.setText("Stop Writing")
+                self.streamWriterButton.started = True
+            except Exception as e:
+                # Handle any unexpected errors
+                error_message = f"An unexpected error occurred: {e}"
+                QMessageBox.critical(self, "Error", error_message)
         else:
             self.streamWriterButton.setText("Write Stream in H5")
             self.streamWriterButton.started = False
@@ -375,6 +385,11 @@ class FileOperations(QGroupBox):
     def update_experiment_class(self, button):
         self.cfg.experiment_class = button.text()
         logging.info(f"Experiment Class updated to: {self.cfg.experiment_class}")
+        self.update_data_directory()
+
+    def update_base_data_directory(self):
+        self.base_directory_input.setText(self.cfg.base_data_dir.as_posix())
+        logging.info(f"Root directory has been changed to: {self.cfg.data_dir}")
         self.update_data_directory()
 
     def update_data_directory(self):
