@@ -4,7 +4,7 @@ import logging
 import numpy as np
 from . import globals
 import cbor2
-from decoder import tag_hook
+from .decoder import tag_hook
 
 # Receiver of the ZMQ stream
 class ZmqReceiver:
