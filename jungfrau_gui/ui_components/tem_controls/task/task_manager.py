@@ -185,9 +185,9 @@ class ControlWorker(QObject):
         filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
 
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
-            task = RecordTask(self, end_angle, filename_suffix, writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
+            task = RecordTask(self, end_angle, filename_suffix.as_posix(), writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
         else:
-            task = RecordTask(self, end_angle, filename_suffix)
+            task = RecordTask(self, end_angle, filename_suffix.as_posix())
 
         self.start_task(task)
 
