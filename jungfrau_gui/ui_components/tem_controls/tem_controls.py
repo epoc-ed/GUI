@@ -18,6 +18,8 @@ from ...ui_components.toggle_button import ToggleButton
 from .ui_tem_specific import TEMStageCtrl, TEMTasks
 from .tem_action import TEMAction
 
+import jungfrau_gui.ui_threading_helpers as thread_manager
+
 class TemControls(QGroupBox):
     def __init__(self, parent):
         super().__init__()
@@ -146,9 +148,7 @@ class TemControls(QGroupBox):
             self.removeAxes()
 
     def initializeWorker(self, thread, worker):
-        worker.moveToThread(thread)
-        logging.info(f"{worker.__str__()} is Ready!")
-        thread.started.connect(worker.run)
+        thread_manager.move_worker_to_thread(thread, worker)
         worker.finished.connect(self.updateFitParams)
         worker.finished.connect(self.getFitterReady)
 
