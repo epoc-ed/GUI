@@ -358,7 +358,7 @@ class ControlWorker(QObject):
             # logging.warning("TEM server is OFF")
             # time.sleep(0.12)
             logging.warning("GUI diconnected from TEM")
-            self.task_thread.quit()
+            # self.task_thread.quit() # TODO Raises error: Internal C++ object (PySide6.QtCore.QThread) already deleted.
         except Exception as e:
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
