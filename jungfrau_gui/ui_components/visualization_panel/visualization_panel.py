@@ -20,7 +20,9 @@ from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ..tem_controls.ui_tem_specific import TEMDetector
 from ...ui_components.utils import create_horizontal_line_with_margin
-    
+
+import jungfrau_gui.ui_threading_helpers as thread_manager
+
 class VisualizationPanel(QGroupBox):
     trigger_update_frames_to_sum = Signal(int)
     trigger_disable_receiver_controls = Signal()
@@ -389,9 +391,7 @@ class VisualizationPanel(QGroupBox):
                 self.toggle_autoContrast()
 
     def initializeWorker(self, thread, worker):
-        worker.moveToThread(thread)
-        logging.info(f"{worker.__str__()} is Ready!")
-        thread.started.connect(worker.run)
+        thread_manager.move_worker_to_thread(thread, worker)
         worker.finished.connect(self.updateUI)
         worker.finished.connect(self.getReaderReady)
 

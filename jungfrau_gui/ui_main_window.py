@@ -13,6 +13,8 @@ from .ui_components.tem_controls.tem_controls import TemControls
 from .ui_components.file_operations.file_operations import FileOperations
 from .ui_components.utils import create_gaussian
 
+import jungfrau_gui.ui_threading_helpers as thread_manager
+
 class EventFilter(QObject):
     def __init__(self, histogram, parent=None):
         super().__init__(parent)
@@ -159,32 +161,16 @@ class ApplicationWindow(QMainWindow):
         self.plot.setTitle("pos: (%0.1f, %0.1f)  pixel: (%d, %d)  value: %.3g" % (x, y, i, j, val))    
 
     def stopWorker(self, thread, worker):
-        if worker:
-            worker.finished.disconnect()
-        if thread is not None:
-            if thread.isRunning():
-                thread.quit()
-                thread.wait() # Wait for the thread to finish
-        self.threadCleanup(thread, worker)
-        
-    def threadCleanup(self, thread, worker):
-        index_to_delete = None
-        for i, (t, worker) in enumerate(self.threadWorkerPairs):
-            if t == thread:
-                if worker is not None:
-                    logging.info(f"Stopping {worker.__str__()}!")
-                    worker.deleteLater() # Schedule the worker for deletion
-                    worker = None
-                    logging.info("Process stopped!")
-                index_to_delete = i
-                break # because always only one instance of a thread/worker pair type
-        if index_to_delete is not None:
-            del self.threadWorkerPairs[index_to_delete]
-        thread.deleteLater()  # Schedule the thread for deletion
-        thread = None
+        if globals.tem_mode:
+            logging.debug(f"Control has - \033[1m{self.tem_controls.tem_action.control.task.task_name}\033[0m\033[34m - task alive!")
+            thread_manager.handle_tem_task_cleanup(self.tem_controls.tem_action.control)
+        thread_manager.disconnect_worker_signals(worker)
+        thread_manager.terminate_thread(thread)
+        thread_manager.remove_worker_thread_pair(self.threadWorkerPairs, thread)
+        thread_manager.reset_worker_and_thread(worker, thread)
 
     def do_exit(self):
-        running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread.isRunning()]
+        running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread and thread.isRunning()]
         if running_threadWorkerPairs:
             # Show warning dialog
             reply = QMessageBox.question(self, 'Thread still running',
@@ -202,7 +188,7 @@ class ApplicationWindow(QMainWindow):
                 # if self.tem_controls.fitter is not None:
                 #     self.tem_controls.fitter.stop()
                 for thread, worker in running_threadWorkerPairs:
-                    logging.debug(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
+                    logging.warning(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker) 
             else: 
                 return

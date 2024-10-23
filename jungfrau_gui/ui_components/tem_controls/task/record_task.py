@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from .task import Task
 from .dectris2xds import XDSparams
+from PySide6.QtWidgets import QMessageBox
 
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
@@ -21,7 +22,7 @@ class RecordTask(Task):
         self.rotations_angles = []
         self.log_suffix = log_suffix
         logging.info("RecordTask initialized")
-        self.client = TEMClient("temserver", 3535)
+        self.client = TEMClient("temserver", 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
     def run(self):
@@ -33,13 +34,34 @@ class RecordTask(Task):
         phi_dot_idx = self.client.Getf1OverRateTxNum()
 
         self.phi_dot = stage_rates[phi_dot_idx]
-        self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
 
         try:
+            self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
+        except Exception as e:
+            # Handle any unexpected errors
+            error_message = f"An unexpected error occurred: {e}"
+            QMessageBox.critical(self, "Error", error_message)
+
+        try:
+            logfile = None  # Initialize logfile to None
+
             # if os.access(os.path.dirname(self.log_suffix), os.W_OK):
             print("\n\n\n---------OPEN LOG-----------------\n\n\n")
             # self.control.send_to_tem("#more")
-            logfile = open(self.log_suffix + '.log', 'w')
+            
+            # Attempt to open the logfile and catch potential issues
+            try:
+                logfile = open(self.log_suffix + '.log', 'w')
+            except FileNotFoundError as fnf_error:
+                logging.error(f"FileNotFoundError: Directory does not exist for logfile: {fnf_error}")
+                return
+            except PermissionError as perm_error:
+                logging.error(f"PermissionError: No write access to logfile: {perm_error}")
+                return
+            except Exception as e:
+                logging.error(f"Unexpected error while opening logfile: {e}")
+                return
+            
             logfile.write("# TEM Record\n")
             logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")
             logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
@@ -93,19 +115,23 @@ class RecordTask(Task):
                 # Attempt to wait for the rotation to start
                 logging.info("Waiting for stage rotation to start...")
                 self.client.wait_until_rotate_starts()
-                logging.info("Stage has initiated rotation.\nAsynchronous writing of H5 and logfile is starting now...")
+                logging.info("Stage has initiated rotation")
             except TimeoutError as rotation_error:
                 logging.error(f"TimeoutError: Stage rotation failed to start: {rotation_error}")
                 return 
 
             #If enabled we start writing files 
             if self.writer: 
+                logging.info("\033[1mAsynchronous writing of files is starting now...")
                 self.tem_action.file_operations.start_H5_recording.emit() 
-        
+
             t0 = time.time()
             try:
                 while self.client.is_rotating:
                     try:
+                        if self.control.interruptRotation:
+                            logging.warning("*Interruption request*: Stopping the rotation...")
+                            send_with_retries(self.client.StopStage)
                         pos = self.client.GetStagePosition()
                         t = time.time()
                         logfile.write(f"{t - t0:20.6f}  {pos[3]:8.3f} deg\n")
@@ -163,16 +189,18 @@ class RecordTask(Task):
             if self.writer:
                 logging.info(" ******************** Adding Info to H5...")
                 self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-                os.rename(self.log_suffix + '.log', (self.tem_action.file_operations.formatted_filename).with_suffix('.log'))
+                os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
 
                 logging.info(" ******************** Updating file_id in DB...")
                 self.cfg.after_write()
                 self.tem_action.file_operations.trigger_update_h5_index_box.emit()
 
-            self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-            self.tem_action.tem_tasks.rotation_button.started = False
-            self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+            # Same below is taken care of in FileOperations::toggle_hdf5Writer
+            # in case self.writer is not None
+            if self.writer is None:
+                self.tem_action.tem_tasks.rotation_button.setText("Rotation")
+                self.tem_action.tem_tasks.rotation_button.started = False
+                self.tem_action.file_operations.streamWriterButton.setEnabled(True)
 
             print("------REACHED END OF TASK----------")
 
@@ -184,7 +212,7 @@ class RecordTask(Task):
         except Exception as e:
             logging.error(f"Unexpected error while waiting for rotation to start: {e}")
         finally:
-            if logfile:
+            if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
             if self.writer and self.tem_action.file_operations.streamWriterButton.started:
                 self.tem_action.file_operations.stop_H5_recording.emit()

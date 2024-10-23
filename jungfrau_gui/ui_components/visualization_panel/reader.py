@@ -10,6 +10,7 @@ class Reader(QObject):
 
     def __init__(self, receiver):
         super(Reader, self).__init__()
+        self.task_name = "Stream Reader"
         self.receiver = receiver
     
     # @profile

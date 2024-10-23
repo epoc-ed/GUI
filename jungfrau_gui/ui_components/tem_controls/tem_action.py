@@ -12,6 +12,7 @@ from epoc import ConfigurationClient, auth_token, redis_host
 
 from .connectivity_inspector import TEM_Connector
 
+import jungfrau_gui.ui_threading_helpers as thread_manager
 
 class TEMAction(QObject):
     """
@@ -37,10 +38,9 @@ class TEMAction(QObject):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
         self.scale = None
-        self.formatted_filename = ''
+        # self.formatted_filename = '' # TODO DELETE? See use in 'callGetInfoTask' below 
         self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
         # self.xds_template_filepath = self.cfg.XDS_template
-        self.datasaving_filepath = self.cfg.data_dir.as_posix()
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
@@ -64,9 +64,8 @@ class TEMAction(QObject):
                     lambda: self.control.client.SetTiltXAngle(0))
 
     def set_configuration(self):
-        self.file_operations.outPath_input.setText(self.datasaving_filepath)
-        # self.file_operations.h5_folder_name = self.datasaving_filepath
-        self.file_operations.tiff_path.setText(self.datasaving_filepath + '/')
+        self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
+        self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
 
     def enabling(self, enables=True):
         self.tem_detector.scale_checkbox.setEnabled(enables)
@@ -104,9 +103,7 @@ class TEMAction(QObject):
             self.parent.stopWorker(self.connect_thread, self.temConnector)
 
     def initializeWorker(self, thread, worker):
-        worker.moveToThread(thread)
-        logging.info(f"{worker.__str__()} is Ready!")
-        thread.started.connect(worker.run)
+        thread_manager.move_worker_to_thread(thread, worker)
         worker.finished.connect(self.updateTemControls)
         worker.finished.connect(self.getConnectorReady)
 
@@ -201,13 +198,8 @@ class TEMAction(QObject):
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(False)
         else:
-            self.tem_tasks.rotation_button.setText("Rotation")
-            self.tem_tasks.rotation_button.started = False
-            if self.file_operations.streamWriterButton.started:
-                self.file_operations.toggle_hdf5Writer()
-            if self.tem_tasks.withwriter_checkbox.isChecked():
-                self.file_operations.streamWriterButton.setEnabled(True)
-            self.control.stop_task()
+            # Interrupt rotation but end task gracefully
+            self.control.interruptRotation = True
             
     # def toggle_centering(self):
     #     if not self.centering_button.started:
@@ -228,9 +220,17 @@ class TEMAction(QObject):
             if self.tem_tasks.popup_checkbox.isChecked():
                 self.tem_tasks.parent.showPlotDialog()  
         else:
+            """ 
+            To correct/adapt the interruption case
+            as in the 'toggle_rotation' above 
+            """
+            logging.warning(f"Interrupting Task - {self.control.task.task_name} -")
+            self.control.task.finished.disconnect()
+
             self.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
             self.tem_tasks.beamAutofocus.started = False
             # Close Pop-up Window
             if self.tem_tasks.parent.plotDialog != None:
                 self.tem_tasks.parent.plotDialog.close_window()
-            self.control.stop_task()
+            self.control.actionFit_Beam.emit()
+            # self.control.stop_task()
