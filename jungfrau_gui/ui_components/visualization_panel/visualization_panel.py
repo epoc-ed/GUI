@@ -5,7 +5,7 @@ import threading
 from boost_histogram import Histogram
 from boost_histogram.axis import Regular
 from PySide6.QtGui import QFont
-from PySide6.QtCore import Qt, QThread, QMetaObject, Signal
+from PySide6.QtCore import Qt, QThread, QMetaObject, Signal, QTimer
 from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QPushButton, QSpinBox,
                                 QGridLayout, QSizePolicy, QSpacerItem)
@@ -23,31 +23,20 @@ from ...ui_components.utils import create_horizontal_line_with_margin
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
-import psutil
-
-def is_process_running(process_name):
-    for proc in psutil.process_iter(['cmdline']):  # Fetch command line arguments for each process
-        try:
-            cmdline = proc.info.get('cmdline')
-            if cmdline and any(process_name in arg for arg in cmdline):
-                return True
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            # TODO Handle exceptions if the process terminates or if access is denied
-            continue
-    return False
-
 class VisualizationPanel(QGroupBox):
     trigger_update_frames_to_sum = Signal(int)
     trigger_disable_receiver_controls = Signal()
+    trigger_idle_srecv_btn = Signal()
 
     def __init__(self, parent):
         # super().__init__("Visualization Panel")
         super().__init__()
         self.parent = parent
         self.cfg =  ConfigurationClient(redis_host(), token=auth_token())
-        # self.receiver_client = ReceiverClient(host="localhost", port = 5555, verbose=True)
+        self.receiver_client =  None
         self.trigger_update_frames_to_sum.connect(self.update_frames_to_sum)
         self.trigger_disable_receiver_controls.connect(self.enable_receiver_controls)
+        self.trigger_idle_srecv_btn.connect(self.srecv_btn_toggle_OFF)
         self.initUI()
 
     def initUI(self):
@@ -235,26 +224,28 @@ class VisualizationPanel(QGroupBox):
         self.recordPedestalBtn.setEnabled(enables)
         self.recordGain0Btn.setEnabled(enables)   
 
-    def is_summingReceiver_running(self, process_name):
-        if not is_process_running(process_name):
-            logging.warning("Summing Receiver (Server) is not running...\nSumming Receiver controls are only available if the receiver's server is already running!")
-            return False
-        else:
+    def is_receiver_running(self):
+        try:
+            # Try creating a ReceiverClient, which pings in its constructor
+            self.receiver_client = ReceiverClient(host="localhost", port=5555)
             return True
-
+        except Exception as e:
+            logging.warning(f"The summing receiver is not running: {e}")
+            return False
+        
     def connect_and_start_receiver_client(self):
         if self.connectToSreceiver.started == False:
             self.connectToSreceiver.started = True
-            if self.is_summingReceiver_running('ReceiverServer'):
+            if self.is_receiver_running():  # Use ping instead of process checking
                 logging.info("Sreceiver already running!!")
-                self.receiver_client = ReceiverClient(host="localhost", port = 5555, verbose=True)
+                # self.receiver_client = ReceiverClient(host="localhost", port=5555, verbose=True)
                 try:
-                    if self.receiver_client.ping():
-                        self.connectToSreceiver.setStyleSheet('background-color: green; color: white;')
-                        self.connectToSreceiver.setText("Communication OK")
-                        self.enable_receiver_controls(True)
-                        time.sleep(0.01)
-                        self.send_command_to_srecv("get_frames_to_sum")
+                    # if self.receiver_client.ping():
+                    self.connectToSreceiver.setStyleSheet('background-color: green; color: white;')
+                    self.connectToSreceiver.setText("Communication OK")
+                    self.enable_receiver_controls(True)
+                    time.sleep(0.01)
+                    self.send_command_to_srecv("get_frames_to_sum")
                 except TimeoutError as e:
                     logging.error(f"Connection attempt timed out: {e}")
                     self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
@@ -271,10 +262,16 @@ class VisualizationPanel(QGroupBox):
                 logging.warning("ReceiverServer not running")
                 self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
                 self.connectToSreceiver.setText("Receiver Not Running")
+            # self.trigger_idle_srecv_btn.emit() # To toggle OFF the receiver button after 5 seconds
         else:
             self.connectToSreceiver.started = False
             self.connectToSreceiver.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.connectToSreceiver.setText('Connect to Receiver')
+
+    def srecv_btn_toggle_OFF(self):
+        if self.connectToSreceiver.started:
+            # Use QTimer to introduce a 5-second delay -> Non-blocking operation
+            QTimer.singleShot(5000, self.connect_and_start_receiver_client)
 
     def send_command_to_srecv(self, command):
         def thread_command_relay():
@@ -303,8 +300,14 @@ class VisualizationPanel(QGroupBox):
             except Exception as e:
                 logging.error(f"GUI caught relayed error: {e}")
 
-        # Start the network operation in a new thread
-        threading.Thread(target=thread_command_relay, daemon=True).start()
+        if self.receiver_client is not None:
+            # Start the network operation in a new thread
+            threading.Thread(target=thread_command_relay, daemon=True).start()
+        else: 
+            logging.warning(
+                f'Failed attempt to relay the command "{command}" as ReceiverClient instance is None...'
+                '\nPlease check that the receiver is up and running before sending further commands!'
+            )
 
     def send_set_frames_command(self):
         value = self.frames_to_sum.value()
