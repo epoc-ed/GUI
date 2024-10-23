@@ -188,7 +188,6 @@ class ControlWorker(QObject):
             task = RecordTask(self, end_angle, filename_suffix.as_posix(), writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
         else:
             task = RecordTask(self, end_angle, filename_suffix.as_posix())
-
         self.start_task(task)
 
     @Slot()
