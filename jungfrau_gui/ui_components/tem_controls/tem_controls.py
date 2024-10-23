@@ -8,8 +8,8 @@ from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
 from PySide6.QtGui import QTransform, QFont
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QDoubleSpinBox, QSpinBox, 
-                                QCheckBox, QGraphicsEllipseItem,
-                                QGraphicsRectItem)
+                                QCheckBox, QGraphicsEllipseItem, QLineEdit,
+                                QGraphicsRectItem, QPushButton, QGridLayout, QSpacerItem)
 
 from .toolbox.plot_dialog import PlotDialog
 from .gaussian_fitter import GaussianFitter
@@ -17,6 +17,11 @@ from .gaussian_fitter import GaussianFitter
 from ...ui_components.toggle_button import ToggleButton
 from .ui_tem_specific import TEMStageCtrl, TEMTasks
 from .tem_action import TEMAction
+
+from ...ui_components.utils import create_horizontal_line_with_margin
+from epoc import JungfraujochWrapper
+import threading 
+import re
 
 class TemControls(QGroupBox):
     def __init__(self, parent):
@@ -71,6 +76,9 @@ class TemControls(QGroupBox):
         self.angle_spBx.setSingleStep(1)
         self.angle_spBx.setReadOnly(True)
         
+        font_big = QFont("Arial", 11)
+        font_big.setBold(True)
+
         if globals.tem_mode:
             self.tem_tasks = TEMTasks(self)
             self.tem_stagectrl = TEMStageCtrl()
@@ -83,8 +91,6 @@ class TemControls(QGroupBox):
             tem_section.addWidget(self.tem_stagectrl)
         else: 
             test_fitting_label = QLabel("Test Gaussian Fitting")
-            font_big = QFont("Arial", 11)
-            font_big.setBold(True)
             test_fitting_label.setFont(font_big)
 
             self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
@@ -113,8 +119,160 @@ class TemControls(QGroupBox):
 
             tem_section.addLayout(BeamFocus_layout)
             
+        if globals.jfj:
+
+            jfjoch_control_group = QVBoxLayout()
+            jfjoch_control_group.addWidget(create_horizontal_line_with_margin(30))
+
+            jfjoch_control_label = QLabel("Jungfraujoch Control Panel")
+            jfjoch_control_label.setFont(font_big)
+            jfjoch_control_group.addWidget(jfjoch_control_label)
+
+            self.connectTojfjoch = ToggleButton('Connect to Jungfraujoch', self)
+            self.connectTojfjoch.setMaximumHeight(50)
+            """ self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client) """
+
+            grid_connection_jfjoch = QGridLayout()
+            grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
+
+            spacer1 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
+            grid_connection_jfjoch.addItem(spacer1)
+
+            jfjoch_control_group.addLayout(grid_connection_jfjoch)
+
+            grid_communication_jfjoch = QGridLayout()
+
+            grid_communication_label = QLabel("Streaming & Data Collection")
+            font_small = QFont("Arial", 10)
+            grid_communication_label.setFont(font_small)
+
+            grid_communication_jfjoch.addWidget(grid_communication_label)
+
+            self.nbFrames = QSpinBox(self)
+            self.nbFrames.setMaximum(1000000000)
+            self.nbFrames.setDisabled(True)
+            self.nbFrames.setSingleStep(1000)
+            self.nbFrames.setPrefix("Nb Frames per trigger: ")
+
+            self.wait_option = QCheckBox("wait", self)
+            self.wait_option.setChecked(False)
+            self.wait_option.setDisabled(True)
+
+            self.fname_label = QLabel("Path to recorded file", self)
+            self.full_fname = QLineEdit(self)
+            self.full_fname.setDisabled(True)
+            self.full_fname.setText("")
+
+            hbox_layout = QHBoxLayout()
+            hbox_layout.addWidget(self.fname_label)
+            hbox_layout.addWidget(self.full_fname)
+
+            grid_communication_jfjoch.addLayout(hbox_layout, 1, 0, 1, 5)
+
+            self.startJFJstream = QPushButton('Start Stream', self)
+            self.startJFJstream.setDisabled(True)
+            self.startJFJstream.clicked.connect(lambda: self.send_command_to_jfjoch(
+                f'start({self.nbFrames.value()}, fname="{self.full_fname.text()}", wait={self.wait_option.isChecked()})'
+            ))
+
+            self.stopJFJstream = QPushButton('Stop Stream', self)
+            self.stopJFJstream.setDisabled(True)
+            self.stopJFJstream.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
+
+            grid_communication_jfjoch.addWidget(self.nbFrames, 2, 0, 1, 4)
+            grid_communication_jfjoch.addWidget(self.wait_option, 2, 4, 1, 1)
+
+
+            grid_communication_jfjoch.addWidget(self.startJFJstream, 3, 0, 1, 5)
+            grid_communication_jfjoch.addWidget(self.stopJFJstream, 4, 0, 1, 5)   # Stop button spanning all 4 columns at row 3
+
+            spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
+            grid_communication_jfjoch.addItem(spacer2)
+
+            jfjoch_control_group.addLayout(grid_communication_jfjoch)
+
+            pedestal_layout = QVBoxLayout()
+            pedestal_section_label = QLabel("Dark Frame controls")
+            font_small = QFont("Arial", 10)
+            pedestal_section_label.setFont(font_small)
+
+            self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
+            self.recordPedestalBtn.setDisabled(True)
+            """ self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_jfjoch('collect_pedestal')) """
+
+            pedestal_layout.addWidget(pedestal_section_label)
+            pedestal_layout.addWidget(self.recordPedestalBtn)
+
+            jfjoch_control_group.addLayout(pedestal_layout)
+
+            tem_section.addLayout(jfjoch_control_group)
+        
         tem_section.addStretch()
         self.setLayout(tem_section)
+
+    def connect_and_start_jfjoch_client(self):
+        if self.connectToSreceiver.started == False:
+            self.connectToSreceiver.started = True
+            if self.is_summingReceiver_running('ReceiverServer'):
+                logging.info("Sreceiver already running!!")
+                self.jfjoch_client = JungfraujochWrapper('http://noether:5232')
+                try:
+                    if self.receiver_client.ping():
+                        # logging.info("Communication with the Receiver Server is established.\nPlease proceed with desired operation through availbale buttons... ")
+                        self.connectToSreceiver.setStyleSheet('background-color: green; color: white;')
+                        self.connectToSreceiver.setText("Communication OK")
+                        self.enable_receiver_controls(True)
+                        time.sleep(0.01)
+                        self.send_command_to_srecv("get_frames_to_sum")
+                except TimeoutError as e:
+                    logging.error(f"Connection attempt timed out: {e}")
+                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                    self.connectToSreceiver.setText("Connection Timed Out")
+                except ConnectionError as e:
+                    logging.error(f"Connection failed: {e}")
+                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                    self.connectToSreceiver.setText("Connection Failed")
+                except ValueError as e:
+                    logging.error(f"Unexpected server response: {e}")
+                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                    self.connectToSreceiver.setText("Connection Failed")
+            else:
+                logging.warning("ReceiverServer not running")
+                self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+                self.connectToSreceiver.setText("Receiver Not Running")
+        else:
+            self.connectToSreceiver.started = False
+            self.connectToSreceiver.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            self.connectToSreceiver.setText('Connect to Receiver')
+
+    def send_command_to_jfjoch(self, command):
+        def thread_command_relay():
+            try:
+                if command.startswith('start'):
+                    # Generalize to handle arguments in the format: start(n_images, fname="filename", wait=False)
+                    pattern = r'start\((\d+)(?:,\s*fname="(.*?)")?(?:,\s*wait=(True|False))?\)'
+                    match = re.match(pattern, command)
+                    if match:
+                        n_images = int(match.group(1))
+                        fname = match.group(2) if match.group(2) else ""
+                        wait = eval(match.group(3)) if match.group(3) else False
+
+                        # Call the generalized start method
+                        self.jfjoch_client.start(n_images, fname=fname, wait=wait)
+                        logging.info(f"Streaming {n_images} frames with fname='{fname}' and wait={wait}...")
+                    else:
+                        logging.error("Invalid 'start' command format")
+                elif command == 'collect_pedestal':
+                    self.jfjoch_client.collect_pedestal()
+                    logging.info("Full pedestal collected!")
+                elif command == 'cancel':
+                    logging.info(f"Stopping the stream...") 
+                    self.jfjoch_client.cancel()  
+            except Exception as e:
+                logging.error(f"GUI caught relayed error: {e}")
+
+        # Start the network operation in a new thread
+        threading.Thread(target=thread_command_relay, daemon=True).start()
 
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
