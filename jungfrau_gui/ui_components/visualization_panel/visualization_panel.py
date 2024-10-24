@@ -113,88 +113,89 @@ class VisualizationPanel(QGroupBox):
         section_visual.addLayout(time_interval_layout)
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
-        receiver_control_group = QVBoxLayout()
-        receiver_control_label = QLabel("Summming Receiver Controls")
-        receiver_control_label.setFont(font_big)
-        receiver_control_group.addWidget(receiver_control_label)
+        if not globals.jfj:
+            receiver_control_group = QVBoxLayout()
+            receiver_control_label = QLabel("Summming Receiver Controls")
+            receiver_control_label.setFont(font_big)
+            receiver_control_group.addWidget(receiver_control_label)
 
-        self.connectToSreceiver = ToggleButton('Connect to Receiver', self)
-        self.connectToSreceiver.setMaximumHeight(50)
-        self.connectToSreceiver.clicked.connect(self.connect_and_start_receiver_client)
+            self.connectToSreceiver = ToggleButton('Connect to Receiver', self)
+            self.connectToSreceiver.setMaximumHeight(50)
+            self.connectToSreceiver.clicked.connect(self.connect_and_start_receiver_client)
 
-        self.startReceiverStream = QPushButton('Start Stream', self)
-        self.startReceiverStream.setDisabled(True)
-        self.startReceiverStream.clicked.connect(lambda: self.send_command_to_srecv('start'))
+            self.startReceiverStream = QPushButton('Start Stream', self)
+            self.startReceiverStream.setDisabled(True)
+            self.startReceiverStream.clicked.connect(lambda: self.send_command_to_srecv('start'))
+            
+            self.stopSreceiverBtn = QPushButton('Stop Receiver', self)
+            self.stopSreceiverBtn.setDisabled(True)
+            self.stopSreceiverBtn.clicked.connect(lambda: self.send_command_to_srecv('stop'))
+
+            grid_comm_receiver = QGridLayout()
+            grid_comm_receiver.addWidget(self.connectToSreceiver, 0, 0, 2, 2)
+            grid_comm_receiver.addWidget(self.startReceiverStream, 0, 2, 2, 2)
+            grid_comm_receiver.addWidget(self.stopSreceiverBtn, 0, 4, 2, 2)
+
+            spacer = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
+            grid_comm_receiver.addItem(spacer)
+
+            receiver_control_group.addLayout(grid_comm_receiver)
+
+            Frames_Sum_layout=QVBoxLayout() 
+            Frames_Sum_section_label = QLabel("Summming Parameters")
+            font_small = QFont("Arial", 10)  # Specify the font name and size
+            Frames_Sum_section_label.setFont(font_small)
+
+            Frame_number_layout = QHBoxLayout()
+
+            self.frames_to_sum_lb = QLabel("Summing Factor:", self)
+            self.frames_to_sum = QSpinBox(self)
+            self.frames_to_sum.setMaximum(200)
+            self.frames_to_sum.setDisabled(True)
+            self.frames_to_sum.setSingleStep(10)
+
+            Frame_number_layout.addWidget(self.frames_to_sum_lb)
+            Frame_number_layout.addWidget(self.frames_to_sum)
+
+            Frame_buttons_layout = QHBoxLayout()
+            # self.getFramesToSumBtn = QPushButton('Get Frames Number', self)
+            # self.getFramesToSumBtn.clicked.connect(lambda: self.send_command_to_srecv("get_frames_to_sum"))
+
+            self.setFramesToSumBtn = QPushButton('Set Frames Number', self)
+            self.setFramesToSumBtn.setDisabled(True) 
+            self.setFramesToSumBtn.clicked.connect(self.send_set_frames_command)
+
+            # Frame_buttons_layout.addWidget(self.getFramesToSumBtn)
+            Frame_buttons_layout.addWidget(self.setFramesToSumBtn)
+
+            Frames_Sum_layout.addWidget(Frames_Sum_section_label)
+            Frames_Sum_layout.addLayout(Frame_number_layout)
+            Frames_Sum_layout.addLayout(Frame_buttons_layout)
+
+            spacer2 = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
+            Frames_Sum_layout.addItem(spacer2)
+            
+            receiver_control_group.addLayout(Frames_Sum_layout) 
         
-        self.stopSreceiverBtn = QPushButton('Stop Receiver', self)
-        self.stopSreceiverBtn.setDisabled(True)
-        self.stopSreceiverBtn.clicked.connect(lambda: self.send_command_to_srecv('stop'))
+            pedestal_layout = QVBoxLayout()
+            pedestal_section_label = QLabel("Dark Frame controls")
+            pedestal_section_label.setFont(font_small)
 
-        grid_comm_receiver = QGridLayout()
-        grid_comm_receiver.addWidget(self.connectToSreceiver, 0, 0, 2, 2)
-        grid_comm_receiver.addWidget(self.startReceiverStream, 0, 2, 2, 2)
-        grid_comm_receiver.addWidget(self.stopSreceiverBtn, 0, 4, 2, 2)
+            self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
+            self.recordPedestalBtn.setDisabled(True)
+            self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_srecv('collect_pedestal'))
+            
+            self.recordGain0Btn = QPushButton('Record Gain G0', self)
+            self.recordGain0Btn.setDisabled(True)
+            self.recordGain0Btn.clicked.connect(lambda: self.send_command_to_srecv('tune_pedestal'))
 
-        spacer = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
-        grid_comm_receiver.addItem(spacer)
+            pedestal_layout.addWidget(pedestal_section_label)
+            pedestal_layout.addWidget(self.recordPedestalBtn)
+            pedestal_layout.addWidget(self.recordGain0Btn)
 
-        receiver_control_group.addLayout(grid_comm_receiver)
+            receiver_control_group.addLayout(pedestal_layout)
 
-        Frames_Sum_layout=QVBoxLayout() 
-        Frames_Sum_section_label = QLabel("Summming Parameters")
-        font_small = QFont("Arial", 10)  # Specify the font name and size
-        Frames_Sum_section_label.setFont(font_small)
-
-        Frame_number_layout = QHBoxLayout()
-
-        self.frames_to_sum_lb = QLabel("Summing Factor:", self)
-        self.frames_to_sum = QSpinBox(self)
-        self.frames_to_sum.setMaximum(200)
-        self.frames_to_sum.setDisabled(True)
-        self.frames_to_sum.setSingleStep(10)
-
-        Frame_number_layout.addWidget(self.frames_to_sum_lb)
-        Frame_number_layout.addWidget(self.frames_to_sum)
-
-        Frame_buttons_layout = QHBoxLayout()
-        # self.getFramesToSumBtn = QPushButton('Get Frames Number', self)
-        # self.getFramesToSumBtn.clicked.connect(lambda: self.send_command_to_srecv("get_frames_to_sum"))
-
-        self.setFramesToSumBtn = QPushButton('Set Frames Number', self)
-        self.setFramesToSumBtn.setDisabled(True) 
-        self.setFramesToSumBtn.clicked.connect(self.send_set_frames_command)
-
-        # Frame_buttons_layout.addWidget(self.getFramesToSumBtn)
-        Frame_buttons_layout.addWidget(self.setFramesToSumBtn)
-
-        Frames_Sum_layout.addWidget(Frames_Sum_section_label)
-        Frames_Sum_layout.addLayout(Frame_number_layout)
-        Frames_Sum_layout.addLayout(Frame_buttons_layout)
-
-        spacer2 = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
-        Frames_Sum_layout.addItem(spacer2)
-        
-        receiver_control_group.addLayout(Frames_Sum_layout) 
-       
-        pedestal_layout = QVBoxLayout()
-        pedestal_section_label = QLabel("Dark Frame controls")
-        pedestal_section_label.setFont(font_small)
-
-        self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
-        self.recordPedestalBtn.setDisabled(True)
-        self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_srecv('collect_pedestal'))
-        
-        self.recordGain0Btn = QPushButton('Record Gain G0', self)
-        self.recordGain0Btn.setDisabled(True)
-        self.recordGain0Btn.clicked.connect(lambda: self.send_command_to_srecv('tune_pedestal'))
-
-        pedestal_layout.addWidget(pedestal_section_label)
-        pedestal_layout.addWidget(self.recordPedestalBtn)
-        pedestal_layout.addWidget(self.recordGain0Btn)
-
-        receiver_control_group.addLayout(pedestal_layout)
-
-        section_visual.addLayout(receiver_control_group)
+            section_visual.addLayout(receiver_control_group)
 
         if globals.tem_mode:
             tem_detector_layout = QVBoxLayout()

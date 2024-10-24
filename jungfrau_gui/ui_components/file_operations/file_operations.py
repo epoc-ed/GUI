@@ -404,10 +404,14 @@ class FileOperations(QGroupBox):
     def update_data_directory(self):
         self.outPath_input.setText(self.cfg.data_dir.as_posix())
         self.tiff_path.setText(self.cfg.data_dir.as_posix())
+        if globals.jfj:
+            self.parent.tem_controls.full_fname.setText(self.cfg.fpath.as_posix())
         logging.info(f"Data is now saved at {self.cfg.data_dir.as_posix()}")
 
     def update_measurement_tag(self):
         self.cfg.measurement_tag = self.tag_input.text()
+        if globals.jfj:
+            self.parent.tem_controls.full_fname.setText(self.cfg.fpath.as_posix())
         self.reset_style(self.tag_input)
         logging.info(f"Measurement Tag: {self.cfg.measurement_tag}")
 

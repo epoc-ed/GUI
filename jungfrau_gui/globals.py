@@ -5,6 +5,7 @@ from .ui_config import config as cfg
 
 stream = "tcp://localhost:4545"
 tem_mode = False
+jfj = False
 
 #Configuration
 nrow = cfg.nrows() 
