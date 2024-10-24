@@ -321,40 +321,42 @@ class TemControls(QGroupBox):
             self.connectTojfjoch.setText('Connect to Jungfraujoch')
 
     def send_command_to_jfjoch(self, command):
-        def thread_command_relay():
-            try:
-                if command == "live":
-                    logging.warning("Starting the live streaming of frames...")
-                    try:
-                        self.jfjoch_client.live()
-                    except Exception as e:
-                        logging.warning(f"Error occured after Live stream request: {e}")
+        # def thread_command_relay():
+        try:
+            if command == "live":
+                logging.warning("Starting the live streaming of frames...")
+                try:
+                    self.jfjoch_client.live()
+                except Exception as e:
+                    logging.warning(f"Error occured after Live stream request: {e}")
 
-                elif command == "collect":
-                    logging.warning(f"Starting data collection...\nThe file is saved at: {self.cfg.fpath.as_posix()}")
-                    try:
-                        self.jfjoch_client.collect(self.cfg.fpath.as_posix())
-                        logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
-                    except Exception as e:
-                        logging.error(f"Error occured during data collection: {e}")
-                elif command == 'collect_pedestal':
-                    logging.warning("Collecting the pedestal...")
-                    try:
-                        self.jfjoch_client.cancel()
-                        self.jfjoch_client.wait_until_idle()
-                        self.jfjoch_client.collect_pedestal(wait=True)
-                        self.jfjoch_client.live()
-                        logging.info("Full pedestal collected!")
-                    except Exception as e:
-                        logging.error(f"Error occured during pedestal collection: {e}")
-                elif command == 'cancel':
-                    logging.info(f"Stopping the stream...") 
-                    self.jfjoch_client.cancel()  
-            except Exception as e:
-                logging.error(f"GUI caught relayed error: {e}")
+            elif command == "collect":
+                logging.warning(f"Starting data collection...\nThe file is saved at: {self.cfg.fpath.as_posix()}")
+                try:
+                    self.jfjoch_client.collect(self.cfg.fpath.as_posix())
+                    logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
+                except Exception as e:
+                    logging.error(f"Error occured during data collection: {e}")
+
+            elif command == 'collect_pedestal':
+                logging.warning("Collecting the pedestal...")
+                try:
+                    self.jfjoch_client.cancel()
+                    self.jfjoch_client.wait_until_idle()
+                    self.jfjoch_client.collect_pedestal(wait=True)
+                    self.jfjoch_client.live()
+                    logging.info("Full pedestal collected!")
+                except Exception as e:
+                    logging.error(f"Error occured during pedestal collection: {e}")
+
+            elif command == 'cancel':
+                logging.info(f"Stopping the stream...") 
+                self.jfjoch_client.cancel()  
+        except Exception as e:
+            logging.error(f"GUI caught relayed error: {e}")
 
         # Start the network operation in a new thread
-        threading.Thread(target=thread_command_relay, daemon=True).start()
+        # threading.Thread(target=thread_command_relay, daemon=True).start()
 
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
