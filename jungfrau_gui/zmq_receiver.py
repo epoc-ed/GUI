@@ -3,6 +3,8 @@ import time
 import logging
 import numpy as np
 from . import globals
+import cbor2
+from .decoder import tag_hook
 
 
 # Receiver of the ZMQ stream
@@ -54,6 +56,23 @@ class ZmqReceiver:
                 # This only means that there is no new frame ready yet
                 # add back reconnect if we see issues
                 # logging.warning("Timeout or no messages received, attempting to reconnect...")
+                # self.reconnect()
+                return None, None
+            except Exception as e:
+                logging.error(f"An unexpected error occurred: {e}")
+                return None, None
+            
+    @log_first_success
+    def get_frame_jfj(self):
+        if not globals.exit_flag.value:
+            try:
+                msg = self.socket.recv()
+                msg = cbor2.loads(msg, tag_hook=tag_hook)
+                print(f"Got: {msg['series_id']}:{[msg['image_id']]}")
+                image = msg['data']['default'].astype(self.dt).reshape(globals.nrow, globals.ncol)
+                frame_nr = None
+                return image, frame_nr
+            except zmq.error.Again:
                 # self.reconnect()
                 return None, None
             except Exception as e:
