@@ -333,7 +333,25 @@ class TemControls(QGroupBox):
             elif command == "collect":
                 logging.warning(f"Starting data collection...\nThe file is saved at: {self.cfg.fpath.as_posix()}")
                 try:
-                    self.jfjoch_client.collect(self.cfg.fpath.as_posix())
+                    print("Hit enter to start measuring")
+                    input()
+                    if self.live_stream_button.started:
+                        self.toggle_LiveStream()
+                    else:
+                        self.jfjoch_client.cancel()
+                    self.jfjoch_client.wait_until_idle()
+                    print(f"Starting to record: {self.cfg.fpath.as_posix()}")
+                    self.jfjoch_client.start(self.nbFrames.value(), fname = self.cfg.fpath.as_posix())
+                    print("Hit enter to stop measuring")
+                    input()
+                    self.jfjoch_client.cancel()
+                    self.jfjoch_client.wait_until_idle()
+                    print("Measurement stopped")
+                    s = self.jfjoch_client.api_instance.statistics_data_collection_get()
+                    print(s)
+                    if not self.live_stream_button.started:
+                        self.toggle_LiveStream()
+                    # self.jfjoch_client.collect(self.cfg.fpath.as_posix())
                     logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
                 except Exception as e:
                     logging.error(f"Error occured during data collection: {e}")
@@ -341,17 +359,24 @@ class TemControls(QGroupBox):
             elif command == 'collect_pedestal':
                 logging.warning("Collecting the pedestal...")
                 try:
-                    self.jfjoch_client.cancel()
+                    if self.live_stream_button.started:
+                        self.toggle_LiveStream()
+                    else:
+                        self.jfjoch_client.cancel()
                     self.jfjoch_client.wait_until_idle()
                     self.jfjoch_client.collect_pedestal(wait=True)
-                    self.jfjoch_client.live()
+                    if not self.live_stream_button.started:
+                        self.toggle_LiveStream()
                     logging.info("Full pedestal collected!")
                 except Exception as e:
                     logging.error(f"Error occured during pedestal collection: {e}")
 
             elif command == 'cancel':
                 logging.info(f"Stopping the stream...") 
-                self.jfjoch_client.cancel()  
+                if self.live_stream_button.started:
+                        self.toggle_LiveStream()
+                else:
+                    self.jfjoch_client.cancel()  
         except Exception as e:
             logging.error(f"GUI caught relayed error: {e}")
 
