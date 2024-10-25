@@ -243,7 +243,9 @@ class TemControls(QGroupBox):
 
     def toggle_LiveStream(self):
         if not self.live_stream_button.started:
-            self.send_command_to_jfjoch("live")
+            if not self.send_command_to_jfjoch("live"):
+                # Early return if "live" command fails
+                return
             self.live_stream_button.setText("Stop")
             self.parent.plot.setTitle("View of the stream from the Jungfraujoch broker")
             self.live_stream_button.started = True
@@ -332,6 +334,7 @@ class TemControls(QGroupBox):
                 logging.warning("Starting the live streaming of frames...")
                 try:
                     self.jfjoch_client.live()
+                    return True  # Indicate success
                 except Exception as e:
                     logging.warning(f"Error occured after Live stream request: {e}")
 
@@ -344,7 +347,7 @@ class TemControls(QGroupBox):
                     error_msg.setStandardButtons(QMessageBox.Ok)
                     error_msg.exec()
                     
-                    return
+                    return False  # Indicate failure
 
             elif command == "collect":
                 try:
