@@ -419,11 +419,12 @@ class TemControls(QGroupBox):
 
                     """ ************************************************************************************* """
                     # OPTION 1: Use wait=True
-                    # logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
-                    # self.jfjoch_client.collect_pedestal(wait=True)
+                    logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
+                    self.jfjoch_client.collect_pedestal(wait=True)
+                    
                     
                     # OPTION 2: Create a pop up showing progress
-                    logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
+                    """ logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
 
                     # Create and show the progress popup
                     self.progress_popup = ProgressPopup("Pedestal Collection", "Collecting pedestal...", self)
@@ -456,7 +457,7 @@ class TemControls(QGroupBox):
 
                     # Start collecting pedestal (blocks the main thread)
                     self.jfjoch_client.collect_pedestal(wait=False)
-                    self.jfjoch_client.wait_until_idle(progress=True)
+                    self.jfjoch_client.wait_until_idle(progress=True) """
 
                     # OPTION 3: Non-blocking operation: Ref. logic in the case above [command == "collect"]
                     """ ************************************************************************************* """
