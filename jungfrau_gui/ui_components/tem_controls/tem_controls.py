@@ -25,6 +25,7 @@ from epoc import JungfraujochWrapper, ConfigurationClient, auth_token, redis_hos
 from ...ui_components.palette import *
 import threading 
 from rich import print
+from .toolbox.progress_pop_up import ProgressPopup
 
 
 class TemControls(QGroupBox):
@@ -386,10 +387,9 @@ class TemControls(QGroupBox):
                     return False  # Indicate failure
 
             elif command == "collect":
+                # Deals with reclicking on [Collect] before ongoing "collect' request ends
                 self.startCollection.setDisabled(True)
                 try:
-                    # TODO Needs to deal with reclicking on [Collect] before ongoing "collect' request ends
-
                     self.send_command_to_jfjoch("cancel") 
                     
                     self.jfjoch_client.wait_until_idle()
@@ -413,20 +413,49 @@ class TemControls(QGroupBox):
             elif command == 'collect_pedestal':
                 logging.warning("Collecting the pedestal...")
                 try:
-                    # TODO Needs to stop the stream through the Live button
-
-                    # self.jfjoch_client.cancel()
                     self.send_command_to_jfjoch("cancel")
 
                     self.jfjoch_client.wait_until_idle()
-                    self.jfjoch_client.collect_pedestal(wait=True)
-                    self.jfjoch_client.live()
-                    logging.info("Full pedestal collected!")
+
+                    """ ************************************************************************************* """
+                    # OPTION 1: Use wait=True
+                    # logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
+                    # self.jfjoch_client.collect_pedestal(wait=True)
+                    
+                    # OPTION 2: Create a pop up showing progress
+                    logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
+
+                    # Create and show the progress popup
+                    self.progress_popup = ProgressPopup("Pedestal Collection", "Collecting pedestal...", self)
+                    self.progress_popup.show()
+
+                    # Timer to update the progress popup while wait_until_idle runs
+                    def update_progress_bar():
+                        # Read the latest progress printed by wait_until_idle()
+                        progress = int(self.jfjoch_client.status().progress * 100)
+                        self.progress_popup.update_progress(progress)
+
+                        if progress >= 100:
+                            self.progress_popup.close_on_complete()
+                            self.progress_timer.stop()  # Stop the timer when complete
+
+                    self.progress_timer = QTimer(self)
+                    self.progress_timer.timeout.connect(update_progress_bar)
+                    self.progress_timer.start(100)  # Update every 100ms      
+                                  
+                    # Start collecting pedestal (blocks the main thread)
+                    self.jfjoch_client.collect_pedestal(wait=False)
+                    self.jfjoch_client.wait_until_idle(progress=True)
+
+                    # OPTION 3: Non-blocking operation: Ref. logic in the case above [command == "collect"]
+                    """ ************************************************************************************* """
+                    logging.warning("Full pedestal collected!")
+
                 except Exception as e:
                     logging.error(f"Error occured during pedestal collection: {e}")
 
             elif command == 'cancel':
-                # TODO Needs to stop the stream through the Live button
+                # Stop of live stream always reflected on the [Live Stream] button
                 if self.live_stream_button.started:
                     self.toggle_LiveStream()
                 else:
@@ -435,9 +464,6 @@ class TemControls(QGroupBox):
 
         except Exception as e:
             logging.error(f"GUI caught relayed error: {e}")
-
-        # Start the network operation in a new thread
-        # threading.Thread(target=thread_command_relay, daemon=True).start()
 
     def check_if_idle_complete(self):
         if not self.idle_thread.is_alive():  # Check if wait_until_idle thread has finished
