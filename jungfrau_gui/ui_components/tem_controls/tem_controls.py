@@ -434,7 +434,7 @@ class TemControls(QGroupBox):
                         status = self.jfjoch_client.status()
                         
                         if status is None:
-                            logging.warning("Received None from status_get(). Progress cannot be updated.")
+                            logging.warning(f"Received {status} from status_get(). Progress cannot be updated.")
                             return
 
                         # Check if the 'progress' attribute exists in the status object
@@ -447,10 +447,12 @@ class TemControls(QGroupBox):
                                 self.progress_timer.stop()  # Stop the timer when complete
                         except AttributeError as e:
                             logging.error(f"Progress attribute missing in status response: {e}")
+                        except TypeError as e:
+                            logging.error(f"Unexpected type for progress: {e}")
 
                     self.progress_timer = QTimer(self)
                     self.progress_timer.timeout.connect(update_progress_bar)
-                    self.progress_timer.start(50)  # Update every 50ms      
+                    self.progress_timer.start(500)  # Update every 50ms      
 
                     # Start collecting pedestal (blocks the main thread)
                     self.jfjoch_client.collect_pedestal(wait=False)
