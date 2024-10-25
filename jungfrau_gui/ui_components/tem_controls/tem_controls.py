@@ -8,7 +8,7 @@ from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot, QTimer
 from PySide6.QtGui import QTransform, QFont
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QDoubleSpinBox, QSpinBox, 
-                                QCheckBox, QGraphicsEllipseItem, QLineEdit,
+                                QCheckBox, QGraphicsEllipseItem, QLineEdit, QMessageBox,
                                 QGraphicsRectItem, QPushButton, QGridLayout, QSpacerItem)
 
 from .toolbox.plot_dialog import PlotDialog
@@ -334,6 +334,17 @@ class TemControls(QGroupBox):
                     self.jfjoch_client.live()
                 except Exception as e:
                     logging.warning(f"Error occured after Live stream request: {e}")
+
+                    # Show a popup message box to notify the user of the error
+                    error_msg = QMessageBox()
+                    error_msg.setIcon(QMessageBox.Warning)
+                    error_msg.setWindowTitle("Live Stream Error")
+                    error_msg.setText("Failed to start live stream due to server error.")
+                    error_msg.setInformativeText(f"Details:\n{str(e)}")
+                    error_msg.setStandardButtons(QMessageBox.Ok)
+                    error_msg.exec()
+                    
+                    return
 
             elif command == "collect":
                 try:
