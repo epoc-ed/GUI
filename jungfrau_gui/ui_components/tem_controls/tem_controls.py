@@ -308,28 +308,51 @@ class TemControls(QGroupBox):
 
     def connect_and_start_jfjoch_client(self):
         if self.connectTojfjoch.started == False:
-            self.connectTojfjoch.started = True
-            try:
-                # TODO Avoid hard code: JungfraujochWrapper(self.cfg.jfjoch_frontend_address)
-                self.jfjoch_client = JungfraujochWrapper('http://noether:5232')
-                # TODO crate a setter method 'lots_of_images' for in epoc.JungfraujochWrapper ?  
-                logging.info("Created a Jungfraujoch client for communication...")
-                self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
-                self.connectTojfjoch.setText("Communication OK")
-                self.enable_jfjoch_controls(True)
-                self.jfjoch_client._lots_of_images = self.nbFrames.value()  # 1 hour of stream for a 20 Hz frame rate
-            except TimeoutError as e:
-                logging.error(f"Connection attempt timed out: {e}")
-                self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
-                self.connectTojfjoch.setText("Connection Timed Out")
-            except ConnectionError as e:
-                logging.error(f"Connection failed: {e}")
-                self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
-                self.connectTojfjoch.setText("Connection Failed")
-            except ValueError as e:
-                logging.error(f"Unexpected server response: {e}")
-                self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
-                self.connectTojfjoch.setText("Connection Failed")
+                if self.parent.visualization_panel.stream_view_button.started:
+                    try:
+                        # TODO Avoid hard code: JungfraujochWrapper(self.cfg.jfjoch_frontend_address)
+                        self.jfjoch_client = JungfraujochWrapper('http://noether:5232')
+
+                        self.connectTojfjoch.started = True
+                        # TODO crate a setter method 'lots_of_images' for in epoc.JungfraujochWrapper ?  
+                        logging.info("Created a Jungfraujoch client for communication...")
+                        self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
+                        self.connectTojfjoch.setText("Communication OK")
+                        self.enable_jfjoch_controls(True)
+                        self.jfjoch_client._lots_of_images = self.nbFrames.value()  # 1 hour of stream for a 20 Hz frame rate
+                    except TimeoutError as e:
+                        logging.error(f"Connection attempt timed out: {e}")
+                        self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
+                        self.connectTojfjoch.setText("Connection Timed Out")
+                        return
+                    except ConnectionError as e:
+                        logging.error(f"Connection failed: {e}")
+                        self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
+                        self.connectTojfjoch.setText("Connection Failed")
+                        return
+                    except ValueError as e:
+                        logging.error(f"Unexpected server response: {e}")
+                        self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
+                        self.connectTojfjoch.setText("Connection Failed")
+                        return
+                else:
+                    logging.warning(
+                        f"Cannot create a Jungfraujoch client unless GUI starts "
+                         "to receive and correctly decode streamed ZMQ messages from the Jungfraujoch Broker...\n"
+                         "Click on the [View Stream] button in the [Visualization Panel] to enable proper decoding of frames."
+                    )
+
+                    # Show a popup message box to notify the user of the error
+                    error_msg = QMessageBox()
+                    error_msg.setIcon(QMessageBox.Warning)
+                    error_msg.setWindowTitle("Streamed frames are not being properly decoded")
+                    error_msg.setText(
+                        "To allow instantiation of Jungfraujoch client, please click on the [View Stream] button in the [Visualization Panel]"
+                    )
+                    error_msg.setStandardButtons(QMessageBox.Ok)
+                    error_msg.exec()
+                    
+                    return 
         else:
             self.connectTojfjoch.started = False
             self.connectTojfjoch.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
