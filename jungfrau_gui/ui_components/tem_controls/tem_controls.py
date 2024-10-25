@@ -4,7 +4,7 @@ import numpy as np
 from ... import globals
 import pyqtgraph as pg
 from datetime import datetime
-from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
+from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot, QTimer
 from PySide6.QtGui import QTransform, QFont
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QDoubleSpinBox, QSpinBox, 
@@ -336,41 +336,24 @@ class TemControls(QGroupBox):
                     logging.warning(f"Error occured after Live stream request: {e}")
 
             elif command == "collect":
-                logging.warning(f"Starting data collection...\nThe file is saved at: {self.cfg.fpath.as_posix()}")
                 try:
                     # TODO Needs to stop the stream through the Live button
 
-                    # self.jfjoch_client.cancel()
                     self.send_command_to_jfjoch("cancel") 
                     
                     self.jfjoch_client.wait_until_idle()
                     
-                    logging.info(f"Starting to collect data...")
+                    logging.warning(f"Starting to collect data...")
                     self.jfjoch_client.start(self.nbFrames.value(), fname = self.cfg.fpath.as_posix(), wait=self.wait_option.isChecked())
 
-                    # Create an Event object
-                    idle_event = threading.Event()
+                    # Create and start the wait_until_idle thread for asynchronous monitoring
+                    self.idle_thread = threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,), daemon=True)
+                    self.idle_thread.start()
                     
-                    # Define a wrapper function for wait_until_idle
-                    def wait_until_idle_wrapper():
-                        self.jfjoch_client.wait_until_idle(True)
-                        idle_event.set()  # Signal that wait_until_idle has completed
-                        
-                    # Start wait_until_idle in a separate thread
-                    threading.Thread(target=wait_until_idle_wrapper, daemon=True).start()
-                    
-                    # Code that follows doesn’t block actively but responds once the event is set
-                    def on_idle_complete():
-                        logging.info("Measurement ended")
-                        self.cfg.after_write()
-                        s = self.jfjoch_client.api_instance.statistics_data_collection_get()
-                        print(s)
-                        self.jfjoch_client.live()
-                        logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
-                    
-                    # Schedule `on_idle_complete` to run once `idle_event` is set
-                    idle_event.wait()
-                    on_idle_complete()
+                    # Set up a QTimer to periodically check if the idle_thread has finished
+                    self.check_idle_timer = QTimer()
+                    self.check_idle_timer.timeout.connect(self.check_if_idle_complete)
+                    self.check_idle_timer.start(100)  # Check every 100 ms
 
                 except Exception as e:
                     logging.error(f"Error occured during data collection: {e}")
@@ -403,6 +386,18 @@ class TemControls(QGroupBox):
 
         # Start the network operation in a new thread
         # threading.Thread(target=thread_command_relay, daemon=True).start()
+
+    def check_if_idle_complete(self):
+        if not self.idle_thread.is_alive():  # Check if wait_until_idle thread has finished
+            self.check_idle_timer.stop()  # Stop the timer since the thread has completed
+            
+            # Now proceed with the remaining code in "collect"
+            logging.info("Measurement ended")
+            self.cfg.after_write()
+            s = self.jfjoch_client.api_instance.statistics_data_collection_get()
+            print(s)
+            self.jfjoch_client.live()
+            logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
 
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
