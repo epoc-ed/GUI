@@ -344,20 +344,34 @@ class TemControls(QGroupBox):
                     self.send_command_to_jfjoch("cancel") 
                     
                     self.jfjoch_client.wait_until_idle()
+                    
                     logging.info(f"Starting to collect data...")
                     self.jfjoch_client.start(self.nbFrames.value(), fname = self.cfg.fpath.as_posix(), wait=self.wait_option.isChecked())
-                    # self.jfjoch_client.cancel()
-                    threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,) , daemon=True).start()
-                    """ self.jfjoch_client.wait_until_idle(progress=True) """
-                    logging.info("Measurement ended")
-                    
-                    # TODO Make sure this does not conflict with rotation/record 
-                    self.cfg.after_write()
 
-                    s = self.jfjoch_client.api_instance.statistics_data_collection_get()
-                    print(s)
-                    self.jfjoch_client.live()
-                    logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
+                    # Create an Event object
+                    idle_event = threading.Event()
+                    
+                    # Define a wrapper function for wait_until_idle
+                    def wait_until_idle_wrapper():
+                        self.jfjoch_client.wait_until_idle(True)
+                        idle_event.set()  # Signal that wait_until_idle has completed
+                        
+                    # Start wait_until_idle in a separate thread
+                    threading.Thread(target=wait_until_idle_wrapper, daemon=True).start()
+                    
+                    # Code that follows doesn’t block actively but responds once the event is set
+                    def on_idle_complete():
+                        logging.info("Measurement ended")
+                        self.cfg.after_write()
+                        s = self.jfjoch_client.api_instance.statistics_data_collection_get()
+                        print(s)
+                        self.jfjoch_client.live()
+                        logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
+                    
+                    # Schedule `on_idle_complete` to run once `idle_event` is set
+                    idle_event.wait()
+                    on_idle_complete()
+
                 except Exception as e:
                     logging.error(f"Error occured during data collection: {e}")
 
