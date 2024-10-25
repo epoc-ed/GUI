@@ -24,6 +24,7 @@ from ...ui_components.utils import create_horizontal_line_with_margin
 from epoc import JungfraujochWrapper, ConfigurationClient, auth_token, redis_host
 from ...ui_components.palette import *
 import threading 
+from rich import print
 
 
 class TemControls(QGroupBox):
@@ -252,11 +253,14 @@ class TemControls(QGroupBox):
             """
         else:
             # self.send_command_to_jfjoch("cancel")
-            self.jfjoch_client.cancel()
+            logging.info(f"Stopping the stream...") 
             self.live_stream_button.setText("Live Stream")
             self.parent.plot.setTitle("Stream stopped")
+
+            self.jfjoch_client.cancel()
+
             self.live_stream_button.started = False
-            # Properly stop and cleanup worker and thread  
+
             """ 
             self.parent.file_operations.accumulate_button.setEnabled(False)
             self.parent.file_operations.streamWriterButton.setEnabled(False) 
@@ -343,10 +347,15 @@ class TemControls(QGroupBox):
                     logging.info(f"Starting to collect data...")
                     self.jfjoch_client.start(self.nbFrames.value(), fname = self.cfg.fpath.as_posix(), wait=self.wait_option.isChecked())
                     # self.jfjoch_client.cancel()
-                    self.jfjoch_client.wait_until_idle(progress=True)
+                    threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,) , daemon=True).start()
+                    """ self.jfjoch_client.wait_until_idle(progress=True) """
                     logging.info("Measurement ended")
+                    
+                    # TODO Make sure this does not conflict with rotation/record 
+                    self.cfg.after_write()
+
                     s = self.jfjoch_client.api_instance.statistics_data_collection_get()
-                    logging.warning(s)
+                    print(s)
                     self.jfjoch_client.live()
                     logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
                 except Exception as e:
@@ -368,11 +377,11 @@ class TemControls(QGroupBox):
                     logging.error(f"Error occured during pedestal collection: {e}")
 
             elif command == 'cancel':
-                logging.info(f"Stopping the stream...") 
                 # TODO Needs to stop the stream through the Live button
                 if self.live_stream_button.started:
                     self.toggle_LiveStream()
                 else:
+                    logging.info(f"Cancel request forwarded to JFJ...") 
                     self.jfjoch_client.cancel()  
                 # self.jfjoch_client.cancel()  
         except Exception as e:
