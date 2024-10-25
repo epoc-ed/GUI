@@ -188,12 +188,12 @@ class TemControls(QGroupBox):
 
             self.nbFrames.valueChanged.connect(lambda value: self.spin_box_modified(self.nbFrames))
 
-            # self.wait_option = QCheckBox("wait", self)
-            # self.wait_option.setChecked(False)
-            # self.wait_option.setDisabled(True)
+            self.wait_option = QCheckBox("wait", self)
+            self.wait_option.setChecked(False)
+            self.wait_option.setDisabled(True)
 
-            grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 5)
-            # grid_collection_jfjoch.addWidget(self.wait_option, 1, 4, 1, 1)
+            grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 4)
+            grid_collection_jfjoch.addWidget(self.wait_option, 1, 4, 1, 1)
 
             self.fname_label = QLabel("Path to recorded file", self)
             self.full_fname = QLineEdit(self)
@@ -251,7 +251,8 @@ class TemControls(QGroupBox):
             self.parent.file_operations.streamWriterButton.setEnabled(True) 
             """
         else:
-            self.send_command_to_jfjoch("cancel")
+            # self.send_command_to_jfjoch("cancel")
+            self.jfjoch_client.cancel()
             self.live_stream_button.setText("Live Stream")
             self.parent.plot.setTitle("Stream stopped")
             self.live_stream_button.started = False
@@ -287,7 +288,7 @@ class TemControls(QGroupBox):
         self.live_stream_button.setEnabled(enables)
         
         self.nbFrames.setEnabled(enables)
-        # self.wait_option.setEnabled(enables) 
+        self.wait_option.setEnabled(enables) 
 
         self.recordPedestalBtn.setEnabled(enables)
 
@@ -333,21 +334,20 @@ class TemControls(QGroupBox):
             elif command == "collect":
                 logging.warning(f"Starting data collection...\nThe file is saved at: {self.cfg.fpath.as_posix()}")
                 try:
-                    print("Hit enter to start measuring")
-                    input()
-                    self.jfjoch_client.cancel()
+                    # TODO Needs to stop the stream through the Live button
+
+                    # self.jfjoch_client.cancel()
+                    self.send_command_to_jfjoch("cancel") 
+                    
                     self.jfjoch_client.wait_until_idle()
-                    print(f"Starting to record: {self.cfg.fpath.as_posix()}")
-                    self.jfjoch_client.start(self.nbFrames.value(), fname = self.cfg.fpath.as_posix())
-                    print("Hit enter to stop measuring")
-                    input()
-                    self.jfjoch_client.cancel()
-                    self.jfjoch_client.wait_until_idle()
-                    print("Measurement stopped")
+                    logging.info(f"Starting to collect data...")
+                    self.jfjoch_client.start(self.nbFrames.value(), fname = self.cfg.fpath.as_posix(), wait=self.wait_option.isChecked())
+                    # self.jfjoch_client.cancel()
+                    self.jfjoch_client.wait_until_idle(progress=True)
+                    logging.info("Measurement ended")
                     s = self.jfjoch_client.api_instance.statistics_data_collection_get()
-                    print(s)
+                    logging.warning(s)
                     self.jfjoch_client.live()
-                    # self.jfjoch_client.collect(self.cfg.fpath.as_posix())
                     logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
                 except Exception as e:
                     logging.error(f"Error occured during data collection: {e}")
@@ -355,7 +355,11 @@ class TemControls(QGroupBox):
             elif command == 'collect_pedestal':
                 logging.warning("Collecting the pedestal...")
                 try:
-                    self.jfjoch_client.cancel()
+                    # TODO Needs to stop the stream through the Live button
+
+                    # self.jfjoch_client.cancel()
+                    self.send_command_to_jfjoch("cancel")
+
                     self.jfjoch_client.wait_until_idle()
                     self.jfjoch_client.collect_pedestal(wait=True)
                     self.jfjoch_client.live()
@@ -365,7 +369,12 @@ class TemControls(QGroupBox):
 
             elif command == 'cancel':
                 logging.info(f"Stopping the stream...") 
-                self.jfjoch_client.cancel()  
+                # TODO Needs to stop the stream through the Live button
+                if self.live_stream_button.started:
+                    self.toggle_LiveStream()
+                else:
+                    self.jfjoch_client.cancel()  
+                # self.jfjoch_client.cancel()  
         except Exception as e:
             logging.error(f"GUI caught relayed error: {e}")
 
