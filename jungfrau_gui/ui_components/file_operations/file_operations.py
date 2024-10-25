@@ -396,6 +396,12 @@ class FileOperations(QGroupBox):
         logging.info(f"Experiment Class updated to: {self.cfg.experiment_class}")
         self.update_data_directory()
 
+    def update_full_fname_for_jfjoch(self):
+        # TODO Which logic is better to keep
+        if globals.jfj:
+            # self.parent.tem_controls.trigger_update_full_fname.emit()
+            self.parent.tem_controls.full_fname.setText(self.cfg.fpath.as_posix())
+
     def update_base_data_directory(self):
         self.base_directory_input.setText(self.cfg.base_data_dir.as_posix())
         logging.info(f"Root directory has been changed to: {self.cfg.data_dir}")
@@ -404,14 +410,12 @@ class FileOperations(QGroupBox):
     def update_data_directory(self):
         self.outPath_input.setText(self.cfg.data_dir.as_posix())
         self.tiff_path.setText(self.cfg.data_dir.as_posix())
-        if globals.jfj:
-            self.parent.tem_controls.full_fname.setText(self.cfg.fpath.as_posix())
+        self.update_full_fname_for_jfjoch()
         logging.info(f"Data is now saved at {self.cfg.data_dir.as_posix()}")
 
     def update_measurement_tag(self):
         self.cfg.measurement_tag = self.tag_input.text()
-        if globals.jfj:
-            self.parent.tem_controls.full_fname.setText(self.cfg.fpath.as_posix())
+        self.update_full_fname_for_jfjoch()
         self.reset_style(self.tag_input)
         logging.info(f"Measurement Tag: {self.cfg.measurement_tag}")
 
@@ -420,12 +424,14 @@ class FileOperations(QGroupBox):
 
     def update_file_index(self):
         self.cfg.file_id = self.index_box.value()
+        self.update_full_fname_for_jfjoch()
         self.reset_style(self.index_box)
         logging.info(f'H5 file index manually updated by user. Value of "file_id" equal to: {self.cfg.file_id}')
 
     def update_index_box(self):
         self.index_box.setValue(self.cfg.file_id)
         logging.info(f"H5 file index updated after writing process. Next file will have index: {self.cfg.file_id}")
+        self.update_full_fname_for_jfjoch()
         self.reset_style(self.index_box)
 
     def reset_style(self, field):

@@ -4,7 +4,7 @@ import numpy as np
 from ... import globals
 import pyqtgraph as pg
 from datetime import datetime
-from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot, QTimer
+from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot, QTimer, Signal
 from PySide6.QtGui import QTransform, QFont
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QDoubleSpinBox, QSpinBox, 
@@ -28,10 +28,13 @@ from rich import print
 
 
 class TemControls(QGroupBox):
+    # trigger_update_full_fname = Signal()
+
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
         self.fitter = None
+        # self.trigger_update_full_fname.connect(self.update_full_fname)
         self.initUI()
 
     def initUI(self):
@@ -361,7 +364,7 @@ class TemControls(QGroupBox):
 
             elif command == "collect":
                 try:
-                    # TODO Needs to stop the stream through the Live button
+                    # TODO Needs to deal with reclicking on [Collect] before ongoing "collect' request ends
 
                     self.send_command_to_jfjoch("cancel") 
                     
@@ -417,7 +420,11 @@ class TemControls(QGroupBox):
             
             # Now proceed with the remaining code in "collect"
             logging.info("Measurement ended")
+
+            # Increment file_id in Redis and update GUI
             self.cfg.after_write()
+            self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
             logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
@@ -435,6 +442,9 @@ class TemControls(QGroupBox):
                     if not self.live_stream_button.started:
                         self.toggle_LiveStream()  # Start the stream after stopping
                 QTimer.singleShot(200, restart_stream)  # Additional delay to ensure cancel completes
+
+    # def update_full_fname(self):
+    #     self.full_fname.setText(self.cfg.fpath.as_posix())
 
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
