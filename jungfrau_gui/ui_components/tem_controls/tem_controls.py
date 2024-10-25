@@ -429,20 +429,29 @@ class TemControls(QGroupBox):
                     self.progress_popup = ProgressPopup("Pedestal Collection", "Collecting pedestal...", self)
                     self.progress_popup.show()
 
-                    # Timer to update the progress popup while wait_until_idle runs
                     def update_progress_bar():
-                        # Read the latest progress printed by wait_until_idle()
-                        progress = int(self.jfjoch_client.status().progress * 100)
-                        self.progress_popup.update_progress(progress)
+                        # Fetch real-time status from the API directly
+                        status = self.jfjoch_client.status()
+                        
+                        if status is None:
+                            logging.warning("Received None from status_get(). Progress cannot be updated.")
+                            return
 
-                        if progress >= 100:
-                            self.progress_popup.close_on_complete()
-                            self.progress_timer.stop()  # Stop the timer when complete
+                        # Check if the 'progress' attribute exists in the status object
+                        try:
+                            progress = int(status.progress * 100)
+                            self.progress_popup.update_progress(progress)
+
+                            if progress >= 100:
+                                self.progress_popup.close_on_complete()
+                                self.progress_timer.stop()  # Stop the timer when complete
+                        except AttributeError as e:
+                            logging.error(f"Progress attribute missing in status response: {e}")
 
                     self.progress_timer = QTimer(self)
                     self.progress_timer.timeout.connect(update_progress_bar)
-                    self.progress_timer.start(100)  # Update every 100ms      
-                                  
+                    self.progress_timer.start(50)  # Update every 50ms      
+
                     # Start collecting pedestal (blocks the main thread)
                     self.jfjoch_client.collect_pedestal(wait=False)
                     self.jfjoch_client.wait_until_idle(progress=True)
