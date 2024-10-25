@@ -188,9 +188,9 @@ class TemControls(QGroupBox):
             self.nbFrames.setSingleStep(1000)
             self.nbFrames.setPrefix("Nb Frames per trigger: ")
 
-            self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
-
             self.nbFrames.valueChanged.connect(lambda value: self.spin_box_modified(self.nbFrames))
+
+            self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
 
             self.wait_option = QCheckBox("wait", self)
             self.wait_option.setChecked(False)
@@ -386,6 +386,7 @@ class TemControls(QGroupBox):
                     return False  # Indicate failure
 
             elif command == "collect":
+                self.stopCollection.setDisabled(True)
                 try:
                     # TODO Needs to deal with reclicking on [Collect] before ongoing "collect' request ends
 
@@ -407,21 +408,22 @@ class TemControls(QGroupBox):
 
                 except Exception as e:
                     logging.error(f"Error occured during data collection: {e}")
+                    self.stopCollection.setEnabled(True)
 
-            # elif command == 'collect_pedestal':
-            #     logging.warning("Collecting the pedestal...")
-            #     try:
-            #         # TODO Needs to stop the stream through the Live button
+            elif command == 'collect_pedestal':
+                logging.warning("Collecting the pedestal...")
+                try:
+                    # TODO Needs to stop the stream through the Live button
 
-            #         # self.jfjoch_client.cancel()
-            #         self.send_command_to_jfjoch("cancel")
+                    # self.jfjoch_client.cancel()
+                    self.send_command_to_jfjoch("cancel")
 
-            #         self.jfjoch_client.wait_until_idle()
-            #         self.jfjoch_client.collect_pedestal(wait=True)
-            #         self.jfjoch_client.live()
-            #         logging.info("Full pedestal collected!")
-            #     except Exception as e:
-            #         logging.error(f"Error occured during pedestal collection: {e}")
+                    self.jfjoch_client.wait_until_idle()
+                    self.jfjoch_client.collect_pedestal(wait=True)
+                    self.jfjoch_client.live()
+                    logging.info("Full pedestal collected!")
+                except Exception as e:
+                    logging.error(f"Error occured during pedestal collection: {e}")
 
             elif command == 'cancel':
                 # TODO Needs to stop the stream through the Live button
@@ -451,6 +453,8 @@ class TemControls(QGroupBox):
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
             logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
+
+            self.stopCollection.setEnabled(True)
 
             logging.warning(f"Resuming Live Stream now...")
             # TODO Create a generic method to use for [Live Stream (re)start] after operation ends
