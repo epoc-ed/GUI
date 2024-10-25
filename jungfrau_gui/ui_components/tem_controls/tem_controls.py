@@ -382,20 +382,20 @@ class TemControls(QGroupBox):
                 except Exception as e:
                     logging.error(f"Error occured during data collection: {e}")
 
-            elif command == 'collect_pedestal':
-                logging.warning("Collecting the pedestal...")
-                try:
-                    # TODO Needs to stop the stream through the Live button
+            # elif command == 'collect_pedestal':
+            #     logging.warning("Collecting the pedestal...")
+            #     try:
+            #         # TODO Needs to stop the stream through the Live button
 
-                    # self.jfjoch_client.cancel()
-                    self.send_command_to_jfjoch("cancel")
+            #         # self.jfjoch_client.cancel()
+            #         self.send_command_to_jfjoch("cancel")
 
-                    self.jfjoch_client.wait_until_idle()
-                    self.jfjoch_client.collect_pedestal(wait=True)
-                    self.jfjoch_client.live()
-                    logging.info("Full pedestal collected!")
-                except Exception as e:
-                    logging.error(f"Error occured during pedestal collection: {e}")
+            #         self.jfjoch_client.wait_until_idle()
+            #         self.jfjoch_client.collect_pedestal(wait=True)
+            #         self.jfjoch_client.live()
+            #         logging.info("Full pedestal collected!")
+            #     except Exception as e:
+            #         logging.error(f"Error occured during pedestal collection: {e}")
 
             elif command == 'cancel':
                 # TODO Needs to stop the stream through the Live button
@@ -404,7 +404,7 @@ class TemControls(QGroupBox):
                 else:
                     logging.info(f"Cancel request forwarded to JFJ...") 
                     self.jfjoch_client.cancel()  
-                # self.jfjoch_client.cancel()  
+
         except Exception as e:
             logging.error(f"GUI caught relayed error: {e}")
 
@@ -420,8 +420,21 @@ class TemControls(QGroupBox):
             self.cfg.after_write()
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
-            self.jfjoch_client.live()
             logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
+
+            logging.warning(f"Resuming Live Stream now...")
+            # TODO Create a generic method to use for [Live Stream (re)start] after operation ends
+            if not self.live_stream_button.started:
+                # Trigger the stream after collection ends
+                QTimer.singleShot(100, self.toggle_LiveStream)  # Delay to ensure sequential execution
+            else:
+                # If "Live" button is ON, turn it off, then re-start the stream
+                self.send_command_to_jfjoch("cancel")  # Stop the stream first
+
+                def restart_stream():
+                    if not self.live_stream_button.started:
+                        self.toggle_LiveStream()  # Start the stream after stopping
+                QTimer.singleShot(200, restart_stream)  # Additional delay to ensure cancel completes
 
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
