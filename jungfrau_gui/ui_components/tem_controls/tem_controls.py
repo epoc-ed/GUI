@@ -423,7 +423,7 @@ class TemControls(QGroupBox):
 
             # Increment file_id in Redis and update GUI
             self.cfg.after_write()
-            self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+            self.parent.file_operations.trigger_update_h5_index_box.emit()
 
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
