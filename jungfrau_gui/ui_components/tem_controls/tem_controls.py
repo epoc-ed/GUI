@@ -386,7 +386,7 @@ class TemControls(QGroupBox):
                     return False  # Indicate failure
 
             elif command == "collect":
-                self.stopCollection.setDisabled(True)
+                self.startCollection.setDisabled(True)
                 try:
                     # TODO Needs to deal with reclicking on [Collect] before ongoing "collect' request ends
 
@@ -408,7 +408,7 @@ class TemControls(QGroupBox):
 
                 except Exception as e:
                     logging.error(f"Error occured during data collection: {e}")
-                    self.stopCollection.setEnabled(True)
+                    self.startCollection.setEnabled(True)
 
             elif command == 'collect_pedestal':
                 logging.warning("Collecting the pedestal...")
@@ -454,7 +454,7 @@ class TemControls(QGroupBox):
             print(s)
             logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
 
-            self.stopCollection.setEnabled(True)
+            self.startCollection.setEnabled(True)
 
             logging.warning(f"Resuming Live Stream now...")
             # TODO Create a generic method to use for [Live Stream (re)start] after operation ends
