@@ -5,8 +5,7 @@ package:
 build:
   noarch: python
   script: python setup.py install
-  entry_points:
-   - jungfrau_gui = jungfrau_gui.main_ui:main
+
 source:
   path: ..
 
@@ -25,8 +24,12 @@ requirements:
     - PySide6
     - pyzmq
     - scipy
+    - tifffile
+    - boost-histogram
 
-
+extra:
+  channels:
+    - conda-forge
 
 about:
   home: https://github.com/epoc-ed/epoc-utils
