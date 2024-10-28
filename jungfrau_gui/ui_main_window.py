@@ -170,6 +170,19 @@ class ApplicationWindow(QMainWindow):
         thread_manager.reset_worker_and_thread(worker, thread)
 
     def do_exit(self):
+        # Prevent closing the GUI while JFJ is not Idle
+        # TODO Add flexibily as a function of the nature of the ongoing JFJ operation
+        if globals.jfj and self.tem_controls.jfjoch_client:
+            if self.tem_controls.jfjoch_client.status().state == 'Measuring':
+                QMessageBox.warning(
+                    self,
+                    "Jungfraujoch is not Idle",
+                    "The Jungfraujoch is currently measuring...Please wait until the end of the operation!",
+                    QMessageBox.Ok
+                )
+                return
+
+        # Dealing with ongoing operation of the GUI after premature 'Exit' request
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread and thread.isRunning()]
         if running_threadWorkerPairs:
             # Show warning dialog
