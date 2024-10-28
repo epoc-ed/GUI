@@ -189,8 +189,11 @@ class TemControls(QGroupBox):
             self.nbFrames.setSingleStep(1000)
             self.nbFrames.setPrefix("Nb Frames per trigger: ")
 
-            self.nbFrames.valueChanged.connect(lambda value: self.spin_box_modified(self.nbFrames))
-
+            self.last_nbFrames_value = self.nbFrames.value()
+            self.nbFrames.valueChanged.connect(lambda value: (
+                self.track_nbFrames_value(value),  # Store the latest value
+                self.spin_box_modified(self.nbFrames)  # Update the spin box style
+            ))
             self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
 
             self.wait_option = QCheckBox("wait", self)
@@ -289,10 +292,15 @@ class TemControls(QGroupBox):
 
     def update_jfjoch_wrapper(self):
         if self.jfjoch_client is not None:
-            self.jfjoch_client._lots_of_images = self.nbFrames.value()
-            self.reset_style(self.nbFrames)
-            logging.info(f'Updated Jungfraujoch client...\nNumber of frames per trigger is equal to: {self.jfjoch_client._lots_of_images}')
+            if self.jfjoch_client._lots_of_images != self.last_nbFrames_value:
+                self.jfjoch_client._lots_of_images = self.nbFrames.value()
+                self.reset_style(self.nbFrames)
+                logging.info(f'Updated Jungfraujoch client...\nNumber of frames per trigger is equal to: {self.jfjoch_client._lots_of_images}')
 
+    # Helper method to track the latest value for nbFrames
+    def track_nbFrames_value(self, value):
+        self.last_nbFrames_value = value
+        
     # TODO Repetition of method in file_operations
     def spin_box_modified(self, spin_box):
         spin_box.setStyleSheet(f"QSpinBox {{ color: orange; background-color: {self.background_color}; }}")
@@ -421,7 +429,6 @@ class TemControls(QGroupBox):
                     # OPTION 1: Use wait=True
                     logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
                     self.jfjoch_client.collect_pedestal(wait=True)
-                    
                     
                     # OPTION 2: Create a pop up showing progress
                     """ logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
