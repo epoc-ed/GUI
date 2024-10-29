@@ -5,7 +5,7 @@ package:
 build:
   noarch: python
   script: 
-    - echo "$(git describe --tags)" > version.txt
+    - git describe --tags > version.txt
     - python setup.py install
 
 source:
