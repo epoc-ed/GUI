@@ -16,7 +16,8 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     include_package_data = True,
     package_data={'jungfrau_gui': ['ui_config/.reussrc',
-    'ui_components/tem_controls/toolbox/jfgui2_config.json']},
+    'ui_components/tem_controls/toolbox/jfgui2_config.json',
+    'version.txt']},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GPL License",

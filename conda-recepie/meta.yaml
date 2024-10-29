@@ -2,14 +2,14 @@ package:
   name: jungfrau_gui
   version: "{{ load_setup_py_data().version }}"
 
+source:
+  path: ..
+
 build:
   noarch: python
   script: 
-    - git describe --tags > version.txt
+    - git describe --tags > jungfrau_gui/version.txt
     - python setup.py install
-
-source:
-  path: ..
 
 requirements:
   build:
