@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="jungfrau_gui",
-    version= '2024.10.23',
+    version= '2024.10.29',
     author="Khalil Ferjaoui",
     author_email="khalil.ferjaoui@psi.ch",
     description="Pyqtgraph based GUI for Jungfrau",
