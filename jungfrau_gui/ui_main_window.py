@@ -15,7 +15,6 @@ from .ui_components.utils import create_gaussian
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
-import os
 import subprocess
 from importlib import resources
 
