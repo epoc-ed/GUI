@@ -17,19 +17,20 @@ import jungfrau_gui.ui_threading_helpers as thread_manager
 
 import os
 import subprocess
+from importlib import resources
 
 def get_git_info():
-    # Path to the version file
-    version_file = os.path.join(os.path.dirname(__file__), 'version.txt')
-    
-    if os.path.exists(version_file):
-        # Read version from the file
-        with open(version_file, 'r') as f:
-            return f"Viewer {f.read().strip()}"
+    # Load version from installed package resources
+    try:
+        version = resources.read_text('jungfrau_gui', 'version.txt').strip()
+        return f"Viewer {version}"
+    except FileNotFoundError as e:
+        logging.debug(f"File not found: {e}")
+        pass  # Fall back to Git if the file is not found
     
     try:
         # Fall back to git if version.txt is not available
-        tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8')
+        tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
         branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8')
         return f"Viewer {tag}/{branch}"
     except subprocess.CalledProcessError:

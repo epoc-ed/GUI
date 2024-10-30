@@ -8,13 +8,16 @@ source:
 build:
   noarch: python
   script: 
-    - git describe --tags > jungfrau_gui/version.txt
-    - python setup.py install
+    - git describe --tags | cut -d'-' -f1 > jungfrau_gui/version.txt
+    - python setup.py sdist
+    - pip install dist/*.tar.gz
 
 requirements:
   build:
     - python 
-
+    - setuptools
+    - setuptools_scm
+    
   run:
     - python
     - h5py
