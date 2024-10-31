@@ -121,11 +121,11 @@ class RecordTask(Task):
                 return 
 
             #If enabled we start writing files 
-            if globals.jfj:
-                logging.info("\033[1mJungfraujoch has initiated asynchronous data collection ...")
-                self.tem_action.tem_controls.startCollection.clicked.emit()
-            else:
-                if self.writer: 
+            if self.writer: 
+                if globals.jfj:
+                    logging.info("\033[1mJungfraujoch has initiated asynchronous data collection ...")
+                    self.tem_action.tem_controls.startCollection.clicked.emit()
+                else:
                     logging.info("\033[1mAsynchronous writing of files is starting now...")
                     self.tem_action.file_operations.start_H5_recording.emit() 
 
@@ -149,13 +149,13 @@ class RecordTask(Task):
                 logging.error(f"Unexpected error caught for TEMClient::is_rotating(): {e}")                
 
             # Stop the file writing
-            if globals.jfj:
-                logging.info(" ********************  Stopping JFJ Data Collection...")
-                self.tem_action.tem_controls.stopCollection.clicked.emit()
-            else:
-                if self.writer and self.tem_action.file_operations.streamWriterButton.started:
+            if self.writer:
+                if self.tem_action.file_operations.streamWriterButton.started:
                     logging.info(" ********************  Stopping H5 writer...")
                     self.tem_action.file_operations.stop_H5_recording.emit()
+                elif globals.jfj:
+                    logging.info(" ********************  Stopping JFJ Data Collection...")
+                    self.tem_action.tem_controls.stopCollection.clicked.emit()
             
             time.sleep(0.01)
             self.client.SetBeamBlank(1)
@@ -194,23 +194,21 @@ class RecordTask(Task):
                 logging.error("Error updating TEM status: {e}")
 
             # Add H5 info and file finalization
-            if not globals.jfj:
-                if self.writer:
-                    logging.info(" ******************** Adding Info to H5...")
-                    self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                    os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+            if self.writer and globals.jfj == False:
+                logging.info(" ******************** Adding Info to H5...")
+                self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
+                os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
 
-                    logging.info(" ******************** Updating file_id in DB...")
-                    self.cfg.after_write()
-                    self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+                logging.info(" ******************** Updating file_id in DB...")
+                self.cfg.after_write()
+                self.tem_action.file_operations.trigger_update_h5_index_box.emit()
 
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None
-            if not globals.jfj:
-                if self.writer is None:
-                    self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-                    self.tem_action.tem_tasks.rotation_button.started = False
-                    self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+            if self.writer is None and globals.jfj == False:
+                self.tem_action.tem_tasks.rotation_button.setText("Rotation")
+                self.tem_action.tem_tasks.rotation_button.started = False
+                self.tem_action.file_operations.streamWriterButton.setEnabled(True)
 
             print("------REACHED END OF TASK----------")
 
@@ -224,9 +222,9 @@ class RecordTask(Task):
         finally:
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
-            if not globals.jfj:
-                if self.writer and self.tem_action.file_operations.streamWriterButton.started:
-                    self.tem_action.file_operations.stop_H5_recording.emit()
+            # if globals.jfj == False:
+            if self.writer and self.tem_action.file_operations.streamWriterButton.started:
+                self.tem_action.file_operations.stop_H5_recording.emit()
         
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
