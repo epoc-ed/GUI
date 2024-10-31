@@ -56,9 +56,9 @@ class FrameAccumulator:
                     if globals.jfj:
                         msg = socket.recv()
                         msg = cbor2.loads(msg, tag_hook=tag_hook)
-                        print(f"Decoded data type: {msg['data']['default'].dtype}")
+                        print(f"Decoded data type: {msg['data']['default'].dtype}") # decoded as int32
                         print(f"Sample of data : {msg['data']['default'][:10]}")
-                        image = msg['data']['default'].astype(self.dt).reshape(self.image_size)
+                        image = msg['data']['default'].reshape(self.image_size)
                         frame_nr = None
                     else:
                         msgs = socket.recv_multipart() #receiver.get_frame()
