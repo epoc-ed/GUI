@@ -83,8 +83,9 @@ class FrameAccumulator:
             if self.nframes_to_add == 0:
                 try:
                     # TODO Convert to int32 before or after summing? [here conv after accumulation]
-                    data = np.rint(self.acc_image).astype(globals.file_dt)
-                    self.save_captures(self.fname, data)
+                    # data = np.rint(self.acc_image).astype(globals.file_dt)
+                    print(f"Type of accumulated frame is {self.acc_image.dtype}")
+                    self.save_captures(self.fname, self.acc_image.copy())
                     logging.info(f'TIFF file ready!')  # Log only if save was successful
                 except Exception as e:
                     logging.error(f"Error saving TIFF file: {e}")
