@@ -4,6 +4,7 @@ import functools
 import numpy as np
 from pathlib import Path
 
+from ... import globals
 
 def string_dt(s):
     tid = h5py.h5t.C_S1.copy()
@@ -54,6 +55,10 @@ class Hdf5File:
             path = filename.parent
             path.mkdir(exist_ok=True)
             self.file = h5py.File(self.filename, self.mode)
+
+            # TODO Fix compression when using JFJ
+            if globals.jfj:
+                compression = None
 
             compression = hdf5plugin.Bitshuffle(nelems=0, cname='lz4')
 

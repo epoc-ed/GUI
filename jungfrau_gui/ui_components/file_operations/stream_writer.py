@@ -23,7 +23,6 @@ class StreamWriter:
         self.mode = mode
         self.fformat = fformat
         self.pixel_mask = pixel_mask
-
         
         self.stop_requested = mp.Value(ctypes.c_bool)
         self.stop_requested.value = False
@@ -34,11 +33,16 @@ class StreamWriter:
         self.last_frame_number = mp.Value(ctypes.c_int64)
         self.last_frame_number.value = -1
 
+        if globals.jfj:
+            self.number_frames_written_jfj = 0
+
         logging.info(f"Writing data as {self.dt}")
 
     @property
     def number_frames_witten(self):
         #TODO! Read summing value from ConfigurationClient
+        if globals.jfj:
+            return self.number_frames_written_jfj
         return int((self.last_frame_number.value - self.first_frame_number.value) +1)
 
     def start(self):
@@ -73,7 +77,7 @@ class StreamWriter:
                     msg = socket.recv()
                     msg = cbor2.loads(msg, tag_hook=tag_hook)
                     image = msg['data']['default'].reshape(self.image_size) # int32
-                    frame_nr = None
+                    frame_nr = 0 # TODO Dummy value to correct 
                 else:
                     msgs = socket.recv_multipart()
                     frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
@@ -86,6 +90,8 @@ class StreamWriter:
                 converted_image = image.astype(globals.file_dt)
                 
                 f.write(converted_image, frame_nr)
+                if globals.jfj:
+                    self.number_frames_written_jfj += 1 
                 logging.debug("Hdf5 is being written...")
                 self.last_frame_number.value = frame_nr
             except zmq.error.Again:
