@@ -200,8 +200,17 @@ class RecordTask(Task):
                 if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
                     logging.info(" ******************** Adding Info to H5...")
                     self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                    # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+                    
+                    os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+                    """ 
+                    Could also use 'self.tem_action.file_operations.formatted_filename' to rename the logfile 
+                    but even with a timestemp briefly more recent, the file_id will uniquely identify the 
+                    correspondant logfile to the written hdf5:
 
+                    formatted_filename= self.tem_action.file_operations.formatted_filename
+                    os.rename(self.log_suffix + '.log', (formatted_filename.with_suffix('.log'))
+                    
+                    """
                     logging.info(" ******************** Updating file_id in DB...")
                     self.cfg.after_write()
                     self.tem_action.file_operations.trigger_update_h5_index_box.emit()
@@ -225,7 +234,7 @@ class RecordTask(Task):
         finally:
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
-                
+
             if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
                 if self.tem_action.file_operations.streamWriterButton.started:
                     self.tem_action.file_operations.stop_H5_recording.emit()

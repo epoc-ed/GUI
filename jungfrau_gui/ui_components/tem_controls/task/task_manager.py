@@ -184,10 +184,9 @@ class ControlWorker(QObject):
         logging.info(f"End angle = {end_angle}")
 
         self.file_operations.update_base_data_directory() # Update the GUI
-        # filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
         # TODO Choose the right fname from the start (increment file_id ?)
-        # TODO Use directly the whole fname -> not the suffix
-        filename_suffix = self.cfg.data_dir / self.cfg.fpath.stem
+        # TODO Use directly the whole fname -> not the suffix ?
+        filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
 
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             if globals.jfj and self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():

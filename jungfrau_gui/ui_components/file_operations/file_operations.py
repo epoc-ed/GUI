@@ -337,8 +337,8 @@ class FileOperations(QGroupBox):
             try:
                 self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! do we need any checks here?
            
-                formatted_filename = self.cfg.data_dir/self.cfg.fname # <-> self.cfg.fpath
-                self.streamWriter = StreamWriter(filename=formatted_filename, 
+                self.formatted_filename = self.cfg.data_dir/self.cfg.fname # <-> self.cfg.fpath
+                self.streamWriter = StreamWriter(filename=self.formatted_filename, 
                                                 endpoint=globals.stream, 
                                                 image_size = (globals.nrow,globals.ncol),
                                                 dtype=globals.file_dt)

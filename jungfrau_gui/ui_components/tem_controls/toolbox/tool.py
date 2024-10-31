@@ -183,8 +183,12 @@ class TEMTools(QObject):
     def addinfo_to_hdf(self, pixel=0.075):
         tem_status = self.tem_action.control.tem_status
 
-        #TODO Define filename's path as function of globals.jfj 
-        filename = self.cfg.data_dir/self.cfg.fname
+        # filename = self.cfg.data_dir/self.cfg.fname
+        """ 
+        The upper line might be problematic in case the time changes in self.cfg.fname,
+        and have the [addinfo_to_hdf] create a different file with a more recent timestamp 
+        """
+        filename = self.tem_action.file_operations.formatted_filename
         
         beamcenter = self.tem_action.beamcenter
         interval = self.tem_action.visualization_panel.update_interval.value()
