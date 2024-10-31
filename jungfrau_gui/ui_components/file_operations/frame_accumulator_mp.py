@@ -56,9 +56,13 @@ class FrameAccumulator:
                     if globals.jfj:
                         msg = socket.recv()
                         msg = cbor2.loads(msg, tag_hook=tag_hook)
-                        print(f"Decoded data type: {msg['data']['default'].dtype}") # decoded as int32
-                        print(f"Sample of data : {msg['data']['default'][:10]}")
+                        logging.debug(f"Decoded data type: {msg['data']['default'].dtype}")
+                        logging.debug(f"Sample of data : {msg['data']['default'][:10]}")
+                        
+                        # JFJ streamed frames are decoded as int32 from the start 
+                        # No need for converison
                         self.acc_image = np.zeros(self.image_size, dtype=msg['data']['default'].dtype)
+                        
                         image = msg['data']['default'].reshape(self.image_size)
                         frame_nr = None
                     else:
@@ -83,9 +87,7 @@ class FrameAccumulator:
             # Save the accumulated image if frames were received
             if self.nframes_to_add == 0:
                 try:
-                    # TODO Convert to int32 before or after summing? [here conv after accumulation]
-                    # data = np.rint(self.acc_image).astype(globals.file_dt)
-                    print(f"Type of accumulated frame is {self.acc_image.dtype}")
+                    logging.debug(f"Type of accumulated frame is {self.acc_image.dtype}")
                     self.save_captures(self.fname, self.acc_image.copy())
                     logging.info(f'TIFF file ready!')  # Log only if save was successful
                 except Exception as e:

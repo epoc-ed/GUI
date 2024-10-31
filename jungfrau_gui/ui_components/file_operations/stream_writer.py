@@ -72,7 +72,7 @@ class StreamWriter:
                 if globals.jfj:
                     msg = socket.recv()
                     msg = cbor2.loads(msg, tag_hook=tag_hook)
-                    image = msg['data']['default'].astype(self.dt).reshape(self.image_size)
+                    image = msg['data']['default'].reshape(self.image_size) # int32
                     frame_nr = None
                 else:
                     msgs = socket.recv_multipart()
@@ -82,7 +82,9 @@ class StreamWriter:
                         logging.info(f"First written frame number is  {self.first_frame_number.value}")
                     image = np.frombuffer(msgs[1], dtype = globals.stream_dt).reshape(self.image_size)
                 
+                # Conversion of JFJ stream to int32 is redundant (but safe) 
                 converted_image = image.astype(globals.file_dt)
+                
                 f.write(converted_image, frame_nr)
                 logging.debug("Hdf5 is being written...")
                 self.last_frame_number.value = frame_nr
