@@ -123,8 +123,8 @@ class RecordTask(Task):
                 return 
 
             #If enabled we start writing files 
-            if self.writer: 
-                if globals.jfj:
+            if self.writer is not None: 
+                if self.writer == "Jungfraujoch":
                     logging.info("\033[1mJungfraujoch has initiated asynchronous data collection ...")
                     self.tem_action.tem_controls.startCollection.clicked.emit()
                 else:
@@ -151,13 +151,13 @@ class RecordTask(Task):
                 logging.error(f"Unexpected error caught for TEMClient::is_rotating(): {e}")                
 
             # Stop the file writing
-            if self.writer:
-                if self.tem_action.file_operations.streamWriterButton.started:
-                    logging.info(" ********************  Stopping H5 writer...")
-                    self.tem_action.file_operations.stop_H5_recording.emit()
-                elif globals.jfj:
+            if self.writer is not None:
+                if self.writer == "Jungfraujoch":
                     logging.info(" ********************  Stopping JFJ Data Collection...")
                     self.tem_action.tem_controls.stopCollection.clicked.emit()
+                elif self.tem_action.file_operations.streamWriterButton.started:
+                    logging.info(" ********************  Stopping H5 writer...")
+                    self.tem_action.file_operations.stop_H5_recording.emit()
             
             time.sleep(0.01)
             self.client.SetBeamBlank(1)
@@ -196,18 +196,19 @@ class RecordTask(Task):
                 logging.error("Error updating TEM status: {e}")
 
             # Add H5 info and file finalization
-            if self.writer and globals.jfj == False:
-                logging.info(" ******************** Adding Info to H5...")
-                self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+            if self.writer is not None:
+                if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
+                    logging.info(" ******************** Adding Info to H5...")
+                    self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
+                    # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
 
-                logging.info(" ******************** Updating file_id in DB...")
-                self.cfg.after_write()
-                self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+                    logging.info(" ******************** Updating file_id in DB...")
+                    self.cfg.after_write()
+                    self.tem_action.file_operations.trigger_update_h5_index_box.emit()
 
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None
-            if self.writer is None and globals.jfj == False:
+            if self.writer is None:
                 self.tem_action.tem_tasks.rotation_button.setText("Rotation")
                 self.tem_action.tem_tasks.rotation_button.started = False
                 self.tem_action.file_operations.streamWriterButton.setEnabled(True)
@@ -224,9 +225,10 @@ class RecordTask(Task):
         finally:
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
-            # if globals.jfj == False:
-            if self.writer and self.tem_action.file_operations.streamWriterButton.started:
-                self.tem_action.file_operations.stop_H5_recording.emit()
+                
+            if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
+                if self.tem_action.file_operations.streamWriterButton.started:
+                    self.tem_action.file_operations.stop_H5_recording.emit()
         
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?

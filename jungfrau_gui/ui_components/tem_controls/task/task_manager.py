@@ -20,6 +20,8 @@ from epoc import ConfigurationClient, auth_token, redis_host
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
+from .... import globals
+
 class ControlWorker(QObject):
     """
     The 'ControlWorker' object coordinates the execution of tasks and redirects requests to the GUI.
@@ -182,15 +184,20 @@ class ControlWorker(QObject):
         logging.info(f"End angle = {end_angle}")
 
         self.file_operations.update_base_data_directory() # Update the GUI
-        filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
+        # filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
+        # TODO Choose the right fname from the start (increment file_id ?)
+        # TODO Use directly the whole fname -> not the suffix
+        filename_suffix = self.cfg.data_dir / self.cfg.fpath.stem
 
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
-            if globals.jfj:
-                task = RecordTask(self, end_angle, filename_suffix.as_posix())
+            if globals.jfj and self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
+                # TODO Change value of writer_event value to trigger writing events through it ?
+                task = RecordTask(self, end_angle, filename_suffix.as_posix(), writer_event = "Jungfraujoch")
             else:
                 task = RecordTask(self, end_angle, filename_suffix.as_posix(), writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
         else:
             task = RecordTask(self, end_angle, filename_suffix.as_posix())
+
         self.start_task(task)
 
     @Slot()

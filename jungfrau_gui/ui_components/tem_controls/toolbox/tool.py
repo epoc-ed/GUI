@@ -8,6 +8,8 @@ from PySide6.QtCore import QObject, Signal
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
+from .... import globals
+
 def create_full_mapping(info_queries, more_queries, info_queries_client, more_queries_client):
     """
     Creates a mapping between two sets of queries and their corresponding client-side equivalents.
@@ -180,7 +182,10 @@ class TEMTools(QObject):
  
     def addinfo_to_hdf(self, pixel=0.075):
         tem_status = self.tem_action.control.tem_status
+
+        #TODO Define filename's path as function of globals.jfj 
         filename = self.cfg.data_dir/self.cfg.fname
+        
         beamcenter = self.tem_action.beamcenter
         interval = self.tem_action.visualization_panel.update_interval.value()
         ht = 200 # keV  # <- HT3

@@ -495,6 +495,10 @@ class TemControls(QGroupBox):
             self.cfg.after_write()
             self.parent.file_operations.trigger_update_h5_index_box.emit()
 
+            if self.tem_tasks.rotation_button.started:
+                self.tem_tasks.rotation_button.setText("Rotation")
+                self.tem_tasks.rotation_button.started= False
+
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
             logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
