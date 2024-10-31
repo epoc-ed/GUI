@@ -58,6 +58,7 @@ class FrameAccumulator:
                         msg = cbor2.loads(msg, tag_hook=tag_hook)
                         print(f"Decoded data type: {msg['data']['default'].dtype}") # decoded as int32
                         print(f"Sample of data : {msg['data']['default'][:10]}")
+                        self.acc_image = np.zeros(self.image_size, dtype=msg['data']['default'].dtype)
                         image = msg['data']['default'].reshape(self.image_size)
                         frame_nr = None
                     else:
