@@ -33,8 +33,8 @@ class StreamWriter:
         self.last_frame_number = mp.Value(ctypes.c_int64)
         self.last_frame_number.value = -1
 
-        if globals.jfj:
-            self.number_frames_written_jfj = 0
+        self.number_frames_written_jfj = mp.Value(ctypes.c_int64)
+        self.number_frames_written_jfj.value = 0
 
         logging.info(f"Writing data as {self.dt}")
 
@@ -42,7 +42,7 @@ class StreamWriter:
     def number_frames_witten(self):
         #TODO! Read summing value from ConfigurationClient
         if globals.jfj:
-            return self.number_frames_written_jfj
+            return self.number_frames_written_jfj.value
         return int((self.last_frame_number.value - self.first_frame_number.value) +1)
 
     def start(self):
@@ -90,8 +90,10 @@ class StreamWriter:
                 converted_image = image.astype(globals.file_dt)
                 
                 f.write(converted_image, frame_nr)
-                if globals.jfj:
-                    self.number_frames_written_jfj += 1 
+
+                # Count for JFJ writing (or read frame_nr from zmq stream)
+                self.number_frames_written_jfj.value += 1 
+                
                 logging.debug("Hdf5 is being written...")
                 self.last_frame_number.value = frame_nr
             except zmq.error.Again:

@@ -59,8 +59,8 @@ class Hdf5File:
             # TODO Fix compression when using JFJ
             if globals.jfj:
                 compression = None
-
-            compression = hdf5plugin.Bitshuffle(nelems=0, cname='lz4')
+            else:
+                compression = hdf5plugin.Bitshuffle(nelems=0, cname='lz4')
 
             nxentry = self.file.create_group("entry")
             create_string_attr(nxentry, "NX_class", "NXentry")
