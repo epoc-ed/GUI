@@ -11,6 +11,8 @@ from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
 from ..toolbox.tool import send_with_retries
 
+from .... import globals
+
 class RecordTask(Task):
     def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None):
         super().__init__(control_worker, "Record")
