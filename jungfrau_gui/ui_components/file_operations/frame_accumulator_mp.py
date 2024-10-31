@@ -9,6 +9,9 @@ import tifffile
 
 import time
 
+import cbor2
+from ...decoder import tag_hook
+
 class FrameAccumulator:
     def __init__(self, endpoint, dtype, image_size, nframes, fname):
         # Messages formatting
@@ -50,10 +53,17 @@ class FrameAccumulator:
             # Frame accumulation loop
             while self.nframes_to_add > 0:
                 try:
-                    msgs = socket.recv_multipart() #receiver.get_frame()
-                    frame_nr = np.frombuffer(msgs[0], dtype=np.int64)[0]
-                    logging.info(f"Adding frame #{frame_nr}")
-                    image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
+                    if globals.jfj:
+                        msg = socket.recv()
+                        msg = cbor2.loads(msg, tag_hook=tag_hook)
+                        image = msg['data']['default'].astype(self.dt).reshape(self.image_size)
+                        frame_nr = None
+                    else:
+                        msgs = socket.recv_multipart() #receiver.get_frame()
+                        frame_nr = np.frombuffer(msgs[0], dtype=np.int64)[0]
+                        logging.info(f"Adding frame #{frame_nr}")
+                        image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
+                    
                     if image is not None:
                         tmp = np.copy(image)
                         self.acc_image += tmp

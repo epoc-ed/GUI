@@ -8,6 +8,9 @@ import multiprocessing as mp
 from .hdf5_file import Hdf5File
 from ... import globals
 
+import cbor2
+from ...decoder import tag_hook
+
 class StreamWriter:
     def __init__(self, filename, endpoint, mode='w', image_size = (512,1024), dtype = np.float32, pixel_mask = None, fformat = 'h5'):
         self.timeout_ms = 100
@@ -66,12 +69,19 @@ class StreamWriter:
 
         while not self.stop_requested.value:
             try:
-                msgs = socket.recv_multipart()
-                frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
-                if self.first_frame_number.value < 0:  # Set the first frame number if it's the first message
-                    self.first_frame_number.value = frame_nr
-                    logging.info(f"First written frame number is  {self.first_frame_number.value}")
-                image = np.frombuffer(msgs[1], dtype = globals.stream_dt).reshape(self.image_size)
+                if globals.jfj:
+                    msg = socket.recv()
+                    msg = cbor2.loads(msg, tag_hook=tag_hook)
+                    image = msg['data']['default'].astype(self.dt).reshape(self.image_size)
+                    frame_nr = None
+                else:
+                    msgs = socket.recv_multipart()
+                    frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
+                    if self.first_frame_number.value < 0:  # Set the first frame number if it's the first message
+                        self.first_frame_number.value = frame_nr
+                        logging.info(f"First written frame number is  {self.first_frame_number.value}")
+                    image = np.frombuffer(msgs[1], dtype = globals.stream_dt).reshape(self.image_size)
+                
                 converted_image = image.astype(globals.file_dt)
                 f.write(converted_image, frame_nr)
                 logging.debug("Hdf5 is being written...")
