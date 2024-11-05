@@ -123,13 +123,16 @@ class RecordTask(Task):
                 return 
 
             #If enabled we start writing files 
-            if self.writer is not None: 
-                if self.writer == "Jungfraujoch":
-                    logging.info("\033[1mJungfraujoch has initiated asynchronous data collection ...")
-                    self.tem_action.tem_controls.startCollection.clicked.emit()
-                else:
-                    logging.info("\033[1mAsynchronous writing of files is starting now...")
-                    self.tem_action.file_operations.start_H5_recording.emit() 
+            if self.writer is not None:
+                self.writer[0]()
+                logging.info("\033[1mAsynchronous writing of files is starting now...")
+
+                # if self.writer == "Jungfraujoch":
+                #     logging.info("\033[1mJungfraujoch has initiated asynchronous data collection ...")
+                #     self.tem_action.visualization_panel.startCollection.clicked.emit()
+                # else:
+                #     logging.info("\033[1mAsynchronous writing of files is starting now...")
+                #     self.tem_action.file_operations.start_H5_recording.emit() 
 
             t0 = time.time()
             try:
@@ -152,12 +155,15 @@ class RecordTask(Task):
 
             # Stop the file writing
             if self.writer is not None:
-                if self.writer == "Jungfraujoch":
-                    logging.info(" ********************  Stopping JFJ Data Collection...")
-                    self.tem_action.tem_controls.stopCollection.clicked.emit()
-                elif self.tem_action.file_operations.streamWriterButton.started:
-                    logging.info(" ********************  Stopping H5 writer...")
-                    self.tem_action.file_operations.stop_H5_recording.emit()
+                logging.info(" ********************  Stopping JFJ Data Collection...")
+                self.writer[1]()
+
+                # if self.writer == "Jungfraujoch":
+                #     logging.info(" ********************  Stopping JFJ Data Collection...")
+                #     self.tem_action.tem_controls.stopCollection.clicked.emit()
+                # elif self.tem_action.file_operations.streamWriterButton.started:
+                #     logging.info(" ********************  Stopping H5 writer...")
+                #     self.tem_action.file_operations.stop_H5_recording.emit()
             
             time.sleep(0.01)
             self.client.SetBeamBlank(1)
@@ -197,7 +203,8 @@ class RecordTask(Task):
 
             # Add H5 info and file finalization
             if self.writer is not None:
-                if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
+                # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
+                if not globals.jfj: # i.e. In JFJ mode, only writes using [automatically] the JFJ writer (Collection)
                     logging.info(" ******************** Adding Info to H5...")
                     self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
                     
@@ -234,10 +241,13 @@ class RecordTask(Task):
         finally:
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
-
-            if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
-                if self.tem_action.file_operations.streamWriterButton.started:
-                    self.tem_action.file_operations.stop_H5_recording.emit()
+            if self.writer is not None:
+                if not globals.jfj:
+                    if self.tem_action.file_operations.streamWriterButton.started:
+                        self.tem_action.file_operations.stop_H5_recording.emit()
+            # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
+            #     if self.tem_action.file_operations.streamWriterButton.started:
+            #         self.tem_action.file_operations.stop_H5_recording.emit()
         
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?

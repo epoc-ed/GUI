@@ -60,7 +60,8 @@ class ControlWorker(QObject):
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
         self.tem_action = tem_action
-        self.file_operations = self.tem_action.parent.file_operations
+        self.file_operations = self.tem_action.file_operations
+        self.visualization_panel = self.tem_action.visualization_panel
         self.last_task: Task = None
         
         self.setObjectName("control Thread")
@@ -191,9 +192,19 @@ class ControlWorker(QObject):
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             if globals.jfj and self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
                 # TODO Change value of writer_event value to trigger writing events through it ?
-                task = RecordTask(self, end_angle, filename_suffix.as_posix(), writer_event = "Jungfraujoch")
+                task = RecordTask(
+                    self,
+                    end_angle,
+                    filename_suffix.as_posix(),
+                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stopCollection.clicked.emit]
+                )
             else:
-                task = RecordTask(self, end_angle, filename_suffix.as_posix(), writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
+                task = RecordTask(
+                    self,
+                    end_angle,
+                    filename_suffix.as_posix(),
+                    writer_event = [self.file_operations.start_H5_recording.emit, self.file_operations.stop_H5_recording.emit]
+                )
         else:
             task = RecordTask(self, end_angle, filename_suffix.as_posix())
 
