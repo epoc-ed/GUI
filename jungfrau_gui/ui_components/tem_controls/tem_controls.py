@@ -20,13 +20,8 @@ from .tem_action import TEMAction
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
-from ...ui_components.utils import create_horizontal_line_with_margin
-from epoc import JungfraujochWrapper, ConfigurationClient, auth_token, redis_host
+from epoc import ConfigurationClient, auth_token, redis_host
 from ...ui_components.palette import *
-import threading 
-from rich import print
-from .toolbox.progress_pop_up import ProgressPopup
-
 
 class TemControls(QGroupBox):
     # trigger_update_full_fname = Signal()
