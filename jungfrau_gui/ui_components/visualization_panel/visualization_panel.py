@@ -581,6 +581,10 @@ class VisualizationPanel(QGroupBox):
             # Now proceed with the remaining code in "collect"
             logging.info("Measurement ended")
 
+            logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
+            s = self.jfjoch_client.api_instance.statistics_data_collection_get()
+            print(s)
+
             # Increment file_id in Redis and update GUI
             self.cfg.after_write()
             self.parent.file_operations.trigger_update_h5_index_box.emit()
@@ -589,10 +593,6 @@ class VisualizationPanel(QGroupBox):
                 if self.parent.tem_controls.tem_tasks.rotation_button.started:
                     self.parent.tem_controls.tem_tasks.rotation_button.setText("Rotation")
                     self.parent.tem_controls.tem_tasks.rotation_button.started= False
-
-            s = self.jfjoch_client.api_instance.statistics_data_collection_get()
-            print(s)
-            logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
 
             self.startCollection.setEnabled(True)
 
@@ -722,6 +722,9 @@ class VisualizationPanel(QGroupBox):
     def update_frames_to_sum(self, value):
         self.frames_to_sum.setValue(value)
 
+    """ ******************************************** """
+    """ Methods for Streaming/Contrasting operations """
+    """ ******************************************** """
     def change_theme(self, theme):
         self.parent.histogram.gradient.loadPreset(theme)
 
