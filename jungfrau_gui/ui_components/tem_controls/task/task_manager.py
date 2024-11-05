@@ -196,14 +196,16 @@ class ControlWorker(QObject):
                     self,
                     end_angle,
                     filename_suffix.as_posix(),
-                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stopCollection.clicked.emit]
+                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stopCollection.clicked.emit],
+                    standard_h5_recording=False
                 )
             else:
                 task = RecordTask(
                     self,
                     end_angle,
                     filename_suffix.as_posix(),
-                    writer_event = [self.file_operations.start_H5_recording.emit, self.file_operations.stop_H5_recording.emit]
+                    writer_event = [self.file_operations.start_H5_recording.emit, self.file_operations.stop_H5_recording.emit],
+                    standard_h5_recording=True
                 )
         else:
             task = RecordTask(self, end_angle, filename_suffix.as_posix())

@@ -14,7 +14,7 @@ from ..toolbox.tool import send_with_retries
 from .... import globals
 
 class RecordTask(Task):
-    def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None):
+    def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None, standard_h5_recording=False):
         super().__init__(control_worker, "Record")
         self.phi_dot = 0 # 10 deg/s
         self.control = control_worker
@@ -26,6 +26,7 @@ class RecordTask(Task):
         logging.info("RecordTask initialized")
         self.client = TEMClient("temserver", 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.standard_h5_recording = standard_h5_recording
 
     def run(self):
         logging.debug("RecordTask::run()")
@@ -155,7 +156,7 @@ class RecordTask(Task):
 
             # Stop the file writing
             if self.writer is not None:
-                logging.info(" ********************  Stopping JFJ Data Collection...")
+                logging.info(" ********************  Stopping Data Collection...")
                 self.writer[1]()
 
                 # if self.writer == "Jungfraujoch":
@@ -204,7 +205,7 @@ class RecordTask(Task):
             # Add H5 info and file finalization
             if self.writer is not None:
                 # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
-                if not globals.jfj: # i.e. In JFJ mode, only writes using [automatically] the JFJ writer (Collection)
+                if self.standard_h5_recording:
                     logging.info(" ******************** Adding Info to H5...")
                     self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
                     
