@@ -138,112 +138,112 @@ class TemControls(QGroupBox):
 
             tem_section.addLayout(BeamFocus_layout)
             
-        if globals.jfj:
+        # if globals.jfj:
 
-            jfjoch_control_group = QVBoxLayout()
-            jfjoch_control_group.addWidget(create_horizontal_line_with_margin(30))
+        #     jfjoch_control_group = QVBoxLayout()
+        #     jfjoch_control_group.addWidget(create_horizontal_line_with_margin(15))
 
-            jfjoch_control_label = QLabel("Jungfraujoch Control Panel")
-            jfjoch_control_label.setFont(font_big)
-            jfjoch_control_group.addWidget(jfjoch_control_label)
+        #     jfjoch_control_label = QLabel("Jungfraujoch Control Panel")
+        #     jfjoch_control_label.setFont(font_big)
+        #     jfjoch_control_group.addWidget(jfjoch_control_label)
 
-            self.connectTojfjoch = ToggleButton('Connect to Jungfraujoch', self)
-            self.connectTojfjoch.setMaximumHeight(50)
-            self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client)
+        #     self.connectTojfjoch = ToggleButton('Connect to Jungfraujoch', self)
+        #     self.connectTojfjoch.setMaximumHeight(50)
+        #     self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client)
 
-            grid_connection_jfjoch = QGridLayout()
-            grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
+        #     grid_connection_jfjoch = QGridLayout()
+        #     grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
 
-            spacer1 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
-            grid_connection_jfjoch.addItem(spacer1)
+        #     spacer1 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
+        #     grid_connection_jfjoch.addItem(spacer1)
 
-            jfjoch_control_group.addLayout(grid_connection_jfjoch)
+        #     jfjoch_control_group.addLayout(grid_connection_jfjoch)
 
-            grid_streaming_jfjoch = QGridLayout()
+        #     grid_streaming_jfjoch = QGridLayout()
 
-            grid_stream_label = QLabel("Live streaming")
-            grid_stream_label.setFont(font_small)
+        #     grid_stream_label = QLabel("Live streaming")
+        #     grid_stream_label.setFont(font_small)
 
-            grid_streaming_jfjoch.addWidget(grid_stream_label)
+        #     grid_streaming_jfjoch.addWidget(grid_stream_label)
 
-            self.live_stream_button = ToggleButton('Live Stream', self)
-            self.live_stream_button.setDisabled(True)
-            self.live_stream_button.clicked.connect(self.toggle_LiveStream)
+        #     self.live_stream_button = ToggleButton('Live Stream', self)
+        #     self.live_stream_button.setDisabled(True)
+        #     self.live_stream_button.clicked.connect(self.toggle_LiveStream)
 
-            grid_streaming_jfjoch.addWidget(self.live_stream_button, 4, 0, 1, 5)   # Stop button spanning all 4 columns at row 3
+        #     grid_streaming_jfjoch.addWidget(self.live_stream_button, 4, 0, 1, 5)   # Stop button spanning all 4 columns at row 3
 
-            jfjoch_control_group.addLayout(grid_streaming_jfjoch)
+        #     jfjoch_control_group.addLayout(grid_streaming_jfjoch)
 
 
-            grid_collection_jfjoch = QGridLayout()
+        #     grid_collection_jfjoch = QGridLayout()
 
-            grid_collection_label = QLabel("Data Collection")
-            grid_collection_label.setFont(font_small)
+        #     grid_collection_label = QLabel("Data Collection")
+        #     grid_collection_label.setFont(font_small)
 
-            grid_collection_jfjoch.addWidget(grid_collection_label)
+        #     grid_collection_jfjoch.addWidget(grid_collection_label)
 
-            self.nbFrames = QSpinBox(self)
-            self.nbFrames.setMaximum(1000000000)
-            self.nbFrames.setValue(72000)
-            self.nbFrames.setDisabled(True)
-            self.nbFrames.setSingleStep(1000)
-            self.nbFrames.setPrefix("Nb Frames per trigger: ")
+        #     self.nbFrames = QSpinBox(self)
+        #     self.nbFrames.setMaximum(1000000000)
+        #     self.nbFrames.setValue(72000)
+        #     self.nbFrames.setDisabled(True)
+        #     self.nbFrames.setSingleStep(1000)
+        #     self.nbFrames.setPrefix("Nb Frames per trigger: ")
 
-            self.last_nbFrames_value = self.nbFrames.value()
-            self.nbFrames.valueChanged.connect(lambda value: (
-                self.track_nbFrames_value(value),  # Store the latest value
-                self.spin_box_modified(self.nbFrames)  # Update the spin box style
-            ))
-            self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
+        #     self.last_nbFrames_value = self.nbFrames.value()
+        #     self.nbFrames.valueChanged.connect(lambda value: (
+        #         self.track_nbFrames_value(value),  # Store the latest value
+        #         self.spin_box_modified(self.nbFrames)  # Update the spin box style
+        #     ))
+        #     self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
 
-            self.wait_option = QCheckBox("wait", self)
-            self.wait_option.setChecked(False)
-            self.wait_option.setDisabled(True)
+        #     self.wait_option = QCheckBox("wait", self)
+        #     self.wait_option.setChecked(False)
+        #     self.wait_option.setDisabled(True)
 
-            grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 4)
-            grid_collection_jfjoch.addWidget(self.wait_option, 1, 4, 1, 1)
+        #     grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 4)
+        #     grid_collection_jfjoch.addWidget(self.wait_option, 1, 4, 1, 1)
 
-            self.fname_label = QLabel("Path to recorded file", self)
-            self.full_fname = QLineEdit(self)
-            self.full_fname.setReadOnly(True)
-            self.full_fname.setText(self.cfg.fpath.as_posix())
+        #     self.fname_label = QLabel("Path to recorded file", self)
+        #     self.full_fname = QLineEdit(self)
+        #     self.full_fname.setReadOnly(True)
+        #     self.full_fname.setText(self.cfg.fpath.as_posix())
 
-            hbox_layout = QHBoxLayout()
-            hbox_layout.addWidget(self.fname_label)
-            hbox_layout.addWidget(self.full_fname)
+        #     hbox_layout = QHBoxLayout()
+        #     hbox_layout.addWidget(self.fname_label)
+        #     hbox_layout.addWidget(self.full_fname)
 
-            grid_collection_jfjoch.addLayout(hbox_layout, 2, 0, 1, 5)
+        #     grid_collection_jfjoch.addLayout(hbox_layout, 2, 0, 1, 5)
 
-            self.startCollection = QPushButton('Collect', self)
-            self.startCollection.setDisabled(True)
-            self.startCollection.clicked.connect(lambda: self.send_command_to_jfjoch('collect'))
+        #     self.startCollection = QPushButton('Collect', self)
+        #     self.startCollection.setDisabled(True)
+        #     self.startCollection.clicked.connect(lambda: self.send_command_to_jfjoch('collect'))
 
-            self.stopCollection = QPushButton('Cancel', self)
-            self.stopCollection.setDisabled(True)
-            self.stopCollection.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
+        #     self.stopCollection = QPushButton('Cancel', self)
+        #     self.stopCollection.setDisabled(True)
+        #     self.stopCollection.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
 
-            grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 5)
-            grid_collection_jfjoch.addWidget(self.stopCollection, 4, 0, 1, 5)
+        #     grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 5)
+        #     grid_collection_jfjoch.addWidget(self.stopCollection, 4, 0, 1, 5)
 
-            spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
-            grid_collection_jfjoch.addItem(spacer2)
+        #     spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
+        #     grid_collection_jfjoch.addItem(spacer2)
 
-            jfjoch_control_group.addLayout(grid_collection_jfjoch)
+        #     jfjoch_control_group.addLayout(grid_collection_jfjoch)
 
-            pedestal_layout = QVBoxLayout()
-            pedestal_section_label = QLabel("Dark Frame controls")
-            pedestal_section_label.setFont(font_small)
+        #     pedestal_layout = QVBoxLayout()
+        #     pedestal_section_label = QLabel("Dark Frame controls")
+        #     pedestal_section_label.setFont(font_small)
 
-            self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
-            self.recordPedestalBtn.setDisabled(True)
-            self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_jfjoch('collect_pedestal'))
+        #     self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
+        #     self.recordPedestalBtn.setDisabled(True)
+        #     self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_jfjoch('collect_pedestal'))
 
-            pedestal_layout.addWidget(pedestal_section_label)
-            pedestal_layout.addWidget(self.recordPedestalBtn)
+        #     pedestal_layout.addWidget(pedestal_section_label)
+        #     pedestal_layout.addWidget(self.recordPedestalBtn)
 
-            jfjoch_control_group.addLayout(pedestal_layout)
+        #     jfjoch_control_group.addLayout(pedestal_layout)
 
-            tem_section.addLayout(jfjoch_control_group)
+        #     tem_section.addLayout(jfjoch_control_group)
         
         tem_section.addStretch()
         self.setLayout(tem_section)

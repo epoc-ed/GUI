@@ -170,7 +170,7 @@ class TEMTasks(QGroupBox):
         CTN_group.addWidget(self.centering_button)
         tasks_section.addLayout(CTN_group)
 
-        tasks_section.addWidget(create_horizontal_line_with_margin(50))
+        tasks_section.addWidget(create_horizontal_line_with_margin(20))
 
         BEAM_group.addWidget(BEAM_label)
         BEAM_group.addWidget(self.beamAutofocus)
@@ -199,7 +199,7 @@ class TEMTasks(QGroupBox):
 
         tasks_section.addLayout(BEAM_group)
 
-        tasks_section.addWidget(create_horizontal_line_with_margin(50))
+        tasks_section.addWidget(create_horizontal_line_with_margin(20))
 
         ROT_group.addWidget(ROT_label)
         ROT_section_1.addWidget(self.rotation_button)
