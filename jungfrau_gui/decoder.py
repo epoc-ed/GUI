@@ -1,6 +1,6 @@
 import zmq
 import cbor2
-from .dectris.compression import decompress
+from dectris.compression import decompress
 import numpy as np
 import argparse
 
