@@ -243,9 +243,8 @@ class RecordTask(Task):
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
             if self.writer is not None:
-                if not globals.jfj:
-                    if self.tem_action.file_operations.streamWriterButton.started:
-                        self.tem_action.file_operations.stop_H5_recording.emit()
+                if self.standard_h5_recording and self.tem_action.file_operations.streamWriterButton.started:
+                    self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
             # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
             #     if self.tem_action.file_operations.streamWriterButton.started:
             #         self.tem_action.file_operations.stop_H5_recording.emit()
