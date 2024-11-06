@@ -4,12 +4,10 @@ import numpy as np
 from ... import globals
 import pyqtgraph as pg
 from datetime import datetime
-from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot, QTimer, Signal
+from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
 from PySide6.QtGui import QTransform, QFont
-from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
-                                QLabel, QDoubleSpinBox, QSpinBox, 
-                                QCheckBox, QGraphicsEllipseItem, QLineEdit, QMessageBox,
-                                QGraphicsRectItem, QPushButton, QGridLayout, QSpacerItem)
+from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, 
+                               QDoubleSpinBox, QCheckBox, QGraphicsEllipseItem, QGraphicsRectItem)
 
 from .toolbox.plot_dialog import PlotDialog
 from .gaussian_fitter import GaussianFitter

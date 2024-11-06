@@ -2,7 +2,7 @@ import zmq
 import cbor2
 from .dectris.compression import decompress
 import numpy as np
-
+import argparse
 
 def decode_multi_dim_array(tag, column_major):
     dimensions, contents = tag.value
@@ -64,10 +64,21 @@ def tag_hook(decoder, tag):
 
 
 if __name__ == "__main__":
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description="ZMQ Subscriber")
+    parser.add_argument(
+        "endpoint",
+        nargs="?",
+        default="tcp://192.168.170.2:5501",
+        help="ZMQ endpoint to connect to, e.g., tcp://192.168.170.2:5501"
+    )
+    args = parser.parse_args()
+
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
-    socket.connect("tcp://192.168.170.2:5501")
+    socket.connect(args.endpoint)
     socket.subscribe('')
+    
     while True:
         msg = socket.recv()
         msg = cbor2.loads(msg, tag_hook=tag_hook)
