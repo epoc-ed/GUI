@@ -20,6 +20,8 @@ from epoc import ConfigurationClient, auth_token, redis_host
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
+from .... import globals
+
 class ControlWorker(QObject):
     """
     The 'ControlWorker' object coordinates the execution of tasks and redirects requests to the GUI.
@@ -58,7 +60,8 @@ class ControlWorker(QObject):
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
         self.tem_action = tem_action
-        self.file_operations = self.tem_action.parent.file_operations
+        self.file_operations = self.tem_action.file_operations
+        self.visualization_panel = self.tem_action.visualization_panel
         self.last_task: Task = None
         
         self.setObjectName("control Thread")
@@ -182,12 +185,31 @@ class ControlWorker(QObject):
         logging.info(f"End angle = {end_angle}")
 
         self.file_operations.update_base_data_directory() # Update the GUI
+        # TODO Choose the right fname from the start (increment file_id ?)
+        # TODO Use directly the whole fname -> not the suffix ?
         filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
 
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
-            task = RecordTask(self, end_angle, filename_suffix.as_posix(), writer_event = self.tem_action.file_operations.toggle_hdf5Writer)
+            if globals.jfj and self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
+                # TODO Change value of writer_event value to trigger writing events through it ?
+                task = RecordTask(
+                    self,
+                    end_angle,
+                    filename_suffix.as_posix(),
+                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stopCollection.clicked.emit],
+                    standard_h5_recording=False
+                )
+            else:
+                task = RecordTask(
+                    self,
+                    end_angle,
+                    filename_suffix.as_posix(),
+                    writer_event = [self.file_operations.start_H5_recording.emit, self.file_operations.stop_H5_recording.emit],
+                    standard_h5_recording=True
+                )
         else:
             task = RecordTask(self, end_angle, filename_suffix.as_posix())
+
         self.start_task(task)
 
     @Slot()

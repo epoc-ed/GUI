@@ -8,6 +8,9 @@ import multiprocessing as mp
 from .hdf5_file import Hdf5File
 from ... import globals
 
+import cbor2
+from ...decoder import tag_hook
+
 class StreamWriter:
     def __init__(self, filename, endpoint, mode='w', image_size = (512,1024), dtype = np.float32, pixel_mask = None, fformat = 'h5'):
         self.timeout_ms = 100
@@ -20,7 +23,6 @@ class StreamWriter:
         self.mode = mode
         self.fformat = fformat
         self.pixel_mask = pixel_mask
-
         
         self.stop_requested = mp.Value(ctypes.c_bool)
         self.stop_requested.value = False
@@ -31,11 +33,16 @@ class StreamWriter:
         self.last_frame_number = mp.Value(ctypes.c_int64)
         self.last_frame_number.value = -1
 
+        self.number_frames_written_jfj = mp.Value(ctypes.c_int64)
+        self.number_frames_written_jfj.value = 0
+
         logging.info(f"Writing data as {self.dt}")
 
     @property
     def number_frames_witten(self):
         #TODO! Read summing value from ConfigurationClient
+        if globals.jfj:
+            return self.number_frames_written_jfj.value
         return int((self.last_frame_number.value - self.first_frame_number.value) +1)
 
     def start(self):
@@ -66,14 +73,27 @@ class StreamWriter:
 
         while not self.stop_requested.value:
             try:
-                msgs = socket.recv_multipart()
-                frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
-                if self.first_frame_number.value < 0:  # Set the first frame number if it's the first message
-                    self.first_frame_number.value = frame_nr
-                    logging.info(f"First written frame number is  {self.first_frame_number.value}")
-                image = np.frombuffer(msgs[1], dtype = globals.stream_dt).reshape(self.image_size)
+                if globals.jfj:
+                    msg = socket.recv()
+                    msg = cbor2.loads(msg, tag_hook=tag_hook)
+                    image = msg['data']['default'].reshape(self.image_size) # int32
+                    frame_nr = 0 # TODO Dummy value to correct 
+                else:
+                    msgs = socket.recv_multipart()
+                    frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
+                    if self.first_frame_number.value < 0:  # Set the first frame number if it's the first message
+                        self.first_frame_number.value = frame_nr
+                        logging.info(f"First written frame number is  {self.first_frame_number.value}")
+                    image = np.frombuffer(msgs[1], dtype = globals.stream_dt).reshape(self.image_size)
+                
+                # Conversion of JFJ stream to int32 is redundant (but safe) 
                 converted_image = image.astype(globals.file_dt)
+                
                 f.write(converted_image, frame_nr)
+
+                # Count for JFJ writing (or read frame_nr from zmq stream)
+                self.number_frames_written_jfj.value += 1 
+                
                 logging.debug("Hdf5 is being written...")
                 self.last_frame_number.value = frame_nr
             except zmq.error.Again:

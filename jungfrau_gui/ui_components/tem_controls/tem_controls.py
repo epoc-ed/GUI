@@ -6,10 +6,8 @@ import pyqtgraph as pg
 from datetime import datetime
 from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
 from PySide6.QtGui import QTransform, QFont
-from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
-                                QLabel, QDoubleSpinBox, QSpinBox, 
-                                QCheckBox, QGraphicsEllipseItem,
-                                QGraphicsRectItem)
+from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, 
+                               QDoubleSpinBox, QCheckBox, QGraphicsEllipseItem, QGraphicsRectItem)
 
 from .toolbox.plot_dialog import PlotDialog
 from .gaussian_fitter import GaussianFitter
@@ -20,14 +18,30 @@ from .tem_action import TEMAction
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
+from epoc import ConfigurationClient, auth_token, redis_host
+from ...ui_components.palette import *
+
 class TemControls(QGroupBox):
+    # trigger_update_full_fname = Signal()
+
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
         self.fitter = None
+        # self.trigger_update_full_fname.connect(self.update_full_fname)
         self.initUI()
 
     def initUI(self):
+
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        
+        font_small = QFont("Arial", 10)
+        font_small.setBold(True)
+
+        self.palette = get_palette("dark")
+        self.setPalette(self.palette)
+        self.background_color = self.palette.color(QPalette.Base).name()
+
         tem_section = QVBoxLayout()
         tem_section.setContentsMargins(10, 10, 10, 10)  # Minimal margins
         tem_section.setSpacing(10) 
@@ -73,6 +87,9 @@ class TemControls(QGroupBox):
         self.angle_spBx.setSingleStep(1)
         self.angle_spBx.setReadOnly(True)
         
+        font_big = QFont("Arial", 11)
+        font_big.setBold(True)
+
         if globals.tem_mode:
             self.tem_tasks = TEMTasks(self)
             self.tem_stagectrl = TEMStageCtrl()
@@ -85,8 +102,6 @@ class TemControls(QGroupBox):
             tem_section.addWidget(self.tem_stagectrl)
         else: 
             test_fitting_label = QLabel("Test Gaussian Fitting")
-            font_big = QFont("Arial", 11)
-            font_big.setBold(True)
             test_fitting_label.setFont(font_big)
 
             self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
@@ -114,7 +129,7 @@ class TemControls(QGroupBox):
             BeamFocus_layout.addLayout(rot_angle_layout)
 
             tem_section.addLayout(BeamFocus_layout)
-            
+                
         tem_section.addStretch()
         self.setLayout(tem_section)
 

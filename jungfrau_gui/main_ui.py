@@ -79,6 +79,7 @@ def main():
     parser.add_argument("-d", "--dtype", help="Data type", type = np.dtype, default=np.float32)
     parser.add_argument("-t", "--tem", action="store_true", help="Activate tem-control functions")
     parser.add_argument('-l', '--log', default='INFO', help='Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
+    parser.add_argument("-jfj", "--jungfraujoch", action="store_true", help="Enable Jungfraujoch comtrol panel for communication with JFJ broker")
 
     args = parser.parse_args()
 
@@ -114,6 +115,7 @@ def main():
     globals.dtype = args.dtype
     globals.acc_image = np.zeros((globals.nrow,globals.ncol), dtype = args.dtype)
     globals.tem_mode = args.tem
+    globals.jfj = args.jungfraujoch
 
     logging.debug(type(globals.acc_image[0,0]))
 

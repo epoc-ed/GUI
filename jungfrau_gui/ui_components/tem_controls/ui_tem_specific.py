@@ -6,6 +6,8 @@ from ..utils import create_horizontal_line_with_margin
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
+from ... import globals
+
 class TEMDetector(QGroupBox):
     def __init__(self):
         super().__init__() # "Detector"
@@ -127,6 +129,9 @@ class TEMTasks(QGroupBox):
         self.rotation_button  = ToggleButton("Rotation", self) # Rotation/Record
         self.withwriter_checkbox = QCheckBox("with Writer", self)
         self.withwriter_checkbox.setChecked(False)
+        if globals.jfj:
+            self.JFJwriter_checkbox = QCheckBox("JFJ", self)
+            self.JFJwriter_checkbox.setChecked(False)
         self.autoreset_checkbox = QCheckBox("Auto reset", self)
         self.autoreset_checkbox.setChecked(False)
 
@@ -165,7 +170,7 @@ class TEMTasks(QGroupBox):
         CTN_group.addWidget(self.centering_button)
         tasks_section.addLayout(CTN_group)
 
-        tasks_section.addWidget(create_horizontal_line_with_margin(50))
+        tasks_section.addWidget(create_horizontal_line_with_margin(20))
 
         BEAM_group.addWidget(BEAM_label)
         BEAM_group.addWidget(self.beamAutofocus)
@@ -194,11 +199,13 @@ class TEMTasks(QGroupBox):
 
         tasks_section.addLayout(BEAM_group)
 
-        tasks_section.addWidget(create_horizontal_line_with_margin(50))
+        tasks_section.addWidget(create_horizontal_line_with_margin(20))
 
         ROT_group.addWidget(ROT_label)
         ROT_section_1.addWidget(self.rotation_button)
         ROT_section_1.addWidget(self.withwriter_checkbox)
+        if globals.jfj:
+            ROT_section_1.addWidget(self.JFJwriter_checkbox)
         ROT_section_1.addWidget(self.autoreset_checkbox)
         ROT_group.addLayout(ROT_section_1)
         ROT_section_2.addLayout(INPUT_layout)
