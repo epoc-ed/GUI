@@ -172,8 +172,8 @@ class ApplicationWindow(QMainWindow):
     def do_exit(self):
         # Prevent closing the GUI while JFJ is not Idle
         # TODO Add flexibily as a function of the nature of the ongoing JFJ operation
-        if globals.jfj and self.tem_controls.jfjoch_client:
-            if self.tem_controls.jfjoch_client.status().state == 'Measuring':
+        if globals.jfj and self.visualization_panel.jfjoch_client:
+            if self.visualization_panel.jfjoch_client.status().state == 'Measuring':
                 QMessageBox.warning(
                     self,
                     "Jungfraujoch is not Idle",

@@ -34,7 +34,6 @@ class TemControls(QGroupBox):
     def initUI(self):
 
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.jfjoch_client = None
         
         font_small = QFont("Arial", 10)
         font_small.setBold(True)
