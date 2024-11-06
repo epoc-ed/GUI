@@ -2,17 +2,22 @@ package:
   name: jungfrau_gui
   version: "{{ load_setup_py_data().version }}"
 
-build:
-  noarch: python
-  script: python setup.py install
-
 source:
   path: ..
+
+build:
+  noarch: python
+  script: 
+    - git describe --tags | cut -d'-' -f1 > jungfrau_gui/version.txt
+    - python setup.py sdist
+    - pip install dist/*.tar.gz
 
 requirements:
   build:
     - python 
-
+    - setuptools
+    - setuptools_scm
+    
   run:
     - python
     - h5py
