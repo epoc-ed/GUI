@@ -226,9 +226,7 @@ class RecordTask(Task):
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None
             if self.writer is None:
-                self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-                self.tem_action.tem_tasks.rotation_button.started = False
-                self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+                self.reset_rotation_button()
 
             print("------REACHED END OF TASK----------")
 
@@ -245,6 +243,8 @@ class RecordTask(Task):
             if self.writer is not None:
                 if self.standard_h5_recording and self.tem_action.file_operations.streamWriterButton.started:
                     self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
+            else:
+                self.reset_rotation_button()
             # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
             #     if self.tem_action.file_operations.streamWriterButton.started:
             #         self.tem_action.file_operations.stop_H5_recording.emit()
@@ -252,7 +252,12 @@ class RecordTask(Task):
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
         #                    self.tem_action.xds_template_filepath)
-                
+
+    def reset_rotation_button(self):
+        self.tem_action.tem_tasks.rotation_button.setText("Rotation")
+        self.tem_action.tem_tasks.rotation_button.started = False
+        self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+         
     def on_tem_receive(self):
         self.rotations_angles.append(
             (self.control.tem_update_times['stage.GetPos'][0],
