@@ -2,7 +2,8 @@
 This document was updated on 14 Oct 2024
 
 ## Table of Contents
-- [Activation](#activation)
+- [TEM control activation](#tem-control-activation)
+- [Starting the receiver](#starting-the-receiver)
 - [Deactivation](#deactivation)
 - [Main Functionalities](#main-functionalities)
 - [Summing Receiver Controls](#summing-receiver-controls)
@@ -14,7 +15,7 @@ This document was updated on 14 Oct 2024
 - [Troubleshooting](#troubleshooting)
     - [Launching previous system](#Launching-previous-system)
 
-## Activation
+## TEM Control Activation
 
 ### TEM-PC (not needed when you ONLY use the TEM console panel)
 1. Activate the TEM server:
@@ -37,8 +38,53 @@ This document was updated on 14 Oct 2024
      python server_tem.py
      ```
    This must be done **before** starting the GUI below.
+2. Follow the below steps depending on the receiver in use:
+   
+## Starting the Receiver
 
-### CameraPC (hodgkin)
+### A. JUNGFRAUJOCH
+
+#### Server (noether)
+1. Login as ```psi``` and switch to the Root User.
+2. Start the Jungfraujoch broker:
+    ```/opt/jfjoch/bin# ./jfjoch_broker /opt/etc/broker_jf500k.json```
+3. For data collection, open a separate terminal and start the Jungfraujoch writer:
+   ```/opt/jfjoch/bin/jfjoch_writer -R /data/epoc/storage/jfjoch_test/ tcp://127.0.0.1:5500```
+
+#### CameraPC (hodgkin)
+1. To open the JFJ web interface, open the web browser (firefox on hodgkin) and enter ```http://noether:5232/``` in the address bar.
+   > This assumes that connection between HODGKIN and NOETHER is up and running.
+2. When logged in as `jem2100plus`, ensure that the envireonment is activated, if not run:
+   ```mamba activate dev```
+3. Configure the detector:
+   ```bash
+   p config ~/jf.config
+   ```
+4. Change to the GUI directory:
+   ```bash
+   cd /home/instruments/jem2100plus/GUI
+   ```
+5. Confirm you are on the `testing` branch, otherwise switch:
+   ```bash
+   git branch --contains
+   git switch testing
+   ```
+6. Start the GUI:
+   ```bash
+   python launch_gui.py -jfj -t -s tcp://noether:5501
+   ```
+7. To start streaming:
+    > Starting the decoding of the streamed data -> Push ```View Stream```
+    > Ensure good connection to JFJ -> Push ```Connection to Jungfraujoch```
+    > Record the dark frame -> ```Record Full Pedestal``` (Blocking operation so wait until the end)
+    > Display decoded frames -> ```Live Stream```
+
+8. To collect data when TEM controls are OFF:
+   > Push the button ```Collect``` and stop collection with ```Cancel```
+
+### B. REUSS
+
+#### CameraPC (hodgkin)
 1. When logged in as `psi`, the environment has been set up.
 2. Configure the detector:
    ```bash
