@@ -540,7 +540,7 @@ class VisualizationPanel(QGroupBox):
                             progress = int(status.progress * 100)
                             self.progress_popup.update_progress(progress)
 
-                            if progress >= 100:
+                            if progress >= 100 or status.state == "Idle":
                                 self.progress_popup.close_on_complete()
                                 self.progress_timer.stop()  # Stop the timer when complete
                         except AttributeError as e:
@@ -550,10 +550,12 @@ class VisualizationPanel(QGroupBox):
 
                     self.progress_timer = QTimer(self)
                     self.progress_timer.timeout.connect(update_progress_bar)
-                    self.progress_timer.start(500)  # Update every 50ms      
 
                     # Start collecting pedestal (blocks the main thread)
                     self.jfjoch_client.collect_pedestal(wait=False)
+
+                    self.progress_timer.start(500)  # Update every 50ms      
+
                     self.jfjoch_client.wait_until_idle(progress=True)
 
                     # OPTION 3: Non-blocking operation: Ref. logic in the case above [command == "collect"]
