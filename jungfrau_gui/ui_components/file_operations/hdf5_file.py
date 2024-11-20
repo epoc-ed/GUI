@@ -56,12 +56,8 @@ class Hdf5File:
             path.mkdir(exist_ok=True)
             self.file = h5py.File(self.filename, self.mode)
 
-            # TODO Fix compression when using JFJ
-            if globals.jfj:
-                compression = None
-            else:
-                compression = hdf5plugin.Bitshuffle(nelems=0, cname='lz4')
-
+            compression = hdf5plugin.Bitshuffle(nelems=0, cname='lz4')
+            
             nxentry = self.file.create_group("entry")
             create_string_attr(nxentry, "NX_class", "NXentry")
             nxdata = nxentry.create_group("data")
