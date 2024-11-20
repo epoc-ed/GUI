@@ -53,16 +53,34 @@ class TEMAction(QObject):
         # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
         
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.client.SetXRel(10000))
-        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.client.SetXRel(-10000))
+        # Move X positive 10 micrometers
+        # self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.client.SetXRel(10000))
+        self.tem_stagectrl.movex10ump.clicked.connect(
+            lambda: threading.Thread(target=self.control.client.SetXRel, args=(10000,)).start())
+        
+        # Move X negative 10 micrometers
+        # self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.client.SetXRel(-10000))
+        self.tem_stagectrl.movex10umn.clicked.connect(
+            lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
 
+        # Move TX positive 10 degrees
+        # self.tem_stagectrl.move10degp.clicked.connect(
+        #             lambda: self.control.client.SetTXRel(10))
         self.tem_stagectrl.move10degp.clicked.connect(
-                    lambda: self.control.client.SetTXRel(10))
-        self.tem_stagectrl.move10degn.clicked.connect(
-                    lambda: self.control.client.SetTXRel(-10))        
-        self.tem_stagectrl.move0deg.clicked.connect(
-                    lambda: self.control.client.SetTiltXAngle(0))
+            lambda: threading.Thread(target=self.control.client.SetTXRel, args=(10,)).start())
 
+        # Move TX negative 10 degrees
+        # self.tem_stagectrl.move10degn.clicked.connect(
+        #             lambda: self.control.client.SetTXRel(-10))        
+        self.tem_stagectrl.move10degn.clicked.connect(
+            lambda: threading.Thread(target=self.control.client.SetTXRel, args=(-10,)).start())
+
+        # Set Tilt X Angle to 0 degrees
+        # self.tem_stagectrl.move0deg.clicked.connect(
+        #             lambda: self.control.client.SetTiltXAngle(0))
+        self.tem_stagectrl.move0deg.clicked.connect(
+            lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
+        
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
         self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
