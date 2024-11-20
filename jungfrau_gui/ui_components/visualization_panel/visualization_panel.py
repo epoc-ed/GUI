@@ -543,6 +543,9 @@ class VisualizationPanel(QGroupBox):
                             if progress >= 100 or status.state == "Idle":
                                 self.progress_popup.close_on_complete()
                                 self.progress_timer.stop()  # Stop the timer when complete
+                                logging.warning("Full pedestal collected!")
+                                self.resume_live_stream()
+                                
                         except AttributeError as e:
                             logging.error(f"Progress attribute missing in status response: {e}")
                         except TypeError as e:
@@ -560,9 +563,7 @@ class VisualizationPanel(QGroupBox):
 
                     # OPTION 3: Non-blocking operation: Ref. logic in the case above [command == "collect"]
                     """ ************************************************************************************* """
-                    logging.warning("Full pedestal collected!")
 
-                    self.resume_live_stream()
 
                 except Exception as e:
                     logging.error(f"Error occured during pedestal collection: {e}")
