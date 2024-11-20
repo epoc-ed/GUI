@@ -184,12 +184,23 @@ class VisualizationPanel(QGroupBox):
             ))
             self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
 
+            self.thresholdBox = QSpinBox(self)
+            self.thresholdBox.setMaximum(200)
+            self.thresholdBox.setValue(self.cfg.threshold)
+            self.thresholdBox.setDisabled(True)
+            self.thresholdBox.setSingleStep(10)
+            self.thresholdBox.setPrefix("Threshold: ")
+
+            self.thresholdBox.valueChanged.connect(lambda value: self.spin_box_modified(self.thresholdBox))
+            self.thresholdBox.editingFinished.connect(self.update_threshold_for_jfjoch)
+
             self.wait_option = QCheckBox("wait", self)
             self.wait_option.setChecked(False)
             self.wait_option.setDisabled(True)
 
             grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 4)
             grid_collection_jfjoch.addWidget(self.wait_option, 1, 4, 1, 1)
+            grid_collection_jfjoch.addWidget(self.thresholdBox, 2, 0, 1, 1)
 
             self.fname_label = QLabel("Path to recorded file", self)
             self.full_fname = QLineEdit(self)
@@ -200,7 +211,7 @@ class VisualizationPanel(QGroupBox):
             hbox_layout.addWidget(self.fname_label)
             hbox_layout.addWidget(self.full_fname)
 
-            grid_collection_jfjoch.addLayout(hbox_layout, 2, 0, 1, 5)
+            grid_collection_jfjoch.addLayout(hbox_layout, 3, 0, 1, 5)
 
             self.startCollection = QPushButton('Collect', self)
             self.startCollection.setDisabled(True)
@@ -210,8 +221,8 @@ class VisualizationPanel(QGroupBox):
             self.stopCollection.setDisabled(True)
             self.stopCollection.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
 
-            grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 5)
-            grid_collection_jfjoch.addWidget(self.stopCollection, 4, 0, 1, 5)
+            grid_collection_jfjoch.addWidget(self.startCollection, 4, 0, 1, 5)
+            grid_collection_jfjoch.addWidget(self.stopCollection, 5, 0, 1, 5)
 
             spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
             grid_collection_jfjoch.addItem(spacer2)
@@ -376,6 +387,12 @@ class VisualizationPanel(QGroupBox):
             field.setStyleSheet(f"QLineEdit {{ color: {text_color}; background-color: {self.background_color}; }}")
         elif isinstance(field,QSpinBox):
             field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
+
+    def update_threshold_for_jfjoch(self):
+        if globals.jfj:
+            self.cfg.threshold = self.thresholdBox.value()
+            self.reset_style(self.thresholdBox)
+            logging.info(f"Threshold energy set to: {self.cfg.threshold} keV")
 
     def update_jfjoch_wrapper(self):
         if self.jfjoch_client is not None:
