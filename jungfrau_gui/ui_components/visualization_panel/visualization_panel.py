@@ -512,7 +512,6 @@ class VisualizationPanel(QGroupBox):
                 logging.warning("Collecting the pedestal...")
                 try:
                     self.send_command_to_jfjoch("cancel")
-
                     self.jfjoch_client.wait_until_idle()
 
                     """ ************************************************************************************* """
@@ -522,6 +521,9 @@ class VisualizationPanel(QGroupBox):
                     
                     # OPTION 2: Create a pop up showing progress
                     logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
+                    
+                    # Disable the visualization panel to freeze the GUI
+                    self.setEnabled(False)
 
                     # Create and show the progress popup
                     self.progress_popup = ProgressPopup("Pedestal Collection", "Collecting pedestal...", self)
@@ -544,8 +546,11 @@ class VisualizationPanel(QGroupBox):
                                 self.progress_popup.close_on_complete()
                                 self.progress_timer.stop()  # Stop the timer when complete
                                 logging.warning("Full pedestal collected!")
+                                time.sleep(0.5)
                                 self.resume_live_stream()
-                                
+                                # Re-enable the window
+                                self.setEnabled(True)
+
                         except AttributeError as e:
                             logging.error(f"Progress attribute missing in status response: {e}")
                         except TypeError as e:
@@ -559,11 +564,10 @@ class VisualizationPanel(QGroupBox):
 
                     self.progress_timer.start(500)  # Update every 50ms      
 
-                    self.jfjoch_client.wait_until_idle(progress=True)
+                    # self.jfjoch_client.wait_until_idle(progress=True)
 
                     # OPTION 3: Non-blocking operation: Ref. logic in the case above [command == "collect"]
                     """ ************************************************************************************* """
-
 
                 except Exception as e:
                     logging.error(f"Error occured during pedestal collection: {e}")
