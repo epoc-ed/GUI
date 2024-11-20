@@ -20,7 +20,6 @@ class ZmqReceiver:
         self.context = zmq.Context()
         self.socket = None
         self.setup_socket()
-        self.header_processed = False
 
     def setup_socket(self):
         """Setup or reset the ZMQ socket."""
@@ -69,16 +68,16 @@ class ZmqReceiver:
             try:
                 msg = self.socket.recv()
                 msg = cbor2.loads(msg, tag_hook=tag_hook)
-                if not self.header_processed:
+                print(f"*********** message type is: {msg['type']} **************")
+                if msg['type'] == "start":
                     # Process and log the header message
-                    self.header_processed = True
-                    logging.debug(f"Received header: {msg}")
+                    logging.info(f"Received header: {msg}")
                     return None, None
                 else: 
                     # Process data messages   
-                    logging.debug(f"Got: {msg['series_id']}:{[msg['image_id']]}")
+                    logging.info(f"Got: {msg['series_id']}:{[msg['image_id']]}")
                     image = msg['data']['default'].astype(self.dt).reshape(globals.nrow, globals.ncol)
-                    frame_nr = None
+                    frame_nr = msg['image_id']
                     return image, frame_nr
             except zmq.error.Again:
                 # self.reconnect()

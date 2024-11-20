@@ -364,9 +364,7 @@ class VisualizationPanel(QGroupBox):
             self.jfjoch_client.cancel()
 
             self.live_stream_button.started = False
-
-            self.parent.receiver.header_processed = False # The header is sent each time the Live strean is triggered
-
+            
             """ 
             self.parent.file_operations.accumulate_button.setEnabled(False)
             self.parent.file_operations.streamWriterButton.setEnabled(False) 
