@@ -475,7 +475,9 @@ class VisualizationPanel(QGroupBox):
         try:
             if command == "live":
                 try:
-                    self.jfjoch_client.live()
+                    logging.info(f"Nb of frames per trigger: {self.nbFrames.value()}")
+                    logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
+                    self.jfjoch_client.start(n_images=self.nbFrames.value(), fname="", th=self.thresholdBox.value())
 
                     logging.warning("Live stream started successfully.")
                     
