@@ -364,7 +364,7 @@ class VisualizationPanel(QGroupBox):
             self.jfjoch_client.cancel()
 
             self.live_stream_button.started = False
-            
+
             """ 
             self.parent.file_operations.accumulate_button.setEnabled(False)
             self.parent.file_operations.streamWriterButton.setEnabled(False) 
@@ -410,7 +410,7 @@ class VisualizationPanel(QGroupBox):
                 if self.stream_view_button.started:
                     try:
                         # TODO Avoid hard code: JungfraujochWrapper(self.cfg.jfjoch_frontend_address)
-                        self.jfjoch_client = JungfraujochWrapper('http://noether:5232')
+                        self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
 
                         self.connectTojfjoch.started = True
                         # TODO crate a setter method 'lots_of_images' for in epoc.JungfraujochWrapper ?  
@@ -532,7 +532,7 @@ class VisualizationPanel(QGroupBox):
                     def update_progress_bar():
                         # Fetch real-time status from the API directly
                         status = self.jfjoch_client.status()
-                        print(f"******** status of api is: {status.state} ***********")
+                        logging.debug(f"******** State of api is: {status.state} ***********")
                         
                         if status is None:
                             logging.warning(f"Received {status} from status_get(). Progress cannot be updated.")
