@@ -517,11 +517,11 @@ class VisualizationPanel(QGroupBox):
 
                     """ ************************************************************************************* """
                     # OPTION 1: Use wait=True
-                    logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
-                    self.jfjoch_client.collect_pedestal(wait=True)
+                    # logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
+                    # self.jfjoch_client.collect_pedestal(wait=True)
                     
                     # OPTION 2: Create a pop up showing progress
-                    """ logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
+                    logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
 
                     # Create and show the progress popup
                     self.progress_popup = ProgressPopup("Pedestal Collection", "Collecting pedestal...", self)
@@ -554,11 +554,13 @@ class VisualizationPanel(QGroupBox):
 
                     # Start collecting pedestal (blocks the main thread)
                     self.jfjoch_client.collect_pedestal(wait=False)
-                    self.jfjoch_client.wait_until_idle(progress=True) """
+                    self.jfjoch_client.wait_until_idle(progress=True)
 
                     # OPTION 3: Non-blocking operation: Ref. logic in the case above [command == "collect"]
                     """ ************************************************************************************* """
                     logging.warning("Full pedestal collected!")
+
+                    self.resume_live_stream()
 
                 except Exception as e:
                     logging.error(f"Error occured during pedestal collection: {e}")
@@ -596,19 +598,22 @@ class VisualizationPanel(QGroupBox):
 
             self.startCollection.setEnabled(True)
 
-            logging.warning(f"Resuming Live Stream now...")
-            # TODO Create a generic method to use for [Live Stream (re)start] after operation ends
-            if not self.live_stream_button.started:
-                # Trigger the stream after collection ends
-                QTimer.singleShot(100, self.toggle_LiveStream)  # Delay to ensure sequential execution
-            else:
-                # If "Live" button is ON, turn it off, then re-start the stream
-                self.send_command_to_jfjoch("cancel")  # Stop the stream first
+            self.resume_live_stream()
 
-                def restart_stream():
-                    if not self.live_stream_button.started:
-                        self.toggle_LiveStream()  # Start the stream after stopping
-                QTimer.singleShot(200, restart_stream)  # Additional delay to ensure cancel completes
+    def resume_live_stream(self):
+        logging.warning(f"Resuming Live Stream now...")
+        # TODO Create a generic method to use for [Live Stream (re)start] after operation ends
+        if not self.live_stream_button.started:
+            # Trigger the stream after collection ends
+            QTimer.singleShot(100, self.toggle_LiveStream)  # Delay to ensure sequential execution
+        else:
+            # If "Live" button is ON, turn it off, then re-start the stream
+            self.send_command_to_jfjoch("cancel")  # Stop the stream first
+
+            def restart_stream():
+                if not self.live_stream_button.started:
+                    self.toggle_LiveStream()  # Start the stream after stopping
+            QTimer.singleShot(200, restart_stream)  # Additional delay to ensure cancel completes
 
     # def update_full_fname(self):
     #     self.full_fname.setText(self.cfg.fpath.as_posix())
