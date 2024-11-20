@@ -365,7 +365,7 @@ class VisualizationPanel(QGroupBox):
 
             self.live_stream_button.started = False
 
-            self.parent.header_processed = False # The header is sent each time the Live strean is triggered
+            self.parent.receiver.header_processed = False # The header is sent each time the Live strean is triggered
 
             """ 
             self.parent.file_operations.accumulate_button.setEnabled(False)
