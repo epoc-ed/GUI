@@ -417,6 +417,8 @@ class VisualizationPanel(QGroupBox):
         self.nbFrames.setEnabled(enables)
         self.wait_option.setEnabled(enables) 
 
+        self.thresholdBox.setEnabled(enables)
+
         self.recordPedestalBtn.setEnabled(enables)
 
     def connect_and_start_jfjoch_client(self):
