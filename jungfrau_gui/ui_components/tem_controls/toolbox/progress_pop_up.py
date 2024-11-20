@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QProgressBar
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QProgressBar, QSizePolicy
 
 class ProgressPopup(QDialog):
     def __init__(self, title="Progress", message="Please wait...", parent=None):
@@ -13,6 +13,11 @@ class ProgressPopup(QDialog):
         
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 100)
+
+        # Adjust the width of the progress bar
+        self.progress_bar.setMinimumWidth(400)  # Set a minimum width in pixels
+        self.progress_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
         layout.addWidget(self.progress_bar)
 
         self.setLayout(layout)

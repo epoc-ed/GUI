@@ -360,11 +360,8 @@ class VisualizationPanel(QGroupBox):
             logging.info(f"Stopping the stream...") 
             self.live_stream_button.setText("Live Stream")
             self.parent.plot.setTitle("Stream stopped")
-
             self.jfjoch_client.cancel()
-
             self.live_stream_button.started = False
-
             """ 
             self.parent.file_operations.accumulate_button.setEnabled(False)
             self.parent.file_operations.streamWriterButton.setEnabled(False) 
@@ -409,11 +406,9 @@ class VisualizationPanel(QGroupBox):
         if self.connectTojfjoch.started == False:
                 if self.stream_view_button.started:
                     try:
-                        # TODO Avoid hard code: JungfraujochWrapper(self.cfg.jfjoch_frontend_address)
                         self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
-
                         self.connectTojfjoch.started = True
-                        # TODO crate a setter method 'lots_of_images' for in epoc.JungfraujochWrapper ?  
+                        # TODO create a setter method 'lots_of_images' for in epoc.JungfraujochWrapper ?  
                         logging.info("Created a Jungfraujoch client for communication...")
                         self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
                         self.connectTojfjoch.setText("Communication OK")
@@ -458,7 +453,6 @@ class VisualizationPanel(QGroupBox):
             self.connectTojfjoch.setText('Connect to Jungfraujoch')
 
     def send_command_to_jfjoch(self, command):
-        # def thread_command_relay():
         try:
             if command == "live":
                 try:
@@ -514,13 +508,7 @@ class VisualizationPanel(QGroupBox):
                     self.send_command_to_jfjoch("cancel")
                     self.jfjoch_client.wait_until_idle()
 
-                    """ ************************************************************************************* """
-                    # OPTION 1: Use wait=True
-                    # logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
-                    # self.jfjoch_client.collect_pedestal(wait=True)
-                    
-                    # OPTION 2: Create a pop up showing progress
-                    logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
+                    logging.warning(f"Starting to collect the pedestal... This is a blocking operation so please wait until it completes.")
                     
                     # Disable the visualization panel to freeze the GUI
                     self.parent.setEnabled(False)
@@ -565,12 +553,7 @@ class VisualizationPanel(QGroupBox):
                     # Start collecting pedestal (blocks the main thread)
                     self.jfjoch_client.collect_pedestal(wait=False)
 
-                    self.progress_timer.start(500)  # Update every 50ms      
-
-                    # self.jfjoch_client.wait_until_idle(progress=True)
-
-                    # OPTION 3: Non-blocking operation: Ref. logic in the case above [command == "collect"]
-                    """ ************************************************************************************* """
+                    self.progress_timer.start(100)  # Update every 10ms      
 
                 except Exception as e:
                     logging.error(f"Error occured during pedestal collection: {e}")
@@ -609,12 +592,10 @@ class VisualizationPanel(QGroupBox):
                     self.parent.tem_controls.tem_tasks.rotation_button.started= False
 
             self.startCollection.setEnabled(True)
-
             self.resume_live_stream()
 
     def resume_live_stream(self):
         logging.warning(f"Resuming Live Stream now...")
-        # TODO Create a generic method to use for [Live Stream (re)start] after operation ends
         if not self.live_stream_button.started:
             # Trigger the stream after collection ends
             QTimer.singleShot(100, self.toggle_LiveStream)  # Delay to ensure sequential execution
