@@ -523,7 +523,7 @@ class VisualizationPanel(QGroupBox):
                     logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
                     
                     # Disable the visualization panel to freeze the GUI
-                    self.setEnabled(False)
+                    self.parent.setEnabled(False)
 
                     # Create and show the progress popup
                     self.progress_popup = ProgressPopup("Pedestal Collection", "Collecting pedestal...", self)
@@ -532,24 +532,27 @@ class VisualizationPanel(QGroupBox):
                     def update_progress_bar():
                         # Fetch real-time status from the API directly
                         status = self.jfjoch_client.status()
+                        print(f"******** status of api is: {status.state} ***********")
                         
                         if status is None:
                             logging.warning(f"Received {status} from status_get(). Progress cannot be updated.")
                             return
 
-                        # Check if the 'progress' attribute exists in the status object
                         try:
-                            progress = int(status.progress * 100)
-                            self.progress_popup.update_progress(progress)
-
-                            if progress >= 100 or status.state == "Idle":
+                            if status.state == 'Idle':
+                                # Operation complete
+                                self.progress_popup.update_progress(100)
                                 self.progress_popup.close_on_complete()
-                                self.progress_timer.stop()  # Stop the timer when complete
+                                self.progress_timer.stop()
                                 logging.warning("Full pedestal collected!")
-                                time.sleep(0.5)
                                 self.resume_live_stream()
-                                # Re-enable the window
-                                self.setEnabled(True)
+                                self.parent.setEnabled(True)
+                            else:
+                                if status.progress is not None:
+                                    progress = int(status.progress * 100)
+                                    self.progress_popup.update_progress(progress)
+                                else:
+                                    logging.warning("Progress is None while state is not Idle.")
 
                         except AttributeError as e:
                             logging.error(f"Progress attribute missing in status response: {e}")
@@ -571,6 +574,8 @@ class VisualizationPanel(QGroupBox):
 
                 except Exception as e:
                     logging.error(f"Error occured during pedestal collection: {e}")
+                    # Re-enable the main window in case of error
+                    self.setEnabled(True)
 
             elif command == 'cancel':
                 # Stop of live stream always reflected on the [Live Stream] button
