@@ -191,7 +191,11 @@ class VisualizationPanel(QGroupBox):
             self.thresholdBox.setSingleStep(10)
             self.thresholdBox.setPrefix("Threshold: ")
 
-            self.thresholdBox.valueChanged.connect(lambda value: self.spin_box_modified(self.thresholdBox))
+            self.last_threshold_value = self.thresholdBox.value()
+            self.thresholdBox.valueChanged.connect(lambda value: (
+                self.track_threshold_value(value),
+                self.spin_box_modified(self.thresholdBox)
+            ))
             self.thresholdBox.editingFinished.connect(self.update_threshold_for_jfjoch)
 
             self.wait_option = QCheckBox("wait", self)
@@ -390,9 +394,10 @@ class VisualizationPanel(QGroupBox):
 
     def update_threshold_for_jfjoch(self):
         if globals.jfj:
-            self.cfg.threshold = self.thresholdBox.value()
-            self.reset_style(self.thresholdBox)
-            logging.info(f"Threshold energy set to: {self.cfg.threshold} keV")
+            if self.cfg.threshold != self.last_threshold_value:            
+                self.cfg.threshold = self.thresholdBox.value()
+                self.reset_style(self.thresholdBox)
+                logging.info(f"Threshold energy set to: {self.cfg.threshold} keV")
 
     def update_jfjoch_wrapper(self):
         if self.jfjoch_client is not None:
@@ -404,6 +409,9 @@ class VisualizationPanel(QGroupBox):
     # Helper method to track the latest value for nbFrames
     def track_nbFrames_value(self, value):
         self.last_nbFrames_value = value
+
+    def track_threshold_value(self, value):
+        self.last_threshold_value = value
         
     # TODO Repetition of method in file_operations
     def spin_box_modified(self, spin_box):
