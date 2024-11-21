@@ -399,6 +399,7 @@ class VisualizationPanel(QGroupBox):
                 self.cfg.threshold = self.thresholdBox.value()
                 self.reset_style(self.thresholdBox)
                 logging.info(f"Threshold energy set to: {self.cfg.threshold} keV")
+                self.resume_live_stream() # Restarting the stream automatically
 
     def update_jfjoch_wrapper(self):
         if self.jfjoch_client is not None:
