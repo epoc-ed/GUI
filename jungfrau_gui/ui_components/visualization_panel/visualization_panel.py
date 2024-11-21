@@ -185,6 +185,7 @@ class VisualizationPanel(QGroupBox):
             self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
 
             self.thresholdBox = QSpinBox(self)
+            self.thresholdBox.setMinimum(0)
             self.thresholdBox.setMaximum(200)
             self.thresholdBox.setValue(self.cfg.threshold)
             self.thresholdBox.setDisabled(True)
