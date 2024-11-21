@@ -487,6 +487,7 @@ class VisualizationPanel(QGroupBox):
                 try:
                     # Cancel current task
                     self.send_command_to_jfjoch("cancel") 
+                    self.jfjoch_client.wait_until_idle()
 
                     logging.info(f"Nb of frames per trigger: {self.nbFrames.value()}")
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
