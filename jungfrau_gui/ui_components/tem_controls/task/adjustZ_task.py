@@ -1,5 +1,6 @@
 import time
 import numpy as np
+from .... import globals
 
 from .task import Task
 
@@ -18,7 +19,7 @@ class AdjustZ(Task):
     def __init__(self, control_worker):
         super().__init__(control_worker, "AdjustZ")
         self.control = control_worker
-        self.client = TEMClient("temserver", 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         
     def px2um(self, px):
         magnification = int(self.control.tem_status['eos.GetMagValue'][0])

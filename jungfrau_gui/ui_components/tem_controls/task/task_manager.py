@@ -1,10 +1,11 @@
 import logging
 import time
 import os
+from datetime import datetime as dt
 import numpy as np
 import threading
 
-from PySide6.QtCore import Signal, Slot, QObject, QThread
+from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt
 
 from .task import Task
 from .record_task import RecordTask
@@ -22,6 +23,21 @@ import jungfrau_gui.ui_threading_helpers as thread_manager
 
 from .... import globals
 
+from ..gaussian_fitter_autofocus import GaussianFitter
+import copy
+
+def create_roi_coord_tuple(roi):
+    roiPos = roi.pos()
+    roiSize = roi.size()
+
+    roi_start_row = int(np.floor(roiPos.y()))
+    roi_end_row = int(np.ceil(roiPos.y() + roiSize.y()))
+    roi_start_col = int(np.floor(roiPos.x()))
+    roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
+    roi_coords = (roi_start_row, roi_end_row, roi_start_col, roi_end_col)
+
+    return roi_coords
+
 class ControlWorker(QObject):
     """
     The 'ControlWorker' object coordinates the execution of tasks and redirects requests to the GUI.
@@ -38,7 +54,9 @@ class ControlWorker(QObject):
     
     trigger_tem_update = Signal(dict)
 
-    fit_complete = Signal(dict)
+    fit_complete = Signal(dict, int)
+    request_fit = Signal(int)
+    # cleanup_fitter = Signal()
     
     trigger_stop_autofocus = Signal()
     remove_ellipse = Signal()
@@ -55,7 +73,7 @@ class ControlWorker(QObject):
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.client = TEMClient("temserver", 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
 
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
@@ -76,7 +94,9 @@ class ControlWorker(QObject):
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.actionFit_Beam.connect(self.start_beam_fit)
-        self.trigger_stop_autofocus.connect(self.set_worker_not_ready)
+        self.request_fit.connect(self.handle_request_fit) 
+        self.trigger_stop_autofocus.connect(self.set_sweeper_not_off_state)
+        # self.cleanup_fitter.connect(self.stop_and_clean_fitter)
         
         self.trigger_tem_update.connect(self.update_tem_status)
         
@@ -103,34 +123,53 @@ class ControlWorker(QObject):
         self.sweepingWorkerReady = False
         logging.info("Initialized control thread")
 
-
-    def handle_task_cleanup(self):
-        """
-        TODO Improve Implementation of stopping mechanism of the Sweep/Fit task
-
-        For the BeamFitTask, at the spontaneous end of the task, the button would 
-        display the text "Remove axis / pop-up" and so you'd need to click on it again
-        to trigger the 'stop_task()' method [ref. toggle_beamAutofocus() in tem_action.py]
-        """
-        if self.task is not None: # TODO This does not seem to be enough 
-            # to prevent entering again after call from ui_main_window [handle_tem_task_cleanup]
-            if isinstance(self.task, RecordTask):
-                logging.info("RecordTask has been ended, performing cleanup...")
-                self.stop_task()
-            elif isinstance(self.task, GetInfoTask):
-                logging.info("GetInfoTask has been ended, performing cleanup...")
-                self.stop_task()
-        
-
     @Slot()
     def on_task_finished(self):
         """ self.finished_task.emit() """
         logging.info(f"\033[1mFinished Task [{self.task.task_name}] !")
+        
+        if isinstance(self.task, BeamFitTask):
+            self.stop_and_clean_fitter()
+            logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
+            self.remove_ellipse.emit()
+
         self.handle_task_cleanup()
         thread_manager.disconnect_worker_signals(self.task)
         thread_manager.terminate_thread(self.task_thread)
         thread_manager.remove_worker_thread_pair(self.tem_action.parent.threadWorkerPairs, self.task_thread)
         thread_manager.reset_worker_and_thread(self.task, self.task_thread)
+
+    def handle_task_cleanup(self):
+        if self.task is not None: # TODO This does not seem to be enough 
+            # to prevent entering again after call from ui_main_window [handle_tem_task_cleanup]
+            if isinstance(self.task, RecordTask):
+                logging.info("The \033[1mRecordTask\033[0m\033[34m has ended, performing cleanup...")
+            elif isinstance(self.task, GetInfoTask):
+                logging.info("The \033[1mGetInfo\033[0m\033[34m has ended, performing cleanup...")
+            elif isinstance(self.task, BeamFitTask):
+                logging.info("The \033[1mBeamFitTask\033[0m\033[34m has ended, performing cleanup...")
+            
+            self.stop_task()
+
+    def stop_task(self):
+        if self.task:
+            if isinstance(self.task, RecordTask):
+                logging.info("Ensuring that stage is stopped!")
+                try:
+                    tools.send_with_retries(self.client.StopStage)
+                except Exception as e:
+                    logging.error(f"Unexpected error @ client.StopStage(): {e}")
+                    pass
+            
+            elif isinstance(self.task, BeamFitTask):
+                    self.reset_autofocus_button()
+
+    def reset_autofocus_button(self):
+        self.tem_action.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
+        self.tem_action.tem_tasks.beamAutofocus.started = False
+        # Close Pop-up Window
+        if self.tem_action.tem_tasks.parent.plotDialog != None:
+            self.tem_action.tem_tasks.parent.plotDialog.close_window()
 
     def start_task(self, task):
         logging.debug("Control is starting a Task...")
@@ -155,8 +194,9 @@ class ControlWorker(QObject):
         logging.info("Start GetInfo")
         if self.task is not None:
             if self.task.running:
-                logging.warning("Stopping the currently running  - \033[38;5;214mGetInfoTask\033[33m - task before starting a new one.")
-                self.stop_task()
+                logging.warning("\033[38;5;214mGetInfoTask\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                # self.stop_task()
                 return
 
         command='TEMstatus'
@@ -212,6 +252,8 @@ class ControlWorker(QObject):
 
         self.start_task(task)
 
+# vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
     @Slot()
     def start_beam_fit(self):
         logging.info("Start AutoFocus")
@@ -222,13 +264,7 @@ class ControlWorker(QObject):
                                 "You need to stop the current task before starting a new one.")
                 # self.stop_task()
                 return           
-        ###
-        # if os.name == 'nt': # test on Win-Win
-        #     while True:
-        #         self.send_to_tem('#more')
-        #         time.sleep(0.12)
-        #         if self.tem_status['eos.GetFunctionMode'][0] != -1: break
-        ###
+
         if self.tem_status['eos.GetFunctionMode'][1] != 4:
             logging.info('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
@@ -237,9 +273,80 @@ class ControlWorker(QObject):
         task = BeamFitTask(self)
         self.start_task(task)
 
-    def set_worker_not_ready(self):
-        logging.debug("Sweeping worker ready --> FALSE")
+    def set_sweeper_not_off_state(self):
+        logging.info("####### ######## Sweeping worker ready? --> FALSE")
         self.sweepingWorkerReady = False
+
+    
+    def handle_request_fit(self, il1_value):
+        if self.task.is_first_beamfit:
+            self.do_fit(il1_value)  # Run do_fit the first time
+            self.task.is_first_beamfit = False  # Set flag to False after the first run
+        else:
+            self.getFitParams(il1_value)
+
+    def do_fit(self, il1_value):
+        if self.task is not None:
+            im_data = self.tem_action.parent.imageItem.image
+            roi_coords = create_roi_coord_tuple(self.tem_action.parent.roi)
+
+            im_data_copy = copy.deepcopy(im_data)
+            roi_coords_copy = copy.deepcopy(roi_coords)
+
+            self.thread_fit = QThread()
+            # self.fitter = GaussianFitter(imageItem=im, roi=roi, il1_value = il1_value)
+            self.fitter = GaussianFitter(image=im_data_copy, roi_coords=roi_coords_copy, il1_value= il1_value)
+            self.tem_action.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
+            self.initializeFitter(self.thread_fit, self.fitter, il1_value) # Initialize the worker thread and fitter
+            self.fitterWorkerReady = True # Flag to indicate worker is ready
+            self.thread_fit.start()
+            logging.info("Starting fitting process")
+        else:
+            logging.warning("Fitting worker has been deleted ! ")
+
+    def initializeFitter(self, thread, worker, il1_value):
+        thread_manager.move_worker_to_thread(thread, worker)
+        worker.finished.connect(self.emit_fit_complete_signal)
+        worker.finished.connect(self.getFitterReady)
+
+    def emit_fit_complete_signal(self, im, fit_result_best_values, il1_value):
+        self.fit_complete.emit(fit_result_best_values, il1_value)
+        self.process_fit_results(im, fit_result_best_values, il1_value)
+
+    def getFitterReady(self):
+        self.fitterWorkerReady = True
+
+    def updateWorkerParams(self, im_data, roi_coords, il1_value):
+        if self.thread_fit.isRunning():
+            self.fitter.updateParamsSignal.emit(im_data, roi_coords, il1_value)  
+
+    def getFitParams(self, il1_value):
+        if self.fitterWorkerReady:
+            self.fitterWorkerReady = False
+
+            im_data_copy = copy.deepcopy(self.tem_action.parent.imageItem.image)
+            roi_coords = create_roi_coord_tuple(self.tem_action.parent.roi)
+            roi_coords_copy = copy.deepcopy(roi_coords)
+
+            self.updateWorkerParams(im_data_copy, roi_coords_copy, il1_value)
+            time.sleep(0.01) # ensure update goes through before fitting starts 
+            QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
+
+    def process_fit_results(self, im, fit_result, il1_value):
+        amplitude = float(fit_result['amplitude'])
+        self.task.amp_il1_map[amplitude] = (il1_value, im) 
+        if amplitude > self.task.max_amplitude:
+            self.task.max_amplitude = amplitude
+        logging.info(dt.now().strftime(" PROCESSED @ %H:%M:%S.%f")[:-3])
+
+    def stop_and_clean_fitter(self):
+        logging.info(f"Quitting GaussianFitting Thread")
+        thread_manager.disconnect_worker_signals(self.fitter)
+        thread_manager.terminate_thread(self.thread_fit)
+        thread_manager.remove_worker_thread_pair(self.tem_action.parent.threadWorkerPairs, self.thread_fit)
+        thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
+
+# AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
     @Slot(dict)
     def update_tem_status(self, response):
@@ -343,27 +450,6 @@ class ControlWorker(QObject):
         except Exception as e:
             logging.error(f"Error: {e}")
             return None
-
-    def stop_task(self):
-        if self.task:
-            if isinstance(self.task, BeamFitTask):
-                logging.info("Stopping the - \033[1mSweeping\033[0m\033[34m - task!")
-                self.trigger_stop_autofocus.emit()
-
-            elif isinstance(self.task, RecordTask):
-                logging.info("Stopping the - \033[1mRecord\033[0m\033[34m - task!")
-                try:
-                    tools.send_with_retries(self.client.StopStage)
-                except Exception as e:
-                    logging.error(f"Unexpected error @ client.StopStage(): {e}")
-                    pass
-
-            elif isinstance(self.task, GetInfoTask):
-                logging.info("Stopping the - \033[1mGetInfo\033[0m\033[34m - task!")
-
-        if isinstance(self.task, BeamFitTask):
-                logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
-                self.remove_ellipse.emit() 
 
     """ @Slot()
     def stop(self):

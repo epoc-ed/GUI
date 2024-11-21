@@ -96,7 +96,7 @@ class TEMAction(QObject):
         self.tem_tasks.gettem_button.setEnabled(enables)
         self.tem_tasks.gettem_checkbox.setEnabled(enables)
         self.tem_tasks.centering_button.setEnabled(False) # Not functional yet
-        self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
+        self.tem_tasks.beamAutofocus.setEnabled(enables) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
@@ -238,17 +238,5 @@ class TEMAction(QObject):
             if self.tem_tasks.popup_checkbox.isChecked():
                 self.tem_tasks.parent.showPlotDialog()  
         else:
-            """ 
-            To correct/adapt the interruption case
-            as in the 'toggle_rotation' above 
-            """
-            logging.warning(f"Interrupting Task - {self.control.task.task_name} -")
-            self.control.task.finished.disconnect()
-
-            self.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
-            self.tem_tasks.beamAutofocus.started = False
-            # Close Pop-up Window
-            if self.tem_tasks.parent.plotDialog != None:
-                self.tem_tasks.parent.plotDialog.close_window()
-            self.control.actionFit_Beam.emit()
-            # self.control.stop_task()
+            # Interrupt autofocus but end task gracefully
+            self.control.set_sweeper_not_off_state()

@@ -7,6 +7,8 @@ stream = "tcp://localhost:4545"
 tem_mode = False
 jfj = False
 
+tem_host = "temserver"
+
 #Configuration
 nrow = cfg.nrows() 
 ncol = cfg.ncols()

@@ -27,7 +27,7 @@ class RecordTask(Task):
         self.rotations_angles = []
         self.log_suffix = log_suffix
         logging.info("RecordTask initialized")
-        self.client = TEMClient("temserver", 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.standard_h5_recording = standard_h5_recording
 
