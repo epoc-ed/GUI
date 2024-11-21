@@ -203,9 +203,9 @@ class VisualizationPanel(QGroupBox):
             self.wait_option.setChecked(False)
             self.wait_option.setDisabled(True)
 
-            grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 4)
-            grid_collection_jfjoch.addWidget(self.wait_option, 1, 4, 1, 1)
-            grid_collection_jfjoch.addWidget(self.thresholdBox, 2, 0, 1, 1)
+            grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 3)
+            grid_collection_jfjoch.addWidget(self.thresholdBox, 1, 3, 1, 2)
+            grid_collection_jfjoch.addWidget(self.wait_option, 1, 5, 1, 1)
 
             self.fname_label = QLabel("Path to recorded file", self)
             self.full_fname = QLineEdit(self)
@@ -216,7 +216,7 @@ class VisualizationPanel(QGroupBox):
             hbox_layout.addWidget(self.fname_label)
             hbox_layout.addWidget(self.full_fname)
 
-            grid_collection_jfjoch.addLayout(hbox_layout, 3, 0, 1, 5)
+            grid_collection_jfjoch.addLayout(hbox_layout, 2, 0, 1, 6)
 
             self.startCollection = QPushButton('Collect', self)
             self.startCollection.setDisabled(True)
@@ -226,8 +226,8 @@ class VisualizationPanel(QGroupBox):
             self.stopCollection.setDisabled(True)
             self.stopCollection.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
 
-            grid_collection_jfjoch.addWidget(self.startCollection, 4, 0, 1, 5)
-            grid_collection_jfjoch.addWidget(self.stopCollection, 5, 0, 1, 5)
+            grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 6)
+            grid_collection_jfjoch.addWidget(self.stopCollection, 4, 0, 1, 6)
 
             spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
             grid_collection_jfjoch.addItem(spacer2)
