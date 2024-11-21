@@ -357,7 +357,7 @@ class VisualizationPanel(QGroupBox):
     def toggle_LiveStream(self):
         if not self.live_stream_button.started:
             result = self.send_command_to_jfjoch("live")
-            logging.warning(f"Result of send_command_to_jfjoch('live'): {result}")
+            logging.debug(f"Result of send_command_to_jfjoch('live'): {result}")
         
             # Only proceed if "live" command was successful
             if result is not True:
@@ -485,6 +485,9 @@ class VisualizationPanel(QGroupBox):
         try:
             if command == "live":
                 try:
+                    # Cancel current task
+                    self.send_command_to_jfjoch("cancel") 
+
                     logging.info(f"Nb of frames per trigger: {self.nbFrames.value()}")
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
                     self.jfjoch_client.start(n_images=self.nbFrames.value(), fname="", th=self.thresholdBox.value())
