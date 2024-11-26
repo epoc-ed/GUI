@@ -272,13 +272,17 @@ class ControlWorker(QObject):
     def send_to_tem(self, message):
         logging.debug(f'Sending {message} to TEM...')
         if message == "#info":
-            results = self.get_state()
-            self.trigger_tem_update.emit(results)
+            # results = self.get_state()
+            # self.trigger_tem_update.emit(results)
+            threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state())).start()
+
         elif message == "#more":
-            results = self.get_state_detailed()
-            self.trigger_tem_update.emit(results)
+            # results = self.get_state_detailed()
+            # self.trigger_tem_update.emit(results)
+            threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state_detailed())).start()
+            
         else:
-            logging.debug("Just passing through")
+            logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
             pass
 
     def get_state(self):
@@ -335,8 +339,10 @@ class ControlWorker(QObject):
             return result if result is not None else "No result returned"
         except AttributeError:
             logging.error(f"Error: The method '{method_name}' does not exist.")
+            return None
         except Exception as e:
             logging.error(f"Error: {e}")
+            return None
 
     def stop_task(self):
         if self.task:
@@ -374,7 +380,7 @@ class ControlWorker(QObject):
             # logging.warning("TEM server is OFF")
             # time.sleep(0.12)
             logging.warning("GUI diconnected from TEM")
-            self.task_thread.quit()
+            # self.task_thread.quit() # TODO Raises error: Internal C++ object (PySide6.QtCore.QThread) already deleted.
         except Exception as e:
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass

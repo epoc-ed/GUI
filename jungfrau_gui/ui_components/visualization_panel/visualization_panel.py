@@ -184,12 +184,28 @@ class VisualizationPanel(QGroupBox):
             ))
             self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
 
+            self.thresholdBox = QSpinBox(self)
+            self.thresholdBox.setMinimum(0)
+            self.thresholdBox.setMaximum(200)
+            self.thresholdBox.setValue(self.cfg.threshold)
+            self.thresholdBox.setDisabled(True)
+            self.thresholdBox.setSingleStep(10)
+            self.thresholdBox.setPrefix("Threshold: ")
+
+            self.last_threshold_value = self.thresholdBox.value()
+            self.thresholdBox.valueChanged.connect(lambda value: (
+                self.track_threshold_value(value),
+                self.spin_box_modified(self.thresholdBox)
+            ))
+            self.thresholdBox.editingFinished.connect(self.update_threshold_for_jfjoch)
+
             self.wait_option = QCheckBox("wait", self)
             self.wait_option.setChecked(False)
             self.wait_option.setDisabled(True)
 
-            grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 4)
-            grid_collection_jfjoch.addWidget(self.wait_option, 1, 4, 1, 1)
+            grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 3)
+            grid_collection_jfjoch.addWidget(self.thresholdBox, 1, 3, 1, 2)
+            grid_collection_jfjoch.addWidget(self.wait_option, 1, 5, 1, 1)
 
             self.fname_label = QLabel("Path to recorded file", self)
             self.full_fname = QLineEdit(self)
@@ -200,7 +216,7 @@ class VisualizationPanel(QGroupBox):
             hbox_layout.addWidget(self.fname_label)
             hbox_layout.addWidget(self.full_fname)
 
-            grid_collection_jfjoch.addLayout(hbox_layout, 2, 0, 1, 5)
+            grid_collection_jfjoch.addLayout(hbox_layout, 2, 0, 1, 6)
 
             self.startCollection = QPushButton('Collect', self)
             self.startCollection.setDisabled(True)
@@ -210,8 +226,8 @@ class VisualizationPanel(QGroupBox):
             self.stopCollection.setDisabled(True)
             self.stopCollection.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
 
-            grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 5)
-            grid_collection_jfjoch.addWidget(self.stopCollection, 4, 0, 1, 5)
+            grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 6)
+            grid_collection_jfjoch.addWidget(self.stopCollection, 4, 0, 1, 6)
 
             spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
             grid_collection_jfjoch.addItem(spacer2)
@@ -341,7 +357,7 @@ class VisualizationPanel(QGroupBox):
     def toggle_LiveStream(self):
         if not self.live_stream_button.started:
             result = self.send_command_to_jfjoch("live")
-            logging.warning(f"Result of send_command_to_jfjoch('live'): {result}")
+            logging.debug(f"Result of send_command_to_jfjoch('live'): {result}")
         
             # Only proceed if "live" command was successful
             if result is not True:
@@ -360,11 +376,8 @@ class VisualizationPanel(QGroupBox):
             logging.info(f"Stopping the stream...") 
             self.live_stream_button.setText("Live Stream")
             self.parent.plot.setTitle("Stream stopped")
-
             self.jfjoch_client.cancel()
-
             self.live_stream_button.started = False
-
             """ 
             self.parent.file_operations.accumulate_button.setEnabled(False)
             self.parent.file_operations.streamWriterButton.setEnabled(False) 
@@ -380,6 +393,14 @@ class VisualizationPanel(QGroupBox):
         elif isinstance(field,QSpinBox):
             field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
 
+    def update_threshold_for_jfjoch(self):
+        if globals.jfj:
+            if self.cfg.threshold != self.last_threshold_value:            
+                self.cfg.threshold = self.thresholdBox.value()
+                self.reset_style(self.thresholdBox)
+                logging.info(f"Threshold energy set to: {self.cfg.threshold} keV")
+                self.resume_live_stream() # Restarting the stream automatically
+
     def update_jfjoch_wrapper(self):
         if self.jfjoch_client is not None:
             if self.jfjoch_client._lots_of_images != self.last_nbFrames_value:
@@ -390,6 +411,9 @@ class VisualizationPanel(QGroupBox):
     # Helper method to track the latest value for nbFrames
     def track_nbFrames_value(self, value):
         self.last_nbFrames_value = value
+
+    def track_threshold_value(self, value):
+        self.last_threshold_value = value
         
     # TODO Repetition of method in file_operations
     def spin_box_modified(self, spin_box):
@@ -403,17 +427,17 @@ class VisualizationPanel(QGroupBox):
         self.nbFrames.setEnabled(enables)
         self.wait_option.setEnabled(enables) 
 
+        self.thresholdBox.setEnabled(enables)
+
         self.recordPedestalBtn.setEnabled(enables)
 
     def connect_and_start_jfjoch_client(self):
         if self.connectTojfjoch.started == False:
                 if self.stream_view_button.started:
                     try:
-                        # TODO Avoid hard code: JungfraujochWrapper(self.cfg.jfjoch_frontend_address)
-                        self.jfjoch_client = JungfraujochWrapper('http://noether:5232')
-
+                        self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
                         self.connectTojfjoch.started = True
-                        # TODO crate a setter method 'lots_of_images' for in epoc.JungfraujochWrapper ?  
+                        # TODO create a setter method 'lots_of_images' for in epoc.JungfraujochWrapper ?  
                         logging.info("Created a Jungfraujoch client for communication...")
                         self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
                         self.connectTojfjoch.setText("Communication OK")
@@ -458,11 +482,16 @@ class VisualizationPanel(QGroupBox):
             self.connectTojfjoch.setText('Connect to Jungfraujoch')
 
     def send_command_to_jfjoch(self, command):
-        # def thread_command_relay():
         try:
             if command == "live":
                 try:
-                    self.jfjoch_client.live()
+                    # Cancel current task
+                    self.send_command_to_jfjoch("cancel") 
+                    self.jfjoch_client.wait_until_idle()
+
+                    logging.info(f"Nb of frames per trigger: {self.nbFrames.value()}")
+                    logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
+                    self.jfjoch_client.start(n_images=self.nbFrames.value(), fname="", th=self.thresholdBox.value())
 
                     logging.warning("Live stream started successfully.")
                     
@@ -512,16 +541,12 @@ class VisualizationPanel(QGroupBox):
                 logging.warning("Collecting the pedestal...")
                 try:
                     self.send_command_to_jfjoch("cancel")
-
                     self.jfjoch_client.wait_until_idle()
 
-                    """ ************************************************************************************* """
-                    # OPTION 1: Use wait=True
-                    logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
-                    self.jfjoch_client.collect_pedestal(wait=True)
+                    logging.warning(f"Starting to collect the pedestal... This is a blocking operation so please wait until it completes.")
                     
-                    # OPTION 2: Create a pop up showing progress
-                    """ logging.warning(f"Starting to collect the pedestal... This operation blocks the main thread")
+                    # Disable the visualization panel to freeze the GUI
+                    self.parent.setEnabled(False)
 
                     # Create and show the progress popup
                     self.progress_popup = ProgressPopup("Pedestal Collection", "Collecting pedestal...", self)
@@ -530,19 +555,28 @@ class VisualizationPanel(QGroupBox):
                     def update_progress_bar():
                         # Fetch real-time status from the API directly
                         status = self.jfjoch_client.status()
+                        logging.debug(f"******** State of api is: {status.state} ***********")
                         
                         if status is None:
                             logging.warning(f"Received {status} from status_get(). Progress cannot be updated.")
                             return
 
-                        # Check if the 'progress' attribute exists in the status object
                         try:
-                            progress = int(status.progress * 100)
-                            self.progress_popup.update_progress(progress)
-
-                            if progress >= 100:
+                            if status.state == 'Idle':
+                                # Operation complete
+                                self.progress_popup.update_progress(100)
                                 self.progress_popup.close_on_complete()
-                                self.progress_timer.stop()  # Stop the timer when complete
+                                self.progress_timer.stop()
+                                logging.warning("Full pedestal collected!")
+                                self.resume_live_stream()
+                                self.parent.setEnabled(True)
+                            else:
+                                if status.progress is not None:
+                                    progress = int(status.progress * 100)
+                                    self.progress_popup.update_progress(progress)
+                                else:
+                                    logging.warning("Progress is None while state is not Idle.")
+
                         except AttributeError as e:
                             logging.error(f"Progress attribute missing in status response: {e}")
                         except TypeError as e:
@@ -550,18 +584,16 @@ class VisualizationPanel(QGroupBox):
 
                     self.progress_timer = QTimer(self)
                     self.progress_timer.timeout.connect(update_progress_bar)
-                    self.progress_timer.start(500)  # Update every 50ms      
 
                     # Start collecting pedestal (blocks the main thread)
                     self.jfjoch_client.collect_pedestal(wait=False)
-                    self.jfjoch_client.wait_until_idle(progress=True) """
 
-                    # OPTION 3: Non-blocking operation: Ref. logic in the case above [command == "collect"]
-                    """ ************************************************************************************* """
-                    logging.warning("Full pedestal collected!")
+                    self.progress_timer.start(100)  # Update every 10ms      
 
                 except Exception as e:
                     logging.error(f"Error occured during pedestal collection: {e}")
+                    # Re-enable the main window in case of error
+                    self.setEnabled(True)
 
             elif command == 'cancel':
                 # Stop of live stream always reflected on the [Live Stream] button
@@ -595,20 +627,21 @@ class VisualizationPanel(QGroupBox):
                     self.parent.tem_controls.tem_tasks.rotation_button.started= False
 
             self.startCollection.setEnabled(True)
+            self.resume_live_stream()
 
-            logging.warning(f"Resuming Live Stream now...")
-            # TODO Create a generic method to use for [Live Stream (re)start] after operation ends
-            if not self.live_stream_button.started:
-                # Trigger the stream after collection ends
-                QTimer.singleShot(100, self.toggle_LiveStream)  # Delay to ensure sequential execution
-            else:
-                # If "Live" button is ON, turn it off, then re-start the stream
-                self.send_command_to_jfjoch("cancel")  # Stop the stream first
+    def resume_live_stream(self):
+        logging.warning(f"Resuming Live Stream now...")
+        if not self.live_stream_button.started:
+            # Trigger the stream after collection ends
+            QTimer.singleShot(100, self.toggle_LiveStream)  # Delay to ensure sequential execution
+        else:
+            # If "Live" button is ON, turn it off, then re-start the stream
+            self.send_command_to_jfjoch("cancel")  # Stop the stream first
 
-                def restart_stream():
-                    if not self.live_stream_button.started:
-                        self.toggle_LiveStream()  # Start the stream after stopping
-                QTimer.singleShot(200, restart_stream)  # Additional delay to ensure cancel completes
+            def restart_stream():
+                if not self.live_stream_button.started:
+                    self.toggle_LiveStream()  # Start the stream after stopping
+            QTimer.singleShot(200, restart_stream)  # Additional delay to ensure cancel completes
 
     # def update_full_fname(self):
     #     self.full_fname.setText(self.cfg.fpath.as_posix())

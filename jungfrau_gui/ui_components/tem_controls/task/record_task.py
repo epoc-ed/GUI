@@ -6,6 +6,7 @@ import numpy as np
 from .task import Task
 from .dectris2xds import XDSparams
 from PySide6.QtWidgets import QMessageBox
+from PySide6.QtCore import Signal
 
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
@@ -14,6 +15,8 @@ from ..toolbox.tool import send_with_retries
 from .... import globals
 
 class RecordTask(Task):
+    reset_rotation_signal = Signal()
+
     def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None, standard_h5_recording=False):
         super().__init__(control_worker, "Record")
         self.phi_dot = 0 # 10 deg/s
@@ -27,6 +30,8 @@ class RecordTask(Task):
         self.client = TEMClient("temserver", 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.standard_h5_recording = standard_h5_recording
+
+        self.reset_rotation_signal.connect(self.reset_rotation_button)
 
     def run(self):
         logging.debug("RecordTask::run()")
@@ -226,9 +231,7 @@ class RecordTask(Task):
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None
             if self.writer is None:
-                self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-                self.tem_action.tem_tasks.rotation_button.started = False
-                self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+                self.reset_rotation_signal.emit()
 
             print("------REACHED END OF TASK----------")
 
@@ -245,6 +248,8 @@ class RecordTask(Task):
             if self.writer is not None:
                 if self.standard_h5_recording and self.tem_action.file_operations.streamWriterButton.started:
                     self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
+            else:
+                self.reset_rotation_signal.emit()
             # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
             #     if self.tem_action.file_operations.streamWriterButton.started:
             #         self.tem_action.file_operations.stop_H5_recording.emit()
@@ -252,7 +257,12 @@ class RecordTask(Task):
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
         #                    self.tem_action.xds_template_filepath)
-                
+
+    def reset_rotation_button(self):
+        self.tem_action.tem_tasks.rotation_button.setText("Rotation")
+        self.tem_action.tem_tasks.rotation_button.started = False
+        self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+         
     def on_tem_receive(self):
         self.rotations_angles.append(
             (self.control.tem_update_times['stage.GetPos'][0],

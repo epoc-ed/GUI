@@ -68,10 +68,17 @@ class ZmqReceiver:
             try:
                 msg = self.socket.recv()
                 msg = cbor2.loads(msg, tag_hook=tag_hook)
-                logging.debug(f"Got: {msg['series_id']}:{[msg['image_id']]}")
-                image = msg['data']['default'].astype(self.dt).reshape(globals.nrow, globals.ncol)
-                frame_nr = None
-                return image, frame_nr
+                logging.debug(f"*********** message type is: {msg['type']} **************")
+                if msg['type'] == "start":
+                    # Process and log the header message
+                    logging.debug(f"Received header: {msg}")
+                    return None, None
+                else: 
+                    # Process data messages   
+                    logging.debug(f"Got: {msg['series_id']}:{[msg['image_id']]}")
+                    image = msg['data']['default'].astype(self.dt).reshape(globals.nrow, globals.ncol)
+                    frame_nr = msg['image_id']
+                    return image, frame_nr
             except zmq.error.Again:
                 # self.reconnect()
                 return None, None
