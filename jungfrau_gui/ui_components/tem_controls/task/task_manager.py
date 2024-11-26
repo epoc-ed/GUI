@@ -55,7 +55,7 @@ class ControlWorker(QObject):
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.client = TEMClient("temserver", 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
 
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
@@ -264,6 +264,14 @@ class ControlWorker(QObject):
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
+            
+            logging.warning("TEM Status Dictionnary updated!")
+            
+            # import json
+            # # Save to text file
+            # with open('tem_status.txt', 'w') as file:
+            #     json.dump(self.tem_status, file, indent=4)  # 'indent=4' makes it pretty-printed
+
             self.updated.emit()
         except Exception as e:
             logging.error(f"Error during updating tem_status map: {e}")

@@ -181,15 +181,8 @@ class TEMTools(QObject):
         self.trigger_addinfo_to_hdf5.connect(self.addinfo_to_hdf)     
  
     def addinfo_to_hdf(self, pixel=0.075):
-        tem_status = self.tem_action.control.tem_status
-
-        # filename = self.cfg.data_dir/self.cfg.fname
-        """ 
-        The upper line might be problematic in case the time changes in self.cfg.fname,
-        and have the [addinfo_to_hdf] create a different file with a more recent timestamp 
-        """
+        tem_status = self.tem_action.control.tem_status       
         filename = self.tem_action.file_operations.formatted_filename
-        
         beamcenter = self.tem_action.beamcenter
         interval = self.tem_action.visualization_panel.update_interval.value()
         ht = 200 # keV  # <- HT3

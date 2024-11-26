@@ -2,7 +2,7 @@ import time
 import numpy as np
 
 from .task import Task
-
+from .... import globals
 from ..toolbox import config as cfg_jf
 
 from simple_tem import TEMClient
@@ -23,7 +23,7 @@ class CenteringTask(Task):
         # self.duration_s = 60 # should be replaced with a practical value
         # self.estimateds_duration = self.duration_s + 0.1
 
-        self.client = TEMClient("temserver", 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
 
     def rot2d(self, vector, theta):# anti-clockwise
         theta_r = np.radians(theta)
