@@ -12,6 +12,8 @@ from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
 from ..toolbox.tool import send_with_retries
 
+from ....metadata_uploader.metadata_update_client import MetadataNotifier
+
 from .... import globals
 
 class RecordTask(Task):
@@ -29,6 +31,7 @@ class RecordTask(Task):
         logging.info("RecordTask initialized")
         self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.metadata_notifier = MetadataNotifier(host = "localhost")
         self.standard_h5_recording = standard_h5_recording
 
         self.reset_rotation_signal.connect(self.reset_rotation_button)
@@ -195,19 +198,21 @@ class RecordTask(Task):
             if self.writer is not None:
                 # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
                 if self.standard_h5_recording:
+                    time.sleep(0.1)
                     logging.info(" ******************** Adding Info to H5...")
-                    self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
                     
-                    os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-                    """ 
-                    Could also use 'self.tem_action.file_operations.formatted_filename' to rename the logfile 
-                    but even with a timestemp briefly more recent, the file_id will uniquely identify the 
-                    correspondant logfile to the written hdf5:
+                    # self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
+                    # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+                    # formatted_filename= self.tem_action.file_operations.formatted_filename
+                    # os.rename(self.log_suffix + '.log', formatted_filename.with_suffix('.log'))
 
-                    formatted_filename= self.tem_action.file_operations.formatted_filename
-                    os.rename(self.log_suffix + '.log', (formatted_filename.with_suffix('.log'))
+                    send_with_retries(self.metadata_notifier.notify_metadata_update, 
+                                      self.tem_action.file_operations.formatted_filename, 
+                                      self.control.tem_status, 
+                                      self.cfg.beam_center, 
+                                      retries=3, 
+                                      delay=0.1)
                     
-                    """
                     logging.info(" ******************** Updating file_id in DB...")
                     self.cfg.after_write()
                     self.tem_action.file_operations.trigger_update_h5_index_box.emit()

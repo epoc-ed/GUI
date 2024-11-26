@@ -7,7 +7,7 @@ from ....ui_components.tem_controls.toolbox import config as cfg_jf
 from PySide6.QtCore import QObject, Signal
 
 from epoc import ConfigurationClient, auth_token, redis_host
-
+import zmq
 from .... import globals
 
 def create_full_mapping(info_queries, more_queries, info_queries_client, more_queries_client):
@@ -128,7 +128,7 @@ def send_with_retries(client_method, *args, retries=3, delay=0.1, **kwargs):
             # Dynamically call the method with args and kwargs
             result = client_method(*args, **kwargs)
             return result  # Exit early if successful
-        except TimeoutError as e:
+        except (TimeoutError, zmq.ZMQError) as e:
             logging.error(f"TimeoutError during {client_method.__name__}: {e}")
             if attempt == retries - 1:
                 logging.error(f"Max retry attempts reached for {client_method.__name__}. Giving up.")
