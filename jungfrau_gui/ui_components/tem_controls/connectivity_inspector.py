@@ -2,6 +2,7 @@ import logging
 from PySide6.QtCore import QObject, Signal, Slot
 
 from simple_tem import TEMClient
+
 from ... import globals
 
 class TEM_Connector(QObject):

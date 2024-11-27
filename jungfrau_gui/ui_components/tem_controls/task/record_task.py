@@ -12,6 +12,8 @@ from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
 from ..toolbox.tool import send_with_retries
 
+from ....metadata_uploader.metadata_update_client import MetadataNotifier
+
 from .... import globals
 
 class RecordTask(Task):
@@ -29,6 +31,7 @@ class RecordTask(Task):
         logging.info("RecordTask initialized")
         self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.metadata_notifier = MetadataNotifier(host = "noether")
         self.standard_h5_recording = standard_h5_recording
 
         self.reset_rotation_signal.connect(self.reset_rotation_button)
@@ -53,9 +56,7 @@ class RecordTask(Task):
         try:
             logfile = None  # Initialize logfile to None
 
-            # if os.access(os.path.dirname(self.log_suffix), os.W_OK):
             print("\n\n\n---------OPEN LOG-----------------\n\n\n")
-            # self.control.send_to_tem("#more")
             
             # Attempt to open the logfile and catch potential issues
             try:
@@ -133,13 +134,6 @@ class RecordTask(Task):
                 self.writer[0]()
                 logging.info("\033[1mAsynchronous writing of files is starting now...")
 
-                # if self.writer == "Jungfraujoch":
-                #     logging.info("\033[1mJungfraujoch has initiated asynchronous data collection ...")
-                #     self.tem_action.visualization_panel.startCollection.clicked.emit()
-                # else:
-                #     logging.info("\033[1mAsynchronous writing of files is starting now...")
-                #     self.tem_action.file_operations.start_H5_recording.emit() 
-
             t0 = time.time()
             try:
                 while self.client.is_rotating:
@@ -163,13 +157,6 @@ class RecordTask(Task):
             if self.writer is not None:
                 logging.info(" ********************  Stopping Data Collection...")
                 self.writer[1]()
-
-                # if self.writer == "Jungfraujoch":
-                #     logging.info(" ********************  Stopping JFJ Data Collection...")
-                #     self.tem_action.tem_controls.stopCollection.clicked.emit()
-                # elif self.tem_action.file_operations.streamWriterButton.started:
-                #     logging.info(" ********************  Stopping H5 writer...")
-                #     self.tem_action.file_operations.stop_H5_recording.emit()
             
             time.sleep(0.01)
             self.client.SetBeamBlank(1)
@@ -209,24 +196,27 @@ class RecordTask(Task):
 
             # Add H5 info and file finalization
             if self.writer is not None:
-                # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
                 if self.standard_h5_recording:
                     logging.info(" ******************** Adding Info to H5...")
+                    
                     self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                    
-                    os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-                    """ 
-                    Could also use 'self.tem_action.file_operations.formatted_filename' to rename the logfile 
-                    but even with a timestemp briefly more recent, the file_id will uniquely identify the 
-                    correspondant logfile to the written hdf5:
-
+                    # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
                     formatted_filename= self.tem_action.file_operations.formatted_filename
-                    os.rename(self.log_suffix + '.log', (formatted_filename.with_suffix('.log'))
+                    os.rename(self.log_suffix + '.log', formatted_filename.with_suffix('.log'))
                     
-                    """
                     logging.info(" ******************** Updating file_id in DB...")
                     self.cfg.after_write()
                     self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+                else:
+                    time.sleep(0.1)
+                    logging.info(" ******************** Adding Info to H5...")
+
+                    send_with_retries(self.metadata_notifier.notify_metadata_update, 
+                                        self.tem_action.visualization_panel.formatted_filename, 
+                                        self.control.tem_status, 
+                                        self.cfg.beam_center, 
+                                        retries=3, 
+                                        delay=0.1) 
 
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None
@@ -250,9 +240,6 @@ class RecordTask(Task):
                     self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
             else:
                 self.reset_rotation_signal.emit()
-            # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
-            #     if self.tem_action.file_operations.streamWriterButton.started:
-            #         self.tem_action.file_operations.stop_H5_recording.emit()
         
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?

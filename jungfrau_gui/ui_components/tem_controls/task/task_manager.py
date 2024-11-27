@@ -236,7 +236,7 @@ class ControlWorker(QObject):
                     self,
                     end_angle,
                     filename_suffix.as_posix(),
-                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stopCollection.clicked.emit],
+                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit],
                     standard_h5_recording=False
                 )
             else:
@@ -371,6 +371,14 @@ class ControlWorker(QObject):
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
+            
+            logging.warning("TEM Status Dictionnary updated!")
+            
+            # import json
+            # # Save to text file
+            # with open('tem_status.txt', 'w') as file:
+            #     json.dump(self.tem_status, file, indent=4)  # 'indent=4' makes it pretty-printed
+
             self.updated.emit()
         except Exception as e:
             logging.error(f"Error during updating tem_status map: {e}")
