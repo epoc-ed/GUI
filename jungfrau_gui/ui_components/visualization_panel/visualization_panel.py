@@ -44,6 +44,7 @@ class VisualizationPanel(QGroupBox):
     trigger_update_frames_to_sum = Signal(int)
     trigger_disable_receiver_controls = Signal()
     trigger_idle_srecv_btn = Signal()
+    assess_gui_jfj_communication_and_display_state = Signal(bool)
 
     def __init__(self, parent):
         # super().__init__("Visualization Panel")
@@ -52,6 +53,7 @@ class VisualizationPanel(QGroupBox):
         self.trigger_update_frames_to_sum.connect(self.update_frames_to_sum)
         self.trigger_disable_receiver_controls.connect(self.enable_receiver_controls)
         self.trigger_idle_srecv_btn.connect(self.srecv_btn_toggle_OFF)
+        self.assess_gui_jfj_communication_and_display_state.connect(self.update_gui_with_jfj_state)
         self.initUI()
 
     def initUI(self):
@@ -457,29 +459,35 @@ class VisualizationPanel(QGroupBox):
             check_task = BrokerCheckTask(self.check_jfj_broker_ready, self.on_check_jfj_task_complete)
             self.thread_pool.start(check_task)
 
+    def update_gui_with_jfj_state(self, jfj_broker_is_ready):
+        if jfj_broker_is_ready:
+            self.update_gui_with_JFJ_ON()
+        else:
+            self.update_gui_with_JFJ_OFF()
+
+    def update_gui_with_JFJ_ON(self):
+        self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
+        self.connectTojfjoch.setText("Communication OK")
+        self.enable_jfjoch_controls(True)
+        if self.jfjoch_client.status().state == "Idle": # So that the [Live Stream] button reflects the actual operating state
+            self.send_command_to_jfjoch("cancel") 
+            self.toggle_LiveStream()
+
+    def update_gui_with_JFJ_OFF(self):
+        self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
+        self.connectTojfjoch.setText("Connection Failed")
+        self.enable_jfjoch_controls(False)
+        logging.warning("The JFJ broker current state is in {Inactive, Error}... State needs to be 'Idle' for communoication ot work")
+
     def check_jfj_broker_ready(self):
         logging.warning("Checking broker...")
-        time.sleep(1)  # Simulating delay (replace with actual work)
         
         try:
-            if self.jfjoch_client.status().state not in {"Inactive", "Error"}: 
-                self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
-                self.connectTojfjoch.setText("Communication OK")
-                self.enable_jfjoch_controls(True)
-                if self.jfjoch_client.status().state == "Idle": # So that the [Live Stream] button reflects the actual operating state
-                    self.send_command_to_jfjoch("cancel") 
-                    self.live_stream_button.clicked.emit()
-            else:
-                self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
-                self.connectTojfjoch.setText("Connection Failed")
-                logging.warning("The JFJ broker current state is in {Inactive, Error}... State needs to be 'Idle' for communoication ot work")
-                self.enable_jfjoch_controls(False)
+            self.assess_gui_jfj_communication_and_display_state.emit(self.jfjoch_client.status().state not in {"Inactive", "Error"}) 
 
         except Exception as e:
             logging.error(f"Error occured when checking the operating state of the wrapper [jfjoch_client.status().state]: {e}")
-            self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
-            self.connectTojfjoch.setText("Connection Failed")
-            self.enable_jfjoch_controls(False)
+            self.assess_gui_jfj_communication_and_display_state.emit(False)
 
         logging.warning("Check finished")
 
