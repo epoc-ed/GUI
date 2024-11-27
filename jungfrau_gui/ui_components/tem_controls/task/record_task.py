@@ -196,22 +196,27 @@ class RecordTask(Task):
 
             # Add H5 info and file finalization
             if self.writer is not None:
-                # if self.writer == self.tem_action.file_operations.toggle_hdf5Writer:
                 if self.standard_h5_recording:
-                    time.sleep(0.1)
                     logging.info(" ******************** Adding Info to H5...")
                     
-                    # self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
+                    self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
                     # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-                    # formatted_filename= self.tem_action.file_operations.formatted_filename
-                    # os.rename(self.log_suffix + '.log', formatted_filename.with_suffix('.log'))
+                    formatted_filename= self.tem_action.file_operations.formatted_filename
+                    os.rename(self.log_suffix + '.log', formatted_filename.with_suffix('.log'))
+                    
+                    logging.info(" ******************** Updating file_id in DB...")
+                    self.cfg.after_write()
+                    self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+                else:
+                    time.sleep(0.1)
+                    logging.info(" ******************** Adding Info to H5...")
 
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                      self.tem_action.file_operations.formatted_filename, 
-                                      self.control.tem_status, 
-                                      self.cfg.beam_center, 
-                                      retries=3, 
-                                      delay=0.1)
+                                        self.tem_action.file_operations.formatted_filename, 
+                                        self.control.tem_status, 
+                                        self.cfg.beam_center, 
+                                        retries=3, 
+                                        delay=0.1)
                     
                     logging.info(" ******************** Updating file_id in DB...")
                     self.cfg.after_write()
