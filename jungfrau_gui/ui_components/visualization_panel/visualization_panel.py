@@ -470,20 +470,17 @@ class VisualizationPanel(QGroupBox):
         self.connectTojfjoch.setText("Communication OK")
         self.enable_jfjoch_controls(True)
         if self.jfjoch_client.status().state == "Idle": # So that the [Live Stream] button reflects the actual operating state
-            self.send_command_to_jfjoch("cancel") 
-            """ self.stop_jfj_measurement.clicked.emit() """
-            # time.sleep(1) # just testing
-            # self.toggle_LiveStream()
+            if self.live_stream_button.started: # When the stream ends, the button has to reflect that
+                    self.toggle_LiveStream() # toggle OFF
 
     def update_gui_with_JFJ_OFF(self):
         self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
         self.connectTojfjoch.setText("Connection Failed")
         self.enable_jfjoch_controls(False)
-        logging.warning("The JFJ broker current state is in {Inactive, Error}... State needs to be 'Idle' for communoication ot work")
+        logging.warning("The JFJ broker current state is in {Inactive, Error}... State needs to be 'Idle' for communication ot work")
 
     def check_jfj_broker_ready(self):
-        logging.warning("Checking broker...")
-        
+        logging.debug("Checking broker...")
         try:
             self.assess_gui_jfj_communication_and_display_state.emit(self.jfjoch_client.status().state not in {"Inactive", "Error"}) 
 
@@ -491,7 +488,7 @@ class VisualizationPanel(QGroupBox):
             logging.error(f"Error occured when checking the operating state of the wrapper [jfjoch_client.status().state]: {e}")
             self.assess_gui_jfj_communication_and_display_state.emit(False)
 
-        logging.warning("Check finished")
+        logging.debug("Check finished")
 
     def connect_and_start_jfjoch_client(self):
         if self.connectTojfjoch.started == False:
@@ -503,8 +500,8 @@ class VisualizationPanel(QGroupBox):
                         self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
                         logging.info("Created a Jungfraujoch client for communication...")
 
-                        # Check the JFJ state of operation every second
-                        self.check_jfj_timer.start(2000)  
+                        # Check the JFJ state of operation every 5 seconds
+                        self.check_jfj_timer.start(5000)  
 
                     except TimeoutError as e:
                         logging.error(f"Connection attempt timed out: {e}")
@@ -568,8 +565,8 @@ class VisualizationPanel(QGroupBox):
 
                     logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
-                    # self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
-                    self.jfjoch_client.start(n_images = 500, fname="", th = self.thresholdBox.value())
+                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
+                    # self.jfjoch_client.start(n_images = 500, fname="", th = self.thresholdBox.value())
 
                     logging.warning("Live stream started successfully.")
                     
