@@ -468,7 +468,7 @@ class VisualizationPanel(QGroupBox):
                 self.enable_jfjoch_controls(True)
                 if self.jfjoch_client.status().state == "Idle": # So that the [Live Stream] button reflects the actual operating state
                     self.send_command_to_jfjoch("cancel") 
-                    self.toggle_LiveStream()
+                    self.live_stream_button.clicked.emit()
             else:
                 self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
                 self.connectTojfjoch.setText("Connection Failed")
