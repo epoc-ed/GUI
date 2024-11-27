@@ -471,6 +471,7 @@ class VisualizationPanel(QGroupBox):
         self.enable_jfjoch_controls(True)
         if self.jfjoch_client.status().state == "Idle": # So that the [Live Stream] button reflects the actual operating state
             self.send_command_to_jfjoch("cancel") 
+            time.sleep(1) # just testing
             self.toggle_LiveStream()
 
     def update_gui_with_JFJ_OFF(self):
@@ -567,7 +568,7 @@ class VisualizationPanel(QGroupBox):
                     logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
                     # self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
-                    self.jfjoch_client.start(n_images = 100, fname="", th = self.thresholdBox.value())
+                    self.jfjoch_client.start(n_images = 500, fname="", th = self.thresholdBox.value())
 
                     logging.warning("Live stream started successfully.")
                     
@@ -598,8 +599,7 @@ class VisualizationPanel(QGroupBox):
                     self.jfjoch_client.wait_until_idle()
                     
                     logging.warning(f"Starting to collect data...")
-                    # self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname = self.cfg.fpath.as_posix(), wait = self.wait_option.isChecked())
-                    self.jfjoch_client.start(n_images = 100, fname = self.cfg.fpath.as_posix(), wait = self.wait_option.isChecked())
+                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname = self.cfg.fpath.as_posix(), wait = self.wait_option.isChecked())
 
                     # Create and start the wait_until_idle thread for asynchronous monitoring
                     self.idle_thread = threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,), daemon=True)
