@@ -95,7 +95,7 @@ class ControlWorker(QObject):
 
         self.actionFit_Beam.connect(self.start_beam_fit)
         self.request_fit.connect(self.handle_request_fit) 
-        self.trigger_stop_autofocus.connect(self.set_sweeper_not_off_state)
+        self.trigger_stop_autofocus.connect(self.set_sweeper_to_off_state)
         # self.cleanup_fitter.connect(self.stop_and_clean_fitter)
         
         self.trigger_tem_update.connect(self.update_tem_status)
@@ -273,7 +273,7 @@ class ControlWorker(QObject):
         task = BeamFitTask(self)
         self.start_task(task)
 
-    def set_sweeper_not_off_state(self):
+    def set_sweeper_to_off_state(self):
         logging.info("####### ######## Sweeping worker ready? --> FALSE")
         self.sweepingWorkerReady = False
 

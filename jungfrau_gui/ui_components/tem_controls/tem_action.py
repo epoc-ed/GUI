@@ -239,4 +239,4 @@ class TEMAction(QObject):
                 self.tem_tasks.parent.showPlotDialog()  
         else:
             # Interrupt autofocus but end task gracefully
-            self.control.set_sweeper_not_off_state()
+            self.control.set_sweeper_to_off_state()
