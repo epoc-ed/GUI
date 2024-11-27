@@ -212,7 +212,7 @@ class RecordTask(Task):
                     logging.info(" ******************** Adding Info to H5...")
 
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                        self.tem_action.file_operations.formatted_filename, 
+                                        self.tem_action.visualization_panel.formatted_filename, 
                                         self.control.tem_status, 
                                         self.cfg.beam_center, 
                                         retries=3, 
