@@ -244,12 +244,12 @@ class VisualizationPanel(QGroupBox):
             self.startCollection.setDisabled(True)
             self.startCollection.clicked.connect(lambda: self.send_command_to_jfjoch('collect'))
 
-            self.stopCollection = QPushButton('Cancel', self)
-            self.stopCollection.setDisabled(True)
-            self.stopCollection.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
+            self.stop_jfj_measurement = QPushButton('Cancel', self)
+            self.stop_jfj_measurement.setDisabled(True)
+            self.stop_jfj_measurement.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
 
             grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 6)
-            grid_collection_jfjoch.addWidget(self.stopCollection, 4, 0, 1, 6)
+            grid_collection_jfjoch.addWidget(self.stop_jfj_measurement, 4, 0, 1, 6)
 
             spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
             grid_collection_jfjoch.addItem(spacer2)
@@ -436,7 +436,7 @@ class VisualizationPanel(QGroupBox):
 
     def enable_jfjoch_controls(self, enables=False):
         self.startCollection.setEnabled(enables)
-        self.stopCollection.setEnabled(enables)
+        self.stop_jfj_measurement.setEnabled(enables)
         self.live_stream_button.setEnabled(enables)
         
         # self.nbFrames.setEnabled(enables)
@@ -471,8 +471,9 @@ class VisualizationPanel(QGroupBox):
         self.enable_jfjoch_controls(True)
         if self.jfjoch_client.status().state == "Idle": # So that the [Live Stream] button reflects the actual operating state
             self.send_command_to_jfjoch("cancel") 
-            time.sleep(1) # just testing
-            self.toggle_LiveStream()
+            """ self.stop_jfj_measurement.clicked.emit() """
+            # time.sleep(1) # just testing
+            # self.toggle_LiveStream()
 
     def update_gui_with_JFJ_OFF(self):
         self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
@@ -675,7 +676,7 @@ class VisualizationPanel(QGroupBox):
             elif command == 'cancel':
                 # Stop of live stream always reflected on the [Live Stream] button
                 if self.live_stream_button.started:
-                    self.toggle_LiveStream()
+                    self.toggle_LiveStream() # toggle OFF
                 else:
                     logging.info(f"Cancel request forwarded to JFJ...") 
                     self.jfjoch_client.cancel()  
