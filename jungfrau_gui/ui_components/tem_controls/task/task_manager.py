@@ -196,7 +196,7 @@ class ControlWorker(QObject):
                     self,
                     end_angle,
                     filename_suffix.as_posix(),
-                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stopCollection.clicked.emit],
+                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit],
                     standard_h5_recording=False
                 )
             else:
