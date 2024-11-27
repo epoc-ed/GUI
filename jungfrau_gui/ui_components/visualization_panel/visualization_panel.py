@@ -500,7 +500,10 @@ class VisualizationPanel(QGroupBox):
                         self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
                         logging.info("Created a Jungfraujoch client for communication...")
 
-                        # Check the JFJ state of operation every 5 seconds
+                        # Trigger immediately for the first time
+                        self.run_check_jfj_ready_in_thread()
+
+                        # Then check the JFJ state of operation every 5 seconds
                         self.check_jfj_timer.start(5000)  
 
                     except TimeoutError as e:
