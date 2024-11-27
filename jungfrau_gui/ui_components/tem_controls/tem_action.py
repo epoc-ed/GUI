@@ -49,7 +49,8 @@ class TEMAction(QObject):
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
-
+        self.tem_stagectrl.mag_modes.buttonClicked.connect(self.toggle_mag_modes)
+        
         # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
         
@@ -92,6 +93,8 @@ class TEMAction(QObject):
         if enables:
             self.toggle_rb_speeds()
         for i in self.tem_stagectrl.movestages.buttons():
+            i.setEnabled(enables)
+        for i in self.tem_stagectrl.mag_modes.buttons():
             i.setEnabled(enables)
         self.tem_tasks.gettem_button.setEnabled(enables)
         self.tem_tasks.gettem_checkbox.setEnabled(enables)
@@ -201,6 +204,9 @@ class TEMAction(QObject):
     def toggle_rb_speeds(self):   
         self.update_rotation_speed_idx_from_ui()
         self.control.execute_command("Setf1OverRateTxNum("+ str(self.cfg.rotation_speed_idx) +")")
+
+    def toggle_mag_modes(self):
+        self.control.execute_command("SelectFunctionMode("+ str(self.tem_stagectrl.mag_modes.checkedId()) +")")
 
     def update_rotation_speed_idx_from_ui(self):
         self.cfg.rotation_speed_idx = self.tem_stagectrl.rb_speeds.checkedId()
