@@ -466,8 +466,9 @@ class VisualizationPanel(QGroupBox):
                 self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
                 self.connectTojfjoch.setText("Communication OK")
                 self.enable_jfjoch_controls(True)
-                if self.jfjoch_client.status().state == "Idle":
-                    self.send_command_to_jfjoch("live") # So that the [Live Stream] button reflects the actual operating state
+                if self.jfjoch_client.status().state == "Idle": # So that the [Live Stream] button reflects the actual operating state
+                    self.send_command_to_jfjoch("cancel") 
+                    self.toggle_LiveStream()
             else:
                 self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
                 self.connectTojfjoch.setText("Connection Failed")
@@ -535,7 +536,14 @@ class VisualizationPanel(QGroupBox):
             self.connectTojfjoch.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.connectTojfjoch.setText('Connect to Jungfraujoch')
             self.send_command_to_jfjoch("cancel") # For now, the easiest way to keep up with the JFJ state
-            self.jfjoch_client = None
+            
+            """ 
+            The following forces the user to have the GUI continuously check the JFJ operating state.
+            If the button [Connect to Jungfraujoch] is OFFed, controls are disabled as a percaution,
+            since the JFJ state is unknown to GUI at that point.
+            """ 
+            self.jfjoch_client = None # Reset the wrapper to None
+            self.enable_jfjoch_controls(False) # Need to disable controls as the wrapper is None
 
             # Reset the flag if a task is still running
             self.check_jfj_task_running = False
@@ -550,7 +558,8 @@ class VisualizationPanel(QGroupBox):
 
                     logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
-                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
+                    # self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
+                    self.jfjoch_client.start(n_images = 100, fname="", th = self.thresholdBox.value())
 
                     logging.warning("Live stream started successfully.")
                     
@@ -581,7 +590,8 @@ class VisualizationPanel(QGroupBox):
                     self.jfjoch_client.wait_until_idle()
                     
                     logging.warning(f"Starting to collect data...")
-                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname = self.cfg.fpath.as_posix(), wait = self.wait_option.isChecked())
+                    # self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname = self.cfg.fpath.as_posix(), wait = self.wait_option.isChecked())
+                    self.jfjoch_client.start(n_images = 100, fname = self.cfg.fpath.as_posix(), wait = self.wait_option.isChecked())
 
                     # Create and start the wait_until_idle thread for asynchronous monitoring
                     self.idle_thread = threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,), daemon=True)
