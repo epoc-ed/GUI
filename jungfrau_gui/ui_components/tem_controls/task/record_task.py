@@ -216,11 +216,7 @@ class RecordTask(Task):
                                         self.control.tem_status, 
                                         self.cfg.beam_center, 
                                         retries=3, 
-                                        delay=0.1)
-                    
-                    logging.info(" ******************** Updating file_id in DB...")
-                    self.cfg.after_write()
-                    self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+                                        delay=0.1) 
 
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None

@@ -5,6 +5,7 @@ import json
 import time
 import numpy as np
 import threading
+from epoc import ConfigurationClient, auth_token, redis_host
 
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
@@ -48,6 +49,8 @@ class Hdf5MetadataUpdater:
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(f"tcp://*:{port_number}")
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.root_data_directory = "/data/epoc/storage/jfjoch_test/" # self.cfg.base_data_dir.as_posix()
 
     def run(self):
         logging.info("Server started, waiting for metadata update requests...")
@@ -55,7 +58,7 @@ class Hdf5MetadataUpdater:
             try:
                 message_json = self.socket.recv_string()
                 message = json.loads(message_json)
-                filename = message["filename"]
+                filename = self.root_data_directory + message["filename"]
                 tem_status = message["tem_status"]
                 beamcenter = message["beamcenter"]
                 detector_distance = message["detector_distance"]
