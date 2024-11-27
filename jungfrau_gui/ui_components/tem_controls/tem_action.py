@@ -206,6 +206,8 @@ class TEMAction(QObject):
         self.control.execute_command("Setf1OverRateTxNum("+ str(self.cfg.rotation_speed_idx) +")")
 
     def toggle_mag_modes(self):
+        if self.tem_stagectrl.mag_modes.checkedId() == 4:
+            self.visualization_panel.resetContrastBtn.clicked.emit()
         self.control.execute_command("SelectFunctionMode("+ str(self.tem_stagectrl.mag_modes.checkedId()) +")")
 
     def update_rotation_speed_idx_from_ui(self):
