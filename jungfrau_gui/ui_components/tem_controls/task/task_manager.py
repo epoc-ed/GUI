@@ -266,9 +266,12 @@ class ControlWorker(QObject):
                 return           
 
         if self.tem_status['eos.GetFunctionMode'][1] != 4:
-            logging.info('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
+            logging.warning('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
-            self.client.SelectFunctionMode(4) # Diffraction Mode
+            # Switching to Diffraction Mode
+            # self.client.SelectFunctionMode(4)
+            self.tem_action.tem_stagectrl.mag_modes.button(4).setChecked(True)
+            self.tem_action.mag_modes.buttonClicked.emit()
 
         task = BeamFitTask(self)
         self.start_task(task)
