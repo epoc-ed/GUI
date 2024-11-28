@@ -271,7 +271,7 @@ class ControlWorker(QObject):
             # Switching to Diffraction Mode
             # self.client.SelectFunctionMode(4)
             self.tem_action.tem_stagectrl.mag_modes.button(4).setChecked(True)
-            self.tem_action.mag_modes.buttonClicked.emit()
+            self.tem_action.tem_stagectrl.mag_modes.buttonClicked.emit(self.tem_action.tem_stagectrl.mag_modes.button(4))
 
         task = BeamFitTask(self)
         self.start_task(task)
