@@ -4,7 +4,7 @@ import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot
 # from line_profiler import LineProfiler
 
-from .toolbox.fit_beam_intensity import fit_2d_gaussian_roi_fast
+from .toolbox.fit_beam_intensity import fit_2d_gaussian_roi_fast, gaussian2d_rotated, super_gaussian2d_rotated
 
 class GaussianFitter(QObject):
     finished = Signal(object, object, object)
@@ -28,7 +28,7 @@ class GaussianFitter(QObject):
     @Slot()
     def run(self):
         logging.info(datetime.now().strftime(" START FITTING @ %H:%M:%S.%f")[:-3])
-        fit_result = fit_2d_gaussian_roi_fast(self.image, self.roi_coords)
+        fit_result = fit_2d_gaussian_roi_fast(self.image, self.roi_coords, function = super_gaussian2d_rotated)
         logging.info(datetime.now().strftime(" END FITTING @ %H:%M:%S.%f")[:-3])
         self.finished.emit(self.image, fit_result.best_values, self.il1_value)
 
