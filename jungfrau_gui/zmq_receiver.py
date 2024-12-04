@@ -73,12 +73,18 @@ class ZmqReceiver:
                     # Process and log the header message
                     logging.debug(f"Received header: {msg}")
                     return None, None
-                else: 
+                elif msg['type'] == "image": 
                     # Process data messages   
                     logging.debug(f"Got: {msg['series_id']}:{[msg['image_id']]}")
                     image = msg['data']['default'].astype(self.dt).reshape(globals.nrow, globals.ncol)
                     frame_nr = msg['image_id']
                     return image, frame_nr
+                elif msg['type'] == "end":
+                    logging.debug(f"Received End message: {msg}")
+                    return None, None
+                else:
+                    logging.warning(f"Unindentified message type: {msg['type']}")
+                    return None, None
             except zmq.error.Again:
                 # self.reconnect()
                 return None, None
@@ -103,9 +109,9 @@ class ZmqReceiver:
         logging.info("Failed to reconnect after several attempts.")
 
 if __name__ == "__main__":
-    receiver = ZmqReceiver("tcp://localhost:4545")
-    while not globals.exit_flag.value:
-        time.sleep(0.1)
-        frame, frame_nr = receiver.get_frame()
-        if frame is not None:
-            print("Frame received:", frame_nr)
+    receiver = ZmqReceiver("tcp://noether:5501")
+ #   while not globals.exit_flag.value:
+ #       time.sleep(0.1)
+    frame, frame_nr = receiver.get_frame_jfj()
+    if frame is not None:
+        print("Frame received:", frame_nr)

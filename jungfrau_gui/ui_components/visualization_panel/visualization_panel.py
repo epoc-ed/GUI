@@ -242,6 +242,7 @@ class VisualizationPanel(QGroupBox):
 
             self.startCollection = QPushButton('Collect', self)
             self.startCollection.setDisabled(True)
+            self.jfj_is_collecting = False
             self.startCollection.clicked.connect(lambda: self.send_command_to_jfjoch('collect'))
 
             self.stop_jfj_measurement = QPushButton('Cancel', self)
@@ -435,7 +436,8 @@ class VisualizationPanel(QGroupBox):
         spin_box.setStyleSheet(f"QSpinBox {{ color: orange; background-color: {self.background_color}; }}")
 
     def enable_jfjoch_controls(self, enables=False):
-        self.startCollection.setEnabled(enables)
+        if not self.jfj_is_collecting:
+            self.startCollection.setEnabled(enables)
         self.stop_jfj_measurement.setEnabled(enables)
         self.live_stream_button.setEnabled(enables)
         
@@ -601,8 +603,8 @@ class VisualizationPanel(QGroupBox):
                     
                     logging.warning(f"Starting to collect data...")
                     self.formatted_filename = self.cfg.fpath
-                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname = self.formatted_filename.as_posix(), wait = self.wait_option.isChecked())
-
+                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname = self.formatted_filename.as_posix(), th = self.thresholdBox.value(), wait = self.wait_option.isChecked())
+                    self.jfj_is_collecting = True
                     # Create and start the wait_until_idle thread for asynchronous monitoring
                     self.idle_thread = threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,), daemon=True)
                     self.idle_thread.start()
@@ -704,7 +706,7 @@ class VisualizationPanel(QGroupBox):
                 if self.parent.tem_controls.tem_tasks.rotation_button.started:
                     self.parent.tem_controls.tem_tasks.rotation_button.setText("Rotation")
                     self.parent.tem_controls.tem_tasks.rotation_button.started= False
-
+            self.jfj_is_collecting = False
             self.startCollection.setEnabled(True)
             self.resume_live_stream()
 
