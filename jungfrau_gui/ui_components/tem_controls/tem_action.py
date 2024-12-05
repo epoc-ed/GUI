@@ -228,6 +228,12 @@ class TEMAction(QObject):
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(False)
         else:
+            # In case of unwarranted interruption, to avoid button stuck in "Stop"
+            if self.control.interruptRotation: 
+                self.tem_tasks.rotation_button.setText("Rotation")
+                self.tem_tasks.rotation_button.started= False
+                self.control.interruptRotation = False
+                return    
             # Interrupt rotation but end task gracefully
             self.control.interruptRotation = True
             
