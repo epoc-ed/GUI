@@ -118,6 +118,16 @@ class VisualizationPanel(QGroupBox):
         self.resetContrastBtn = QPushButton("Reset Contrast")
         self.resetContrastBtn.clicked.connect(self.resetContrast)
         
+        self.contrast_0_Btn = QPushButton("-100 - 100")
+        self.contrast_1_Btn = QPushButton("0 - 500")
+        self.contrast_2_Btn = QPushButton("0 - 1000")
+        self.contrast_3_Btn = QPushButton("0 - 1e5")
+
+        self.contrast_0_Btn.clicked.connect(self.contrast_0)
+        self.contrast_1_Btn.clicked.connect(self.contrast_1)
+        self.contrast_2_Btn.clicked.connect(self.contrast_2)
+        self.contrast_3_Btn.clicked.connect(self.contrast_3)
+
         view_contrast_group = QVBoxLayout()
         view_contrast_label = QLabel("Streaming & Contrast")
         view_contrast_label.setFont(font_big)
@@ -128,6 +138,11 @@ class VisualizationPanel(QGroupBox):
         grid_1.addWidget(self.autoContrastBtn, 0, 2)
         grid_1.addWidget(self.resetContrastBtn, 1, 2)
 
+        grid_1.addWidget(self.contrast_0_Btn, 2, 0, 1, 1 )
+        grid_1.addWidget(self.contrast_1_Btn, 2, 1, 1, 1 )
+        grid_1.addWidget(self.contrast_2_Btn, 2, 2, 1, 1 )
+        grid_1.addWidget(self.contrast_3_Btn, 2, 3, 1, 1 )
+ 
         view_contrast_group.addLayout(grid_1)
         section_visual.addLayout(view_contrast_group)
         # section_visual.addWidget(create_horizontal_line_with_margin())
@@ -201,7 +216,7 @@ class VisualizationPanel(QGroupBox):
             # self.nbFrames.valueChanged.connect(lambda value: (
             #     self.track_nbFrames_value(value),  # Store the latest value
             #     self.spin_box_modified(self.nbFrames)  # Update the spin box style
-            # ))
+            # )))
             # self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
 
             self.thresholdBox = QSpinBox(self)
@@ -506,7 +521,7 @@ class VisualizationPanel(QGroupBox):
                         self.run_check_jfj_ready_in_thread()
 
                         # Then check the JFJ state of operation every 5 seconds
-                        self.check_jfj_timer.start(5000)  
+                        self.check_jfj_timer.start(5000)
 
                     except TimeoutError as e:
                         logging.error(f"Connection attempt timed out: {e}")
@@ -820,7 +835,7 @@ class VisualizationPanel(QGroupBox):
                 logging.error(f"GUI caught relayed error: {e}")
 
         if self.receiver_client is not None:
-            # Start the network operation in a new thread
+            # Start the network) operation in a new thread
             threading.Thread(target=thread_command_relay, daemon=True).start()
         else: 
             logging.warning(
@@ -848,7 +863,35 @@ class VisualizationPanel(QGroupBox):
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
         self.autoContrastBtn.setText('Apply Auto Contrast')
         self.parent.histogram.setLevels(self.cfg.viewer_cmin, self.cfg.viewer_cmax)
-
+    
+    def contrast_0(self):
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(-50,50)
+    
+    def contrast_1(self):
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(0, 500)
+    
+    def contrast_2(self):
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(0, 1000)
+    
+    def contrast_3(self):
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(0, 10000)
+    
     def toggle_autoContrast(self):
         if not self.autoContrastBtn.started:
             self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
