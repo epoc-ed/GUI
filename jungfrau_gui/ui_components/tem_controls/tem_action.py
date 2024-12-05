@@ -165,10 +165,14 @@ class TEMAction(QObject):
         self.tem_tasks.input_start_angle.setValue(angle_x)
         
         if self.control.tem_status["eos.GetFunctionMode"][0] in [0, 1, 2]:
+            idx = self.control.tem_status["eos.GetFunctionMode"][0]
+            if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
+            self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_magnification.setText(magnification)
             self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
         elif self.control.tem_status["eos.GetFunctionMode"][0] == 4:
+            self.tem_stagectrl.button(4).setChecked(True)
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_det_distance.setText(detector_distance)
             self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
