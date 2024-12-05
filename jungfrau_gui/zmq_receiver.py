@@ -76,8 +76,18 @@ class ZmqReceiver:
                 elif msg['type'] == "image": 
                     # Process data messages   
                     logging.debug(f"Got: {msg['series_id']}:{[msg['image_id']]}")
-                    image = msg['data']['default'].astype(self.dt).reshape(globals.nrow, globals.ncol)
+                    raw_data = msg['data']['default']
                     frame_nr = msg['image_id']
+                    
+                    # Identify invalid values (min_int32)
+                    min_int32 = np.iinfo(np.int32).min
+                    mask = (raw_data == min_int32)
+
+                    image = raw_data.astype(self.dt).reshape(globals.nrow, globals.ncol)
+                    
+                    #Replace invalid values with np.nan
+                    image[mask] = np.nan
+                    
                     return image, frame_nr
                 elif msg['type'] == "end":
                     logging.debug(f"Received End message: {msg}")

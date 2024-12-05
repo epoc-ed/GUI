@@ -96,7 +96,13 @@ class VisualizationPanel(QGroupBox):
             button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             button.clicked.connect(lambda checked=False, b=name: self.change_theme(b))
         colors_group.addLayout(colors_layout)
-        self.change_theme('viridis')
+        
+        # Set the initial theme
+        self.current_theme = 'viridis'
+        self.change_theme(self.current_theme)
+        
+        #self.change_theme('viridis')
+        
         section_visual.addLayout(colors_group)
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
@@ -855,7 +861,26 @@ class VisualizationPanel(QGroupBox):
     """ Methods for Streaming/Contrasting operations """
     """ ******************************************** """
     def change_theme(self, theme):
+        self.current_theme = theme
         self.parent.histogram.gradient.loadPreset(theme)
+        self.applyCustomColormap()
+
+    def applyCustomColormap(self):
+        # Get the LUT from the gradient
+        lut = self.histogram.gradient.getLookupTable(512)
+
+        # Ensure the LUT has an alpha channel
+        if lut.shape[1] == 4:
+            pass
+        else:
+            alpha = np.ones((lut.shape[0], 1), dtype=lut.dtype) * 255
+            lut = np.hstack((lut, alpha))
+
+        # Set the first color's alpha to zero to make np.nan transparent
+        lut[0, 3] = 0  # Alpha channel is at index 3
+
+        # Apply the modified LUT to the ImageItem
+        self.parent.imageItem.setLookupTable(lut)
 
     def resetContrast(self):
         self.parent.timer_contrast.stop()
