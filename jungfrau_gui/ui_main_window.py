@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget,
                                 QHBoxLayout, QPushButton,
                                 QMessageBox, QTabWidget)
 from PySide6.QtCore import Qt, QObject, QEvent, QTimer
+from PySide6.QtGui import QShortcut, QKeySequence
 from .ui_components.visualization_panel.visualization_panel import VisualizationPanel
 from .ui_components.tem_controls.tem_controls import TemControls
 from .ui_components.file_operations.file_operations import FileOperations
@@ -129,8 +130,22 @@ class ApplicationWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
+         
+        # Add a ViewBox to the GraphicsLayoutWidget
+        self.view_box = self.glWidget.addViewBox()
+        
+        # Create and add an ImageItem to the ViewBox
+        self.view_box.addItem(self.imageItem)
+
+        # Create a keyboard shortcut for Auto Range
+        self.shortcut_autorange = QShortcut(QKeySequence("Ctrl+A"), self)
+        self.shortcut_autorange.activated.connect(self.auto_range)
 
         logging.info("Viewer ready!")
+
+    def auto_range(self):
+        """Trigger the Auto Range (center image and scale view)."""
+        self.view_box.autoRange()
 
     def roiChanged(self):
         roiPos = self.roi.pos()

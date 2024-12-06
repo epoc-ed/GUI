@@ -115,7 +115,7 @@ class TEMAction(QObject):
             self.connectorWorkerReady = True
             logging.info("Starting tem-connecting process")
             self.tem_tasks.connecttem_button.started = True
-            self.timer_tem_connexion.start(5000)
+            self.timer_tem_connexion.start(2000)
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")
