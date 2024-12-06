@@ -132,14 +132,14 @@ class ApplicationWindow(QMainWindow):
         self.setCentralWidget(central_widget)
          
         # Add a ViewBox to the GraphicsLayoutWidget
-        self.view_box = self.glWidget.addViewBox()
+        #self.view_box = self.glWidget.addViewBox()
         
         # Create and add an ImageItem to the ViewBox
-        self.view_box.addItem(self.imageItem)
-
+        #self.view_box.addItem(self.imageItem)
+        
         # Create a keyboard shortcut for Auto Range
-        self.shortcut_autorange = QShortcut(QKeySequence("Ctrl+A"), self)
-        self.shortcut_autorange.activated.connect(self.auto_range)
+        #self.shortcut_autorange = QShortcut(QKeySequence("Ctrl+A"), self)
+        #self.shortcut_autorange.activated.connect(self.auto_range)
 
         logging.info("Viewer ready!")
 

@@ -867,7 +867,7 @@ class VisualizationPanel(QGroupBox):
 
     def applyCustomColormap(self):
         # Get the LUT from the gradient
-        lut = self.histogram.gradient.getLookupTable(512)
+        lut = self.parent.histogram.gradient.getLookupTable(512)
 
         # Ensure the LUT has an alpha channel
         if lut.shape[1] == 4:
