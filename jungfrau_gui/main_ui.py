@@ -123,7 +123,7 @@ def main():
     globals.jfj = args.jungfraujoch
     globals.tem_host = args.temhost
 
-    print(f"**********   globals.tem_host = {globals.tem_host}   ************")
+    logging.debug(f"globals.tem_host = {globals.tem_host}")
 
     logging.debug(type(globals.acc_image[0,0]))
 
