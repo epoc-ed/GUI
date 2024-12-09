@@ -35,7 +35,7 @@ def get_git_info():
         return f"Viewer {tag}/{branch}"
     except subprocess.CalledProcessError:
         return "Viewer x.x.x"
-    
+
 class EventFilter(QObject):
     def __init__(self, histogram, parent=None):
         super().__init__(parent)
