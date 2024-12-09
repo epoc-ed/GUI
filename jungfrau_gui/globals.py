@@ -9,7 +9,7 @@ stream = "tcp://localhost:4545"
 tem_mode = False
 jfj = False
 
-tem_host = "temserver"
+tem_host = cfg.temserver
 
 #Configuration
 nrow = cfg.nrows 
