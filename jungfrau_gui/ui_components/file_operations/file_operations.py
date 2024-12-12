@@ -18,7 +18,8 @@ from ...ui_components.palette import *
 from epoc import ConfigurationClient, auth_token, redis_host
 
 from pathlib import Path
-
+import os
+import re 
 
 class FileOperations(QGroupBox):
     trigger_update_h5_index_box = Signal()
@@ -409,10 +410,13 @@ class FileOperations(QGroupBox):
         self.update_data_directory()
 
     def update_data_directory(self):
-        self.outPath_input.setText(self.cfg.data_dir.as_posix())
-        self.tiff_path.setText(self.cfg.data_dir.as_posix())
-        self.update_full_fname_for_jfjoch()
-        logging.info(f"Data is now saved at {self.cfg.data_dir.as_posix()}")
+        if self.outPath_input.text() != self.cfg.data_dir.as_posix():
+            self.outPath_input.setText(self.cfg.data_dir.as_posix())
+            self.tiff_path.setText(self.cfg.data_dir.as_posix())
+            logging.info(f"Data directory is: {self.cfg.data_dir.as_posix()}")
+            
+            # Check if folder exists and contains .h5 files to update file index
+            self.reset_file_index_based_on_folder_contents()
 
     def update_measurement_tag(self):
         self.cfg.measurement_tag = self.tag_input.text()
@@ -429,11 +433,39 @@ class FileOperations(QGroupBox):
         self.reset_style(self.index_box)
         logging.info(f'H5 file index manually updated by user. Value of "file_id" equal to: {self.cfg.file_id}')
 
-    def update_index_box(self):
+    def update_index_box(self, verbose=True):
         self.index_box.setValue(self.cfg.file_id)
-        logging.info(f"H5 file index updated after writing process. Next file will have index: {self.cfg.file_id}")
         self.update_full_fname_for_jfjoch()
         self.reset_style(self.index_box)
+        if verbose:
+            logging.info(f"H5 file index updated after writing process. Next file will have index: {self.cfg.file_id}")
+
+    def reset_file_index_based_on_folder_contents(self):
+        data_dir = self.cfg.data_dir
+        # Set default file index to 0
+        max_index = -1
+        
+        # Check if directory exists and contains .h5 files
+        if data_dir.exists() and data_dir.is_dir():
+            h5_files = [f for f in os.listdir(data_dir) if f.endswith('.h5')]
+            
+            # Extract indices from filenames
+            index_pattern = re.compile(r'^(\d{3})_')
+            for file in h5_files:
+                match = index_pattern.match(file)
+                if match:
+                    file_index = int(match.group(1))
+                    max_index = max(max_index, file_index)
+        
+        # Update file_id with the highest index found + 1 i.e. zero if not files or new folder
+        self.cfg.file_id = max_index + 1
+
+        self.update_index_box(verbose=False)
+        logging.info(f"File index has been reset to {self.cfg.file_id}!")
+        logging.warning(f"self.cfg.file_id = {self.cfg.file_id}")
+        logging.warning(f"self.index_box.value = {self.index_box.value()}")
+        logging.info(f"The full path for the next saved file is:\n{self.cfg.fpath}")
+        
 
     def reset_style(self, field):
         text_color = self.palette.color(QPalette.Text).name()

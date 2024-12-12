@@ -5,6 +5,7 @@ from datetime import datetime as dt
 from .task import Task
 
 from ..toolbox.fit_beam_intensity import fit_2d_gaussian_roi, fit_2d_gaussian_roi_test
+from .... import globals
 
 from simple_tem import TEMClient
 
@@ -17,7 +18,7 @@ class BeamFitTask(Task):
         self.duration_s = 60 # should be replaced with a practical value
         self.estimateds_duration = self.duration_s + 0.1
         self.control = control_worker        
-        self.client = TEMClient("temserver", 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
 
     def run(self, init_IL1=IL1_0):
 

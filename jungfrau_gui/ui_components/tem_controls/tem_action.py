@@ -49,7 +49,8 @@ class TEMAction(QObject):
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
-
+        self.tem_stagectrl.mag_modes.buttonClicked.connect(self.toggle_mag_modes)
+        
         # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
         
@@ -93,6 +94,8 @@ class TEMAction(QObject):
             self.toggle_rb_speeds()
         for i in self.tem_stagectrl.movestages.buttons():
             i.setEnabled(enables)
+        for i in self.tem_stagectrl.mag_modes.buttons():
+            i.setEnabled(enables)
         self.tem_tasks.gettem_button.setEnabled(enables)
         self.tem_tasks.gettem_checkbox.setEnabled(enables)
         self.tem_tasks.centering_button.setEnabled(False) # Not functional yet
@@ -112,7 +115,7 @@ class TEMAction(QObject):
             self.connectorWorkerReady = True
             logging.info("Starting tem-connecting process")
             self.tem_tasks.connecttem_button.started = True
-            self.timer_tem_connexion.start(5000)
+            self.timer_tem_connexion.start(2000)
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")
@@ -156,16 +159,20 @@ class TEMAction(QObject):
             self.control.trigger_getteminfo.emit('N')
 
     def on_tem_update(self):
-        logging.info("Updating GUI with last TEM Status...")
+        logging.debug("Updating GUI with last TEM Status...")
         # self.beamcenter = float(fit_result_best_values['xo']), float(fit_result_best_values['yo'])
         angle_x = self.control.tem_status["stage.GetPos"][3]
         self.tem_tasks.input_start_angle.setValue(angle_x)
         
         if self.control.tem_status["eos.GetFunctionMode"][0] in [0, 1, 2]:
+            idx = self.control.tem_status["eos.GetFunctionMode"][0]
+            if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
+            self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_magnification.setText(magnification)
             self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
         elif self.control.tem_status["eos.GetFunctionMode"][0] == 4:
+            self.tem_stagectrl.mag_modes.button(4).setChecked(True)
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_det_distance.setText(detector_distance)
             self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
@@ -179,7 +186,7 @@ class TEMAction(QObject):
             else:
                 self.tem_tasks.rotation_button.setText("Rotation")
 
-        logging.info("GUI updated with lastest TEM Status")
+        logging.debug("GUI updated with lastest TEM Status")
 
     def drawscale_overlay(self, xo=0, yo=0, l_draw=1, pixel=0.075):
         if self.scale != None:
@@ -202,9 +209,14 @@ class TEMAction(QObject):
         self.update_rotation_speed_idx_from_ui()
         self.control.execute_command("Setf1OverRateTxNum("+ str(self.cfg.rotation_speed_idx) +")")
 
+    def toggle_mag_modes(self):
+        if self.tem_stagectrl.mag_modes.checkedId() == 4:
+            self.visualization_panel.resetContrastBtn.clicked.emit()
+        self.control.execute_command("SelectFunctionMode("+ str(self.tem_stagectrl.mag_modes.checkedId()) +")")
+
     def update_rotation_speed_idx_from_ui(self):
         self.cfg.rotation_speed_idx = self.tem_stagectrl.rb_speeds.checkedId()
-        logging.info(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
+        logging.debug(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
 
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:
@@ -216,6 +228,12 @@ class TEMAction(QObject):
             if self.tem_tasks.withwriter_checkbox.isChecked():
                 self.file_operations.streamWriterButton.setEnabled(False)
         else:
+            # In case of unwarranted interruption, to avoid button stuck in "Stop"
+            if self.control.interruptRotation: 
+                self.tem_tasks.rotation_button.setText("Rotation")
+                self.tem_tasks.rotation_button.started= False
+                self.control.interruptRotation = False
+                return    
             # Interrupt rotation but end task gracefully
             self.control.interruptRotation = True
             

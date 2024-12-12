@@ -55,7 +55,7 @@ class ControlWorker(QObject):
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.client = TEMClient("temserver", 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, 3535,  verbose=False)
 
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
@@ -196,7 +196,7 @@ class ControlWorker(QObject):
                     self,
                     end_angle,
                     filename_suffix.as_posix(),
-                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stopCollection.clicked.emit],
+                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit],
                     standard_h5_recording=False
                 )
             else:
@@ -230,9 +230,12 @@ class ControlWorker(QObject):
         #         if self.tem_status['eos.GetFunctionMode'][0] != -1: break
         ###
         if self.tem_status['eos.GetFunctionMode'][1] != 4:
-            logging.info('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
+            logging.warning('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
-            self.client.SelectFunctionMode(4) # Diffraction Mode
+            # Switching to Diffraction Mode
+            self.client.SelectFunctionMode(4)
+            # self.tem_action.tem_stagectrl.mag_modes.button(4).setChecked(True)
+            # self.tem_action.mag_modes.buttonClicked.emit(self.tem_action.tem_stagectrl.mag_modes.button(4))
 
         task = BeamFitTask(self)
         self.start_task(task)
@@ -250,20 +253,28 @@ class ControlWorker(QObject):
             print(f"{key}: {value}")
         #*************** 
         # """
-        logging.info("Updating ControlWorker map with last TEM Status")
+        logging.debug("Updating ControlWorker map with last TEM Status")
         try:
             logging.debug("START of the update loop")
             for entry in response:
                 self.tem_status[entry] = response[entry]["val"]
                 self.tem_update_times[entry] = (response[entry]["tst_before"], response[entry]["tst_after"])
             logging.debug("END of update loop")
-            logging.info(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
+            logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
             if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_MAG'] = self.tem_update_times['eos.GetMagValue']
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
+            
+            logging.info("TEM Status Dictionnary updated!")
+            
+            # import json
+            # # Save to text file
+            # with open('tem_status.txt', 'w') as file:
+            #     json.dump(self.tem_status, file, indent=4)  # 'indent=4' makes it pretty-printed
+
             self.updated.emit()
         except Exception as e:
             logging.error(f"Error during updating tem_status map: {e}")

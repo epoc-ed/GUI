@@ -5,7 +5,7 @@ import threading
 from boost_histogram import Histogram
 from boost_histogram.axis import Regular
 from PySide6.QtGui import QFont, QPalette
-from PySide6.QtCore import Qt, QThread, QMetaObject, Signal, QTimer
+from PySide6.QtCore import Qt, QThread, QMetaObject, Signal, QTimer, QThreadPool, QRunnable
 from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit, 
                                 QLabel, QPushButton, QSpinBox, QCheckBox,
                                 QGridLayout, QSizePolicy, QSpacerItem, QMessageBox)
@@ -28,10 +28,23 @@ from ...ui_components.palette import *
 from rich import print
 from ..tem_controls.toolbox.progress_pop_up import ProgressPopup
 
+class BrokerCheckTask(QRunnable):
+    def __init__(self, check_function, complete_callback):
+        super().__init__()
+        self.check_function = check_function
+        self.complete_callback = complete_callback
+
+    def run(self):
+        # Run the provided check function in a separate thread
+        self.check_function()
+        # Signal that the task is complete
+        self.complete_callback()
+
 class VisualizationPanel(QGroupBox):
     trigger_update_frames_to_sum = Signal(int)
     trigger_disable_receiver_controls = Signal()
     trigger_idle_srecv_btn = Signal()
+    assess_gui_jfj_communication_and_display_state = Signal(bool)
 
     def __init__(self, parent):
         # super().__init__("Visualization Panel")
@@ -40,6 +53,7 @@ class VisualizationPanel(QGroupBox):
         self.trigger_update_frames_to_sum.connect(self.update_frames_to_sum)
         self.trigger_disable_receiver_controls.connect(self.enable_receiver_controls)
         self.trigger_idle_srecv_btn.connect(self.srecv_btn_toggle_OFF)
+        self.assess_gui_jfj_communication_and_display_state.connect(self.update_gui_with_jfj_state)
         self.initUI()
 
     def initUI(self):
@@ -47,6 +61,10 @@ class VisualizationPanel(QGroupBox):
         self.cfg =  ConfigurationClient(redis_host(), token=auth_token())
         self.receiver_client =  None
         self.jfjoch_client = None
+
+        # Thread pool for running check tasks in separate threads
+        self.thread_pool = QThreadPool()
+        self.check_jfj_task_running = False  # Flag to ensure no overlapping tasks
         
         font_big = QFont("Arial", 11)
         font_big.setBold(True)
@@ -78,7 +96,13 @@ class VisualizationPanel(QGroupBox):
             button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             button.clicked.connect(lambda checked=False, b=name: self.change_theme(b))
         colors_group.addLayout(colors_layout)
-        self.change_theme('viridis')
+        
+        # Set the initial theme
+        self.current_theme = 'viridis'
+        self.change_theme(self.current_theme)
+        
+        #self.change_theme('viridis')
+        
         section_visual.addLayout(colors_group)
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
@@ -100,6 +124,16 @@ class VisualizationPanel(QGroupBox):
         self.resetContrastBtn = QPushButton("Reset Contrast")
         self.resetContrastBtn.clicked.connect(self.resetContrast)
         
+        self.contrast_0_Btn = QPushButton("-100 - 100")
+        self.contrast_1_Btn = QPushButton("0 - 500")
+        self.contrast_2_Btn = QPushButton("0 - 1000")
+        self.contrast_3_Btn = QPushButton("0 - 1e5")
+
+        self.contrast_0_Btn.clicked.connect(self.contrast_0)
+        self.contrast_1_Btn.clicked.connect(self.contrast_1)
+        self.contrast_2_Btn.clicked.connect(self.contrast_2)
+        self.contrast_3_Btn.clicked.connect(self.contrast_3)
+
         view_contrast_group = QVBoxLayout()
         view_contrast_label = QLabel("Streaming & Contrast")
         view_contrast_label.setFont(font_big)
@@ -110,6 +144,11 @@ class VisualizationPanel(QGroupBox):
         grid_1.addWidget(self.autoContrastBtn, 0, 2)
         grid_1.addWidget(self.resetContrastBtn, 1, 2)
 
+        grid_1.addWidget(self.contrast_0_Btn, 2, 0, 1, 1 )
+        grid_1.addWidget(self.contrast_1_Btn, 2, 1, 1, 1 )
+        grid_1.addWidget(self.contrast_2_Btn, 2, 2, 1, 1 )
+        grid_1.addWidget(self.contrast_3_Btn, 2, 3, 1, 1 )
+ 
         view_contrast_group.addLayout(grid_1)
         section_visual.addLayout(view_contrast_group)
         # section_visual.addWidget(create_horizontal_line_with_margin())
@@ -138,6 +177,9 @@ class VisualizationPanel(QGroupBox):
             self.connectTojfjoch = ToggleButton('Connect to Jungfraujoch', self)
             self.connectTojfjoch.setMaximumHeight(50)
             self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client)
+            
+            self.check_jfj_timer = QTimer()
+            self.check_jfj_timer.timeout.connect(self.run_check_jfj_ready_in_thread)
 
             grid_connection_jfjoch = QGridLayout()
             grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
@@ -162,7 +204,6 @@ class VisualizationPanel(QGroupBox):
 
             jfjoch_control_group.addLayout(grid_streaming_jfjoch)
 
-
             grid_collection_jfjoch = QGridLayout()
 
             grid_collection_label = QLabel("Data Collection")
@@ -170,19 +211,19 @@ class VisualizationPanel(QGroupBox):
 
             grid_collection_jfjoch.addWidget(grid_collection_label)
 
-            self.nbFrames = QSpinBox(self)
-            self.nbFrames.setMaximum(1000000000)
-            self.nbFrames.setValue(72000)
-            self.nbFrames.setDisabled(True)
-            self.nbFrames.setSingleStep(1000)
-            self.nbFrames.setPrefix("Nb Frames per trigger: ")
+            # self.nbFrames = QSpinBox(self)
+            # self.nbFrames.setMaximum(1000000000)
+            # self.nbFrames.setValue(72000)
+            # self.nbFrames.setDisabled(True)
+            # self.nbFrames.setSingleStep(1000)
+            # self.nbFrames.setPrefix("Nb Frames per trigger: ")
 
-            self.last_nbFrames_value = self.nbFrames.value()
-            self.nbFrames.valueChanged.connect(lambda value: (
-                self.track_nbFrames_value(value),  # Store the latest value
-                self.spin_box_modified(self.nbFrames)  # Update the spin box style
-            ))
-            self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
+            # self.last_nbFrames_value = self.nbFrames.value()
+            # self.nbFrames.valueChanged.connect(lambda value: (
+            #     self.track_nbFrames_value(value),  # Store the latest value
+            #     self.spin_box_modified(self.nbFrames)  # Update the spin box style
+            # )))
+            # self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
 
             self.thresholdBox = QSpinBox(self)
             self.thresholdBox.setMinimum(0)
@@ -203,9 +244,11 @@ class VisualizationPanel(QGroupBox):
             self.wait_option.setChecked(False)
             self.wait_option.setDisabled(True)
 
-            grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 3)
-            grid_collection_jfjoch.addWidget(self.thresholdBox, 1, 3, 1, 2)
-            grid_collection_jfjoch.addWidget(self.wait_option, 1, 5, 1, 1)
+            self.wait_option.setToolTip("Check this option to block the GUI when collecting data.")
+
+            # grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 3)
+            grid_collection_jfjoch.addWidget(self.thresholdBox, 1, 0, 1, 3)
+            grid_collection_jfjoch.addWidget(self.wait_option, 1, 3, 1, 1)
 
             self.fname_label = QLabel("Path to recorded file", self)
             self.full_fname = QLineEdit(self)
@@ -220,14 +263,15 @@ class VisualizationPanel(QGroupBox):
 
             self.startCollection = QPushButton('Collect', self)
             self.startCollection.setDisabled(True)
+            self.jfj_is_collecting = False
             self.startCollection.clicked.connect(lambda: self.send_command_to_jfjoch('collect'))
 
-            self.stopCollection = QPushButton('Cancel', self)
-            self.stopCollection.setDisabled(True)
-            self.stopCollection.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
+            self.stop_jfj_measurement = QPushButton('Cancel', self)
+            self.stop_jfj_measurement.setDisabled(True)
+            self.stop_jfj_measurement.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
 
             grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 6)
-            grid_collection_jfjoch.addWidget(self.stopCollection, 4, 0, 1, 6)
+            grid_collection_jfjoch.addWidget(self.stop_jfj_measurement, 4, 0, 1, 6)
 
             spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
             grid_collection_jfjoch.addItem(spacer2)
@@ -367,10 +411,6 @@ class VisualizationPanel(QGroupBox):
             self.live_stream_button.setText("Stop")
             self.parent.plot.setTitle("View of the stream from the Jungfraujoch broker")
             self.live_stream_button.started = True
-            """ 
-            self.parent.file_operations.accumulate_button.setEnabled(True)
-            self.parent.file_operations.streamWriterButton.setEnabled(True) 
-            """
         else:
             # self.send_command_to_jfjoch("cancel")
             logging.info(f"Stopping the stream...") 
@@ -378,10 +418,6 @@ class VisualizationPanel(QGroupBox):
             self.parent.plot.setTitle("Stream stopped")
             self.jfjoch_client.cancel()
             self.live_stream_button.started = False
-            """ 
-            self.parent.file_operations.accumulate_button.setEnabled(False)
-            self.parent.file_operations.streamWriterButton.setEnabled(False) 
-            """
             if self.autoContrastBtn.started:
                 self.toggle_autoContrast()
 
@@ -401,17 +437,18 @@ class VisualizationPanel(QGroupBox):
                 logging.info(f"Threshold energy set to: {self.cfg.threshold} keV")
                 self.resume_live_stream() # Restarting the stream automatically
 
-    def update_jfjoch_wrapper(self):
-        if self.jfjoch_client is not None:
-            if self.jfjoch_client._lots_of_images != self.last_nbFrames_value:
-                self.jfjoch_client._lots_of_images = self.nbFrames.value()
-                self.reset_style(self.nbFrames)
-                logging.info(f'Updated Jungfraujoch client...\nNumber of frames per trigger is equal to: {self.jfjoch_client._lots_of_images}')
+    # def update_jfjoch_wrapper(self):
+    #     if self.jfjoch_client is not None:
+    #         if self.jfjoch_client._lots_of_images != self.last_nbFrames_value:
+    #             self.jfjoch_client._lots_of_images = self.nbFrames.value()
+    #             self.reset_style(self.nbFrames)
+    #             logging.info(f'Updated Jungfraujoch client...\nNumber of frames per trigger is equal to: {self.jfjoch_client._lots_of_images}')
 
     # Helper method to track the latest value for nbFrames
-    def track_nbFrames_value(self, value):
-        self.last_nbFrames_value = value
+    # def track_nbFrames_value(self, value):
+    #     self.last_nbFrames_value = value
 
+    # Helper method to track the latest value for threshold
     def track_threshold_value(self, value):
         self.last_threshold_value = value
         
@@ -420,29 +457,78 @@ class VisualizationPanel(QGroupBox):
         spin_box.setStyleSheet(f"QSpinBox {{ color: orange; background-color: {self.background_color}; }}")
 
     def enable_jfjoch_controls(self, enables=False):
-        self.startCollection.setEnabled(enables)
-        self.stopCollection.setEnabled(enables)
+        if not self.jfj_is_collecting:
+            self.startCollection.setEnabled(enables)
+        self.stop_jfj_measurement.setEnabled(enables)
         self.live_stream_button.setEnabled(enables)
         
-        self.nbFrames.setEnabled(enables)
+        # self.nbFrames.setEnabled(enables)
         self.wait_option.setEnabled(enables) 
 
         self.thresholdBox.setEnabled(enables)
 
         self.recordPedestalBtn.setEnabled(enables)
 
+    def on_check_jfj_task_complete(self):
+        # Reset the running flag once the task is complete
+        self.check_jfj_task_running = False
+
+    def run_check_jfj_ready_in_thread(self):
+        if not self.check_jfj_task_running:
+            # Set the flag to indicate that the task is running
+            self.check_jfj_task_running = True
+
+            # Create a runnable task to run the check function in a separate thread
+            check_task = BrokerCheckTask(self.check_jfj_broker_ready, self.on_check_jfj_task_complete)
+            self.thread_pool.start(check_task)
+
+    def update_gui_with_jfj_state(self, jfj_broker_is_ready):
+        if jfj_broker_is_ready:
+            self.update_gui_with_JFJ_ON()
+        else:
+            self.update_gui_with_JFJ_OFF()
+
+    def update_gui_with_JFJ_ON(self):
+        self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
+        self.connectTojfjoch.setText("Communication OK")
+        self.enable_jfjoch_controls(True)
+        if self.jfjoch_client.status().state == "Idle": # So that the [Live Stream] button reflects the actual operating state
+            if self.live_stream_button.started: # When the stream ends, the button has to reflect that
+                    self.toggle_LiveStream() # toggle OFF
+
+    def update_gui_with_JFJ_OFF(self):
+        self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
+        self.connectTojfjoch.setText("Connection Failed")
+        self.enable_jfjoch_controls(False)
+        logging.warning("The JFJ broker current state is in {Inactive, Error}... State needs to be 'Idle' for communication ot work")
+
+    def check_jfj_broker_ready(self):
+        logging.debug("Checking broker...")
+        try:
+            self.assess_gui_jfj_communication_and_display_state.emit(self.jfjoch_client.status().state not in {"Inactive", "Error"}) 
+
+        except Exception as e:
+            logging.error(f"Error occured when checking the operating state of the wrapper [jfjoch_client.status().state]: {e}")
+            self.assess_gui_jfj_communication_and_display_state.emit(False)
+
+        logging.debug("Check finished")
+
     def connect_and_start_jfjoch_client(self):
         if self.connectTojfjoch.started == False:
                 if self.stream_view_button.started:
                     try:
-                        self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
                         self.connectTojfjoch.started = True
-                        # TODO create a setter method 'lots_of_images' for in epoc.JungfraujochWrapper ?  
+
+                        # Create an instance of the API wrapper
+                        self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
                         logging.info("Created a Jungfraujoch client for communication...")
-                        self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
-                        self.connectTojfjoch.setText("Communication OK")
-                        self.enable_jfjoch_controls(True)
-                        self.jfjoch_client._lots_of_images = self.nbFrames.value()  # 1 hour of stream for a 20 Hz frame rate
+
+                        # Trigger immediately for the first time
+                        self.run_check_jfj_ready_in_thread()
+
+                        # Then check the JFJ state of operation every 5 seconds
+                        self.check_jfj_timer.start(5000)
+
                     except TimeoutError as e:
                         logging.error(f"Connection attempt timed out: {e}")
                         self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
@@ -477,9 +563,23 @@ class VisualizationPanel(QGroupBox):
                     
                     return 
         else:
+            self.check_jfj_timer.stop()
+            self.thread_pool.waitForDone()  # Wait for all tasks to finish
             self.connectTojfjoch.started = False
             self.connectTojfjoch.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.connectTojfjoch.setText('Connect to Jungfraujoch')
+            self.send_command_to_jfjoch("cancel") # For now, the easiest way to keep up with the JFJ state
+            
+            """ 
+            The following forces the user to have the GUI continuously check the JFJ operating state.
+            If the button [Connect to Jungfraujoch] is OFFed, controls are disabled as a percaution,
+            since the JFJ state is unknown to GUI at that point.
+            """ 
+            self.jfjoch_client = None # Reset the wrapper to None
+            self.enable_jfjoch_controls(False) # Need to disable controls as the wrapper is None
+
+            # Reset the flag if a task is still running
+            self.check_jfj_task_running = False
 
     def send_command_to_jfjoch(self, command):
         try:
@@ -489,9 +589,10 @@ class VisualizationPanel(QGroupBox):
                     self.send_command_to_jfjoch("cancel") 
                     self.jfjoch_client.wait_until_idle()
 
-                    logging.info(f"Nb of frames per trigger: {self.nbFrames.value()}")
+                    logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
-                    self.jfjoch_client.start(n_images=self.nbFrames.value(), fname="", th=self.thresholdBox.value())
+                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
+                    # self.jfjoch_client.start(n_images = 500, fname="", th = self.thresholdBox.value())
 
                     logging.warning("Live stream started successfully.")
                     
@@ -522,8 +623,9 @@ class VisualizationPanel(QGroupBox):
                     self.jfjoch_client.wait_until_idle()
                     
                     logging.warning(f"Starting to collect data...")
-                    self.jfjoch_client.start(self.nbFrames.value(), fname = self.cfg.fpath.as_posix(), wait=self.wait_option.isChecked())
-
+                    self.formatted_filename = self.cfg.fpath
+                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname = self.formatted_filename.as_posix(), th = self.thresholdBox.value(), wait = self.wait_option.isChecked())
+                    self.jfj_is_collecting = True
                     # Create and start the wait_until_idle thread for asynchronous monitoring
                     self.idle_thread = threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,), daemon=True)
                     self.idle_thread.start()
@@ -598,7 +700,7 @@ class VisualizationPanel(QGroupBox):
             elif command == 'cancel':
                 # Stop of live stream always reflected on the [Live Stream] button
                 if self.live_stream_button.started:
-                    self.toggle_LiveStream()
+                    self.toggle_LiveStream() # toggle OFF
                 else:
                     logging.info(f"Cancel request forwarded to JFJ...") 
                     self.jfjoch_client.cancel()  
@@ -625,7 +727,7 @@ class VisualizationPanel(QGroupBox):
                 if self.parent.tem_controls.tem_tasks.rotation_button.started:
                     self.parent.tem_controls.tem_tasks.rotation_button.setText("Rotation")
                     self.parent.tem_controls.tem_tasks.rotation_button.started= False
-
+            self.jfj_is_collecting = False
             self.startCollection.setEnabled(True)
             self.resume_live_stream()
 
@@ -739,7 +841,7 @@ class VisualizationPanel(QGroupBox):
                 logging.error(f"GUI caught relayed error: {e}")
 
         if self.receiver_client is not None:
-            # Start the network operation in a new thread
+            # Start the network) operation in a new thread
             threading.Thread(target=thread_command_relay, daemon=True).start()
         else: 
             logging.warning(
@@ -759,7 +861,26 @@ class VisualizationPanel(QGroupBox):
     """ Methods for Streaming/Contrasting operations """
     """ ******************************************** """
     def change_theme(self, theme):
+        self.current_theme = theme
         self.parent.histogram.gradient.loadPreset(theme)
+        self.applyCustomColormap()
+
+    def applyCustomColormap(self):
+        # Get the LUT from the gradient
+        lut = self.parent.histogram.gradient.getLookupTable(512)
+
+        # Ensure the LUT has an alpha channel
+        if lut.shape[1] == 4:
+            pass
+        else:
+            alpha = np.ones((lut.shape[0], 1), dtype=lut.dtype) * 255
+            lut = np.hstack((lut, alpha))
+
+        # Set the first color's alpha to zero to make np.nan transparent
+        lut[0, 3] = 0  # Alpha channel is at index 3
+
+        # Apply the modified LUT to the ImageItem
+        self.parent.imageItem.setLookupTable(lut)
 
     def resetContrast(self):
         self.parent.timer_contrast.stop()
@@ -767,7 +888,35 @@ class VisualizationPanel(QGroupBox):
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
         self.autoContrastBtn.setText('Apply Auto Contrast')
         self.parent.histogram.setLevels(self.cfg.viewer_cmin, self.cfg.viewer_cmax)
-
+    
+    def contrast_0(self):
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(-50,50)
+    
+    def contrast_1(self):
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(0, 500)
+    
+    def contrast_2(self):
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(0, 1000)
+    
+    def contrast_3(self):
+        self.parent.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.parent.histogram.setLevels(0, 10000)
+    
     def toggle_autoContrast(self):
         if not self.autoContrastBtn.started:
             self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')

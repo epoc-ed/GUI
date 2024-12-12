@@ -7,7 +7,7 @@ from ....ui_components.tem_controls.toolbox import config as cfg_jf
 from PySide6.QtCore import QObject, Signal
 
 from epoc import ConfigurationClient, auth_token, redis_host
-
+import zmq
 from .... import globals
 
 def create_full_mapping(info_queries, more_queries, info_queries_client, more_queries_client):
@@ -128,7 +128,7 @@ def send_with_retries(client_method, *args, retries=3, delay=0.1, **kwargs):
             # Dynamically call the method with args and kwargs
             result = client_method(*args, **kwargs)
             return result  # Exit early if successful
-        except TimeoutError as e:
+        except (TimeoutError, zmq.ZMQError) as e:
             logging.error(f"TimeoutError during {client_method.__name__}: {e}")
             if attempt == retries - 1:
                 logging.error(f"Max retry attempts reached for {client_method.__name__}. Giving up.")
@@ -181,15 +181,8 @@ class TEMTools(QObject):
         self.trigger_addinfo_to_hdf5.connect(self.addinfo_to_hdf)     
  
     def addinfo_to_hdf(self, pixel=0.075):
-        tem_status = self.tem_action.control.tem_status
-
-        # filename = self.cfg.data_dir/self.cfg.fname
-        """ 
-        The upper line might be problematic in case the time changes in self.cfg.fname,
-        and have the [addinfo_to_hdf] create a different file with a more recent timestamp 
-        """
+        tem_status = self.tem_action.control.tem_status       
         filename = self.tem_action.file_operations.formatted_filename
-        
         beamcenter = self.tem_action.beamcenter
         interval = self.tem_action.visualization_panel.update_interval.value()
         ht = 200 # keV  # <- HT3
