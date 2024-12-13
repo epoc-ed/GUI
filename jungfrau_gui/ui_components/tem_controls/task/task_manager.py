@@ -47,7 +47,7 @@ class ControlWorker(QObject):
     trigger_shutdown = Signal()
     # trigger_interactive = Signal()
     trigger_getteminfo = Signal(str)
-    # trigger_centering = Signal(bool, str)
+    trigger_centering = Signal(bool, str)
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
@@ -72,7 +72,7 @@ class ControlWorker(QObject):
         self.trigger_shutdown.connect(self.shutdown)
         # self.trigger_interactive.connect(self.interactive)
         self.trigger_getteminfo.connect(self.getteminfo)
-        # self.trigger_centering.connect(self.centering)
+        self.trigger_centering.connect(self.centering)
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.actionFit_Beam.connect(self.start_beam_fit)
@@ -447,27 +447,17 @@ class ControlWorker(QObject):
             x = input() """
 
         
-    """ 
     @Slot(bool, str)
     def centering(self, gui=False, vector='10, 1'):
-        if self.task.running:
-            self.stop()
-            
-        if not gui:
-            x = input('Input translation vector in px, e.g. \'10, 1\'. q: quit\n')
-            while True:
-                if x == 'q':
-                    break
-                elif x != '':
-                    pixels = np.array(x.split(sep=','), dtype=float)
-                    task = CenteringTask(self, pixels)
-                    self.start_task(task)
-                x = input()
-        else:
-            pixels = np.array(vector.split(sep=','), dtype=float)
-            task = CenteringTask(self, pixels)
-            self.start_task(task) 
-        """
+        if self.task is not None:
+            if self.task.running:
+                logging.warning("\033[38;5;214mRecordTask\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                return
+        logging.info("Start Centering")            
+        pixels = np.array(vector.split(sep=','), dtype=float)
+        task = CenteringTask(self, pixels)
+        self.start_task(task)
     
     def update_rotation_info(self, reset=False):
         if reset:

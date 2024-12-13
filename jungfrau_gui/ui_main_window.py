@@ -114,6 +114,8 @@ class ApplicationWindow(QMainWindow):
         if not globals.tem_mode:
             self.timer_fit = QTimer()
             self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
+        else:
+            self.imageItem.mouseClickEvent = self.tem_controls.tem_action.imageMouseClickEvent
 
         tab_widget.addTab(self.visualization_panel, "Visualization Panel")
         tab_widget.addTab(self.tem_controls, "TEM Controls")

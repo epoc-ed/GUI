@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 14 Oct 2024
+This document was updated on 13 Dec 2024
 
 ## Table of Contents
 - [TEM control activation](#tem-control-activation)
@@ -186,7 +186,7 @@ More:\
 - `Check TEM connection`: Starts communication with TEM. After the connection can be confirmed, **click again** to stop pinging.
 - `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file]
    -`recording`: When checked, allows to save the TEM status in a .log file
-- `Click-on-Centring`: (deactivated) Activates stage control by clicking the image.
+- `Click-on-Centring`: Activates stage XY-control by clicking the image.
 - `Beam Autofocus`: (Not ready for use) Sweeps IL1 and ILstig values.
 - `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
 - `with Writer`: Synchronizes the HDF writer with rotation.
