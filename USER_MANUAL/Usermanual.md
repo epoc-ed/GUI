@@ -1,5 +1,6 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 14 Oct 2024
+This document was updated on 15 Dec 2024\
+**When you encounter bug-like behavior, please check [known bugs](#Known-bugs).**
 
 ## Table of Contents
 - [TEM control activation](#tem-control-activation)
@@ -13,6 +14,7 @@ This document was updated on 14 Oct 2024
 - [Data-recording workflow with Testing version](#data-recording-workflow-with-testing-version)
 - [Data-processing notes](#data-processing-notes)
 - [Troubleshooting](#troubleshooting)
+    - [Known bugs (13 Dec 2024)](#Known-bugs)
     - [Launching previous system](#Launching-previous-system)
 
 ## TEM Control Activation
@@ -45,11 +47,17 @@ This document was updated on 14 Oct 2024
 ### A. JUNGFRAUJOCH
 
 #### Server (noether)
+**This part is a bit out of date and will soon be updated. Broker and Writer are runnig backgroud and users need not care them in usual. (13 Dec 2024)**
 1. Login as ```psi``` and switch to the Root User.
 2. Start the Jungfraujoch broker:
     ```/opt/jfjoch/bin# ./jfjoch_broker /opt/etc/broker_jf500k.json```
 3. For data collection, open a separate terminal and start the Jungfraujoch writer:
    ```/opt/jfjoch/bin/jfjoch_writer -R /data/epoc/storage/jfjoch_test/ tcp://127.0.0.1:5500```
+4. (Option) For writing meta-data in the saved hdf files, open a new terminal and start the metadata-writer:
+    ```bash
+    cd /data/epoc/storage/jem2100plus
+    python -i metadata_update_server.py
+    ```
 
 #### CameraPC (hodgkin)
 1. To open the JFJ web interface, open the web browser (firefox on hodgkin) and enter ```http://noether:5232/``` in the address bar.
@@ -64,10 +72,10 @@ This document was updated on 14 Oct 2024
    ```bash
    cd /home/instruments/jem2100plus/GUI
    ```
-5. Confirm you are on the `testing` branch, otherwise switch:
+5. Confirm you are on the `dev/jfj_integration` branch, otherwise switch:
    ```bash
    git branch --contains
-   git switch testing
+   git switch dev/jfj_integration
    ```
 6. Start the GUI:
    ```bash
@@ -76,8 +84,8 @@ This document was updated on 14 Oct 2024
 7. To start streaming:
     > Starting the decoding of the streamed data -> Push ```View Stream```
     > Ensure good connection to JFJ -> Push ```Connection to Jungfraujoch```
-    > Record the dark frame -> ```Record Full Pedestal``` (Blocking operation so wait until the end)
     > Display decoded frames -> ```Live Stream```
+    > Record the dark frame -> ```Record Full Pedestal``` (Blocking operation so wait until the end)
 
 8. To collect data when TEM controls are OFF:
    > Push the button ```Collect``` and stop collection with ```Cancel```
@@ -137,13 +145,13 @@ This document was updated on 14 Oct 2024
 ## Deactivation
 
 ### CameraPC (hodgkin)
-1. Stop the receiver by clicking the `Stop Receiver` pushbutton. This may take several seconds.\
+1. Stop the receiver by clicking the `Stop`(JFJ) or `Stop Receiver`(REUSS) pushbutton. This may take several seconds.\
    > If the stop operation fails, open another terminal and kill the process manually:
    ```bash
    ps aux | grep ReceiverServer
    kill -9 [process-id]
    ```
-2. Stop streaming and exit the viewer.
+2. Disconnect to TEM, stop streaming, and exit the viewer.
 3. Abort detector acquistion:
    ```bash
    p stop
@@ -159,15 +167,25 @@ This document was updated on 14 Oct 2024
 ## Main Functionalities
 
 - `View Stream`: Reads the stream of frames published by the receiver.
-- `Apply Auto Contrast`: Dynamically adjusts the contrast of displayed frames.
-- `Reset Contrast`: Turn off the auto-contrast and reload preset contrast values (from Redis)
-- `Exit`: Disconnects the TEM and exits the GUI.
+- `Apply Auto Contrast`: Dynamically adjusts the contrast of displayed frames ([not working correctly](#Known-bugs)).
+- `Reset Contrast`: Turn off the auto-contrast and reload preset contrast values from Redis. Four other presets can also be used.
+- `Exit`: ~Disconnects the TEM and~ exits the GUI.
 - `Beam Gaussian Fit`: Starts fitting the beam's elliptical spot shape (non-TEM mode only, useful for manual focusing).
-- `Magnification`, `Distance`: Displays the magnification and distance values from the previous recording (TEM mode only). `scale` checkbox displays the scale bar/ring (not works correctly at the moment).
-- `Accumulate in TIFF`: Saves a TIFF snapshot to the specified data path.
-- `Write Stream in H5`: Saves an HDF movie to the specified data path.
+- `Magnification`, `Distance`: Displays the magnification and distance values (TEM mode only). `scale` checkbox displays the scale bar (1 um)/ ring (1 A).
+- `Accumulate in TIFF`: Saves a TIFF snapshot to the specified data path (**[not tested in jfj-version](#Known-bugs)**).
+- `Write Stream in H5`: Saves an HDF movie to the specified data path (**[not tested in jfj-version](#Known-bugs)**).
 
-### [Summing Receiver Controls](../jungfrau_gui/screenshot/ver_26Sept2024.PNG.png)
+### Summing Receiver Controls
+#### A. [JUNGFRAUJOCH](../jungfrau_gui/screenshot/ver_13Dec2024.png)
+- `Connect to jungfraujoch`: Establishes a connection with the jungfraujoch-receiver.
+- `Live stream`: Displays summed frames.
+- `Data Collection`:
+    - `Threshold`: \
+            - `wait`:
+- `Collect`: Starts recording of frame streams. Ends with `Cancel`.
+- `Record Full Pedestal`: Records and subtracts the dark frames. Temporarily gets unresponsive to any controls (several seconds). Pedestal data is saved in jfj (not in GUI).
+
+#### B. [REUSS](../jungfrau_gui/screenshot/ver_26Sept2024.png)
 **Important:** The below controls are compatible with the new receiver `~/software/v2/reuss/python/reuss/ReceiverServer.py`.
 
 Main operations:\
@@ -183,16 +201,18 @@ More:\
 
 ### [TEM-control Function](../jungfrau_gui/screenshot/ver_16Aug2024.PNG)
 
-- `Check TEM connection`: Starts communication with TEM. After the connection can be confirmed, **click again** to stop pinging.
+- `Check TEM connection`: Starts communication with TEM.
 - `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file]
-   -`recording`: When checked, allows to save the TEM status in a .log file
-- `Click-on-Centring`: (deactivated) Activates stage control by clicking the image.
-- `Beam Autofocus`: (Not ready for use) Sweeps IL1 and ILstig values.
+   ~-`recording`: When checked, allows to save the TEM status in a .log file.~ ([not working correctly](#Known-bugs))
+- `Click-on-Centering`: **(deactivated)** Activates stage control by clicking the image.
+- `Beam Autofocus`: **(Not ready for use)** Sweeps IL1 and ILstig values.
 - `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
-- `with Writer`: Synchronizes the HDF writer with rotation.
-- `Auto reset`: Resets the tilt to 0 degrees after rotation.
+    - `with Writer`: Synchronizes the HDF writer with rotation.
+    - `JFJ`: Saves data in JFJ-server (noether).
+    - `Auto reset`: Resets the tilt to 0 degrees after rotation.
 - `Rotation Speed`: Adjusts rotation speed before starting the rotation. Also updates the `rotation_speed_idx` variable of the Configuration Manager in the data base.
-- `Stage Ctrl`: moves the stage in specific direction. \*Rotations are not automatically quicken.
+- `Stage Ctrl`: Moves the stage in specific direction. \*Rotations are not automatically quicken.
+- `Mag Mode`: Switches and indicates the current magnification mode. Also deactivates the Auto-contrast. [See issue \#80](https://github.com/epoc-ed/GUI/issues/80).
 
 ### [File Operation and Redis](../jungfrau_gui/screenshot/ver_24Sept2024.png)
 
@@ -204,6 +224,7 @@ More:\
 
 **Note:** The [Get] buttons were coded for debugging purposes. They will be removed for the stable version.
 
+**Important:** TIFF-Writer and HDF5-Writer have not been tested with JFJ. Use [`Collect`](#summing-receiver-controls) in Visualization Panel instead.
 #### TIFF Writer
 - `Tiff File Name`: Area to define the name of the TIFF file and its index. It contains:\
    <small>
@@ -222,36 +243,23 @@ More:\
 
 **Important:** All the fields with (*) are manually editable. During edition, the entered values/text will be displayed in orange i.e. temporary values. By pressing the [ENTER] key, modifications are confirmed and new values uploaded to the data base.
 
-## Data-recording workflow
+## Data-recording workflow with REUSS
 
 1. Set up the beam and stage of TEM.
 2. Confirm the data output path on the `H5 Output Path` line-edit.
 3. Start stage rotation and immediately click `Write Stream in H5`.
 4. Stop writing by pressing ```Stop Writing``` just before the rotation ends.
-<!-- 5. When 'Prepare for XDS processing' is checked, the ouput filename is end with '_master.h5' -->
-<!-- 6. Modify the 'Acquisition Interval (ms)' -->
 
-## Data-recording workflow with Testing version
+## Data-recording workflow with JUNGFRAUJOCH
 
 1. Set up the beam and stage of TEM.
 2. Blank the beam to avoid sample damage.
 3. Confirm the data output path on the `H5 Output Path` line-edit.
 4. Modify the stage rotation speed and end angle.
-5. Check the `with Writer` box.
+5. Check the `with Writer` and `JFJ` boxes.
 6. Click `Rotation` to start the rotation and recording.
 7. Continue until the end angle is reached or interrupted.
-8. Take a TIFF image if needed.
-
-<!-- ***
-### Data-recording workflow with Development version, 4 Jul 2024
-1. Setup the beam and stage of TEM for data collection.
-1. Define the data output path on the 'H5 Output Path' lineedit. *a '/' at the last part of the path may cause an error.
-1. Check 'Write during rotaion'
-1. Define the end angle
-1. Click 'Rotation/Record' to start the rotation and recording.
-1. Rotation/recording can be stopped by clicking 'Stop' (the same button) or interrupption by TEM console. Otherwise the recording will continue until tilted to the end angle.
-*\*The frame rate in recording is 50 ms and independent from the value at 'Aquisition Interval'. At this rate, recording with 1 deg/s means 0.05 deg/frame.*
-*\*TEM information will be written in the HDF when 'Write during rotaion' is checked.* -->
+8. Take an HDF movie if needed.
 
 ## Data-processing notes
 
@@ -262,6 +270,7 @@ More:\
         ```
     - [Version before 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with float32 format. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can work. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can not.
     - [Version after 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with int32 format and compressed. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can work. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can not.
+    - Version after XX.Nov.2024 (JFJ installation) Data stored with int32 format and linked with master.h5. [**The orininal Neggia-plugin**](https://github.com/dectris/neggia/) can process the data.
 
 - **DIALS**: Install the [updated Format Class](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py) to read the HDF file directly:\
    ``` dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660 ```
@@ -275,6 +284,11 @@ More:\
    kill [pid]
    ```
 - **TEM-control button delay**: There may be a few seconds of delay when responding, especially the first time. Please wait.
+
+### Known bugs
+updated on 13 Dec 2024
+- Autocontrast does not work correctly after installation of JF-1M. Modify contrast manually or use fixed-contrast buttons.
+- Recording of TEM-related values does not output a file. Now the function is disabled.
 
 ### Launching previous system
 - Usage of previous rotation commands/scripts under PyJEM3.8 environment
