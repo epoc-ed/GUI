@@ -1,6 +1,6 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
 This document was updated on 15 Dec 2024\
-**When you encounter bug-like behavior, please check [known bugs](#Known-bugs).**
+**When you encounter bug-like behaviors, please check [known bugs](#Known-bugs).**
 
 ## Table of Contents
 - [TEM control activation](#tem-control-activation)
@@ -11,7 +11,6 @@ This document was updated on 15 Dec 2024\
 - [TEM-control Function](#tem-control-function)
 - [File Operation and Redis](#file-operation-and-redis)
 - [Data-recording workflow](#data-recording-workflow)
-- [Data-recording workflow with Testing version](#data-recording-workflow-with-testing-version)
 - [Data-processing notes](#data-processing-notes)
 - [Troubleshooting](#troubleshooting)
     - [Known bugs (13 Dec 2024)](#Known-bugs)
@@ -169,9 +168,9 @@ This document was updated on 15 Dec 2024\
 - `View Stream`: Reads the stream of frames published by the receiver.
 - `Apply Auto Contrast`: Dynamically adjusts the contrast of displayed frames ([not working correctly](#Known-bugs)).
 - `Reset Contrast`: Turn off the auto-contrast and reload preset contrast values from Redis. Four other presets can also be used.
-- `Exit`: ~Disconnects the TEM and~ exits the GUI.
+- `Exit`: Exits the GUI.
 - `Beam Gaussian Fit`: Starts fitting the beam's elliptical spot shape (non-TEM mode only, useful for manual focusing).
-- `Magnification`, `Distance`: Displays the magnification and distance values (TEM mode only). `scale` checkbox displays the scale bar (1 um)/ ring (1 A).
+- `Magnification`, `Distance`: Displays the magnification and distance values (TEM mode only). `scale` checkbox displays the scale bar (1 um) or the ring (1 A).
 - `Accumulate in TIFF`: Saves a TIFF snapshot to the specified data path (**[not tested in jfj-version](#Known-bugs)**).
 - `Write Stream in H5`: Saves an HDF movie to the specified data path (**[not tested in jfj-version](#Known-bugs)**).
 
@@ -203,8 +202,8 @@ More:\
 
 - `Check TEM connection`: Starts communication with TEM.
 - `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file]
-   ~-`recording`: When checked, allows to save the TEM status in a .log file.~ ([not working correctly](#Known-bugs))
-- `Click-on-Centering`: **(deactivated)** Activates stage control by clicking the image.
+   -`recording`: **(disabled)** When checked, allows to save the TEM status in a .log file. ([not working correctly](#Known-bugs))
+- `Click-on-Centering`: **(disabled)** Activates stage control by clicking the image.
 - `Beam Autofocus`: **(Not ready for use)** Sweeps IL1 and ILstig values.
 - `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
     - `with Writer`: Synchronizes the HDF writer with rotation.
@@ -243,15 +242,8 @@ More:\
 
 **Important:** All the fields with (*) are manually editable. During edition, the entered values/text will be displayed in orange i.e. temporary values. By pressing the [ENTER] key, modifications are confirmed and new values uploaded to the data base.
 
-## Data-recording workflow with REUSS
-
-1. Set up the beam and stage of TEM.
-2. Confirm the data output path on the `H5 Output Path` line-edit.
-3. Start stage rotation and immediately click `Write Stream in H5`.
-4. Stop writing by pressing ```Stop Writing``` just before the rotation ends.
-
-## Data-recording workflow with JUNGFRAUJOCH
-
+## Data-recording workflow
+### A. [JUNGFRAUJOCH]
 1. Set up the beam and stage of TEM.
 2. Blank the beam to avoid sample damage.
 3. Confirm the data output path on the `H5 Output Path` line-edit.
@@ -260,6 +252,12 @@ More:\
 6. Click `Rotation` to start the rotation and recording.
 7. Continue until the end angle is reached or interrupted.
 8. Take an HDF movie if needed.
+
+### B. [REUSS]
+1. Set up the beam and stage of TEM.
+2. Confirm the data output path on the `H5 Output Path` line-edit.
+3. Start stage rotation and immediately click `Write Stream in H5`.
+4. Stop writing by pressing ```Stop Writing``` just before the rotation ends.
 
 ## Data-processing notes
 
@@ -270,7 +268,7 @@ More:\
         ```
     - [Version before 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with float32 format. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can work. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can not.
     - [Version after 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with int32 format and compressed. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can work. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can not.
-    - Version after XX.Nov.2024 (JFJ installation) Data stored with int32 format and linked with master.h5. [**The orininal Neggia-plugin**](https://github.com/dectris/neggia/) can process the data.
+    - Version after XX.Nov.2024 (JFJ installation) Data stored with int32 format and linked with master.h5. [**The original Neggia-plugin**](https://github.com/dectris/neggia/) can process the data.
 
 - **DIALS**: Install the [updated Format Class](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py) to read the HDF file directly:\
    ``` dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660 ```
@@ -288,7 +286,8 @@ More:\
 ### Known bugs
 updated on 13 Dec 2024
 - Autocontrast does not work correctly after installation of JF-1M. Modify contrast manually or use fixed-contrast buttons.
-- Recording of TEM-related values does not output a file. Now the function is disabled.
+- Tiff- and HDF- writers have not been tested after installation of JFJ. Use [`Collect` and `Cancel`](#summing-receiver-controls) in Visualization Panel instead.
+- Recording of TEM-related values does not correctly output a file. Currently this function is disabled.
 
 ### Launching previous system
 - Usage of previous rotation commands/scripts under PyJEM3.8 environment
