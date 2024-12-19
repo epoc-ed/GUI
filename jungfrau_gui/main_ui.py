@@ -109,7 +109,8 @@ def main():
     if args.logger:
         file_handler = logging.FileHandler('/home/instruments/jem2100plus/GUI/JFGUI'+ time.strftime("_%Y%m%d-%H%M%S.log", time.localtime())) # directory path can be removed afterwards
         file_handler.setLevel(log_level)
-        file_handler.setFormatter(formatter)
+        file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
+        file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
     if args.dtype == np.float32:
