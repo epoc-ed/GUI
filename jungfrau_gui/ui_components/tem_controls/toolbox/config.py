@@ -29,4 +29,5 @@ def lookup(dic, key, label_search, label_get):
 class others:
     ### will be removed when these are registered in the dataserver
     rotation_axis_theta = 21.8 # parser['rotation_axis_theta']
+    rotation_axis_theta_lm1200x = 55 # should be replaced for each mag settings!!
     pixelsize = 0.075 # parser['pixelsize']

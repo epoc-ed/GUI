@@ -36,14 +36,15 @@ class CenteringTask(Task):
         return rotmatrix @ vector
     
     def translationvector(self, pixels, magnification):
-        if magnification >= 1500 : # Mag
+        print(magnification)
+        if magnification >= 2000 : # Mag # 1500 for ideal!!
             tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * cfg_jf.others.pixelsize * 1e3 / magnification # in um
-            logging.info(f'Estimate with rotation')
+            logging.debug(f'Estimate with rotation')
             tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta) # deg., angle between detector y and rotation axes.
         else: # Lowmag, targeting to the rectanble area
             tr_vector = (pixels - [self.lowmag_jump[0], self.lowmag_jump[1]]) * cfg_jf.others.pixelsize * 1e3 / magnification # in um
-            logging.info(f'Estimate with rotation')
-            tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta*2) # not fine!!
+            logging.debug(f'Estimate with rotation at LM')
+            tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta_lm1200x) # not very fine!!
         return np.round(tr_vector, 3)
 
     def run(self):
@@ -56,7 +57,7 @@ class CenteringTask(Task):
         magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
         try:
             movexy = self.translationvector(px_array, magnification) # in um
-        except ZeroDevisionError:
+        except ZeroDivisionError:
             logging.wargning(f'Value invalid: {magnification}')
             return
         
