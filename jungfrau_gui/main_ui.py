@@ -5,6 +5,7 @@ import ctypes
 import logging
 import argparse
 import numpy as np
+import time
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QCoreApplication
 
@@ -81,6 +82,7 @@ def main():
     parser.add_argument("-th", "--temhost", default="temserver", help="Choose host for tem-gui communication")
     parser.add_argument('-l', '--log', default='INFO', help='Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument("-jfj", "--jungfraujoch", action="store_true", help="Enable Jungfraujoch comtrol panel for communication with JFJ broker")
+    parser.add_argument("-f", "--logger", action="store_true", help="File-output of logging")
 
     args = parser.parse_args()
 
@@ -103,6 +105,12 @@ def main():
 
     # Add the handler to the logger
     logger.addHandler(console_handler)
+
+    if args.logger:
+        file_handler = logging.FileHandler('/home/instruments/jem2100plus/GUI/JFGUI'+ time.strftime("_%Y%m%d-%H%M%S.log", time.localtime())) # directory path can be removed afterwards
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
 
     if args.dtype == np.float32:
         globals.cdtype = ctypes.c_float

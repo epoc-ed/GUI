@@ -73,6 +73,7 @@ This document was updated on 14 Oct 2024
    ```bash
    python launch_gui.py -jfj -t -s tcp://noether:5501
    ```
+   >```-f``` can be added to save logs in a file
 7. To start streaming:
     > Starting the decoding of the streamed data -> Push ```View Stream```
     > Ensure good connection to JFJ -> Push ```Connection to Jungfraujoch```
