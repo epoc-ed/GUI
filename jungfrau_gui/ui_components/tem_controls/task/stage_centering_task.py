@@ -1,3 +1,6 @@
+
+
+
 import time
 from datetime import datetime as dt
 import logging
@@ -36,13 +39,12 @@ class CenteringTask(Task):
         return rotmatrix @ vector
     
     def translationvector(self, pixels, magnification):
-        print(magnification)
-        if magnification >= 2000 : # Mag # 1500 for ideal!!
-            tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * cfg_jf.others.pixelsize * 1e3 / magnification # in um
+        calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
+        tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * cfg_jf.others.pixelsize * 1e3 / calibrated_mag # in um
+        if int(magnification[0]) >= 1500 : # Mag
             logging.debug(f'Estimate with rotation')
             tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta) # deg., angle between detector y and rotation axes.
-        else: # Lowmag, targeting to the rectanble area
-            tr_vector = (pixels - [self.lowmag_jump[0], self.lowmag_jump[1]]) * cfg_jf.others.pixelsize * 1e3 / magnification # in um
+        else: # Lowmag, targeting to the rectangular overlay
             logging.debug(f'Estimate with rotation at LM')
             tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta_lm1200x) # not very fine!!
         return np.round(tr_vector, 3)
@@ -53,12 +55,11 @@ class CenteringTask(Task):
         if np.abs(pos[3]) > 1 and np.abs(pos[3]) < 5:
             logging.warning('Stage tilts! Reset tilting or Adjust Z manually. ')
             return
-        magnification = self.control.tem_status["eos.GetMagValue"][2]
-        magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
+        magnification = self.control.tem_status["eos.GetMagValue"]
         try:
             movexy = self.translationvector(px_array, magnification) # in um
         except ZeroDivisionError:
-            logging.wargning(f'Value invalid: {magnification}')
+            logging.wargning(f'Value invalid: {magnification[2]}')
             return
         
         # == INSERT A ROUTINE HERE TO AVOID OVER-SHIFTING ==
@@ -72,7 +73,7 @@ class CenteringTask(Task):
             if np.abs(movexy[0]) < self.thresholds[0] and np.abs(movexy[1]) < self.thresholds[0]:
                 logging.info(f'Vector already small enough (< {self.thresholds[0]} um): {movexy[0]}, {movexy[1]}')
                 return
-            logging.info(f'Move X: {movexy[0]},  Y: {movexy[1]} with MAG: {magnification}')
+            logging.info(f'Move X: {movexy[0]},  Y: {movexy[1]} with MAG: {magnification[2]}')
             self.client.SetXRel(movexy[0]*-1e3)
             time.sleep(0.5)
             self.client.SetYRel(movexy[1]*-1e3)
@@ -88,7 +89,7 @@ class CenteringTask(Task):
             if np.abs(movez) < self.thresholds[2] or np.abs(movez) > self.thresholds[3]:
                 logging.info(f'Too small or too large Z-Vector: {movez}')
                 return
-            logging.info(f'Move Z: {movez} with MAG: {magnification}')
+            logging.info(f'Move Z: {movez} with MAG: {magnification[2]}')
             logging.warning(f'Move Z is not activated yet!!')
             # self.client.SetZRel(movez[1]*-1e3)
         

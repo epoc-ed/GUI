@@ -12,7 +12,7 @@ parser = json.loads(f.read_text())
 
 class lut:
     distance = parser['distances']
-    magnification = parser['magnification'] # data measured by KT, using Au-grating grid, on 4 Dec 2024
+    magnification = parser['magnification'] # data measured by KT, using Au-grating grid, in Dec 2024 
     cl = parser['CL']
     sa = parser['SA']
 
@@ -29,5 +29,5 @@ def lookup(dic, key, label_search, label_get):
 class others:
     ### will be removed when these are registered in the dataserver
     rotation_axis_theta = 21.8 # parser['rotation_axis_theta']
-    rotation_axis_theta_lm1200x = 55 # should be replaced for each mag settings!!
+    rotation_axis_theta_lm1200x = 52.86 # hopefully be replaced with values for each mag
     pixelsize = 0.075 # parser['pixelsize']

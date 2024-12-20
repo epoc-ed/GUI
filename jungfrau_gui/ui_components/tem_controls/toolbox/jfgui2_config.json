@@ -115,12 +115,24 @@
            "date_update": "04/12/2024"
         },
          { "displayed": "X1200",
-           "calibrated": 1740,
-           "date_update": "extrapolation"
+           "calibrated": 1742,
+           "date_update": "13/12/2024"
         },
          { "displayed": "X1000",
-           "calibrated": 1450,
-           "date_update": "extrapolation"
+           "calibrated": 1473,
+           "date_update": "13/12/2024"
+        },
+         { "displayed": "X800",
+           "calibrated": 1170,
+           "date_update": "13/12/2024"
+        },
+         { "displayed": "X600",
+           "calibrated": 888,
+           "date_update": "13/12/2024"
+        },
+         { "displayed": "X500",
+           "calibrated": 720,
+           "date_update": "13/12/2024"
         }
 ], 
   "CL":
