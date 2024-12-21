@@ -41,6 +41,7 @@ class TEMAction(QObject):
         # self.formatted_filename = '' # TODO DELETE? See use in 'callGetInfoTask' below 
         self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
         # self.xds_template_filepath = self.cfg.XDS_template
+        self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
@@ -81,6 +82,9 @@ class TEMAction(QObject):
         #             lambda: self.control.client.SetTiltXAngle(0))
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
+        self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
+        self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
+        self.plot_listedposition()
         
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
@@ -103,6 +107,8 @@ class TEMAction(QObject):
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
+        self.tem_stagectrl.go_button.setEnabled(enables)
+        self.tem_stagectrl.addpos_button.setEnabled(enables)
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
@@ -270,3 +276,27 @@ class TEMAction(QObject):
                 self.tem_tasks.parent.plotDialog.close_window()
             self.control.actionFit_Beam.emit()
             # self.control.stop_task()
+
+    def go_listedposition(self):
+        position = self.control.client.GetStagePosition() # in nm
+        position_aim = np.array(self.tem_stagectrl.position_list.currentText().split()[1:-2], dtype=float) # in um
+        dif_pos = position_aim[0]*1e3 - position[0], position_aim[1]*1e3 - position[1]
+        try:
+            self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1]) # lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
+            time.sleep(2) # should be updated with referring stage status!!
+            logging.info(f"Moved to x:{dif_pos[0]:6.2f} um, y:{dif_pos[1]:6.2f} nm")
+        except RuntimeError:
+            logging.warning('To set position, use specific version of tem_server.py!')
+            self.tem_stagectrl.go_button.setEnabled(False)
+        
+    def add_listedposition(self, color='red', status='new'):
+        position = self.control.client.GetStagePosition()
+        new_id = self.tem_stagectrl.position_list.count() - 4
+        self.tem_stagectrl.position_list.addItems([f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"])
+        self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color))
+        logging.info(f"{new_id}: {position} is added to the list")
+
+    def plot_listedposition(self, color='gray'):
+        xy_list = [self.tem_stagectrl.position_list.itemText(i).split()[1:-2] for i in range(self.tem_stagectrl.position_list.count())]
+        xy_list = np.array(xy_list).T
+        self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=xy_list[0], y=xy_list[1], brush=color))

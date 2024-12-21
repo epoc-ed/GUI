@@ -223,6 +223,7 @@ class RecordTask(Task):
             if self.writer is None:
                 self.reset_rotation_signal.emit()
 
+            self.tem_action.add_listedposition(color='green', status='recorded')
             print("------REACHED END OF TASK----------")
 
         except TimeoutError as e:
