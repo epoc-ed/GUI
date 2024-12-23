@@ -915,7 +915,7 @@ class VisualizationPanel(QGroupBox):
         self.autoContrastBtn.started = False
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
         self.autoContrastBtn.setText('Apply Auto Contrast')
-        self.parent.histogram.setLevels(0, 10000)
+        self.parent.histogram.setLevels(0, 100000) # '0-1e5'
     
     def toggle_autoContrast(self):
         if not self.autoContrastBtn.started:
@@ -935,7 +935,8 @@ class VisualizationPanel(QGroupBox):
             data_flat = self.parent.imageItem.image.flatten()
             histogram = Histogram(Regular(1000000, data_flat.min(), data_flat.max()))
             histogram.fill(data_flat)
-            cumsum = np.cumsum(histogram.view())
+            cumsum_pre = np.cumsum(histogram.view())
+            cumsum = cumsum_pre[~np.isnan(cumsum_pre)]
             total = cumsum[-1]
             low_thresh = np.searchsorted(cumsum, total * 0.01)
             high_thresh = np.searchsorted(cumsum, total * 0.99999)
