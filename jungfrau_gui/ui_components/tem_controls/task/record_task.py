@@ -171,6 +171,12 @@ class RecordTask(Task):
             logfile.close()
             logging.info(f"Stage rotation end at {phi1:.1f} deg.")
 
+            # GUI updates; should be done before Auto-Reset, which modifies the stage status
+            try:
+                self.control.send_to_tem("#more")  # Update tem_status map and GUI 
+            except Exception as e:
+                logging.error("Error updating TEM status: {e}")
+            
             # Enable auto reset of tilt
             if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
                 logging.info("Return the stage tilt to zero.")
@@ -187,12 +193,6 @@ class RecordTask(Task):
                     time.sleep(0.01)
             except Exception as e:
                 logging.error(f'Error during "Auto-Reset" rotation: {e}')
-
-            # GUI updates
-            try:
-                self.control.send_to_tem("#more")  # Update tem_status map and GUI 
-            except Exception as e:
-                logging.error("Error updating TEM status: {e}")
 
             # Add H5 info and file finalization
             if self.writer is not None:
