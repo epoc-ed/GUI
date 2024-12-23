@@ -5,7 +5,7 @@ import json
 import time
 import numpy as np
 import threading
-from epoc import ConfigurationClient, auth_token, redis_host
+# from epoc import ConfigurationClient, auth_token, redis_host
 
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
@@ -61,10 +61,11 @@ class Hdf5MetadataUpdater:
                 filename = self.root_data_directory + message["filename"]
                 tem_status = message["tem_status"]
                 beamcenter = message["beamcenter"]
+                rotations_angles = message["rotations_angles"]
                 detector_distance = message["detector_distance"]
                 aperture_size_cl = message["aperture_size_cl"]
                 aperture_size_sa = message["aperture_size_sa"]
-                self.addinfo_to_hdf(filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa)
+                self.addinfo_to_hdf(filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles)
                 self.socket.send_string("Metadata added successfully")
             except zmq.ZMQError as e:
                 logging.error(f"Error while receiving request: {e}")
@@ -74,12 +75,16 @@ class Hdf5MetadataUpdater:
         self.running = False
         logging.info("Stopping server...")
 
-    def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, pixel=0.075):
-        interval = 200  # Example value for frame interval (ms)
+    def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, pixel=0.075):
+        detector_framerate = 2000 # Hz for Jungfrau
+        summed_frames = 100  # Example value for frame summation, should be replaced by reading JFJ
+        interval = 1 / detector_framerate / summed_frames
         ht = 200  # keV  # <- HT3
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
         stage_rates = [10.0, 2.0, 1.0, 0.5]
         jfj_version = "1.0.0-rc.24"
+        del_rotations_angles = np.diff(np.array(rotations_angles, dtype='float').T)
+        rotation_mean, rotation_std = np.mean(del_rotations_angles[1] / del_rotations_angles[0]), np.std(del_rotations_angles[1] / del_rotations_angles[0])
         try:
             with h5py.File(filename, 'a') as f:
                 try:
@@ -88,19 +93,20 @@ class Hdf5MetadataUpdater:
                             del f[name]
                         f.create_dataset(name, data=data, dtype=dtype)
                     
-                    # tagname mimiced from dectris HDF
-                    create_or_update_dataset('entry/instrument/detector/detector_name', data = 'JUNGFRAU FOR ED AT UNIVERSITY OF VIENNA')
+                    # tagname mimicked from dectris HDF
+                    create_or_update_dataset('entry/instrument/detector/detector_name', data = 'JUNGFRAU-1M FOR ED AT UNIVERSITY OF VIENNA')
                     create_or_update_dataset('entry/instrument/detector/beam_center_x', data = beamcenter[0], dtype='float') # <- FITTING
                     create_or_update_dataset('entry/instrument/detector/beam_center_y', data = beamcenter[1], dtype='float') # <- FITTING
                     create_or_update_dataset('entry/instrument/detector/detector_distance', data = detector_distance, dtype='uint64') # <- LUT
                     create_or_update_dataset('entry/instrument/detector/frame_time', data = interval*1e-3, dtype='float')
-                    # create_or_update_dataset('entry/instrument/detector/frame_time_unit', data = 's')
-                    create_or_update_dataset('entry/instrument/detector/saturation_value', data = 2e32-1, dtype='float')
+                    create_or_update_dataset('entry/instrument/detector/frame_time_unit', data = 's')
+                    create_or_update_dataset('entry/instrument/detector/framerate', data = detector_framerate, dtype='uint64')
+                    create_or_update_dataset('entry/instrument/detector/saturation_value', data = np.iinfo('int32').max, dtype='uint32')
                     create_or_update_dataset('entry/instrument/detector/sensor_material', data = 'Si')
                     create_or_update_dataset('entry/instrument/detector/sensor_thickness', data = 0.32, dtype='float')
                     create_or_update_dataset('entry/instrument/detector/sensor_thickness_unit', data = 'mm')
                     # create_or_update_dataset('entry/instrument/detector/virtual_pixel_correction_applied', data = 200, dtype='float') # =GAIN?
-                    # create_or_update_dataset('entry/instrument/detector/detectorSpecific/data_collection_date_time', data = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
+                    # create_or_update_dataset('entry/instrument/detector/detectorSpecific/data_collection_date_time', data = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime())) <- sent with tem_update_times
                     create_or_update_dataset('entry/instrument/detector/detectorSpecific/element', data = 'Si')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_count_time', data = data_shape[0], dtype='uint64')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_period', data = data_shape[0], dtype='uint64') = frame_count_time in SINGLA
@@ -132,32 +138,34 @@ class Hdf5MetadataUpdater:
                     # ED-specific, stage
                     create_or_update_dataset('entry/instrument/stage/stage_x', data = tem_status['stage.GetPos'][0]/1e3, dtype='float')
                     create_or_update_dataset('entry/instrument/stage/stage_y', data = tem_status['stage.GetPos'][1]/1e3, dtype='float')
-                    create_or_update_dataset('entry/instrument/stage/stage_z', data = tem_status['stage.GetPos'][2], dtype='float')
+                    create_or_update_dataset('entry/instrument/stage/stage_z', data = tem_status['stage.GetPos'][2]/1e3, dtype='float')
                     create_or_update_dataset('entry/instrument/stage/stage_xyz_unit', data ='um')
-                    # create_or_update_dataset('entry/instrument/stage/stage_tx_start', data = tem_status['stage.GetPos'][2], dtype='float')
-                    # create_or_update_dataset('entry/instrument/stage/stage_tx_end', data = tem_status['stage.GetPos'][2], dtype='float')
+                    create_or_update_dataset('entry/instrument/stage/stage_tx_start', data = rotations_angles[0][1], dtype='float')
+                    create_or_update_dataset('entry/instrument/stage/stage_tx_end', data = rotations_angles[-1][1], dtype='float')
                     rotation_speed_idx = tem_status['stage.Getf1OverRateTxNum']
                     create_or_update_dataset('entry/instrument/stage/stage_tx_speed_ID', data = rotation_speed_idx, dtype='float')
-                    create_or_update_dataset('entry/instrument/stage/velocity_data_collection', data = stage_rates[rotation_speed_idx], dtype='float')
+                    create_or_update_dataset('entry/instrument/stage/velocity_data_collection', data = stage_rates[rotation_speed_idx], dtype='float') # definition of axis is missing in the tag name 
                     # create_or_update_dataset('entry/instrument/stage/stage_tx_speed_nominal', data = tem_status['stage.GetPos'][2], dtype='float') <- LUT
-                    # create_or_update_dataset('entry/instrument/stage/stage_tx_speed_measured', data = tem_status['stage.GetPos'][2], dtype='float') <- LUT
-                    # create_or_update_dataset('entry/instrument/stage/stage_tx_speed_unit', data = 'deg/s')
+                    create_or_update_dataset('entry/instrument/stage/stage_tx_speed_measured', data = rotation_mean, dtype='float')
+                    create_or_update_dataset('entry/instrument/stage/stage_tx_speed_measured_std', data = rotation_std, dtype='float')
+                    create_or_update_dataset('entry/instrument/stage/stage_tx_speed_unit', data = 'deg/s')                    
+                    create_or_update_dataset('entry/instrument/stage/stage_tx_record', data = rotations_angles)
                     # ED-specific, crystal image
                     # create_or_update_dataset('entry/imagedata_endangle', data = , dtype='float32') # at the end angle
                     # create_or_update_dataset('entry/imagedata_zerotilt', data = , dtype='float32') # at the zero tile\
                     # for cif
-                    # create_or_update_dataset('entry/cif/_diffrn_ambient_temperature', data = '293(2)')
-                    # create_or_update_dataset('entry/cif/_diffrn_radiation_wavelength', data = f'{wavelength:8.5f}')
-                    # create_or_update_dataset('entry/cif/_diffrn_radiation_probe', data = 'electron')
-                    # create_or_update_dataset('entry/cif/_diffrn_radiation_type', data = '\'monochromatic beam\'')
-                    # create_or_update_dataset('entry/cif/_diffrn_source', data = '\'transmission electron microscope, LaB6\'')
-                    # create_or_update_dataset('entry/cif/_diffrn_source_type', data = '\'JEOL JEM2100Plus\'')
-                    # create_or_update_dataset('entry/cif/_diffrn_source_voltage', data = f'{ht:3d}')
-                    # create_or_update_dataset('entry/cif/_diffrn_measurement_device_type', data = '\'single axis tomography holder\'')
-                    # create_or_update_dataset('entry/cif/_diffrn_detector', data = '\'hybrid pixel area detector\'')
-                    # create_or_update_dataset('entry/cif/_diffrn_detector_type', data = '\'JUNGFRAU\'')
-                    # # create_or_update_dataset('entry/cif/_diffrn_detector_dtime', data = '\'single axis tomography holder\'') #20?
-                    # create_or_update_dataset('entry/cif/_diffrn_detector_area_resol_mean', data = f'{1/pixel:6.3f}') # 13.333 = 1/0.075
+                    create_or_update_dataset('entry/cif/_diffrn_ambient_temperature', data = '293(2)')
+                    create_or_update_dataset('entry/cif/_diffrn_radiation_wavelength', data = f'{wavelength:8.5f}')
+                    create_or_update_dataset('entry/cif/_diffrn_radiation_probe', data = 'electron')
+                    create_or_update_dataset('entry/cif/_diffrn_radiation_type', data = '\'monochromatic beam\'')
+                    create_or_update_dataset('entry/cif/_diffrn_source', data = '\'transmission electron microscope, LaB6\'')
+                    create_or_update_dataset('entry/cif/_diffrn_source_type', data = '\'JEOL JEM2100Plus\'')
+                    create_or_update_dataset('entry/cif/_diffrn_source_voltage', data = f'{ht:3d}')
+                    create_or_update_dataset('entry/cif/_diffrn_measurement_device_type', data = '\'single axis tomography holder\'')
+                    create_or_update_dataset('entry/cif/_diffrn_detector', data = '\'hybrid pixel area detector\'')
+                    create_or_update_dataset('entry/cif/_diffrn_detector_type', data = '\'JUNGFRAU\'')
+                    # create_or_update_dataset('entry/cif/_diffrn_detector_dtime', data = '\'single axis tomography holder\'') #20?
+                    create_or_update_dataset('entry/cif/_diffrn_detector_area_resol_mean', data = f'{1/pixel:6.3f}') # 13.333 = 1/0.075
 
                     logging.info(f'Information updated in {filename}')
                 except ValueError as e:

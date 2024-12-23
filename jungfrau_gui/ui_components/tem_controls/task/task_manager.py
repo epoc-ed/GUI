@@ -174,6 +174,7 @@ class ControlWorker(QObject):
         logging.info("Starting Rotation/Record")
 
         # Check if a task is already running, and stop it if so
+        self.tem_action.toggle_connectTEM()
         if self.task is not None:
             if self.task.running:
                 logging.warning("\033[38;5;214mRecordTask\033[33m - task is currently running...\n"
@@ -184,12 +185,12 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
-        self.file_operations.update_base_data_directory() # Update the GUI
-        # TODO Choose the right fname from the start (increment file_id ?)
-        # TODO Use directly the whole fname -> not the suffix ?
-        filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
-
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
+            self.file_operations.update_base_data_directory() # Update the GUI
+            # TODO Choose the right fname from the start (increment file_id ?)
+            # TODO Use directly the whole fname -> not the suffix ?
+            filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
+
             if globals.jfj and self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
                 # TODO Change value of writer_event value to trigger writing events through it ?
                 task = RecordTask(
@@ -208,7 +209,7 @@ class ControlWorker(QObject):
                     standard_h5_recording=True
                 )
         else:
-            task = RecordTask(self, end_angle, filename_suffix.as_posix())
+            task = RecordTask(self, end_angle) #, filename_suffix.as_posix())
 
         self.start_task(task)
 
