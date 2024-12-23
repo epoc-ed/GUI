@@ -941,7 +941,9 @@ class VisualizationPanel(QGroupBox):
             low_thresh = np.searchsorted(cumsum, total * 0.01)
             high_thresh = np.searchsorted(cumsum, total * 0.99999)
         else:
-            low_thresh, high_thresh = np.percentile(self.parent.imageItem.image, (1, 99.999))
+            image_data = self.parent.imageItem.image
+            image_data_delnan = image_data[~np.isnan(image_data)]
+            low_thresh, high_thresh = np.percentile(image_data_delnan, (1, 99.999))
         
         self.parent.histogram.setLevels(low_thresh, high_thresh)
 
