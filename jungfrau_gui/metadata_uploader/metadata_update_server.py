@@ -78,7 +78,7 @@ class Hdf5MetadataUpdater:
     def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, pixel=0.075):
         detector_framerate = 2000 # Hz for Jungfrau
         summed_frames = 100  # Example value for frame summation, should be replaced by reading JFJ
-        interval = 1 / detector_framerate / summed_frames
+        interval = 1 / detector_framerate * summed_frames
         ht = 200  # keV  # <- HT3
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
         stage_rates = [10.0, 2.0, 1.0, 0.5]
