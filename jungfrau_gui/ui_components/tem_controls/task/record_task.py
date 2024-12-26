@@ -213,7 +213,7 @@ class RecordTask(Task):
                     self.tem_action.file_operations.trigger_update_h5_index_box.emit()
                 else:
                     time.sleep(0.1)
-                    logging.info(" ******************** Adding Info to H5...")
+                    logging.info(" ******************** Adding Info to H5 over Server...")
 
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
                                         self.tem_action.visualization_panel.formatted_filename, 
