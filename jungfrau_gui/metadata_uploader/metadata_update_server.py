@@ -49,8 +49,8 @@ class Hdf5MetadataUpdater:
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(f"tcp://*:{port_number}")
-        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.root_data_directory = "/data/epoc/storage/jfjoch_test/" # self.cfg.base_data_dir.as_posix()
+        # self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.root_data_directory = "/data/epoc/storage/jem2100plus/" # jfjoch_test/ # self.cfg.base_data_dir.as_posix()
 
     def run(self):
         logging.info("Server started, waiting for metadata update requests...")
@@ -98,7 +98,7 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/detector/beam_center_x', data = beamcenter[0], dtype='float') # <- FITTING
                     create_or_update_dataset('entry/instrument/detector/beam_center_y', data = beamcenter[1], dtype='float') # <- FITTING
                     create_or_update_dataset('entry/instrument/detector/detector_distance', data = detector_distance, dtype='uint64') # <- LUT
-                    create_or_update_dataset('entry/instrument/detector/frame_time', data = interval*1e-3, dtype='float')
+                    create_or_update_dataset('entry/instrument/detector/frame_time', data = interval, dtype='float')
                     create_or_update_dataset('entry/instrument/detector/frame_time_unit', data = 's')
                     create_or_update_dataset('entry/instrument/detector/framerate', data = detector_framerate, dtype='uint64')
                     create_or_update_dataset('entry/instrument/detector/saturation_value', data = np.iinfo('int32').max, dtype='uint32')
