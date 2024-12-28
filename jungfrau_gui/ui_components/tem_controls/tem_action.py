@@ -2,6 +2,7 @@ import pyqtgraph as pg
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject
+from PySide6.QtGui import QFont
 
 from .toolbox.tool import *
 from .toolbox import config as cfg_jf
@@ -38,6 +39,7 @@ class TEMAction(QObject):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
         self.scale = None
+        self.marker = None
         # self.formatted_filename = '' # TODO DELETE? See use in 'callGetInfoTask' below 
         self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
         # self.xds_template_filepath = self.cfg.XDS_template
@@ -185,6 +187,7 @@ class TEMAction(QObject):
 
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
         self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        self.plot_currentposition()
 
         if not self.tem_tasks.rotation_button.started:
             if self.tem_tasks.withwriter_checkbox.isChecked():
@@ -284,7 +287,7 @@ class TEMAction(QObject):
         try:
             self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1]) # lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
             time.sleep(2) # should be updated with referring stage status!!
-            logging.info(f"Moved to x:{dif_pos[0]:6.2f} um, y:{dif_pos[1]:6.2f} nm")
+            logging.info(f"Moved to x:{dif_pos[0]*1e-3:6.2f} um, y:{dif_pos[1]*1e-3:6.2f} um")
         except RuntimeError:
             logging.warning('To set position, use specific version of tem_server.py!')
             self.tem_stagectrl.go_button.setEnabled(False)
@@ -294,9 +297,20 @@ class TEMAction(QObject):
         new_id = self.tem_stagectrl.position_list.count() - 4
         self.tem_stagectrl.position_list.addItems([f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"])
         self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color))
+        label = pg.TextItem(str(new_id), anchor=(0, 1))
+        label.setFont(QFont('Arial', 8))
+        label.setPos(position[0]*1e-3, position[1]*1e-3)
+        self.tem_stagectrl.gridarea.addItem(label)
         logging.info(f"{new_id}: {position} is added to the list")
 
     def plot_listedposition(self, color='gray'):
         xy_list = [self.tem_stagectrl.position_list.itemText(i).split()[1:-2] for i in range(self.tem_stagectrl.position_list.count())]
         xy_list = np.array(xy_list).T
         self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=xy_list[0], y=xy_list[1], brush=color))
+
+    def plot_currentposition(self, color='yellow'):
+        if self.marker != None:
+            self.tem_stagectrl.gridarea.removeItem(self.marker)
+        position = self.control.tem_status["stage.GetPos"]
+        self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
+        self.tem_stagectrl.gridarea.addItem(self.marker)
