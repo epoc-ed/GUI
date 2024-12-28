@@ -28,7 +28,7 @@ class CenteringTask(Task):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         for shape in self.cfg.overlays:
             if shape['type'] == 'rectangle':
-                self.lowmag_jump = shape['xy']
+                self.lowmag_jump = shape['xy'][0]+shape['width'], shape['xy'][1]+shape['height']
                 break
         self.thresholds = [0.3, 100, 1, 10] # xy-min, xy-max, z-min, x-max [um]
 
@@ -45,8 +45,9 @@ class CenteringTask(Task):
             logging.debug(f'Estimate with rotation')
             tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta) # deg., angle between detector y and rotation axes.
         else: # Lowmag, targeting to the rectangular overlay
+            tr_vector -= np.array(self.lowmag_jump)
             logging.debug(f'Estimate with rotation at LM')
-            tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta_lm1200x) # not very fine!!
+            tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta_lm1200x)
         return np.round(tr_vector, 3)
 
     def run(self):
