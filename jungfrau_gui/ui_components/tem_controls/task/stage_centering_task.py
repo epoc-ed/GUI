@@ -28,7 +28,7 @@ class CenteringTask(Task):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         for shape in self.cfg.overlays:
             if shape['type'] == 'rectangle':
-                self.lowmag_jump = shape['xy'][0]+shape['width'], shape['xy'][1]+shape['height']
+                self.lowmag_jump = shape['xy'][0]+shape['width']//2, shape['xy'][1]+shape['height']//2
                 break
         self.thresholds = [0.3, 100, 1, 10] # xy-min, xy-max, z-min, x-max [um]
 
@@ -40,13 +40,13 @@ class CenteringTask(Task):
     
     def translationvector(self, pixels, magnification):
         calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
-        tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * cfg_jf.others.pixelsize * 1e3 / calibrated_mag # in um
         if int(magnification[0]) >= 1500 : # Mag
             logging.debug(f'Estimate with rotation')
+            tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * cfg_jf.others.pixelsize * 1e3 / calibrated_mag # in um
             tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta) # deg., angle between detector y and rotation axes.
         else: # Lowmag, targeting to the rectangular overlay
-            tr_vector -= np.array(self.lowmag_jump)
             logging.debug(f'Estimate with rotation at LM')
+            tr_vector = (pixels - [self.lowmag_jump[0], self.lowmag_jump[1]]) * cfg_jf.others.pixelsize * 1e3 / calibrated_mag # in um
             tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta_lm1200x)
         return np.round(tr_vector, 3)
 
