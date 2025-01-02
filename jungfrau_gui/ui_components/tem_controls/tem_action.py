@@ -1,7 +1,7 @@
 import pyqtgraph as pg
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
-from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject
+from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
 from PySide6.QtGui import QFont
 
 from .toolbox.tool import *
@@ -19,6 +19,7 @@ class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
+    trigger_additem = Signal(str, str)
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
@@ -86,8 +87,9 @@ class TEMAction(QObject):
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
+        self.trigger_additem.connect(self.add_listedposition)
         self.plot_listedposition()
-        
+
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
         self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
@@ -291,7 +293,8 @@ class TEMAction(QObject):
         except RuntimeError:
             logging.warning('To set position, use specific version of tem_server.py!')
             self.tem_stagectrl.go_button.setEnabled(False)
-        
+
+    @Slot(str, str)
     def add_listedposition(self, color='red', status='new'):
         position = self.control.client.GetStagePosition()
         new_id = self.tem_stagectrl.position_list.count() - 4
