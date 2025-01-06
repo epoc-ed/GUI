@@ -174,7 +174,6 @@ class ControlWorker(QObject):
         logging.info("Starting Rotation/Record")
 
         # Check if a task is already running, and stop it if so
-        self.tem_action.toggle_connectTEM()
         if self.task is not None:
             if self.task.running:
                 logging.warning("\033[38;5;214mRecordTask\033[33m - task is currently running...\n"

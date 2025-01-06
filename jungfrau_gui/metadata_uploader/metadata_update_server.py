@@ -62,10 +62,11 @@ class Hdf5MetadataUpdater:
                 tem_status = message["tem_status"]
                 beamcenter = message["beamcenter"]
                 rotations_angles = message["rotations_angles"]
+                jf_threshold = message["jf_threshold"]
                 detector_distance = message["detector_distance"]
                 aperture_size_cl = message["aperture_size_cl"]
                 aperture_size_sa = message["aperture_size_sa"]
-                self.addinfo_to_hdf(filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles)
+                self.addinfo_to_hdf(filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold)
                 self.socket.send_string("Metadata added successfully")
             except zmq.ZMQError as e:
                 logging.error(f"Error while receiving request: {e}")
@@ -75,10 +76,8 @@ class Hdf5MetadataUpdater:
         self.running = False
         logging.info("Stopping server...")
 
-    def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, pixel=0.075):
+    def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold, pixel=0.075):
         detector_framerate = 2000 # Hz for Jungfrau
-        summed_frames = 100  # Example value for frame summation, should be replaced by reading JFJ
-        interval = 1 / detector_framerate * summed_frames
         ht = 200  # keV  # <- HT3
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
         stage_rates = [10.0, 2.0, 1.0, 0.5]
@@ -98,22 +97,24 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/detector/beam_center_x', data = beamcenter[0], dtype='float') # <- FITTING
                     create_or_update_dataset('entry/instrument/detector/beam_center_y', data = beamcenter[1], dtype='float') # <- FITTING
                     create_or_update_dataset('entry/instrument/detector/detector_distance', data = detector_distance, dtype='uint64') # <- LUT
-                    create_or_update_dataset('entry/instrument/detector/frame_time', data = interval, dtype='float')
-                    create_or_update_dataset('entry/instrument/detector/frame_time_unit', data = 's')
                     create_or_update_dataset('entry/instrument/detector/framerate', data = detector_framerate, dtype='uint64')
-                    create_or_update_dataset('entry/instrument/detector/saturation_value', data = np.iinfo('int32').max, dtype='uint32')
-                    create_or_update_dataset('entry/instrument/detector/sensor_material', data = 'Si')
-                    create_or_update_dataset('entry/instrument/detector/sensor_thickness', data = 0.32, dtype='float')
-                    create_or_update_dataset('entry/instrument/detector/sensor_thickness_unit', data = 'mm')
                     # create_or_update_dataset('entry/instrument/detector/virtual_pixel_correction_applied', data = 200, dtype='float') # =GAIN?
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/data_collection_date_time', data = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime())) <- sent with tem_update_times
                     create_or_update_dataset('entry/instrument/detector/detectorSpecific/element', data = 'Si')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_count_time', data = data_shape[0], dtype='uint64')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_period', data = data_shape[0], dtype='uint64') = frame_count_time in SINGLA
-                    create_or_update_dataset('entry/instrument/detector/detectorSpecific/ntrigger', data = 1, dtype='uint64')
                     create_or_update_dataset('entry/instrument/detector/detectorSpecific/software_version', data = 'Jungfraujoch/' + jfj_version)
+                    create_or_update_dataset('entry/instrument/detector/count_threshold_in_keV', data = jf_threshold, dtype='uint64')
                     # ED-specific, some namings from https://github.com/dials/dxtbx/blob/main/src/dxtbx/format/FormatNXmxED.py
                     create_or_update_dataset('entry/source/probe', data = 'electron')
+                    # already implemented with the identical names in JFJ
+                    # create_or_update_dataset('entry/instrument/detector/saturation_value', data = np.iinfo('int32').max, dtype='uint32')
+                    # create_or_update_dataset('entry/instrument/detector/sensor_material', data = 'Si')
+                    # create_or_update_dataset('entry/instrument/detector/sensor_thickness', data = 0.32, dtype='float')
+                    # create_or_update_dataset('entry/instrument/detector/sensor_thickness_unit', data = 'mm')
+                    # create_or_update_dataset('entry/instrument/detector/frame_time', data = interval, dtype='float')
+                    # create_or_update_dataset('entry/instrument/detector/frame_time_unit', data = 's')
+                    # create_or_update_dataset('entry/instrument/detector/detectorSpecific/ntrigger', data = 1, dtype='uint64')
                     # ED-specific, optics
                     create_or_update_dataset('entry/instrument/optics/info_acquisition_date_time', data = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
                     create_or_update_dataset('entry/instrument/optics/microscope_name', data = 'JEOL JEM2100Plus')

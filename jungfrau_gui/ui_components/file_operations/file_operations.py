@@ -19,7 +19,8 @@ from epoc import ConfigurationClient, auth_token, redis_host
 
 from pathlib import Path
 import os
-import re 
+import re
+import time
 
 class FileOperations(QGroupBox):
     trigger_update_h5_index_box = Signal()
@@ -263,10 +264,76 @@ class FileOperations(QGroupBox):
                 logging.error("Only QLineEdit and QSpinBox objects are supported!")
 
         section3.addLayout(hdf5_writer_layout)
-        section3.addStretch()
-        self.setLayout(section3)
+        # section3.addStretch()
+        # self.setLayout(section3)
 
+        #####################
+        # Snapshot Writer Section !!!! aimed only for temporal use !!!!
+        #####################
 
+        if globals.jfj:
+            section3.addWidget(create_horizontal_line_with_margin(15))
+            self.visualization_panel = self.parent.visualization_panel
+            self.pre_text = "dummy"
+        
+            snapshot_section_label = QLabel("Snapshot Writer", self)
+            snapshot_section_label.setFont(font_big)
+
+            section3.addWidget(snapshot_section_label)
+
+            self.prefix_label = QLabel("Snapshot file prefix", self)
+            self.prefix_input = QLineEdit(self)
+            self.prefix_input.setText('xtal')
+            # self.prefix_input.setReadOnly(True)
+
+            self.pindex_input = QSpinBox(self)
+            self.pindex_input.setValue(self.cfg.file_id)
+            self.pindex_input.setEnabled(False)
+
+            snapshot_layout = QHBoxLayout()
+            snapshot_layout.addWidget(self.prefix_label, 3)
+            snapshot_layout.addWidget(self.prefix_input, 6)
+            snapshot_layout.addWidget(self.pindex_input, 1)
+
+            section3.addLayout(snapshot_layout)
+
+            self.snapshot_button = ToggleButton("Write Stream as a snapshot-H5", self)
+            # self.snapshot_button.setEnabled(False)
+            self.snapshot_button.clicked.connect(lambda: self.toggle_snapshot_btn())
+            self.snapshot_spin = QSpinBox(self)
+            self.snapshot_spin.setMaximum(60000) # 1min
+            self.snapshot_spin.setValue(1000)
+            self.snapshot_spin.setSuffix(' msec')
+
+            snapshot_btn_layout = QHBoxLayout()
+            snapshot_btn_layout.addWidget(self.snapshot_button)
+            snapshot_btn_layout.addWidget(self.snapshot_spin)
+
+            section3.addLayout(snapshot_btn_layout)
+            section3.addStretch()
+            self.setLayout(section3)
+
+    def toggle_snapshot_btn(self):
+        if not self.visualization_panel.stop_jfj_measurement.isEnabled():
+            logging.warning('JFJ is not ready!!')
+            return
+        if not self.snapshot_button.started:
+            self.pre_text = self.tag_input.text()
+            self.tag_input.setText(self.prefix_input.text())
+            self.update_measurement_tag()
+            self.snapshot_button.setText("Stop")
+            self.snapshot_button.started = True
+            self.visualization_panel.send_command_to_jfjoch('collect')
+            logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
+            time.sleep(int(self.snapshot_spin.value())*1e-3)
+            self.toggle_snapshot_btn()
+        else:
+            self.visualization_panel.send_command_to_jfjoch('cancel')
+            self.tag_input.setText(self.pre_text)
+            self.update_measurement_tag()
+            self.snapshot_button.setText("Write Stream as a snapshot-H5")
+            self.snapshot_button.started = False
+        
     """ ************************************************ """
     """ Multiprocessing Version of the TIFF file Writing """
     """ ************************************************ """

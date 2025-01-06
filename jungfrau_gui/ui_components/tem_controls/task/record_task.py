@@ -56,6 +56,7 @@ class RecordTask(Task):
 
         try:
             logfile = None  # Initialize logfile to None
+            self.tem_action.toggle_connectTEM()
 
             # Attempt to open the logfile and catch potential issues
             try:
@@ -220,6 +221,7 @@ class RecordTask(Task):
                                         self.control.tem_status, 
                                         self.cfg.beam_center, 
                                         self.rotations_angles,
+                                        self.cfg.threshold,
                                         retries=3, 
                                         delay=0.1) 
 
@@ -229,6 +231,9 @@ class RecordTask(Task):
                 self.reset_rotation_signal.emit()
 
             print("------REACHED END OF TASK----------")
+            time.sleep(0.5)
+            self.tem_action.toggle_connectTEM()
+            logging.info('Polling of TEM-info restarted.')
 
         except TimeoutError as e:
             # Log the timeout error and exit early to avoid writing files
