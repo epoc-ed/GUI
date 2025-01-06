@@ -14,6 +14,8 @@ from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
 from ...ui_components.palette import *
+from ...ui_components.tem_controls.toolbox.tool import send_with_retries
+from ...metadata_uploader.metadata_update_client import MetadataNotifier
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
@@ -33,6 +35,7 @@ class FileOperations(QGroupBox):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_update_h5_index_box.connect(self.update_index_box)
         self.initUI()
+        self.metadata_notifier = MetadataNotifier(host = "noether")
         
 
     def initUI(self):
@@ -329,6 +332,15 @@ class FileOperations(QGroupBox):
             self.toggle_snapshot_btn()
         else:
             self.visualization_panel.send_command_to_jfjoch('cancel')
+            self.parent.tem_controls.send_to_tem("#more")
+            send_with_retries(self.metadata_notifier.notify_metadata_update, 
+                                self.visualization_panel.formatted_filename, 
+                                self.parent.tem_controls.tem_status, #self.control.tem_status, 
+                                self.cfg.beam_center, 
+                                None, # self.rotations_angles,
+                                self.cfg.threshold,
+                                retries=3, 
+                                delay=0.1) 
             self.tag_input.setText(self.pre_text)
             self.update_measurement_tag()
             self.snapshot_button.setText("Write Stream as a snapshot-H5")

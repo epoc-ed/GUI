@@ -82,8 +82,9 @@ class Hdf5MetadataUpdater:
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
         stage_rates = [10.0, 2.0, 1.0, 0.5]
         jfj_version = "1.0.0-rc.24"
-        del_rotations_angles = np.diff(np.array(rotations_angles, dtype='float').T)
-        rotation_mean, rotation_std = np.mean(del_rotations_angles[1] / del_rotations_angles[0]), np.std(del_rotations_angles[1] / del_rotations_angles[0])
+        if rotations_angles is not None:
+            del_rotations_angles = np.diff(np.array(rotations_angles, dtype='float').T)
+            rotation_mean, rotation_std = np.mean(del_rotations_angles[1] / del_rotations_angles[0]), np.std(del_rotations_angles[1] / del_rotations_angles[0])
         try:
             with h5py.File(filename, 'a') as f:
                 try:
@@ -141,16 +142,16 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/stage/stage_y', data = tem_status['stage.GetPos'][1]/1e3, dtype='float')
                     create_or_update_dataset('entry/instrument/stage/stage_z', data = tem_status['stage.GetPos'][2]/1e3, dtype='float')
                     create_or_update_dataset('entry/instrument/stage/stage_xyz_unit', data ='um')
-                    create_or_update_dataset('entry/instrument/stage/stage_tx_start', data = rotations_angles[0][1], dtype='float')
-                    create_or_update_dataset('entry/instrument/stage/stage_tx_end', data = rotations_angles[-1][1], dtype='float')
                     rotation_speed_idx = tem_status['stage.Getf1OverRateTxNum']
                     create_or_update_dataset('entry/instrument/stage/stage_tx_speed_ID', data = rotation_speed_idx, dtype='float')
                     create_or_update_dataset('entry/instrument/stage/velocity_data_collection', data = stage_rates[rotation_speed_idx], dtype='float') # definition of axis is missing in the tag name 
-                    # create_or_update_dataset('entry/instrument/stage/stage_tx_speed_nominal', data = tem_status['stage.GetPos'][2], dtype='float') <- LUT
-                    create_or_update_dataset('entry/instrument/stage/stage_tx_speed_measured', data = rotation_mean, dtype='float')
-                    create_or_update_dataset('entry/instrument/stage/stage_tx_speed_measured_std', data = rotation_std, dtype='float')
-                    create_or_update_dataset('entry/instrument/stage/stage_tx_speed_unit', data = 'deg/s')                    
-                    create_or_update_dataset('entry/instrument/stage/stage_tx_record', data = rotations_angles)
+                    if rotations_angles is not None:
+                        create_or_update_dataset('entry/instrument/stage/stage_tx_start', data = rotations_angles[0][1], dtype='float')
+                        create_or_update_dataset('entry/instrument/stage/stage_tx_end', data = rotations_angles[-1][1], dtype='float')
+                        create_or_update_dataset('entry/instrument/stage/stage_tx_speed_measured', data = rotation_mean, dtype='float')
+                        create_or_update_dataset('entry/instrument/stage/stage_tx_speed_measured_std', data = rotation_std, dtype='float')
+                        create_or_update_dataset('entry/instrument/stage/stage_tx_speed_unit', data = 'deg/s')                    
+                        create_or_update_dataset('entry/instrument/stage/stage_tx_record', data = rotations_angles)
                     # ED-specific, crystal image
                     # create_or_update_dataset('entry/imagedata_endangle', data = , dtype='float32') # at the end angle
                     # create_or_update_dataset('entry/imagedata_zerotilt', data = , dtype='float32') # at the zero tile\
