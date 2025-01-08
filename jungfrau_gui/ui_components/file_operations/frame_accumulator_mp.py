@@ -4,7 +4,6 @@ import numpy as np
 import multiprocessing as mp
 
 from ... import globals
-# from reuss import io
 import tifffile
 
 import time
@@ -53,23 +52,25 @@ class FrameAccumulator:
             # Frame accumulation loop
             while self.nframes_to_add > 0:
                 try:
-                    if globals.jfj:
-                        msg = socket.recv()
-                        msg = cbor2.loads(msg, tag_hook=tag_hook)
-                        logging.debug(f"Decoded data type: {msg['data']['default'].dtype}")
-                        logging.debug(f"Sample of data : {msg['data']['default'][:10]}")
-                        
-                        # JFJ streamed frames are decoded as int32 from the start 
-                        # No need for converison
-                        self.acc_image = np.zeros(self.image_size, dtype=msg['data']['default'].dtype)
-                        
-                        image = msg['data']['default'].reshape(self.image_size)
-                        frame_nr = None
-                    else:
-                        msgs = socket.recv_multipart() #receiver.get_frame()
-                        frame_nr = np.frombuffer(msgs[0], dtype=np.int64)[0]
-                        logging.info(f"Adding frame #{frame_nr}")
-                        image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
+                    # if globals.jfj:
+                    msg = socket.recv()
+                    msg = cbor2.loads(msg, tag_hook=tag_hook)
+                    logging.debug(f"Decoded data type: {msg['data']['default'].dtype}")
+                    logging.debug(f"Sample of data : {msg['data']['default'][:10]}")
+                    
+                    # JFJ streamed frames are decoded as int32 from the start 
+                    # No need for converison
+                    self.acc_image = np.zeros(self.image_size, dtype=msg['data']['default'].dtype)
+                    
+                    image = msg['data']['default'].reshape(self.image_size)
+                    frame_nr = msg['image_id']
+                    logging.info(f"Adding frame #{frame_nr}")
+                    
+                    # else:
+                    #     msgs = socket.recv_multipart() #receiver.get_frame()
+                    #     frame_nr = np.frombuffer(msgs[0], dtype=np.int64)[0]
+                    #     logging.info(f"Adding frame #{frame_nr}")
+                    #     image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
                     
                     if image is not None:
                         tmp = np.copy(image)

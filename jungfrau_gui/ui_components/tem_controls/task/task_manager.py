@@ -190,8 +190,7 @@ class ControlWorker(QObject):
         filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
 
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
-            if globals.jfj and self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
-                # TODO Change value of writer_event value to trigger writing events through it ?
+            if self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
                 task = RecordTask(
                     self,
                     end_angle,

@@ -1,13 +1,12 @@
 import ctypes
 import numpy as np
 import multiprocessing as mp
-#from .ui_config import config as cfg 
 from epoc import ConfigurationClient
 
 cfg = ConfigurationClient()
 stream = "tcp://localhost:4545"
 tem_mode = False
-jfj = False
+# jfj = False
 
 tem_host = cfg.temserver
 

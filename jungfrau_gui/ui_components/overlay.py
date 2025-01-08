@@ -5,7 +5,6 @@ import pyqtgraph as pg
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
 from PySide6.QtCore import QRectF
 
-# from reuss import config as cfg
 from epoc import ConfigurationClient, auth_token, redis_host
 
 

@@ -41,9 +41,9 @@ class StreamWriter:
     @property
     def number_frames_witten(self):
         #TODO! Read summing value from ConfigurationClient
-        if globals.jfj:
-            return self.number_frames_written_jfj.value
-        return int((self.last_frame_number.value - self.first_frame_number.value) +1)
+        # if globals.jfj:
+        return self.number_frames_written_jfj.value
+        # return int((self.last_frame_number.value - self.first_frame_number.value) +1)
 
     def start(self):
         self.write_process = mp.Process(target=self._write, args=[])
@@ -73,18 +73,18 @@ class StreamWriter:
 
         while not self.stop_requested.value:
             try:
-                if globals.jfj:
-                    msg = socket.recv()
-                    msg = cbor2.loads(msg, tag_hook=tag_hook)
-                    image = msg['data']['default'].reshape(self.image_size) # int32
-                    frame_nr = 0 # TODO Dummy value to correct 
-                else:
-                    msgs = socket.recv_multipart()
-                    frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
-                    if self.first_frame_number.value < 0:  # Set the first frame number if it's the first message
-                        self.first_frame_number.value = frame_nr
-                        logging.info(f"First written frame number is  {self.first_frame_number.value}")
-                    image = np.frombuffer(msgs[1], dtype = globals.stream_dt).reshape(self.image_size)
+                # if globals.jfj:
+                msg = socket.recv()
+                msg = cbor2.loads(msg, tag_hook=tag_hook)
+                image = msg['data']['default'].reshape(self.image_size) # int32
+                frame_nr = msg['image_id']
+                # else:
+                #     msgs = socket.recv_multipart()
+                #     frame_nr = np.frombuffer(msgs[0], dtype = np.int64)[0]
+                #     if self.first_frame_number.value < 0:  # Set the first frame number if it's the first message
+                #         self.first_frame_number.value = frame_nr
+                #         logging.info(f"First written frame number is  {self.first_frame_number.value}")
+                #     image = np.frombuffer(msgs[1], dtype = globals.stream_dt).reshape(self.image_size)
                 
                 # Conversion of JFJ stream to int32 is redundant (but safe) 
                 converted_image = image.astype(globals.file_dt)

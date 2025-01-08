@@ -11,8 +11,6 @@ from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit,
                                 QGridLayout, QSizePolicy, QSpacerItem, QMessageBox)
 
 from epoc import ConfigurationClient, auth_token, redis_host
-from reuss import ReceiverClient
-# from ...summing_receiver.ReceiverClient import ReceiverClient
 
 from .reader import Reader
 
@@ -41,18 +39,12 @@ class BrokerCheckTask(QRunnable):
         self.complete_callback()
 
 class VisualizationPanel(QGroupBox):
-    trigger_update_frames_to_sum = Signal(int)
-    trigger_disable_receiver_controls = Signal()
-    trigger_idle_srecv_btn = Signal()
     assess_gui_jfj_communication_and_display_state = Signal(bool)
 
     def __init__(self, parent):
         # super().__init__("Visualization Panel")
         super().__init__()
         self.parent = parent
-        self.trigger_update_frames_to_sum.connect(self.update_frames_to_sum)
-        self.trigger_disable_receiver_controls.connect(self.enable_receiver_controls)
-        self.trigger_idle_srecv_btn.connect(self.srecv_btn_toggle_OFF)
         self.assess_gui_jfj_communication_and_display_state.connect(self.update_gui_with_jfj_state)
         self.initUI()
 
@@ -165,217 +157,217 @@ class VisualizationPanel(QGroupBox):
         section_visual.addLayout(time_interval_layout)
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
-        if globals.jfj:
+        # if globals.jfj:
 
-            jfjoch_control_group = QVBoxLayout()
-            # jfjoch_control_group.addWidget(create_horizontal_line_with_margin(15))
+        jfjoch_control_group = QVBoxLayout()
+        # jfjoch_control_group.addWidget(create_horizontal_line_with_margin(15))
 
-            jfjoch_control_label = QLabel("Jungfraujoch Control Panel")
-            jfjoch_control_label.setFont(font_big)
-            jfjoch_control_group.addWidget(jfjoch_control_label)
+        jfjoch_control_label = QLabel("Jungfraujoch Control Panel")
+        jfjoch_control_label.setFont(font_big)
+        jfjoch_control_group.addWidget(jfjoch_control_label)
 
-            self.connectTojfjoch = ToggleButton('Connect to Jungfraujoch', self)
-            self.connectTojfjoch.setMaximumHeight(50)
-            self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client)
-            
-            self.check_jfj_timer = QTimer()
-            self.check_jfj_timer.timeout.connect(self.run_check_jfj_ready_in_thread)
-
-            grid_connection_jfjoch = QGridLayout()
-            grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
-
-            spacer1 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
-            grid_connection_jfjoch.addItem(spacer1)
-
-            jfjoch_control_group.addLayout(grid_connection_jfjoch)
-
-            grid_streaming_jfjoch = QGridLayout()
-
-            grid_stream_label = QLabel("Live streaming")
-            grid_stream_label.setFont(font_small)
-
-            grid_streaming_jfjoch.addWidget(grid_stream_label)
-
-            self.live_stream_button = ToggleButton('Live Stream', self)
-            self.live_stream_button.setDisabled(True)
-            self.live_stream_button.clicked.connect(self.toggle_LiveStream)
-
-            grid_streaming_jfjoch.addWidget(self.live_stream_button, 4, 0, 1, 5)   # Stop button spanning all 4 columns at row 3
-
-            jfjoch_control_group.addLayout(grid_streaming_jfjoch)
-
-            grid_collection_jfjoch = QGridLayout()
-
-            grid_collection_label = QLabel("Data Collection")
-            grid_collection_label.setFont(font_small)
-
-            grid_collection_jfjoch.addWidget(grid_collection_label)
-
-            # self.nbFrames = QSpinBox(self)
-            # self.nbFrames.setMaximum(1000000000)
-            # self.nbFrames.setValue(72000)
-            # self.nbFrames.setDisabled(True)
-            # self.nbFrames.setSingleStep(1000)
-            # self.nbFrames.setPrefix("Nb Frames per trigger: ")
-
-            # self.last_nbFrames_value = self.nbFrames.value()
-            # self.nbFrames.valueChanged.connect(lambda value: (
-            #     self.track_nbFrames_value(value),  # Store the latest value
-            #     self.spin_box_modified(self.nbFrames)  # Update the spin box style
-            # )))
-            # self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
-
-            self.thresholdBox = QSpinBox(self)
-            self.thresholdBox.setMinimum(0)
-            self.thresholdBox.setMaximum(200)
-            self.thresholdBox.setValue(self.cfg.threshold)
-            self.thresholdBox.setDisabled(True)
-            self.thresholdBox.setSingleStep(10)
-            self.thresholdBox.setPrefix("Threshold: ")
-
-            self.last_threshold_value = self.thresholdBox.value()
-            self.thresholdBox.valueChanged.connect(lambda value: (
-                self.track_threshold_value(value),
-                self.spin_box_modified(self.thresholdBox)
-            ))
-            self.thresholdBox.editingFinished.connect(self.update_threshold_for_jfjoch)
-
-            self.wait_option = QCheckBox("wait", self)
-            self.wait_option.setChecked(False)
-            self.wait_option.setDisabled(True)
-
-            self.wait_option.setToolTip("Check this option to block the GUI when collecting data.")
-
-            # grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 3)
-            grid_collection_jfjoch.addWidget(self.thresholdBox, 1, 0, 1, 3)
-            grid_collection_jfjoch.addWidget(self.wait_option, 1, 3, 1, 1)
-
-            self.fname_label = QLabel("Path to recorded file", self)
-            self.full_fname = QLineEdit(self)
-            self.full_fname.setReadOnly(True)
-            self.full_fname.setText(self.cfg.fpath.as_posix())
-
-            hbox_layout = QHBoxLayout()
-            hbox_layout.addWidget(self.fname_label)
-            hbox_layout.addWidget(self.full_fname)
-
-            grid_collection_jfjoch.addLayout(hbox_layout, 2, 0, 1, 6)
-
-            self.startCollection = QPushButton('Collect', self)
-            self.startCollection.setDisabled(True)
-            self.jfj_is_collecting = False
-            self.startCollection.clicked.connect(lambda: self.send_command_to_jfjoch('collect'))
-
-            self.stop_jfj_measurement = QPushButton('Cancel', self)
-            self.stop_jfj_measurement.setDisabled(True)
-            self.stop_jfj_measurement.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
-
-            grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 6)
-            grid_collection_jfjoch.addWidget(self.stop_jfj_measurement, 4, 0, 1, 6)
-
-            spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
-            grid_collection_jfjoch.addItem(spacer2)
-
-            jfjoch_control_group.addLayout(grid_collection_jfjoch)
-
-            pedestal_layout = QVBoxLayout()
-            pedestal_section_label = QLabel("Dark Frame controls")
-            pedestal_section_label.setFont(font_small)
-
-            self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
-            self.recordPedestalBtn.setDisabled(True)
-            self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_jfjoch('collect_pedestal'))
-
-            pedestal_layout.addWidget(pedestal_section_label)
-            pedestal_layout.addWidget(self.recordPedestalBtn)
-
-            jfjoch_control_group.addLayout(pedestal_layout)
-
-            section_visual.addLayout(jfjoch_control_group)
-
-        else:
-
-            receiver_control_group = QVBoxLayout()
-            receiver_control_label = QLabel("Summming Receiver Controls")
-            receiver_control_label.setFont(font_big)
-            receiver_control_group.addWidget(receiver_control_label)
-
-            self.connectToSreceiver = ToggleButton('Connect to Receiver', self)
-            self.connectToSreceiver.setMaximumHeight(50)
-            self.connectToSreceiver.clicked.connect(self.connect_and_start_receiver_client)
-
-            self.startReceiverStream = QPushButton('Start Stream', self)
-            self.startReceiverStream.setDisabled(True)
-            self.startReceiverStream.clicked.connect(lambda: self.send_command_to_srecv('start'))
-            
-            self.stopSreceiverBtn = QPushButton('Stop Receiver', self)
-            self.stopSreceiverBtn.setDisabled(True)
-            self.stopSreceiverBtn.clicked.connect(lambda: self.send_command_to_srecv('stop'))
-
-            grid_comm_receiver = QGridLayout()
-            grid_comm_receiver.addWidget(self.connectToSreceiver, 0, 0, 2, 2)
-            grid_comm_receiver.addWidget(self.startReceiverStream, 0, 2, 2, 2)
-            grid_comm_receiver.addWidget(self.stopSreceiverBtn, 0, 4, 2, 2)
-
-            spacer = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
-            grid_comm_receiver.addItem(spacer)
-
-            receiver_control_group.addLayout(grid_comm_receiver)
-
-            Frames_Sum_layout=QVBoxLayout() 
-            Frames_Sum_section_label = QLabel("Summming Parameters")
-            Frames_Sum_section_label.setFont(font_small)
-
-            Frame_number_layout = QHBoxLayout()
-
-            self.frames_to_sum_lb = QLabel("Summing Factor:", self)
-            self.frames_to_sum = QSpinBox(self)
-            self.frames_to_sum.setMaximum(200)
-            self.frames_to_sum.setDisabled(True)
-            self.frames_to_sum.setSingleStep(10)
-
-            Frame_number_layout.addWidget(self.frames_to_sum_lb)
-            Frame_number_layout.addWidget(self.frames_to_sum)
-
-            Frame_buttons_layout = QHBoxLayout()
-            # self.getFramesToSumBtn = QPushButton('Get Frames Number', self)
-            # self.getFramesToSumBtn.clicked.connect(lambda: self.send_command_to_srecv("get_frames_to_sum"))
-
-            self.setFramesToSumBtn = QPushButton('Set Frames Number', self)
-            self.setFramesToSumBtn.setDisabled(True) 
-            self.setFramesToSumBtn.clicked.connect(self.send_set_frames_command)
-
-            # Frame_buttons_layout.addWidget(self.getFramesToSumBtn)
-            Frame_buttons_layout.addWidget(self.setFramesToSumBtn)
-
-            Frames_Sum_layout.addWidget(Frames_Sum_section_label)
-            Frames_Sum_layout.addLayout(Frame_number_layout)
-            Frames_Sum_layout.addLayout(Frame_buttons_layout)
-
-            spacer2 = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
-            Frames_Sum_layout.addItem(spacer2)
-            
-            receiver_control_group.addLayout(Frames_Sum_layout) 
+        self.connectTojfjoch = ToggleButton('Connect to Jungfraujoch', self)
+        self.connectTojfjoch.setMaximumHeight(50)
+        self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client)
         
-            pedestal_layout = QVBoxLayout()
-            pedestal_section_label = QLabel("Dark Frame controls")
-            pedestal_section_label.setFont(font_small)
+        self.check_jfj_timer = QTimer()
+        self.check_jfj_timer.timeout.connect(self.run_check_jfj_ready_in_thread)
 
-            self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
-            self.recordPedestalBtn.setDisabled(True)
-            self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_srecv('collect_pedestal'))
+        grid_connection_jfjoch = QGridLayout()
+        grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
+
+        spacer1 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
+        grid_connection_jfjoch.addItem(spacer1)
+
+        jfjoch_control_group.addLayout(grid_connection_jfjoch)
+
+        grid_streaming_jfjoch = QGridLayout()
+
+        grid_stream_label = QLabel("Live streaming")
+        grid_stream_label.setFont(font_small)
+
+        grid_streaming_jfjoch.addWidget(grid_stream_label)
+
+        self.live_stream_button = ToggleButton('Live Stream', self)
+        self.live_stream_button.setDisabled(True)
+        self.live_stream_button.clicked.connect(self.toggle_LiveStream)
+
+        grid_streaming_jfjoch.addWidget(self.live_stream_button, 4, 0, 1, 5)   # Stop button spanning all 4 columns at row 3
+
+        jfjoch_control_group.addLayout(grid_streaming_jfjoch)
+
+        grid_collection_jfjoch = QGridLayout()
+
+        grid_collection_label = QLabel("Data Collection")
+        grid_collection_label.setFont(font_small)
+
+        grid_collection_jfjoch.addWidget(grid_collection_label)
+
+        # self.nbFrames = QSpinBox(self)
+        # self.nbFrames.setMaximum(1000000000)
+        # self.nbFrames.setValue(72000)
+        # self.nbFrames.setDisabled(True)
+        # self.nbFrames.setSingleStep(1000)
+        # self.nbFrames.setPrefix("Nb Frames per trigger: ")
+
+        # self.last_nbFrames_value = self.nbFrames.value()
+        # self.nbFrames.valueChanged.connect(lambda value: (
+        #     self.track_nbFrames_value(value),  # Store the latest value
+        #     self.spin_box_modified(self.nbFrames)  # Update the spin box style
+        # )))
+        # self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
+
+        self.thresholdBox = QSpinBox(self)
+        self.thresholdBox.setMinimum(0)
+        self.thresholdBox.setMaximum(200)
+        self.thresholdBox.setValue(self.cfg.threshold)
+        self.thresholdBox.setDisabled(True)
+        self.thresholdBox.setSingleStep(10)
+        self.thresholdBox.setPrefix("Threshold: ")
+
+        self.last_threshold_value = self.thresholdBox.value()
+        self.thresholdBox.valueChanged.connect(lambda value: (
+            self.track_threshold_value(value),
+            self.spin_box_modified(self.thresholdBox)
+        ))
+        self.thresholdBox.editingFinished.connect(self.update_threshold_for_jfjoch)
+
+        self.wait_option = QCheckBox("wait", self)
+        self.wait_option.setChecked(False)
+        self.wait_option.setDisabled(True)
+
+        self.wait_option.setToolTip("Check this option to block the GUI when collecting data.")
+
+        # grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 3)
+        grid_collection_jfjoch.addWidget(self.thresholdBox, 1, 0, 1, 3)
+        grid_collection_jfjoch.addWidget(self.wait_option, 1, 3, 1, 1)
+
+        self.fname_label = QLabel("Path to recorded file", self)
+        self.full_fname = QLineEdit(self)
+        self.full_fname.setReadOnly(True)
+        self.full_fname.setText(self.cfg.fpath.as_posix())
+
+        hbox_layout = QHBoxLayout()
+        hbox_layout.addWidget(self.fname_label)
+        hbox_layout.addWidget(self.full_fname)
+
+        grid_collection_jfjoch.addLayout(hbox_layout, 2, 0, 1, 6)
+
+        self.startCollection = QPushButton('Collect', self)
+        self.startCollection.setDisabled(True)
+        self.jfj_is_collecting = False
+        self.startCollection.clicked.connect(lambda: self.send_command_to_jfjoch('collect'))
+
+        self.stop_jfj_measurement = QPushButton('Cancel', self)
+        self.stop_jfj_measurement.setDisabled(True)
+        self.stop_jfj_measurement.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
+
+        grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 6)
+        grid_collection_jfjoch.addWidget(self.stop_jfj_measurement, 4, 0, 1, 6)
+
+        spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
+        grid_collection_jfjoch.addItem(spacer2)
+
+        jfjoch_control_group.addLayout(grid_collection_jfjoch)
+
+        pedestal_layout = QVBoxLayout()
+        pedestal_section_label = QLabel("Dark Frame controls")
+        pedestal_section_label.setFont(font_small)
+
+        self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
+        self.recordPedestalBtn.setDisabled(True)
+        self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_jfjoch('collect_pedestal'))
+
+        pedestal_layout.addWidget(pedestal_section_label)
+        pedestal_layout.addWidget(self.recordPedestalBtn)
+
+        jfjoch_control_group.addLayout(pedestal_layout)
+
+        section_visual.addLayout(jfjoch_control_group)
+
+        # else:
+
+        #     receiver_control_group = QVBoxLayout()
+        #     receiver_control_label = QLabel("Summming Receiver Controls")
+        #     receiver_control_label.setFont(font_big)
+        #     receiver_control_group.addWidget(receiver_control_label)
+
+        #     self.connectToSreceiver = ToggleButton('Connect to Receiver', self)
+        #     self.connectToSreceiver.setMaximumHeight(50)
+        #     self.connectToSreceiver.clicked.connect(self.connect_and_start_receiver_client)
+
+        #     self.startReceiverStream = QPushButton('Start Stream', self)
+        #     self.startReceiverStream.setDisabled(True)
+        #     self.startReceiverStream.clicked.connect(lambda: self.send_command_to_srecv('start'))
             
-            self.recordGain0Btn = QPushButton('Record Gain G0', self)
-            self.recordGain0Btn.setDisabled(True)
-            self.recordGain0Btn.clicked.connect(lambda: self.send_command_to_srecv('tune_pedestal'))
+        #     self.stopSreceiverBtn = QPushButton('Stop Receiver', self)
+        #     self.stopSreceiverBtn.setDisabled(True)
+        #     self.stopSreceiverBtn.clicked.connect(lambda: self.send_command_to_srecv('stop'))
 
-            pedestal_layout.addWidget(pedestal_section_label)
-            pedestal_layout.addWidget(self.recordPedestalBtn)
-            pedestal_layout.addWidget(self.recordGain0Btn)
+        #     grid_comm_receiver = QGridLayout()
+        #     grid_comm_receiver.addWidget(self.connectToSreceiver, 0, 0, 2, 2)
+        #     grid_comm_receiver.addWidget(self.startReceiverStream, 0, 2, 2, 2)
+        #     grid_comm_receiver.addWidget(self.stopSreceiverBtn, 0, 4, 2, 2)
 
-            receiver_control_group.addLayout(pedestal_layout)
+        #     spacer = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
+        #     grid_comm_receiver.addItem(spacer)
 
-            section_visual.addLayout(receiver_control_group)
+        #     receiver_control_group.addLayout(grid_comm_receiver)
+
+        #     Frames_Sum_layout=QVBoxLayout() 
+        #     Frames_Sum_section_label = QLabel("Summming Parameters")
+        #     Frames_Sum_section_label.setFont(font_small)
+
+        #     Frame_number_layout = QHBoxLayout()
+
+        #     self.frames_to_sum_lb = QLabel("Summing Factor:", self)
+        #     self.frames_to_sum = QSpinBox(self)
+        #     self.frames_to_sum.setMaximum(200)
+        #     self.frames_to_sum.setDisabled(True)
+        #     self.frames_to_sum.setSingleStep(10)
+
+        #     Frame_number_layout.addWidget(self.frames_to_sum_lb)
+        #     Frame_number_layout.addWidget(self.frames_to_sum)
+
+        #     Frame_buttons_layout = QHBoxLayout()
+        #     # self.getFramesToSumBtn = QPushButton('Get Frames Number', self)
+        #     # self.getFramesToSumBtn.clicked.connect(lambda: self.send_command_to_srecv("get_frames_to_sum"))
+
+        #     self.setFramesToSumBtn = QPushButton('Set Frames Number', self)
+        #     self.setFramesToSumBtn.setDisabled(True) 
+        #     self.setFramesToSumBtn.clicked.connect(self.send_set_frames_command)
+
+        #     # Frame_buttons_layout.addWidget(self.getFramesToSumBtn)
+        #     Frame_buttons_layout.addWidget(self.setFramesToSumBtn)
+
+        #     Frames_Sum_layout.addWidget(Frames_Sum_section_label)
+        #     Frames_Sum_layout.addLayout(Frame_number_layout)
+        #     Frames_Sum_layout.addLayout(Frame_buttons_layout)
+
+        #     spacer2 = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
+        #     Frames_Sum_layout.addItem(spacer2)
+            
+        #     receiver_control_group.addLayout(Frames_Sum_layout) 
+        
+        #     pedestal_layout = QVBoxLayout()
+        #     pedestal_section_label = QLabel("Dark Frame controls")
+        #     pedestal_section_label.setFont(font_small)
+
+        #     self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
+        #     self.recordPedestalBtn.setDisabled(True)
+        #     self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_srecv('collect_pedestal'))
+            
+        #     self.recordGain0Btn = QPushButton('Record Gain G0', self)
+        #     self.recordGain0Btn.setDisabled(True)
+        #     self.recordGain0Btn.clicked.connect(lambda: self.send_command_to_srecv('tune_pedestal'))
+
+        #     pedestal_layout.addWidget(pedestal_section_label)
+        #     pedestal_layout.addWidget(self.recordPedestalBtn)
+        #     pedestal_layout.addWidget(self.recordGain0Btn)
+
+        #     receiver_control_group.addLayout(pedestal_layout)
+
+        #     section_visual.addLayout(receiver_control_group)
 
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
@@ -430,12 +422,12 @@ class VisualizationPanel(QGroupBox):
             field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
 
     def update_threshold_for_jfjoch(self):
-        if globals.jfj:
-            if self.cfg.threshold != self.last_threshold_value:            
-                self.cfg.threshold = self.thresholdBox.value()
-                self.reset_style(self.thresholdBox)
-                logging.info(f"Threshold energy set to: {self.cfg.threshold} keV")
-                self.resume_live_stream() # Restarting the stream automatically
+        # if globals.jfj:
+        if self.cfg.threshold != self.last_threshold_value:            
+            self.cfg.threshold = self.thresholdBox.value()
+            self.reset_style(self.thresholdBox)
+            logging.info(f"Threshold energy set to: {self.cfg.threshold} keV")
+            self.resume_live_stream() # Restarting the stream automatically
 
     # def update_jfjoch_wrapper(self):
     #     if self.jfjoch_client is not None:
@@ -745,117 +737,113 @@ class VisualizationPanel(QGroupBox):
                     self.toggle_LiveStream()  # Start the stream after stopping
             QTimer.singleShot(200, restart_stream)  # Additional delay to ensure cancel completes
 
-    # def update_full_fname(self):
-    #     self.full_fname.setText(self.cfg.fpath.as_posix())
-
-
     """ ********************************************* """
     """ Methods for the REUSS receiver (CPU Solution) """
     """ ********************************************* """
-    def enable_receiver_controls(self, enables=False):
-        self.startReceiverStream.setEnabled(enables)
-        self.stopSreceiverBtn.setEnabled(enables)
+    # def enable_receiver_controls(self, enables=False):
+    #     self.startReceiverStream.setEnabled(enables)
+    #     self.stopSreceiverBtn.setEnabled(enables)
         
-        #TODO! Fix changing frames to sum
-        # At the moment not safe to change while the receiver is running
-        self.setFramesToSumBtn.setEnabled(False)
-        self.frames_to_sum.setEnabled(False) 
+    #     #TODO! Fix changing frames to sum
+    #     # At the moment not safe to change while the receiver is running
+    #     self.setFramesToSumBtn.setEnabled(False)
+    #     self.frames_to_sum.setEnabled(False) 
 
-        self.recordPedestalBtn.setEnabled(enables)
-        self.recordGain0Btn.setEnabled(enables)   
+    #     self.recordPedestalBtn.setEnabled(enables)
+    #     self.recordGain0Btn.setEnabled(enables)   
 
-    def is_receiver_running(self):
-        try:
-            # Try creating a ReceiverClient, which pings in its constructor
-            self.receiver_client = ReceiverClient(host="localhost", port=5555)
-            return True
-        except Exception as e:
-            logging.warning(f"The summing receiver is not running: {e}")
-            return False
+    # def is_receiver_running(self):
+    #     try:
+    #         # Try creating a ReceiverClient, which pings in its constructor
+    #         self.receiver_client = ReceiverClient(host="localhost", port=5555)
+    #         return True
+    #     except Exception as e:
+    #         logging.warning(f"The summing receiver is not running: {e}")
+    #         return False
         
-    def connect_and_start_receiver_client(self):
-        if self.connectToSreceiver.started == False:
-            self.connectToSreceiver.started = True
-            if self.is_receiver_running():  # Use ping instead of process checking
-                logging.info("Sreceiver already running!!")
-                # self.receiver_client = ReceiverClient(host="localhost", port=5555, verbose=True)
-                try:
-                    # if self.receiver_client.ping():
-                    self.connectToSreceiver.setStyleSheet('background-color: green; color: white;')
-                    self.connectToSreceiver.setText("Communication OK")
-                    self.enable_receiver_controls(True)
-                    time.sleep(0.01)
-                    self.send_command_to_srecv("get_frames_to_sum")
-                except TimeoutError as e:
-                    logging.error(f"Connection attempt timed out: {e}")
-                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
-                    self.connectToSreceiver.setText("Connection Timed Out")
-                except ConnectionError as e:
-                    logging.error(f"Connection failed: {e}")
-                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
-                    self.connectToSreceiver.setText("Connection Failed")
-                except ValueError as e:
-                    logging.error(f"Unexpected server response: {e}")
-                    self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
-                    self.connectToSreceiver.setText("Connection Failed")
-            else:
-                logging.warning("ReceiverServer not running")
-                self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
-                self.connectToSreceiver.setText("Receiver Not Running")
-            # self.trigger_idle_srecv_btn.emit() # To toggle OFF the receiver button after 5 seconds
-        else:
-            self.connectToSreceiver.started = False
-            self.connectToSreceiver.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-            self.connectToSreceiver.setText('Connect to Receiver')
+    # def connect_and_start_receiver_client(self):
+    #     if self.connectToSreceiver.started == False:
+    #         self.connectToSreceiver.started = True
+    #         if self.is_receiver_running():  # Use ping instead of process checking
+    #             logging.info("Sreceiver already running!!")
+    #             # self.receiver_client = ReceiverClient(host="localhost", port=5555, verbose=True)
+    #             try:
+    #                 # if self.receiver_client.ping():
+    #                 self.connectToSreceiver.setStyleSheet('background-color: green; color: white;')
+    #                 self.connectToSreceiver.setText("Communication OK")
+    #                 self.enable_receiver_controls(True)
+    #                 time.sleep(0.01)
+    #                 self.send_command_to_srecv("get_frames_to_sum")
+    #             except TimeoutError as e:
+    #                 logging.error(f"Connection attempt timed out: {e}")
+    #                 self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+    #                 self.connectToSreceiver.setText("Connection Timed Out")
+    #             except ConnectionError as e:
+    #                 logging.error(f"Connection failed: {e}")
+    #                 self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+    #                 self.connectToSreceiver.setText("Connection Failed")
+    #             except ValueError as e:
+    #                 logging.error(f"Unexpected server response: {e}")
+    #                 self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+    #                 self.connectToSreceiver.setText("Connection Failed")
+    #         else:
+    #             logging.warning("ReceiverServer not running")
+    #             self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
+    #             self.connectToSreceiver.setText("Receiver Not Running")
+    #         # self.trigger_idle_srecv_btn.emit() # To toggle OFF the receiver button after 5 seconds
+    #     else:
+    #         self.connectToSreceiver.started = False
+    #         self.connectToSreceiver.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+    #         self.connectToSreceiver.setText('Connect to Receiver')
 
-    def srecv_btn_toggle_OFF(self):
-        if self.connectToSreceiver.started:
-            # Use QTimer to introduce a 5-second delay -> Non-blocking operation
-            QTimer.singleShot(5000, self.connect_and_start_receiver_client)
+    # def srecv_btn_toggle_OFF(self):
+    #     if self.connectToSreceiver.started:
+    #         # Use QTimer to introduce a 5-second delay -> Non-blocking operation
+    #         QTimer.singleShot(5000, self.connect_and_start_receiver_client)
 
-    def send_command_to_srecv(self, command):
-        def thread_command_relay():
-            try:
-                if command == 'start':
-                    self.receiver_client.start()
-                    logging.info("Communication with the Receiver Server is established.\nPlease proceed with desired operation through availbale buttons... ")
-                elif command == 'collect_pedestal':
-                    self.receiver_client.collect_pedestal()
-                    logging.info("Full pedestal collected!")
-                elif command == 'tune_pedestal':
-                    self.receiver_client.tune_pedestal()
-                    logging.info("Pedestal tuned i.e. collected pedestal for gain G0")
-                elif command == 'get_frames_to_sum':
-                    summing_factor = self.receiver_client.frames_to_sum
-                    self.trigger_update_frames_to_sum.emit(int(summing_factor))
-                    logging.info(f"Recorded the default summing factor {summing_factor}")
-                elif command[:10] == 'set_frames':
-                    new_summing_factor = int(command.split('(')[1].split(')')[0])
-                    self.receiver_client.frames_to_sum = new_summing_factor
-                    logging.info(f"Summing factor in receiver set to {new_summing_factor}")
-                elif command == 'stop':
-                    self.trigger_disable_receiver_controls.emit()      
-                    logging.info(f"Stopping Receiver...") 
-                    self.receiver_client.stop()
-            except Exception as e:
-                logging.error(f"GUI caught relayed error: {e}")
+    # def send_command_to_srecv(self, command):
+    #     def thread_command_relay():
+    #         try:
+    #             if command == 'start':
+    #                 self.receiver_client.start()
+    #                 logging.info("Communication with the Receiver Server is established.\nPlease proceed with desired operation through availbale buttons... ")
+    #             elif command == 'collect_pedestal':
+    #                 self.receiver_client.collect_pedestal()
+    #                 logging.info("Full pedestal collected!")
+    #             elif command == 'tune_pedestal':
+    #                 self.receiver_client.tune_pedestal()
+    #                 logging.info("Pedestal tuned i.e. collected pedestal for gain G0")
+    #             elif command == 'get_frames_to_sum':
+    #                 summing_factor = self.receiver_client.frames_to_sum
+    #                 self.trigger_update_frames_to_sum.emit(int(summing_factor))
+    #                 logging.info(f"Recorded the default summing factor {summing_factor}")
+    #             elif command[:10] == 'set_frames':
+    #                 new_summing_factor = int(command.split('(')[1].split(')')[0])
+    #                 self.receiver_client.frames_to_sum = new_summing_factor
+    #                 logging.info(f"Summing factor in receiver set to {new_summing_factor}")
+    #             elif command == 'stop':
+    #                 self.trigger_disable_receiver_controls.emit()      
+    #                 logging.info(f"Stopping Receiver...") 
+    #                 self.receiver_client.stop()
+    #         except Exception as e:
+    #             logging.error(f"GUI caught relayed error: {e}")
 
-        if self.receiver_client is not None:
-            # Start the network) operation in a new thread
-            threading.Thread(target=thread_command_relay, daemon=True).start()
-        else: 
-            logging.warning(
-                f'Failed attempt to relay the command "{command}" as ReceiverClient instance is None...'
-                '\nPlease check that the receiver is up and running before sending further commands!'
-            )
+    #     if self.receiver_client is not None:
+    #         # Start the network) operation in a new thread
+    #         threading.Thread(target=thread_command_relay, daemon=True).start()
+    #     else: 
+    #         logging.warning(
+    #             f'Failed attempt to relay the command "{command}" as ReceiverClient instance is None...'
+    #             '\nPlease check that the receiver is up and running before sending further commands!'
+    #         )
 
-    def send_set_frames_command(self):
-        value = self.frames_to_sum.value()
-        command = f"set_frames_to_sum({value})"
-        self.send_command_to_srecv(command)
+    # def send_set_frames_command(self):
+    #     value = self.frames_to_sum.value()
+    #     command = f"set_frames_to_sum({value})"
+    #     self.send_command_to_srecv(command)
 
-    def update_frames_to_sum(self, value):
-        self.frames_to_sum.setValue(value)
+    # def update_frames_to_sum(self, value):
+    #     self.frames_to_sum.setValue(value)
 
     """ ******************************************** """
     """ Methods for Streaming/Contrasting operations """

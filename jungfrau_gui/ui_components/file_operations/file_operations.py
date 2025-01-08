@@ -398,11 +398,8 @@ class FileOperations(QGroupBox):
         self.update_data_directory()
 
     def update_full_fname_for_jfjoch(self):
-        # TODO Which logic is better to keep
-        if globals.jfj:
-            # self.parent.tem_controls.trigger_update_full_fname.emit()
-            # self.parent.tem_controls.full_fname.setText(self.cfg.fpath.as_posix())
-            self.parent.visualization_panel.full_fname.setText(self.cfg.fpath.as_posix())
+        # if globals.jfj:
+        self.parent.visualization_panel.full_fname.setText(self.cfg.fpath.as_posix())
 
     def update_base_data_directory(self):
         self.base_directory_input.setText(self.cfg.base_data_dir.as_posix())

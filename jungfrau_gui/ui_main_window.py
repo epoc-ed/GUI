@@ -105,7 +105,7 @@ class ApplicationWindow(QMainWindow):
         logging.debug(f"type(data) is {type(data[0,0])}")
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         
-        # Plot overlays from .reussrc          
+        # Plot overlays         
         draw_overlay(self.plot)
         
         # Mouse hovering
@@ -204,7 +204,7 @@ class ApplicationWindow(QMainWindow):
     def do_exit(self):
         # Prevent closing the GUI while JFJ is not Idle
         # TODO Add flexibily as a function of the nature of the ongoing JFJ operation
-        if globals.jfj and self.visualization_panel.jfjoch_client:
+        if self.visualization_panel.jfjoch_client:
             if self.visualization_panel.jfjoch_client.status().state == 'Measuring':
                 reply = QMessageBox.question(
                     self,

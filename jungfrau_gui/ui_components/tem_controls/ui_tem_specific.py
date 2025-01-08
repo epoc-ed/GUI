@@ -148,9 +148,11 @@ class TEMTasks(QGroupBox):
         self.rotation_button  = ToggleButton("Rotation", self) # Rotation/Record
         self.withwriter_checkbox = QCheckBox("with Writer", self)
         self.withwriter_checkbox.setChecked(False)
-        if globals.jfj:
-            self.JFJwriter_checkbox = QCheckBox("JFJ", self)
-            self.JFJwriter_checkbox.setChecked(False)
+
+        # if globals.jfj:
+        self.JFJwriter_checkbox = QCheckBox("JFJ", self)
+        self.JFJwriter_checkbox.setChecked(False)
+        
         self.autoreset_checkbox = QCheckBox("Auto reset", self)
         self.autoreset_checkbox.setChecked(False)
 
@@ -223,8 +225,10 @@ class TEMTasks(QGroupBox):
         ROT_group.addWidget(ROT_label)
         ROT_section_1.addWidget(self.rotation_button)
         ROT_section_1.addWidget(self.withwriter_checkbox)
-        if globals.jfj:
-            ROT_section_1.addWidget(self.JFJwriter_checkbox)
+
+        # if globals.jfj:
+        ROT_section_1.addWidget(self.JFJwriter_checkbox)
+
         ROT_section_1.addWidget(self.autoreset_checkbox)
         ROT_group.addLayout(ROT_section_1)
         ROT_section_2.addLayout(INPUT_layout)
