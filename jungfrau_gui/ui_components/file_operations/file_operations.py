@@ -332,15 +332,20 @@ class FileOperations(QGroupBox):
             self.toggle_snapshot_btn()
         else:
             self.visualization_panel.send_command_to_jfjoch('cancel')
-            self.parent.tem_controls.send_to_tem("#more")
-            send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                self.visualization_panel.formatted_filename, 
-                                self.parent.tem_controls.tem_status, #self.control.tem_status, 
-                                self.cfg.beam_center, 
-                                None, # self.rotations_angles,
-                                self.cfg.threshold,
-                                retries=3, 
-                                delay=0.1) 
+            if self.parent.tem_controls.tem_action.temConnector: ## to be checked again
+                self.parent.tem_controls.tem_action.control.send_to_tem("#more")
+                time.sleep(0.2)
+                logging.info(" ******************** Adding Info to H5 over Server...")
+                send_with_retries(self.metadata_notifier.notify_metadata_update, 
+                                    self.visualization_panel.formatted_filename, 
+                                    self.parent.tem_controls.tem_action.control.tem_status, #self.control.tem_status, 
+                                    self.cfg.beam_center, 
+                                    None, # self.rotations_angles,
+                                    self.cfg.threshold,
+                                    retries=3, 
+                                    delay=0.1) 
+            logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
+            self.pindex_input.setValue(self.cfg.file_id+1)
             self.tag_input.setText(self.pre_text)
             self.update_measurement_tag()
             self.snapshot_button.setText("Write Stream as a snapshot-H5")

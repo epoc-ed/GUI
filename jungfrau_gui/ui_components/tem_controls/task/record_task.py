@@ -229,6 +229,7 @@ class RecordTask(Task):
             # in case self.writer is not None
             if self.writer is None:
                 self.reset_rotation_signal.emit()
+                time.sleep(phi1/10+0.5)
 
             print("------REACHED END OF TASK----------")
             time.sleep(0.5)
