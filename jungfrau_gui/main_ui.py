@@ -111,8 +111,8 @@ def main():
     if args.logfile:
 
         # Determine the directory of the script being run
-        gui_dir = Path(sys.argv[0]).resolve().parent
-        log_file_path = gui_dir / f'JFGUI{time.strftime("_%Y%m%d-%H%M%S.log", time.localtime())}'
+        launch_script_path = Path(sys.argv[0]).resolve().parent
+        log_file_path = launch_script_path / f'JFGUI{time.strftime("_%Y%m%d-%H%M%S.log", time.localtime())}'
 
         print(f"** Writing log to: {log_file_path} **")  # Debugging line to verify file creation
         
