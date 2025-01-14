@@ -5,6 +5,7 @@ import ctypes
 import logging
 import argparse
 import numpy as np
+import time
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QCoreApplication
 
@@ -13,6 +14,7 @@ from .ui_components import palette
 from .zmq_receiver import ZmqReceiver
 from .ui_main_window import ApplicationWindow 
 
+from pathlib import Path
 from epoc import ConfigurationClient, auth_token, redis_host
 
 class CustomFormatter(logging.Formatter):
@@ -84,6 +86,7 @@ def main():
     parser.add_argument("-t", "--tem", action="store_true", help="Activate tem-control functions")
     parser.add_argument("-th", "--temhost", default=cfg.temserver, help="Choose host for tem-gui communication")
     parser.add_argument('-l', '--log', default='INFO', help='Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
+    parser.add_argument("-f", "--logfile", action="store_true", help="File-output of logging")
 
     args = parser.parse_args()
 
@@ -106,6 +109,20 @@ def main():
 
     # Add the handler to the logger
     logger.addHandler(console_handler)
+
+    if args.logfile:
+
+        # Determine the directory of the script being run
+        launch_script_path = Path(sys.argv[0]).resolve().parent
+        log_file_path = launch_script_path / f'JFGUI{time.strftime("_%Y%m%d-%H%M%S.log", time.localtime())}'
+
+        print(f"** Writing log to: {log_file_path} **")  # Debugging line to verify file creation
+        
+        file_handler = logging.FileHandler(log_file_path.as_posix())
+        file_handler.setLevel(log_level)
+        file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
 
     if args.dtype == np.float32:
         globals.cdtype = ctypes.c_float
