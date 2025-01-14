@@ -97,7 +97,7 @@ class TEMAction(QObject):
         for i in self.tem_stagectrl.mag_modes.buttons():
             i.setEnabled(enables)
         self.tem_tasks.gettem_button.setEnabled(enables)
-        self.tem_tasks.gettem_checkbox.setEnabled(enables)
+        self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
         self.tem_tasks.centering_button.setEnabled(False) # Not functional yet
         self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
@@ -159,7 +159,7 @@ class TEMAction(QObject):
             self.control.trigger_getteminfo.emit('N')
 
     def on_tem_update(self):
-        logging.info("Updating GUI with last TEM Status...")
+        logging.debug("Updating GUI with last TEM Status...")
         # self.beamcenter = float(fit_result_best_values['xo']), float(fit_result_best_values['yo'])
         angle_x = self.control.tem_status["stage.GetPos"][3]
         self.tem_tasks.input_start_angle.setValue(angle_x)
@@ -186,7 +186,7 @@ class TEMAction(QObject):
             else:
                 self.tem_tasks.rotation_button.setText("Rotation")
 
-        logging.info("GUI updated with lastest TEM Status")
+        logging.debug("GUI updated with lastest TEM Status")
 
     def drawscale_overlay(self, xo=0, yo=0, l_draw=1, pixel=0.075):
         if self.scale != None:
@@ -216,7 +216,7 @@ class TEMAction(QObject):
 
     def update_rotation_speed_idx_from_ui(self):
         self.cfg.rotation_speed_idx = self.tem_stagectrl.rb_speeds.checkedId()
-        logging.info(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
+        logging.debug(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
 
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:

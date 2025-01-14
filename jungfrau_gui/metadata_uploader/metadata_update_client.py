@@ -94,7 +94,7 @@ if __name__ == "__main__":
         tem_status = json.load(file)
 
     beamcenter = [173, 170] # Read from Redis DB
-    input("Enter to continue!")
+    #input("Enter to continue!")
 
     notifier = MetadataNotifier(host=args.host, port=args.port)
     notifier.notify_metadata_update(args.filepath, tem_status, beamcenter)

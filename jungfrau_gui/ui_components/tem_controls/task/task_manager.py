@@ -253,14 +253,14 @@ class ControlWorker(QObject):
             print(f"{key}: {value}")
         #*************** 
         # """
-        logging.info("Updating ControlWorker map with last TEM Status")
+        logging.debug("Updating ControlWorker map with last TEM Status")
         try:
             logging.debug("START of the update loop")
             for entry in response:
                 self.tem_status[entry] = response[entry]["val"]
                 self.tem_update_times[entry] = (response[entry]["tst_before"], response[entry]["tst_after"])
             logging.debug("END of update loop")
-            logging.info(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
+            logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
             if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_MAG'] = self.tem_update_times['eos.GetMagValue']
@@ -268,7 +268,7 @@ class ControlWorker(QObject):
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
             
-            logging.warning("TEM Status Dictionnary updated!")
+            logging.info("TEM Status Dictionnary updated!")
             
             # import json
             # # Save to text file
