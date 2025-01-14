@@ -14,6 +14,8 @@ from .ui_components import palette
 from .zmq_receiver import ZmqReceiver
 from .ui_main_window import ApplicationWindow 
 
+from pathlib import Path
+
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
     # Foreground (text) colors
@@ -82,7 +84,7 @@ def main():
     parser.add_argument("-th", "--temhost", default="temserver", help="Choose host for tem-gui communication")
     parser.add_argument('-l', '--log', default='INFO', help='Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument("-jfj", "--jungfraujoch", action="store_true", help="Enable Jungfraujoch comtrol panel for communication with JFJ broker")
-    parser.add_argument("-f", "--logger", action="store_true", help="File-output of logging")
+    parser.add_argument("-f", "--logfile", action="store_true", help="File-output of logging")
 
     args = parser.parse_args()
 
@@ -106,8 +108,15 @@ def main():
     # Add the handler to the logger
     logger.addHandler(console_handler)
 
-    if args.logger:
-        file_handler = logging.FileHandler('/home/instruments/jem2100plus/GUI/JFGUI'+ time.strftime("_%Y%m%d-%H%M%S.log", time.localtime())) # directory path can be removed afterwards
+    if args.logfile:
+
+        # Determine the directory of the script being run
+        gui_dir = Path(sys.argv[0]).resolve().parent
+        log_file_path = gui_dir / f'JFGUI{time.strftime("_%Y%m%d-%H%M%S.log", time.localtime())}'
+
+        print(f"** Writing log to: {log_file_path} **")  # Debugging line to verify file creation
+        
+        file_handler = logging.FileHandler(log_file_path.as_posix())
         file_handler.setLevel(log_level)
         file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
         file_handler.setFormatter(file_formatter)
