@@ -14,6 +14,8 @@ from .connectivity_inspector import TEM_Connector
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
+from jungfrau_gui import globals
+
 class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
@@ -27,6 +29,7 @@ class TEMAction(QObject):
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
+        self.tem_xtalinfo = self.tem_controls.tem_xtalinfo
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
@@ -84,7 +87,8 @@ class TEMAction(QObject):
         
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
-        self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
+        if not globals.jfj:
+            self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
 
     def enabling(self, enables=True):
         self.tem_detector.scale_checkbox.setEnabled(enables)

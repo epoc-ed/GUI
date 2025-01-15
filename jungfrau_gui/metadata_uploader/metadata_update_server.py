@@ -5,7 +5,93 @@ import json
 import time
 import numpy as np
 import threading
+import os
+import subprocess
+import re
+import hdf5plugin
 # from epoc import ConfigurationClient, auth_token, redis_host
+
+class XDSparams:
+    """
+Stores parameters for XDS and creates the template XDS.INP in the current directory
+"""
+    def __init__(self, xdstempl):
+        self.xdstempl = xdstempl
+
+    def update(self, orgx, orgy, templ, d_range, osc_range, dist, jobs='XYCORR INIT COLSPOT IDXREF'):
+        """
+           replace parameters for ORGX/ORGY, TEMPLATE, OSCILLATION_RANGE,
+           DATA_RANGE, SPOT_RANGE, BACKGROUND_RANGE, STARTING_ANGLE(?)
+        """
+        self.xdsinp = []
+        gap=10
+        with open(self.xdstempl, 'r') as f:
+            for line in f:
+                [keyw, rem] = self.uncomment(line)
+                if "ORGX=" in keyw or "ORGY=" in keyw:
+                    self.xdsinp.append(f" ORGX= {orgx:.1f} ORGY= {orgy:.1f}\n")
+                    continue
+                # if "ROTATION_AXIS" in keyw:
+                #     axis = np.fromstring(keyw.split("=")[1].strip(), sep=" ")
+                #     axis = np.sign(osc_range) * axis
+                #     keyw = self.replace(keyw, "ROTATION_AXIS=", np.array2string(axis, separator=" ")[1:-1])
+                keyw = self.replace(keyw, "OSCILLATION_RANGE=", abs(osc_range))
+                keyw = self.replace(keyw, "DETECTOR_DISTANCE=", dist)
+                keyw = self.replace(keyw, "NAME_TEMPLATE_OF_DATA_FRAMES=", templ + '\n')
+                keyw = self.replace(keyw, "DATA_RANGE=", f"1 {d_range}")
+                keyw = self.replace(keyw, "SPOT_RANGE=", f"1 {d_range}")
+                keyw = self.replace(keyw, "BACKGROUND_RANGE=", f"1 {d_range}")
+                
+                keyw = self.replace(keyw, "JOB=", jobs)
+                keyw = self.replace(keyw, "STARTING_ANGLE=", 0)
+
+                self.xdsinp.append(keyw + ' ' + rem)
+
+        self.xdsinp.append(f" UNTRUSTED_ELLIPSE= {orgx-10:d} {orgx+10:d} {orgy-10:d} {orgy+10:d}\n")                
+            
+    def xdswrite(self, filepath="XDS.INP"):
+        "write lines of keywords to XDS.INP in local directory"
+        os.makedirs(os.path.dirname(filepath), exist_ok=False)
+        with open(filepath, 'w') as f:
+            for l in self.xdsinp:
+                f.write(l)
+
+    def uncomment(self, line):
+        "returns keyword part and comment part in line"
+        if ("!" in line):
+            idx = line.index("!")
+            keyw = line[:idx]
+            rem = line[idx:]
+        else:
+            keyw = line
+            rem = ""
+        return [keyw, rem]
+
+    def replace(self, line, keyw, val):
+        """
+        checks whether keyw is present in line (including '=') and replaces the value
+        with val
+        """
+        if (keyw in line):
+            line = ' ' + keyw + ' ' + str(val)
+        else:
+            line = line
+        return line
+    
+    def idxread(self, filepath="IDXREF.LP"):
+        """
+        read lines of indexing results
+        """
+        results = {}
+        with open(filepath, 'r') as f:
+            for line in reversed(f.readlines()):
+                if r"UNIT CELL PARAMETERS" in line:
+                    results['cell'] = np.array(line.split()[3:], dtype=float)
+                if r"SPOTS INDEXED" in line:
+                    results['spots'] = line.split()[0], line.split()[3]
+                    break
+            results_describe = '{0[0]:.1f} {0[1]:.1f} {0[2]:.1f} {0[3]:.0f} {0[4]:.0f} {0[5]:.0f}, {1[0]}/{1[1]}'.format(results['cell'], results['spots'])
+        return results_describe
 
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
@@ -43,6 +129,28 @@ def eV2angstrom(voltage):
     h, m0, e, c = 6.62607004e-34, 9.10938356e-31, 1.6021766208e-19, 299792458.0
     return h/np.sqrt(2*m0*e*voltage*(1.+e*voltage/2./m0/c**2)) * 1.e10
 
+def rebin(arr, bin_rate):
+    if bin_rate == 1:
+        return arr
+    new_shape = np.array(arr.shape) // bin_rate
+    shape = (new_shape[0], arr.shape[0] // new_shape[0],
+             new_shape[1], arr.shape[1] // new_shape[1])
+    return arr.reshape(shape).mean(-1).mean(1) #.astype('uint16')
+
+def getcenter(img_array, center=[515, 257], area=100, bin=5):
+    clipped = img_array[center[1]-area//2 : center[1]+area//2,
+                        center[0]-area//2 : center[0]+area//2]
+    scaled = clipped / np.max(clipped) * np.iinfo(np.int16).max / bin // bin
+    binned = rebin(clipped, bin)
+    brighty, brightx = np.where(binned == np.max(binned))
+    brightx *= bin
+    brighty *= bin
+    brightx += center[0]-area//2 + 1
+    brighty += center[1]-area//2 + 1
+    bright = list(zip(brightx, brighty))
+    # print(np.array(bright).mean(axis=0), np.array(bright).mean(axis=1), np.array(bright).mean(axis=-1))
+    return np.array(bright) #.mean(axis=0) #, clipped
+
 class Hdf5MetadataUpdater:
     def __init__(self, port_number = 3463):
         self.port_number = port_number
@@ -68,9 +176,33 @@ class Hdf5MetadataUpdater:
                 aperture_size_sa = message["aperture_size_sa"]
                 self.addinfo_to_hdf(filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold)
                 self.socket.send_string("Metadata added successfully")
+                
+                if rotations_angles is not None:
+                    with h5py.File(filename, 'r') as f:
+                        img = f['entry/data/data_000001'][()][100] #, dynamic definition would be better
+                    beamcenter_pre = getcenter(img, center=beamcenter, bin=4, area=100)
+                    beamcenter_refined = getcenter(img, center=beamcenter_pre[0], bin=1, area=20)[0]
+                    logging.info(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
+                    # self.socket.send_string(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
+
+                    dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
+                    logging.info(f'Subdirname: {os.path.dirname(filename)}/XDS/{dataid}')
+                    xds_thread = threading.Thread(target=self.run_xds, 
+                                                  args=(filename, 
+                                        os.path.dirname(filename) + '/XDS/' + dataid,
+                                        '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
+                                        '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
+                                        beamcenter_refined, ), daemon=True)
+                    xds_thread.start()
+                    dials_thread = threading.Thread(target=self.run_dials, 
+                                                    args=(filename, 
+                                        os.path.dirname(filename) + '/DIALS/' + dataid,
+                                        '/xtal/Suites/Dials/dials-v3-22-1/dials_env.sh', 
+                                        beamcenter_refined, ), daemon=True)
+                    dials_thread.start()
             except zmq.ZMQError as e:
                 logging.error(f"Error while receiving request: {e}")
-                self.socket.send_string("Error updating metadata")
+                # self.socket.send_string("Error updating metadata")
     
     def stop(self):
         self.running = False
@@ -175,6 +307,94 @@ class Hdf5MetadataUpdater:
         except OSError as e:
             logging.error(f"Failed to update information in {filename}: {e}")
 
+    def make_xds_file(self, master_filepath, xds_filepath, xds_template_filepath, beamcenter=[515, 532]):
+        master_file = h5py.File(master_filepath, 'r')
+        template_filepath = master_filepath[:-9] + "??????.h5" # master_filepath.replace('master', '??????')
+        frame_time = master_file['entry/instrument/detector/frame_time'][()]
+        oscillation_range = np.round(frame_time * master_file['entry/instrument/stage/stage_tx_speed_measured'][()], 5)
+        logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
+        logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
+        detector_distance = master_file['entry/instrument/detector/detector_distance'][()]
+        
+        for dset in master_file["entry/data"]:
+            nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"][()]
+            logging.info(f" DATA_RANGE= 300 {nimages_dset}")
+            logging.info(f" BACKGROUND_RANGE= 300 {nimages_dset}")
+            logging.info(f" SPOT_RANGE= 300 {nimages_dset}")
+            h = master_file['entry/data/data_000001'].shape[2]
+            w = master_file['entry/data/data_000001'].shape[1]
+            for i in range(1):
+                image = master_file['entry/data/data_000001'][i]
+                # logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
+                org_x, org_y = beamcenter[0], beamcenter[1]
+            break
+
+        myxds = XDSparams(xdstempl=xds_template_filepath)
+        myxds.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range, detector_distance)
+        myxds.xdswrite(filepath=xds_filepath)
+
+    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532]):
+        # self.socket.send_string("Processing with XDS")
+        root = working_directory
+        myxds = XDSparams(xdstempl=xds_template_filepath)
+        self.make_xds_file(master_filepath,
+                           os.path.join(root, "XDS.INP"), #""INPUT.XDS"), # why not XDS.INP?
+                           xds_template_filepath, 
+                           beamcenter)
+        
+        if os.path.isfile(root + '/XDS.INP'):
+            subprocess.run([xds_exepath], cwd=root)
+        else:
+            return 'XDS.INP is missing.'
+        
+        time.sleep(3)
+        if os.path.isfile(root + '/XPARM.XDS'):
+            logging.info('Indexing succeeded.')
+            results = myxds.idxread(filepath=root + '/IDXREF.LP')
+            logging.info(results)
+        else:
+            logging.info('Indexing failed.')
+            results = 'Failed'
+        # self.socket.send_string(results)
+        return results
+
+    def run_dials(self, master_filepath, working_directory, dials_setuppath, beamcenter=[515, 532]):
+        # self.socket.send_string("Processing with DIALS")
+        results = 'Failed'
+        root = working_directory
+        
+        which = subprocess.run(['which', 'dials.import'], stdout=subprocess.PIPE)
+        if len(which.stdout) == 0:
+            logging.warning('DIALS is not available')
+            # subprocess.run(['source', dials_setuppath])
+            return results
+
+        os.makedirs(root, exist_ok=False)
+        subprocess.run(['dials.import', master_filepath, f'slow_fast_beam_centre={beamcenter[1]},{beamcenter[0]}' ], cwd=root)
+        if os.path.isfile(root + '/imported.expt'):
+            logging.warning('DIALS is available, but updating Format Class is necessary to process JF1M data!!')
+            return
+            subprocess.run(['dials.find_spots', 'imported.expt', 'gain=20'], cwd=root)
+        else:
+            logging.warning('Import failed.')
+        if os.path.isfile(root + '/strong.refl'):
+            subprocess.run(['dials.index', 'imported.expt', 'strong.refl', 'detector.fix=distance'], cwd=root)
+        else:
+            logging.warning('SpotFind failed.')
+        if os.path.isfile(root + '/indexed.refl'):
+            logging.info('Indexing succeeded.')
+            with open('dials.index.log', 'r') as f:
+                results['cell'] = re.sub('([0-9]*)', "", f.readlines()[-18]).split(sep='[, s]')
+                spotinfo = f.readlines()[-4].split()
+                results['spots'] = [spotsinfo[3], spotsinfo[3]+spotsinfo[5]]
+            results_describe = '{0[0]:.1f} {0[1]:.1f} {0[2]:.1f} {0[3]:.0f} {0[4]:.0f} {0[5]:.0f}, {1[0]}/{1[1]}'.format(results['cell'], results['spots'])
+            # self.socket.send_string(results_describe)
+            return # results_describe
+        else:
+            logging.info('Indexing failed.')
+        # self.socket.send_string(results)
+        # return results
+            
 # Example server execution
 if __name__ == "__main__":
     # Initialize logger

@@ -149,48 +149,50 @@ class FileOperations(QGroupBox):
         #####################
         # TIFF Writer Section
         #####################
-        TIFF_section_label = QLabel("TIFF Writer", self)
-        TIFF_section_label.setFont(font_big)
+        if not globals.jfj:
+            TIFF_section_label = QLabel("TIFF Writer", self)
+            TIFF_section_label.setFont(font_big)
 
-        section3.addWidget(TIFF_section_label)
+            section3.addWidget(TIFF_section_label)
 
-        self.fname = QLabel("TIFF file name", self)
-        self.tiff_path = QLineEdit(self)
-        self.tiff_path.setText(f'{self.cfg.data_dir}')
-        self.tiff_path.setReadOnly(True)
-        self.fname_input = QLineEdit(self)
-        self.fname_input.setText('file_name')
+            self.fname = QLabel("TIFF file name", self)
+            self.tiff_path = QLineEdit(self)
+            self.tiff_path.setText(f'{self.cfg.data_dir}')
+            self.tiff_path.setReadOnly(True)
+            self.fname_input = QLineEdit(self)
+            self.fname_input.setText('file_name')
 
         # Define a regex that matches only valid Unix filename characters
         valid_regex = QRegularExpression("^[a-zA-Z0-9_.-]+$")
-        self.fname_input.setValidator(QRegularExpressionValidator(valid_regex, self))
 
-        self.findex_input = QSpinBox(self)  
+        if not globals.jfj:
+            self.fname_input.setValidator(QRegularExpressionValidator(valid_regex, self))
+            self.findex_input = QSpinBox(self)  
 
-        tiff_file_layout = QHBoxLayout()
-        tiff_file_layout.addWidget(self.fname, 2)
-        tiff_file_layout.addWidget(self.tiff_path, 7)
-        tiff_file_layout.addWidget(self.fname_input, 2)
-        tiff_file_layout.addWidget(self.findex_input, 1)
+            tiff_file_layout = QHBoxLayout()
+            tiff_file_layout.addWidget(self.fname, 2)
+            tiff_file_layout.addWidget(self.tiff_path, 7)
+            tiff_file_layout.addWidget(self.fname_input, 2)
+            tiff_file_layout.addWidget(self.findex_input, 1)
 
-        section3.addLayout(tiff_file_layout)
-        
-        self.frameAccumulator = None
-        self.accumulate_button = QPushButton("Accumulate in TIFF", self)
-        self.accumulate_button.setEnabled(False)
-        self.accumulate_button.clicked.connect(self.start_accumulate)
-        self.acc_spin = QSpinBox(self)
-        self.acc_spin.setValue(10)
-        self.acc_spin.setMaximum(1000000)
-        self.acc_spin.setSuffix(' frames')
+            section3.addLayout(tiff_file_layout)
 
-        accumulate_layout = QHBoxLayout()
-        accumulate_layout.addWidget(self.accumulate_button)
-        accumulate_layout.addWidget(self.acc_spin)
+            self.frameAccumulator = None
+            self.accumulate_button = QPushButton("Accumulate in TIFF", self)
+            self.accumulate_button.setEnabled(False)
+            self.accumulate_button.clicked.connect(self.start_accumulate)
+            self.acc_spin = QSpinBox(self)
+            self.acc_spin.setValue(10)
+            self.acc_spin.setMaximum(1000000)
+            self.acc_spin.setSuffix(' frames')
 
-        section3.addLayout(accumulate_layout)
-        
-        section3.addWidget(create_horizontal_line_with_margin(15))
+            accumulate_layout = QHBoxLayout()
+            accumulate_layout.addWidget(self.accumulate_button)
+            accumulate_layout.addWidget(self.acc_spin)
+
+            section3.addLayout(accumulate_layout)
+
+            section3.addWidget(create_horizontal_line_with_margin(15))
 
         #####################
         # HDF5 Writer Section
@@ -496,7 +498,8 @@ class FileOperations(QGroupBox):
     def update_data_directory(self):
         if self.outPath_input.text() != self.cfg.data_dir.as_posix():
             self.outPath_input.setText(self.cfg.data_dir.as_posix())
-            self.tiff_path.setText(self.cfg.data_dir.as_posix())
+            if not globals.jfj:            
+                self.tiff_path.setText(self.cfg.data_dir.as_posix())
             logging.info(f"Data directory is: {self.cfg.data_dir.as_posix()}")
             
             # Check if folder exists and contains .h5 files to update file index

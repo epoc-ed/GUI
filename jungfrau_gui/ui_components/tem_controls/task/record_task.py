@@ -105,6 +105,9 @@ class RecordTask(Task):
                 logging.error(f"Unexpected error while opening logfile: {e}")
                 return
 
+            self.control.update_xtalinfo.emit('Measuring', 'XDS')
+            self.control.update_xtalinfo.emit('Measuring', 'DIALS')
+
             self.client.Setf1OverRateTxNum(phi_dot_idx)
             time.sleep(1) 
             self.client.SetBeamBlank(0)
@@ -224,13 +227,18 @@ class RecordTask(Task):
                                         self.cfg.threshold,
                                         retries=3, 
                                         delay=0.1) 
+                    
+                    self.control.update_xtalinfo.emit('Processing', 'XDS')
+                    self.control.update_xtalinfo.emit('Processing', 'DIALS')
 
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None
             if self.writer is None:
                 self.reset_rotation_signal.emit()
-                time.sleep(phi1/10+0.5)
 
+            if self.tem_action.tem_tasks.autoreset_checkbox.isChecked():
+                time.sleep(phi1/10+0.5)
+                
             print("------REACHED END OF TASK----------")
             time.sleep(0.5)
             self.tem_action.toggle_connectTEM()
