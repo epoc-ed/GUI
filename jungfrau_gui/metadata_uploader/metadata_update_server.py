@@ -1,4 +1,3 @@
-import zmq
 import h5py
 import logging
 import json
@@ -10,6 +9,46 @@ import subprocess
 import re
 import hdf5plugin
 # from epoc import ConfigurationClient, auth_token, redis_host
+
+class DIALSparams:
+    def __init__(self, datapath, workdir, beamcenter=[515, 532]):
+        self.datapath = datapath
+        self.workdir=workdir
+        self.beamcenter = beamcenter
+
+    def launch(self, dmax=10, dmin=0.4, nbin=20, gain=20): # this gain is only used in spotfind
+        from libtbx import easy_run
+        os.makedirs(self.workdir, exist_ok=False)
+        os.chdir(self.workdir)
+
+        r = easy_run.fully_buffered(f'dials.import {self.datapath} slow_fast_beam_centre={self.beamcenter[1]},{self.beamcenter[0]}')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'import of {self.datapath} faild!')
+            return
+        r = easy_run.fully_buffered(f'dials.find_spots imported.expt gain={gain} d_max={dmax} min_spot_size=12')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'spotfinding of {self.datapath} faild!')
+            return
+        r = easy_run.fully_buffered(f'dials.index imported.expt strong.refl detector.fix=distance')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'indexing of {self.datapath} faild!')
+            return
+        r = easy_run.fully_buffered(f'dials.refine indexed.expt indexed.refl scan_varying=true detector.fix=distance')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'refinement of {self.datapath} faild!')
+            return
+        r = easy_run.fully_buffered(f'dials.integrate refined.expt refined.refl significance_filter.enable=true')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'integration of {self.datapath} faild!')
+            return
+        r = easy_run.fully_buffered(f'dials.scale integrated.expt integrated.refl output.merging.nbins={nbin} d_min={dmin}')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'scaling of {self.datapath} faild!')
+            return
+        r = easy_run.fully_buffered(f'dials.export scaled.expt scaled.refl format="shelx" compositon="CHNO"')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'exporting of {self.datapath} faild!')
+            return    
 
 class XDSparams:
     """
@@ -92,6 +131,37 @@ Stores parameters for XDS and creates the template XDS.INP in the current direct
                     break
             results_describe = '{0[0]:.1f} {0[1]:.1f} {0[2]:.1f} {0[3]:.0f} {0[4]:.0f} {0[5]:.0f}, {1[0]}/{1[1]}'.format(results['cell'], results['spots'])
         return results_describe
+    
+    def make_xds_file(self, master_filepath, xds_filepath, beamcenter=[515, 532], osc_measured=True):
+        master_file = h5py.File(master_filepath, 'r')
+        template_filepath = master_filepath[:-9] + "??????.h5" # master_filepath.replace('master', '??????')
+        frame_time = master_file['entry/instrument/detector/frame_time'][()]
+        oscillation_range = np.round(frame_time * master_file['entry/instrument/stage/velocity_data_collection'][()], 5)
+        if osc_measured:
+            try:
+                oscillation_range = np.round(frame_time * master_file['entry/instrument/stage/stage_tx_speed_measured'][()], 5)
+            except KeyError:
+                logging.warning(f'Measured tx_speed is missing! Nominal value is referred instead {oscillation_range}')
+
+        logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
+        logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
+        detector_distance = master_file['entry/instrument/detector/detector_distance'][()]
+        
+        for dset in master_file["entry/data"]:
+            nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"][()]
+            logging.info(f" DATA_RANGE= 300 {nimages_dset}")
+            logging.info(f" BACKGROUND_RANGE= 300 {nimages_dset}")
+            logging.info(f" SPOT_RANGE= 300 {nimages_dset}")
+            h = master_file['entry/data/data_000001'].shape[2]
+            w = master_file['entry/data/data_000001'].shape[1]
+            for i in range(1):
+                image = master_file['entry/data/data_000001'][i]
+                # logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
+                org_x, org_y = beamcenter[0], beamcenter[1]
+            break
+
+        self.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range, detector_distance)
+        self.xdswrite(filepath=xds_filepath)    
 
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
@@ -137,7 +207,7 @@ def rebin(arr, bin_rate):
              new_shape[1], arr.shape[1] // new_shape[1])
     return arr.reshape(shape).mean(-1).mean(1) #.astype('uint16')
 
-def getcenter(img_array, center=[515, 257], area=100, bin=5):
+def getcenter(img_array, center=[515, 532], area=100, bin=5):
     clipped = img_array[center[1]-area//2 : center[1]+area//2,
                         center[0]-area//2 : center[0]+area//2]
     scaled = clipped / np.max(clipped) * np.iinfo(np.int16).max / bin // bin
@@ -153,6 +223,7 @@ def getcenter(img_array, center=[515, 257], area=100, bin=5):
 
 class Hdf5MetadataUpdater:
     def __init__(self, port_number = 3463):
+        import zmq
         self.port_number = port_number
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
@@ -197,7 +268,6 @@ class Hdf5MetadataUpdater:
                     dials_thread = threading.Thread(target=self.run_dials, 
                                                     args=(filename, 
                                         os.path.dirname(filename) + '/DIALS/' + dataid,
-                                        '/xtal/Suites/Dials/dials-v3-22-1/dials_env.sh', 
                                         beamcenter_refined, ), daemon=True)
                     dials_thread.start()
             except zmq.ZMQError as e:
@@ -237,6 +307,7 @@ class Hdf5MetadataUpdater:
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_count_time', data = data_shape[0], dtype='uint64')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_period', data = data_shape[0], dtype='uint64') = frame_count_time in SINGLA
                     create_or_update_dataset('entry/instrument/detector/detectorSpecific/software_version', data = 'Jungfraujoch/' + jfj_version)
+                    # create_or_update_dataset('entry/instrument/detector/detectorSpecific/software_version_gui', data = self.***.version)
                     create_or_update_dataset('entry/instrument/detector/count_threshold_in_keV', data = jf_threshold, dtype='uint64')
                     # ED-specific, some namings from https://github.com/dials/dxtbx/blob/main/src/dxtbx/format/FormatNXmxED.py
                     create_or_update_dataset('entry/source/probe', data = 'electron')
@@ -307,39 +378,12 @@ class Hdf5MetadataUpdater:
         except OSError as e:
             logging.error(f"Failed to update information in {filename}: {e}")
 
-    def make_xds_file(self, master_filepath, xds_filepath, xds_template_filepath, beamcenter=[515, 532]):
-        master_file = h5py.File(master_filepath, 'r')
-        template_filepath = master_filepath[:-9] + "??????.h5" # master_filepath.replace('master', '??????')
-        frame_time = master_file['entry/instrument/detector/frame_time'][()]
-        oscillation_range = np.round(frame_time * master_file['entry/instrument/stage/stage_tx_speed_measured'][()], 5)
-        logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
-        logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
-        detector_distance = master_file['entry/instrument/detector/detector_distance'][()]
-        
-        for dset in master_file["entry/data"]:
-            nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"][()]
-            logging.info(f" DATA_RANGE= 300 {nimages_dset}")
-            logging.info(f" BACKGROUND_RANGE= 300 {nimages_dset}")
-            logging.info(f" SPOT_RANGE= 300 {nimages_dset}")
-            h = master_file['entry/data/data_000001'].shape[2]
-            w = master_file['entry/data/data_000001'].shape[1]
-            for i in range(1):
-                image = master_file['entry/data/data_000001'][i]
-                # logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
-                org_x, org_y = beamcenter[0], beamcenter[1]
-            break
-
-        myxds = XDSparams(xdstempl=xds_template_filepath)
-        myxds.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range, detector_distance)
-        myxds.xdswrite(filepath=xds_filepath)
-
     def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532]):
         # self.socket.send_string("Processing with XDS")
         root = working_directory
         myxds = XDSparams(xdstempl=xds_template_filepath)
-        self.make_xds_file(master_filepath,
+        myxds.make_xds_file(master_filepath,
                            os.path.join(root, "XDS.INP"), #""INPUT.XDS"), # why not XDS.INP?
-                           xds_template_filepath, 
                            beamcenter)
         
         if os.path.isfile(root + '/XDS.INP'):
@@ -358,7 +402,7 @@ class Hdf5MetadataUpdater:
         # self.socket.send_string(results)
         return results
 
-    def run_dials(self, master_filepath, working_directory, dials_setuppath, beamcenter=[515, 532]):
+    def run_dials(self, master_filepath, working_directory, beamcenter=[515, 532]):
         # self.socket.send_string("Processing with DIALS")
         results = 'Failed'
         root = working_directory
@@ -366,21 +410,11 @@ class Hdf5MetadataUpdater:
         which = subprocess.run(['which', 'dials.import'], stdout=subprocess.PIPE)
         if len(which.stdout) == 0:
             logging.warning('DIALS is not available')
-            # subprocess.run(['source', dials_setuppath])
             return results
+        
+        mydials = DIALSparams(datapath=master_filepath, workdir=root, beamcenter=beamcenter)
+        mydials.launch()
 
-        os.makedirs(root, exist_ok=False)
-        subprocess.run(['dials.import', master_filepath, f'slow_fast_beam_centre={beamcenter[1]},{beamcenter[0]}' ], cwd=root)
-        if os.path.isfile(root + '/imported.expt'):
-            logging.warning('DIALS is available, but updating Format Class is necessary to process JF1M data!!')
-            return
-            subprocess.run(['dials.find_spots', 'imported.expt', 'gain=20'], cwd=root)
-        else:
-            logging.warning('Import failed.')
-        if os.path.isfile(root + '/strong.refl'):
-            subprocess.run(['dials.index', 'imported.expt', 'strong.refl', 'detector.fix=distance'], cwd=root)
-        else:
-            logging.warning('SpotFind failed.')
         if os.path.isfile(root + '/indexed.refl'):
             logging.info('Indexing succeeded.')
             with open('dials.index.log', 'r') as f:
@@ -389,11 +423,11 @@ class Hdf5MetadataUpdater:
                 results['spots'] = [spotsinfo[3], spotsinfo[3]+spotsinfo[5]]
             results_describe = '{0[0]:.1f} {0[1]:.1f} {0[2]:.1f} {0[3]:.0f} {0[4]:.0f} {0[5]:.0f}, {1[0]}/{1[1]}'.format(results['cell'], results['spots'])
             # self.socket.send_string(results_describe)
-            return # results_describe
+            return results_describe
         else:
             logging.info('Indexing failed.')
         # self.socket.send_string(results)
-        # return results
+        return results
             
 # Example server execution
 if __name__ == "__main__":

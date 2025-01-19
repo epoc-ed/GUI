@@ -1,126 +1,138 @@
 { "distances":
         [
          { "displayed": "100cm",
-           "calibrated": 1160.0,
+           "calibrated": 1490.0,
            "unit": "mm",
-           "date_update": "20/07/2022"
+           "date_update": "03/12/2024"
          },
          { "displayed": "80cm",
-           "calibrated": 1055.0,
+           "calibrated": 1195.0,
            "unit": "mm",
-           "date_update": "29/06/2023"
+           "date_update": "03/12/2024"
          },
          { "displayed": "60cm",
-           "calibrated": 795.0,
+           "calibrated": 900.0,
            "unit": "mm",
-           "date_update": "29/06/2023"
+           "date_update": "03/12/2024"
          },
          { "displayed": "50cm",
-           "calibrated": 660.0,
+           "calibrated": 750.0,
            "unit": "mm",
-           "date_update": "29/06/2023"
+           "date_update": "03/12/2024"
          },
          { "displayed": "40cm",
-            "calibrated": 497.0,
+            "calibrated": 570.0,
            "unit": "mm",
-           "date_update": "29/06/2023"
+           "date_update": "03/12/2024"
          },
          { "displayed": "30cm",
-            "calibrated": 370.0,
+            "calibrated": 430.0,
            "unit": "mm",
-           "date_update": "23/08/2022"
+           "date_update": "03/12/2024"
          },
          { "displayed": "25cm",
-           "calibrated": 372.0,
+           "calibrated": 355.0,
            "unit": "mm",
-           "date_update": "20/07/2022"
+           "date_update": "03/12/2024"
         }
 ],
   "magnification":
         [
          { "displayed": "X100k",
-           "calibrated": 133920,
-           "date_update": "26/10/2023"
+           "calibrated": 140184,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X80k",
-           "calibrated": 106704,
-           "date_update": "26/10/2023"
+           "calibrated": 113400,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X60k",
-           "calibrated": 77112,
-           "date_update": "26/10/2023"
+           "calibrated": 87696,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X50k",
-           "calibrated": 65016,
-           "date_update": "26/10/2023"
+           "calibrated": 70632,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X40k",
-           "calibrated": 52056,
-           "date_update": "26/10/2023"
+           "calibrated": 57780,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X30k",
-           "calibrated": 39852,
-           "date_update": "26/10/2023"
+           "calibrated": 44496,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X25k",
-           "calibrated": 33120,
-           "date_update": "26/10/2023"
+           "calibrated": 37476,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X20k",
-           "calibrated": 26136,
-           "date_update": "26/10/2023"
+           "calibrated": 29722,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X15k",
-           "calibrated": 20196,
-           "date_update": "26/10/2023"
+           "calibrated": 22495,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X12k",
-           "calibrated": 15898,
-           "date_update": "26/10/2023"
+           "calibrated": 17863,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X10k",
-           "calibrated": 13046,
-           "date_update": "26/10/2023"
+           "calibrated": 14796,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X8000",
-           "calibrated": 10553,
-           "date_update": "26/10/2023"
+           "calibrated": 11963,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X6000",
-           "calibrated": 7830,
-           "date_update": "26/10/2023"
+           "calibrated": 8937,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X5000",
-           "calibrated": 5364,
-           "date_update": "26/10/2023"
+           "calibrated": 7375,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X4000",
-           "calibrated": 5227,
-           "date_update": "26/10/2023"
+           "calibrated": 5915,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X3000",
-           "calibrated": 3888,
-           "date_update": "26/10/2023"
+           "calibrated": 4435,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X2500",
-           "calibrated": 3294,
-           "date_update": "26/10/2023"
+           "calibrated": 3697,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X2000",
-           "calibrated": 2592,
-           "date_update": "26/10/2023"
+           "calibrated": 2952,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X1500",
-           "calibrated": 1890,
-           "date_update": "26/10/2023"
+           "calibrated": 2160,
+           "date_update": "04/12/2024"
         },
          { "displayed": "X1200",
-           "calibrated": 1560,
-           "date_update": "extrapolation"
+           "calibrated": 1742,
+           "date_update": "13/12/2024"
         },
          { "displayed": "X1000",
-           "calibrated": 1300,
-           "date_update": "extrapolation"
+           "calibrated": 1473,
+           "date_update": "13/12/2024"
+        },
+         { "displayed": "X800",
+           "calibrated": 1170,
+           "date_update": "13/12/2024"
+        },
+         { "displayed": "X600",
+           "calibrated": 888,
+           "date_update": "13/12/2024"
+        },
+         { "displayed": "X500",
+           "calibrated": 720,
+           "date_update": "13/12/2024"
         }
 ], 
   "CL":

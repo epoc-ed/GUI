@@ -16,6 +16,26 @@ from .ui_components.utils import create_gaussian
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
+import subprocess
+from importlib import resources
+
+def get_git_info():
+    # Load version from installed package resources
+    try:
+        version = resources.read_text('jungfrau_gui', 'version.txt').strip()
+        return f"Viewer {version}"
+    except FileNotFoundError as e:
+        logging.debug(f"File not found: {e}")
+        pass  # Fall back to Git if the file is not found
+    
+    try:
+        # Fall back to git if version.txt is not available
+        tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
+        branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8').split()[-1]
+        return f"Viewer {tag}/{branch}"
+    except subprocess.CalledProcessError:
+        return "Viewer x.x.x"
+
 class EventFilter(QObject):
     def __init__(self, histogram, parent=None):
         super().__init__(parent)
@@ -37,10 +57,7 @@ class ApplicationWindow(QMainWindow):
         self.app = app
         self.receiver = receiver
         self.threadWorkerPairs = []
-        if globals.tem_mode:
-            self.version = 'Viewer 2.0.0/temctrl' # better to be replaced by referring to .github/workflows/release.yml
-        else:
-            self.version = 'Viewer 2.0.0'
+        self.version = get_git_info()
         self.initUI()
 
     def initUI(self):
