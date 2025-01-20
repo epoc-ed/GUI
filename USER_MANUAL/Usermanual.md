@@ -286,6 +286,18 @@ To run for the datasets recorded with the previous version of GUI, some paramete
     ```
     (dxtbx.)python jf1m_reprocess.py [full-path-of-xxx_master.h5] [full-path-of-template_directory_path]/XDS-JF1M_JFJ_2024-12-10.INP
     ```
+\**Expected directory structure:*
+```
+.
+|--XDS
+|    └--XDS.INP
+└--DIALS
+     |--dials.import.log
+     |--imported.expt
+     |--dials.find_spots.log
+     |--strong.refl
+     :
+```
 
 ## Troubleshooting
 
