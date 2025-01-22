@@ -1,5 +1,8 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 15 Dec 2024\
+This document was updated on 22 Jan 2025\
+
+<span style="color:red;">This branch has become obsolete with the transition from REUSS to JUNGFRAUJOCH backend</span>
+
 **When you encounter bug-like behaviors, please check [known bugs](#Known-bugs).**
 
 ## Table of Contents
@@ -71,10 +74,10 @@ This document was updated on 15 Dec 2024\
    ```bash
    cd /home/instruments/jem2100plus/GUI
    ```
-5. Confirm you are on the `dev/jfj_integration` branch, otherwise switch:
+5. Confirm you are on the `JF500k_PC` branch, otherwise switch:
    ```bash
    git branch --contains
-   git switch dev/jfj_integration
+   git switch JF500k_PC
    ```
 6. Start the GUI:
    ```bash
@@ -116,13 +119,13 @@ This document was updated on 15 Dec 2024\
    ```
 7. Switch to the correct branch:
    ```bash
-   git switch testing
+   git switch JF500k_PC
    ```
    or
    ```bash
-   git checkout testing
+   git checkout JF500k_PC
    ```
-8. Confirm you are on the `testing` branch:
+8. Confirm you are on the `JF500k_PC` branch:
    ```bash
    git branch --contains
    ```
