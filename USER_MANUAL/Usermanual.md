@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 15 Dec 2024\
+This document was updated on 22 Jan 2024\
 **When you encounter bug-like behaviors, please check [known bugs](#Known-bugs).**
 
 ## Table of Contents
@@ -41,9 +41,7 @@ This document was updated on 15 Dec 2024\
    This must be done **before** starting the GUI below.
 2. Follow the below steps depending on the receiver in use:
    
-## Starting the Receiver
-
-### A. JUNGFRAUJOCH
+## Starting the JUNGFRAUJOCH Receiver
 
 #### Server (noether)
 **This part is a bit out of date and will soon be updated. Broker and Writer are runnig backgroud and users need not care them in usual. (13 Dec 2024)**
@@ -71,14 +69,14 @@ This document was updated on 15 Dec 2024\
    ```bash
    cd /home/instruments/jem2100plus/GUI
    ```
-5. Confirm you are on the `dev/jfj_integration` branch, otherwise switch:
+5. Confirm you are on the `no-reuss-client` branch, otherwise switch:
    ```bash
    git branch --contains
-   git switch dev/jfj_integration
+   git switch no-reuss-client
    ```
 6. Start the GUI:
    ```bash
-   python launch_gui.py -jfj -t -s tcp://noether:5501
+   python launch_gui.py -t -s tcp://noether:5501
    ```
    >```-f``` can be added to save logs in a file
 7. To start streaming:
@@ -90,72 +88,11 @@ This document was updated on 15 Dec 2024\
 8. To collect data when TEM controls are OFF:
    > Push the button ```Collect``` and stop collection with ```Cancel```
 
-### B. REUSS
-
-#### CameraPC (hodgkin)
-1. When logged in as `psi`, the environment has been set up.
-2. Configure the detector:
-   ```bash
-   p config ~/jf.config
-   ```
-3. Start detector acquisition:
-   ```bash
-   p start
-   ```
-4. Change to the receiver directory:
-   ```bash
-   cd /home/psi/software/v2/reuss/python/reuss
-   ```
-5. Start the receiver server using 12 threads for e.g.:
-   ```bash
-   python ReceiverServer.py -t 12
-   ```
-6. Change to the GUI directory:
-   ```bash
-   cd /home/psi/software/viewer_2.0/GUI
-   ```
-7. Switch to the correct branch:
-   ```bash
-   git switch testing
-   ```
-   or
-   ```bash
-   git checkout testing
-   ```
-8. Confirm you are on the `testing` branch:
-   ```bash
-   git branch --contains
-   ```
-9. Start the GUI:
-   ```bash
-   python launch_gui.py
-   ```
-   To use TEM control functions, run:
-   ```bash
-   python launch_gui.py -t
-   ```
-10. In the Jungfrau_GUI, start streaming without the incident beam by clicking on `View Stream`.
-11. Click on `Connect to Receiver`. Once the button turns green, all controls are enabled.
-12. Click `Start Stream` to start receiving frames.
-13. Adjust the `Acquisition Interval (ms)` in the spinbox. To reduce the delay, set it to `20`. For less logging, increase the value to `50` or `60`.
-14. Click `Record Full Pedestal` to subtract dark frames.
-
-   > More details on the receiver controls are in the [Summing Receiver Controls](#summing-receiver-controls) section.
-
 ## Deactivation
 
 ### CameraPC (hodgkin)
-1. Stop the receiver by clicking the `Stop`(JFJ) or `Stop Receiver`(REUSS) pushbutton. This may take several seconds.\
-   > If the stop operation fails, open another terminal and kill the process manually:
-   ```bash
-   ps aux | grep ReceiverServer
-   kill -9 [process-id]
-   ```
+1. Stop the receiver by clicking the `Stop` pushbutton. This may take several seconds.\
 2. Disconnect to TEM, stop streaming, and exit the viewer.
-3. Abort detector acquistion:
-   ```bash
-   p stop
-   ```
 
 ### TEM-PC
 1. Open another PowerShell console and kill the corresponding python process:
@@ -184,20 +121,6 @@ This document was updated on 15 Dec 2024\
             - `wait`:
 - `Collect`: Starts recording of frame streams. Ends with `Cancel`.
 - `Record Full Pedestal`: Records and subtracts the dark frames. Temporarily gets unresponsive to any controls (several seconds). Pedestal data is saved in jfj (not in GUI).
-
-#### B. [REUSS](../jungfrau_gui/screenshot/ver_26Sept2024.png)
-**Important:** The below controls are compatible with the new receiver `~/software/v2/reuss/python/reuss/ReceiverServer.py`.
-
-Main operations:\
-- `Connect to Receiver`: Establishes a connection with the receiver. The button turns green if the server script is running.\
-- `Start Stream`: Starts streaming assembled and summed frames via ZeroMQ.\
-- `Stop Receiver`: Stops the summing receiver. (Note: the stop operation is not always reliable. See [issue #42](https://github.com/slsdetectorgroup/reuss/issues/42).)
-
-More:\
-- `Summing Factor`: Set the number of frames to sum.\
-- `Set Frames Number`: Sets the number of frames to sum using the summing factor.\
-- `Record Full Pedestal`: Records and subtracts the dark frames (equivalent to `r.record_pedestal(1)` in the old receiver).\
-- `Record Gain G0`: Records the pedestal for gain G0 (equivalent to `r.record_pedestal(2)`).
 
 ### [TEM-control Function](../jungfrau_gui/screenshot/ver_16Aug2024.PNG)
 
@@ -253,12 +176,6 @@ More:\
 6. Click `Rotation` to start the rotation and recording.
 7. Continue until the end angle is reached or interrupted.
 8. Take an HDF movie if needed.
-
-### B. [REUSS]
-1. Set up the beam and stage of TEM.
-2. Confirm the data output path on the `H5 Output Path` line-edit.
-3. Start stage rotation and immediately click `Write Stream in H5`.
-4. Stop writing by pressing ```Stop Writing``` just before the rotation ends.
 
 ## Data-processing notes
 
