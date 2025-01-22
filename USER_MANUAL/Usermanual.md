@@ -1,7 +1,7 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
 This document was updated on 22 Jan 2025\
 
-<span style="color:red;">This branch has become obsolete with the transition from REUSS to JUNGFRAUJOCH backend</span>
+> **⚠️ This branch has become obsolete with the transition from REUSS to JUNGFRAUJOCH backend ⚠️**
 
 **When you encounter bug-like behaviors, please check [known bugs](#Known-bugs).**
 
