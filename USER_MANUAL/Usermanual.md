@@ -1,10 +1,10 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 22 Jan 2024\
+This document was updated on 28 Jan 2024\
 **When you encounter bug-like behaviors, please check [known bugs](#Known-bugs).**
 
 ## Table of Contents
 - [TEM control activation](#tem-control-activation)
-- [Starting the receiver](#starting-the-receiver)
+- [Starting the Jungfraujoch receiver](#starting-the-jungfraujoch-receiver)
 - [Deactivation](#deactivation)
 - [Main Functionalities](#main-functionalities)
 - [Summing Receiver Controls](#summing-receiver-controls)
@@ -69,10 +69,10 @@ This document was updated on 22 Jan 2024\
    ```bash
    cd /home/instruments/jem2100plus/GUI
    ```
-5. Confirm you are on the `no-reuss-client` branch, otherwise switch:
+5. Confirm you are on the `testing` branch, otherwise switch:
    ```bash
    git branch --contains
-   git switch no-reuss-client
+   git switch testing
    ```
 6. Start the GUI:
    ```bash
@@ -117,8 +117,10 @@ This document was updated on 22 Jan 2024\
 - `Connect to jungfraujoch`: Establishes a connection with the jungfraujoch-receiver.
 - `Live stream`: Displays summed frames.
 - `Data Collection`:
-    - `Threshold`: \
-            - `wait`:
+    - `Threshold`: Defines the energy (**th**) in keV below which values are cut.\
+          - If **th = 0** : Thresholding is disabled \
+          - If **th > 0** : Pixel values below **th** are reset to zero. \
+    - `wait`: If checked, this option freezes the GUI during data collection.
 - `Collect`: Starts recording of frame streams. Ends with `Cancel`.
 - `Record Full Pedestal`: Records and subtracts the dark frames. Temporarily gets unresponsive to any controls (several seconds). Pedestal data is saved in jfj (not in GUI).
 
