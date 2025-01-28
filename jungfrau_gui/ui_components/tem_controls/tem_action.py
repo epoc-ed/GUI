@@ -145,8 +145,8 @@ class TEMAction(QObject):
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: red; color: white;')
             self.tem_tasks.connecttem_button.setText("Disconnected")
         self.enabling(tem_connected) #also disables buttons if tem-gui connection is cut
-        if tem_connected:
-            self.control.send_to_tem("#more")
+        # if tem_connected:
+        #     self.control.send_to_tem("#more")
         
     def callGetInfoTask(self):
         self.control.init.emit()
@@ -212,7 +212,14 @@ class TEMAction(QObject):
     def toggle_mag_modes(self):
         if self.tem_stagectrl.mag_modes.checkedId() == 4:
             self.visualization_panel.resetContrastBtn.clicked.emit()
-        self.control.execute_command("SelectFunctionMode("+ str(self.tem_stagectrl.mag_modes.checkedId()) +")")
+        try:
+            self.control.execute_command("SelectFunctionMode("+ str(self.tem_stagectrl.mag_modes.checkedId()) +")")
+            print(f"self.control.client.GetFunctionMode()[0] = {self.control.client.GetFunctionMode()[0]}")
+        except Exception as e:
+            logging.warning(f"Error occured when relaying 'SelectFunctionMode({self.tem_stagectrl.mag_modes.checkedId()}': {e}")
+            idx = self.control.client.GetFunctionMode()[0]
+            if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
+            self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
 
     def update_rotation_speed_idx_from_ui(self):
         self.cfg.rotation_speed_idx = self.tem_stagectrl.rb_speeds.checkedId()
