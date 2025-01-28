@@ -267,7 +267,7 @@ class ControlWorker(QObject):
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
             
-            logging.info("TEM Status Dictionnary updated!")
+            logging.debug("TEM Status Dictionnary updated!")
             
             # import json
             # # Save to text file
