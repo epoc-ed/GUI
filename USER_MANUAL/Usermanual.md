@@ -155,9 +155,9 @@ This document was updated on 29 Jan 2024\
 - `Rotation Speed`: Adjusts rotation speed before starting the rotation. Also updates the `rotation_speed_idx` variable of the Configuration Manager in the data base.
 - `Stage Ctrl`: Moves the stage in specific direction. \*Rotations are not automatically quicken.
 - `Mag Mode`: Switches and indicates the current magnification mode. Also deactivates the Auto-contrast. [See issue \#80](https://github.com/epoc-ed/GUI/issues/80).
-- 'Positions': Dropdown menu to set the XY positions of the stage
-    - 'Add': Enquires about TEM stage position (through the API) and saves the coordinates in the dropdown menu 
-    - 'Go': Sends the command to move the TEM stage the X-Y coordiantes set in the 'Positions' menu
+- `Positions`: Dropdown menu to set the XY positions of the stage
+    - `Add`: Enquires about TEM stage position (through the API) and saves the coordinates in the dropdown menu 
+    - `Go`: Sends the command to move the TEM stage the X-Y coordiantes set in the `Positions` menu
 ### [File Operation and Redis](../jungfrau_gui/screenshot/ver_24Sept2024.png)
 
 #### Redis Store Settings
@@ -169,6 +169,7 @@ This document was updated on 29 Jan 2024\
 **Note:** The [Get] buttons were coded for debugging purposes. They will be removed for the stable version.
 
 **Important:** TIFF-Writer and HDF5-Writer have not been tested with JFJ. Use [`Collect`](#summing-receiver-controls) in Visualization Panel instead.
+
 #### TIFF Writer
 - `Tiff File Name`: Area to define the name of the TIFF file and its index. It contains:\
    <small>
@@ -185,7 +186,7 @@ This document was updated on 29 Jan 2024\
 - `index`*: Set the file index for the HDF5 file.
 - `H5 Output Path`: Read-only field showing the path where datasets are saved.
 
-**Important:** All the fields with (*) are manually editable. During edition, the entered values/text will be displayed in orange i.e. temporary values. By pressing the [ENTER] key, modifications are confirmed and new values uploaded to the data base.
+**⚠️ Important ⚠️** All the fields with (*) are manually editable. During edition, the entered values/text will be displayed in orange. Press [ENTER] to confirm modifications and values will be uploaded to the data base.
 
 ## Data-recording workflow
 1. Set up the beam and stage of TEM.
