@@ -231,7 +231,7 @@ class TEMAction(QObject):
             self.visualization_panel.resetContrastBtn.clicked.emit()
         try:
             self.control.execute_command("SelectFunctionMode("+ str(self.tem_stagectrl.mag_modes.checkedId()) +")")
-            print(f"self.control.client.GetFunctionMode()[0] = {self.control.client.GetFunctionMode()[0]}")
+            logging.info(f"Function Mode switched to {self.control.client.GetFunctionMode()[0]} (0=MAG, 2=Low MAG, 4=DIFF)")
         except Exception as e:
             logging.warning(f"Error occured when relaying 'SelectFunctionMode({self.tem_stagectrl.mag_modes.checkedId()}': {e}")
             idx = self.control.client.GetFunctionMode()[0]
