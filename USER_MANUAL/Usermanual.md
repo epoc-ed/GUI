@@ -158,6 +158,7 @@ This document was updated on 29 Jan 2024\
 - `Positions`: Dropdown menu to set the XY positions of the stage
     - `Add`: Enquires about TEM stage position (through the API) and saves the coordinates in the dropdown menu 
     - `Go`: Sends the command to move the TEM stage the X-Y coordiantes set in the `Positions` menu
+    
 ### [File Operation and Redis](../jungfrau_gui/screenshot/ver_24Sept2024.png)
 
 #### Redis Store Settings
