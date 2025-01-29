@@ -86,6 +86,7 @@ class ControlWorker(QObject):
         
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
+        self.previous_tx_abs = 0
 
         """ 
         if os.name == 'nt': # test on Win-Win

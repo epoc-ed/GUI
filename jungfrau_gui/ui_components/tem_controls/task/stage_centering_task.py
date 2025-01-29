@@ -91,8 +91,8 @@ class CenteringTask(Task):
                 logging.info(f'Too small or too large Z-Vector: {movez}')
                 return
             logging.info(f'Move Z: {movez} with MAG: {magnification[2]}')
-            logging.warning(f'Move Z is not activated yet!!')
-            # self.client.SetZRel(movez[1]*-1e3)
+            # logging.warning(f'Move Z is not activated yet!!')
+            self.client.SetZRel(movez*-1e3)
         
         while not self.client.is_rotating: # should be replaced with 'is_moving'
             logging.info('Stage movement ends or is interrupted.')
