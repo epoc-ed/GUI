@@ -96,7 +96,9 @@ if __name__ == "__main__":
         tem_status = json.load(file)
 
     beamcenter = [173, 170] # Read from Redis DB
+    rotations_angles = [0.0, 0.0, 0.0, 0.0, 0.0] # Define a list with the correct format 
+    jf_threshold = 5 
     input("Enter to continue!")
 
     notifier = MetadataNotifier(host=args.host, port=args.port)
-    notifier.notify_metadata_update(args.filepath, tem_status, beamcenter)
+    notifier.notify_metadata_update(args.filepath, tem_status, beamcenter, rotations_angles, jf_threshold)
