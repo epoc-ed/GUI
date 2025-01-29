@@ -1,7 +1,8 @@
 import pyqtgraph as pg
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
-from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject
+from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
+from PySide6.QtGui import QFont
 
 from .toolbox.tool import *
 from .toolbox import config as cfg_jf
@@ -18,6 +19,7 @@ class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
+    trigger_additem = Signal(str, str)
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
@@ -38,9 +40,11 @@ class TEMAction(QObject):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
         self.scale = None
+        self.marker = None
         # self.formatted_filename = '' # TODO DELETE? See use in 'callGetInfoTask' below 
         self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
         # self.xds_template_filepath = self.cfg.XDS_template
+        self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
@@ -81,7 +85,11 @@ class TEMAction(QObject):
         #             lambda: self.control.client.SetTiltXAngle(0))
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
-        
+        self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
+        self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
+        self.trigger_additem.connect(self.add_listedposition)
+        self.plot_listedposition()
+
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
         self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
@@ -103,6 +111,8 @@ class TEMAction(QObject):
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
+        self.tem_stagectrl.go_button.setEnabled(enables)
+        self.tem_stagectrl.addpos_button.setEnabled(enables)
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
@@ -179,6 +189,7 @@ class TEMAction(QObject):
 
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
         self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        self.plot_currentposition()
 
         if not self.tem_tasks.rotation_button.started:
             if self.tem_tasks.withwriter_checkbox.isChecked():
@@ -277,3 +288,39 @@ class TEMAction(QObject):
                 self.tem_tasks.parent.plotDialog.close_window()
             self.control.actionFit_Beam.emit()
             # self.control.stop_task()
+
+    def go_listedposition(self):
+        position = self.control.client.GetStagePosition() # in nm
+        position_aim = np.array(self.tem_stagectrl.position_list.currentText().split()[1:-2], dtype=float) # in um
+        dif_pos = position_aim[0]*1e3 - position[0], position_aim[1]*1e3 - position[1]
+        try:
+            self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1]) # lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
+            time.sleep(2) # should be updated with referring stage status!!
+            logging.info(f"Moved to x:{dif_pos[0]*1e-3:6.2f} um, y:{dif_pos[1]*1e-3:6.2f} um")
+        except RuntimeError:
+            logging.warning('To set position, use specific version of tem_server.py!')
+            self.tem_stagectrl.go_button.setEnabled(False)
+
+    @Slot(str, str)
+    def add_listedposition(self, color='red', status='new'):
+        position = self.control.client.GetStagePosition()
+        new_id = self.tem_stagectrl.position_list.count() - 4
+        self.tem_stagectrl.position_list.addItems([f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"])
+        self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color))
+        label = pg.TextItem(str(new_id), anchor=(0, 1))
+        label.setFont(QFont('Arial', 8))
+        label.setPos(position[0]*1e-3, position[1]*1e-3)
+        self.tem_stagectrl.gridarea.addItem(label)
+        logging.info(f"{new_id}: {position} is added to the list")
+
+    def plot_listedposition(self, color='gray'):
+        xy_list = [self.tem_stagectrl.position_list.itemText(i).split()[1:-2] for i in range(self.tem_stagectrl.position_list.count())]
+        xy_list = np.array(xy_list).T
+        self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=xy_list[0], y=xy_list[1], brush=color))
+
+    def plot_currentposition(self, color='yellow'):
+        if self.marker != None:
+            self.tem_stagectrl.gridarea.removeItem(self.marker)
+        position = self.control.tem_status["stage.GetPos"]
+        self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
+        self.tem_stagectrl.gridarea.addItem(self.marker)

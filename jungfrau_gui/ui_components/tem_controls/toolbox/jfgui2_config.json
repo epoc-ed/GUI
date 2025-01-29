@@ -168,5 +168,33 @@
            "size": 10,
            "unit": "um"
          }
-]
+],
+  "position":
+        [
+         { "ID": 0,
+           "xyz": [0, 0, 0],
+           "status": "preset",
+           "unit": "um"
+         },
+         { "ID": -1,
+           "xyz": [500, 500, 0],
+           "status": "preset",
+           "unit": "um"
+         },
+         { "ID": -2,
+           "xyz": [-500, 500, 0],
+           "status": "preset",
+           "unit": "um"
+         },
+         { "ID": -3,
+           "xyz": [500, -500, 0],
+           "status": "preset",
+           "unit": "um"
+         },
+         { "ID": -4,
+           "xyz": [-500, -500, 0],
+           "status": "preset",
+           "unit": "um"
+         }  
+] 
 }

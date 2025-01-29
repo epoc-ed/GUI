@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
-                               QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy)
+                               QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy, QComboBox)
 from PySide6.QtGui import QFont
 from ..toggle_button import ToggleButton
 from ..utils import create_horizontal_line_with_margin
@@ -7,6 +7,8 @@ from ..utils import create_horizontal_line_with_margin
 from epoc import ConfigurationClient, auth_token, redis_host
 
 from ... import globals
+import pyqtgraph as pg
+import numpy as np
 
 class TEMDetector(QGroupBox):
     def __init__(self):
@@ -103,6 +105,37 @@ class TEMStageCtrl(QGroupBox):
             self.hbox_magmode.addWidget(i, 1)
         #self.hbox_magmode.addWidget(self.contrast_checkbox, 1)
         
+        self.hbox_gotopos = QHBoxLayout()
+        gotopos_label = QLabel("Positions:", self)
+        self.position_list = QComboBox(self)
+        self.position_list.setEditable(False)
+        self.addpos_button = QPushButton("Add", self)
+        self.addpos_button.setEnabled(False)
+        self.go_button = QPushButton("Go", self)
+        self.go_button.setEnabled(False)
+        # self.goxyz_button = QPushButton("Go XYZ", self)
+        self.hbox_gotopos.addWidget(gotopos_label, 1)
+        self.hbox_gotopos.addWidget(self.position_list, 7)
+        self.hbox_gotopos.addWidget(self.addpos_button, 1)
+        self.hbox_gotopos.addWidget(self.go_button, 1)
+        stage_ctrl_section.addLayout(self.hbox_gotopos)
+        
+        self.plot_layout = QVBoxLayout()
+        self.grid_plot = pg.PlotWidget()
+        self.plot_layout.addWidget(self.grid_plot)
+        self.gridarea = self.grid_plot.plotItem
+        radius = 3050 # in um
+        x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
+        y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
+        self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
+        radius = 2350 # in um not very correct value!!
+        x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
+        y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
+        self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
+        self.grid_plot.setAspectLocked()
+        self.grid_plot.showGrid(x=True, y=True)
+        stage_ctrl_section.addLayout(self.plot_layout)
+
         self.setLayout(stage_ctrl_section)
 
 class TEMTasks(QGroupBox):
