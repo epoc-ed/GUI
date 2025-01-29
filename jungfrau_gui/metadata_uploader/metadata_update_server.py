@@ -246,7 +246,8 @@ class Hdf5MetadataUpdater:
                 aperture_size_cl = message["aperture_size_cl"]
                 aperture_size_sa = message["aperture_size_sa"]
                 self.addinfo_to_hdf(filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold)
-                self.socket.send_string("Metadata added successfully")
+                self.addusermask_to_hdf(filename)
+                self.socket.send_string("Metadata/Maskdata added successfully") # self.socket.send_string("Metadata added successfully")
                 
                 if rotations_angles is not None:
                     with h5py.File(filename, 'r') as f:
@@ -278,6 +279,26 @@ class Hdf5MetadataUpdater:
         self.running = False
         logging.info("Stopping server...")
 
+    def addusermask_to_hdf(self, filename, usermask='670,670,257,314', sidemask=True, maskvalue=8):
+        try:
+            with h5py.File(filename, 'a') as f:
+                try:
+                    mask = f['entry/instrument/detector/detectorSpecific/pixel_mask'][()]
+                    f.create_dataset('entry/instrument/detector/detectorSpecific/pixel_mask_original', mask.shape, dtype=mask.dtype, data=mask)
+                    mask_xy = np.array(usermask.split(sep=',')).astype('int')
+                    mask[mask_xy[2]:mask_xy[3]+1, mask_xy[0]:mask_xy[1]+1] = maskvalue # hot pixel streak
+                    if sidemask:
+                        mask[:, 0:16] = maskvalue # left-side hidden area
+                        mask[:, 1019:1029] = maskvalue # right-side hidden area
+                    del f['entry/instrument/detector/detectorSpecific/pixel_mask']
+                    f.create_dataset('entry/instrument/detector/detectorSpecific/pixel_mask', mask.shape, dtype=mask.dtype, data=mask)
+
+                    logging.info(f'Maskdata updated in {filename}')
+                except ValueError as e:
+                    logging.warning(f"ValueError while updating maskdata: {e}")
+        except OSError as e:
+            logging.error(f"Failed to update maskdata in {filename}: {e}")
+        
     def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold, pixel=0.075):
         detector_framerate = 2000 # Hz for Jungfrau
         ht = 200  # keV  # <- HT3
