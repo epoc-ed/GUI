@@ -296,7 +296,8 @@ class TEMAction(QObject):
         try:
             self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1]) # lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
             time.sleep(2) # should be updated with referring stage status!!
-            logging.info(f"Moved to x:{dif_pos[0]*1e-3:6.2f} um, y:{dif_pos[1]*1e-3:6.2f} um")
+            logging.info(f"Moved by x:{dif_pos[0]*1e-3:6.2f} um, y:{dif_pos[1]*1e-3:6.2f} um")
+            logging.info(f"Aim position was x:{position_aim[0]:3.2f} um, y:{position_aim[1]:3.2f} um")
         except RuntimeError:
             logging.warning('To set position, use specific version of tem_server.py!')
             self.tem_stagectrl.go_button.setEnabled(False)
