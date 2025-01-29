@@ -125,7 +125,7 @@ class TEMAction(QObject):
             self.connectorWorkerReady = True
             logging.info("Starting tem-connecting process")
             self.tem_tasks.connecttem_button.started = True
-            self.timer_tem_connexion.start(500)
+            self.timer_tem_connexion.start(2000) # 2 seconds between pings
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")
@@ -156,7 +156,7 @@ class TEMAction(QObject):
             self.tem_tasks.connecttem_button.setText("Disconnected")
         self.enabling(tem_connected) #also disables buttons if tem-gui connection is cut
         # if tem_connected:
-        #     self.control.send_to_tem("#more")
+        #     self.control.send_to_tem("#more") #self.control.send_to_tem("#info")
         
     def callGetInfoTask(self):
         self.control.init.emit()
@@ -216,10 +216,16 @@ class TEMAction(QObject):
             self.scale.setPen(pg.mkPen('w', width=2))
             self.parent.plot.addItem(self.scale)        
             
-    def toggle_rb_speeds(self):   
-        self.update_rotation_speed_idx_from_ui()
-        self.control.execute_command("Setf1OverRateTxNum("+ str(self.cfg.rotation_speed_idx) +")")
-
+    def toggle_rb_speeds(self):
+        if self.cfg.rotation_speed_idx != self.tem_stagectrl.rb_speeds.checkedId():
+            self.update_rotation_speed_idx_from_ui()
+            result = self.control.execute_command("Setf1OverRateTxNum("+ str(self.cfg.rotation_speed_idx) +")")
+            if result is not None:
+                logging.info(f"Rotation velocity is set to {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
+            else:
+                rotation_at_tem = self.control.client.Getf1OverRateTxNum()
+                logging.error(f"It seems changes of rotation speed has failed!\nRotation at TEM is {[10.0, 2.0, 1.0, 0.5][rotation_at_tem]} deg/s")
+    
     def toggle_mag_modes(self):
         if self.tem_stagectrl.mag_modes.checkedId() == 4:
             self.visualization_panel.resetContrastBtn.clicked.emit()
