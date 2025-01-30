@@ -285,7 +285,7 @@ class ControlWorker(QObject):
         try:
             for entry in response:
                 self.tem_status[entry] = response[entry]
-            logging.info(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
+            logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
             if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
@@ -326,17 +326,20 @@ class ControlWorker(QObject):
             toc = time.perf_counter()
             logging.debug(f"Getting info for {query} took {toc - tic} seconds")
         toc_loop = time.perf_counter()
-        logging.warning(f"Getting #info took {toc_loop - tic_loop} seconds")
+        logging.debug(f"Getting #info took {toc_loop - tic_loop} seconds")
         return results
     
     def get_state_detailed(self):
         results = {}
+        tic_loop = time.perf_counter()
         for query in tools.MORE_QUERIES:
             result = {}
             result["tst_before"] = time.time()
             result["val"] = self.execute_command(tools.full_mapping[query])
             result["tst_after"] = time.time()
-            results[query] = result
+            results[query] = result   
+        toc_loop = time.perf_counter()
+        logging.debug(f"Getting #more took {toc_loop - tic_loop} seconds")
         return results
 
     def execute_command(self, command_str):

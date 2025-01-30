@@ -176,36 +176,23 @@ class TEMAction(QObject):
         
         # Update Magnification radio button in GUI to refelct status of TEM
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
-        try:
+
+        if Mag_idx in [0, 1, 2]:
             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
-
-            if Mag_idx in [0, 1, 2]:
-                magnification = self.control.tem_status["eos.GetMagValue"][2]
-                self.tem_detector.input_magnification.setText(magnification)
-                self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
-            elif Mag_idx == 4:
-                detector_distance = self.control.tem_status["eos.GetMagValue"][2]
-                self.tem_detector.input_det_distance.setText(detector_distance)
-                self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
-
-        except Exception as e:
-            if Mag_idx not in [0, 1, 2, 4]:
-                logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM\
-                              Error message is: {e}")
-            else:
-                logging.error(f"An unknown error occured: {e} ")
+            magnification = self.control.tem_status["eos.GetMagValue"][2]
+            self.tem_detector.input_magnification.setText(magnification)
+            self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
+        elif Mag_idx == 4:
+            self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
+            detector_distance = self.control.tem_status["eos.GetMagValue"][2]
+            self.tem_detector.input_det_distance.setText(detector_distance)
+            self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
+        else:
+            logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
         
         # Update rotation_speed radio button in GUI to refelct status of TEM
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
-        try:
-            self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
-        
-        except Exception as e:
-            if rotation_speed_index not in [0, 1, 2, 3]:
-                logging.error(f"Rotation index is invalid. Possible error when relaying 'stage.Getf1OverRateTxNum' to TEM\
-                              Error message is: {e}")
-            else:
-                logging.error(f"An unknown error occured: {e} ")
+        self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         
         self.plot_currentposition()
 
@@ -235,29 +222,32 @@ class TEMAction(QObject):
             self.parent.plot.addItem(self.scale)        
             
     def toggle_rb_speeds(self):
-        if self.cfg.rotation_speed_idx != self.tem_stagectrl.rb_speeds.checkedId():
-            self.update_rotation_speed_idx_from_ui()
-            result = self.control.execute_command("Setf1OverRateTxNum("+ str(self.cfg.rotation_speed_idx) +")")
+        idx_rot_button = self.tem_stagectrl.rb_speeds.checkedId()
+        if self.cfg.rotation_speed_idx != idx_rot_button:
+            self.update_rotation_speed_idx_from_ui(idx_rot_button)
+            result = self.control.execute_command("Setf1OverRateTxNum("+ str(idx_rot_button) +")")
             if result is not None:
-                logging.info(f"Rotation velocity is set to {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
+                logging.info(f"Rotation velocity is set to {[10.0, 2.0, 1.0, 0.5][idx_rot_button]} deg/s")
             else:
                 rotation_at_tem = self.control.client.Getf1OverRateTxNum()
-                logging.error(f"It seems changes of rotation speed has failed!\nRotation at TEM is {[10.0, 2.0, 1.0, 0.5][rotation_at_tem]} deg/s")
+                logging.error(f"Changes of rotation speed has failed!\nRotation at TEM is {[10.0, 2.0, 1.0, 0.5][rotation_at_tem]} deg/s")
+                # TODO ? Make sure the right (eq to TEM status) button is checked
     
     def toggle_mag_modes(self):
-        if self.tem_stagectrl.mag_modes.checkedId() == 4:
+        idx_mag_button = self.tem_stagectrl.mag_modes.checkedId()
+        if idx_mag_button == 4:
             self.visualization_panel.resetContrastBtn.clicked.emit()
         try:
-            self.control.execute_command("SelectFunctionMode("+ str(self.tem_stagectrl.mag_modes.checkedId()) +")")
+            self.control.client.SelectFunctionMode(idx_mag_button)
             logging.info(f"Function Mode switched to {self.control.client.GetFunctionMode()[0]} (0=MAG, 2=Low MAG, 4=DIFF)")
         except Exception as e:
-            logging.warning(f"Error occured when relaying 'SelectFunctionMode({self.tem_stagectrl.mag_modes.checkedId()}': {e}")
+            logging.warning(f"Error occured when relaying 'SelectFunctionMode({idx_mag_button}': {e}")
             idx = self.control.client.GetFunctionMode()[0]
             if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
             self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
 
-    def update_rotation_speed_idx_from_ui(self):
-        self.cfg.rotation_speed_idx = self.tem_stagectrl.rb_speeds.checkedId()
+    def update_rotation_speed_idx_from_ui(self, idx_rot_button):
+        self.cfg.rotation_speed_idx = idx_rot_button
         logging.debug(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
 
     def toggle_rotation(self):
