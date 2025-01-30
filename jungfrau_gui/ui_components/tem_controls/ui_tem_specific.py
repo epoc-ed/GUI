@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
-                               QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy, QComboBox)
+                               QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy, QComboBox,
+                               QSpinBox)
 from PySide6.QtGui import QFont
 from ..toggle_button import ToggleButton
 from ..utils import create_horizontal_line_with_margin
@@ -155,6 +156,14 @@ class TEMTasks(QGroupBox):
         CTN_label.setFont(font_big)
         self.connecttem_button = ToggleButton('Check TEM Connection', self)
         self.connecttem_button.setEnabled(True)
+        self.polling_frequency = QSpinBox(self)
+        self.polling_frequency.setMinimum(100)
+        self.polling_frequency.setMaximum(10000)
+        self.polling_frequency.setValue(1000)
+        self.polling_frequency.setSingleStep(100)
+        self.polling_frequency.setPrefix("Polling Freq: ")
+        self.polling_frequency.setSuffix("ms")
+        self.connecttem_button.setEnabled(True)
         self.gettem_button = QPushButton("Get TEM status", self)
         self.gettem_checkbox = QCheckBox("recording", self)
         self.gettem_button.setEnabled(False)
@@ -218,6 +227,7 @@ class TEMTasks(QGroupBox):
 
         CTN_group.addWidget(CTN_label)
         CTN_section.addWidget(self.connecttem_button)
+        CTN_section.addWidget(self.polling_frequency)
         CTN_section.addWidget(self.gettem_button)
         CTN_section.addWidget(self.gettem_checkbox)
         CTN_group.addLayout(CTN_section)

@@ -125,7 +125,7 @@ class TEMAction(QObject):
             self.connectorWorkerReady = True
             logging.info("Starting tem-connecting process")
             self.tem_tasks.connecttem_button.started = True
-            self.timer_tem_connexion.start(2000) # 2 seconds between pings
+            self.timer_tem_connexion.start(self.tem_tasks.polling_frequency.value()) # 0.5 seconds between pings
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")
@@ -155,8 +155,8 @@ class TEMAction(QObject):
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: red; color: white;')
             self.tem_tasks.connecttem_button.setText("Disconnected")
         self.enabling(tem_connected) #also disables buttons if tem-gui connection is cut
-        # if tem_connected:
-        #     self.control.send_to_tem("#more") #self.control.send_to_tem("#info")
+        if tem_connected:
+            self.control.send_to_tem("#info")
         
     def callGetInfoTask(self):
         self.control.init.emit()
@@ -174,21 +174,39 @@ class TEMAction(QObject):
         angle_x = self.control.tem_status["stage.GetPos"][3]
         self.tem_tasks.input_start_angle.setValue(angle_x)
         
-        if self.control.tem_status["eos.GetFunctionMode"][0] in [0, 1, 2]:
-            idx = self.control.tem_status["eos.GetFunctionMode"][0]
-            if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
-            self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
-            magnification = self.control.tem_status["eos.GetMagValue"][2]
-            self.tem_detector.input_magnification.setText(magnification)
-            self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
-        elif self.control.tem_status["eos.GetFunctionMode"][0] == 4:
-            self.tem_stagectrl.mag_modes.button(4).setChecked(True)
-            detector_distance = self.control.tem_status["eos.GetMagValue"][2]
-            self.tem_detector.input_det_distance.setText(detector_distance)
-            self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
+        # Update Magnification radio button in GUI to refelct status of TEM
+        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
+        try:
+            self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
 
+            if Mag_idx in [0, 1, 2]:
+                magnification = self.control.tem_status["eos.GetMagValue"][2]
+                self.tem_detector.input_magnification.setText(magnification)
+                self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
+            elif Mag_idx == 4:
+                detector_distance = self.control.tem_status["eos.GetMagValue"][2]
+                self.tem_detector.input_det_distance.setText(detector_distance)
+                self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
+
+        except Exception as e:
+            if Mag_idx not in [0, 1, 2, 4]:
+                logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM\
+                              Error message is: {e}")
+            else:
+                logging.error(f"An unknown error occured: {e} ")
+        
+        # Update rotation_speed radio button in GUI to refelct status of TEM
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
-        self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        try:
+            self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        
+        except Exception as e:
+            if rotation_speed_index not in [0, 1, 2, 3]:
+                logging.error(f"Rotation index is invalid. Possible error when relaying 'stage.Getf1OverRateTxNum' to TEM\
+                              Error message is: {e}")
+            else:
+                logging.error(f"An unknown error occured: {e} ")
+        
         self.plot_currentposition()
 
         if not self.tem_tasks.rotation_button.started:

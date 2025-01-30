@@ -101,6 +101,14 @@ MORE_QUERIES_CLIENT = [
     "GetMovementValueMeasurementMethod()"  # 0=encoder/1=potentio
 ]
 
+# Map of Magnification status and correspondent radio button i.e. {Mag_idx : button_idx}
+mag_indices = {
+    0:0, # 0=MAG     is equivalent to check button 0
+    1:0, # 1=MAG2    is equivalent to check button 0
+    2:2, # 2=Low MAG is equivalent to check button 2
+    4:4  # 4=DIFF    is equivalent to check button 4
+}
+
 # Creating the full mapping
 full_mapping = create_full_mapping(INFO_QUERIES, MORE_QUERIES, INFO_QUERIES_CLIENT, MORE_QUERIES_CLIENT)
 

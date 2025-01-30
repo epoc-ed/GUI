@@ -36,6 +36,7 @@ class ControlWorker(QObject):
     finished_record_task = Signal()
     # tem_socket_status = Signal(int, str)
     
+    trigger_tem_update_detailed = Signal(dict)
     trigger_tem_update = Signal(dict)
 
     fit_complete = Signal(dict)
@@ -78,6 +79,7 @@ class ControlWorker(QObject):
         self.actionFit_Beam.connect(self.start_beam_fit)
         self.trigger_stop_autofocus.connect(self.set_worker_not_ready)
         
+        self.trigger_tem_update_detailed.connect(self.update_tem_status_detailed)
         self.trigger_tem_update.connect(self.update_tem_status)
         
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
@@ -244,7 +246,7 @@ class ControlWorker(QObject):
         self.sweepingWorkerReady = False
 
     @Slot(dict)
-    def update_tem_status(self, response):
+    def update_tem_status_detailed(self, response):
         """ 
         #*************** 
         print(f"Display update values")
@@ -278,6 +280,22 @@ class ControlWorker(QObject):
         except Exception as e:
             logging.error(f"Error during updating tem_status map: {e}")
 
+    @Slot(dict)
+    def update_tem_status(self, response):
+        try:
+            for entry in response:
+                self.tem_status[entry] = response[entry]
+            logging.info(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
+            if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
+                self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
+            elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
+                self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
+
+            self.updated.emit()
+            
+        except Exception as e:
+            logging.error(f"Error during quick updating tem_status map: {e}")
+
     @Slot(str) 
     def send_to_tem(self, message):
         logging.debug(f'Sending {message} to TEM...')
@@ -288,8 +306,8 @@ class ControlWorker(QObject):
 
         elif message == "#more":
             # results = self.get_state_detailed()
-            # self.trigger_tem_update.emit(results)
-            threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state_detailed())).start()
+            # self.trigger_tem_update_detailed.emit(results)
+            threading.Thread(target=lambda: self.trigger_tem_update_detailed.emit(self.get_state_detailed())).start()
             
         else:
             logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
@@ -297,6 +315,7 @@ class ControlWorker(QObject):
 
     def get_state(self):
         results = {}
+        tic_loop = time.perf_counter()
         for query in tools.INFO_QUERIES:
             tic = time.perf_counter()
             logging.debug(" ++++++++++++++++ ")
@@ -305,8 +324,9 @@ class ControlWorker(QObject):
             results[query] = self.execute_command(tools.full_mapping[query])
             logging.debug(f"results[query] is {results[query]}")
             toc = time.perf_counter()
-            logging.info(f"Getting info for {query} took {toc - tic} seconds")
-
+            logging.debug(f"Getting info for {query} took {toc - tic} seconds")
+        toc_loop = time.perf_counter()
+        logging.warning(f"Getting #info took {toc_loop - tic_loop} seconds")
         return results
     
     def get_state_detailed(self):
