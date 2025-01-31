@@ -31,7 +31,7 @@ def get_git_info():
     try:
         # Fall back to git if version.txt is not available
         tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
-        branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8')
+        branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8').split()[-1]
         return f"Viewer {tag}/{branch}"
     except subprocess.CalledProcessError:
         return "Viewer x.x.x"

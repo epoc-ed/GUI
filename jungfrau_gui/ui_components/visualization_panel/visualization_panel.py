@@ -952,7 +952,8 @@ class VisualizationPanel(QGroupBox):
             logging.info(f"Timer interval: {self.parent.timer.interval()}")
             # Start timer and enable file operation buttons
             self.parent.timer.start()
-            self.parent.file_operations.accumulate_button.setEnabled(True)
+            # if not globals.jfj:
+            #     self.parent.file_operations.accumulate_button.setEnabled(True)
             self.parent.file_operations.streamWriterButton.setEnabled(True)
         else:
             self.stream_view_button.setText("View Stream")
@@ -962,7 +963,8 @@ class VisualizationPanel(QGroupBox):
             # Properly stop and cleanup worker and thread  
             self.parent.stopWorker(self.thread_read, self.streamReader)
             # Disable buttons
-            self.parent.file_operations.accumulate_button.setEnabled(False)
+            # if not globals.jfj:
+            #     self.parent.file_operations.accumulate_button.setEnabled(False)
             self.parent.file_operations.streamWriterButton.setEnabled(False)
             # Wait for thread to actually stop
             if self.thread_read is not None:

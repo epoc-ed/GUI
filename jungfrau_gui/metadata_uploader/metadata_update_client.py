@@ -40,7 +40,7 @@ class MetadataNotifier:
     def _now(self):
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    def notify_metadata_update(self, filename, tem_status, beamcenter, timeout_ms = 5000):
+    def notify_metadata_update(self, filename, tem_status, beamcenter, rotations_angles, jf_threshold, timeout_ms = 5000):
         
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
@@ -58,6 +58,8 @@ class MetadataNotifier:
                 "filename": filename.as_posix(),
                 "tem_status": tem_status,
                 "beamcenter": beamcenter,
+                "rotations_angles": rotations_angles,
+                "jf_threshold": jf_threshold,
                 "detector_distance": detector_distance,
                 "aperture_size_cl": aperture_size_cl,
                 "aperture_size_sa": aperture_size_sa

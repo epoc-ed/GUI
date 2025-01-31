@@ -69,10 +69,10 @@ This document was updated on 28 Jan 2024\
    ```bash
    cd /home/instruments/jem2100plus/GUI
    ```
-5. Confirm you are on the `testing` branch, otherwise switch:
+5. Confirm you are on the `dev/jfj_integration` branch, otherwise switch:
    ```bash
    git branch --contains
-   git switch testing
+   git switch dev/jfj_integration
    ```
 6. Start the GUI:
    ```bash
@@ -180,18 +180,44 @@ This document was updated on 28 Jan 2024\
 8. Take an HDF movie if needed.
 
 ## Data-processing notes
+updated on 19 Jan 2025
+- Data loading
+    - **XDS**:
+        - [Version before 20.Aug.2024](https://github.com/epoc-ed/epoc-utils/commit/2198487645fbb5390e2f629b570ac0dbf18db268) [The plugin derived from Neggia](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) requires `_master.h5` in the filename. Create a symbolic link:
+            ```
+            ln -s [full-path-of-hdffile] linked_master.h5
+            ```
+        - [Version before 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with float32 format. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can work. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can not.
+        - [Version after 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with int32 format and compressed. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can work. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can not.
+        - Version after XX.Nov.2024 (JFJ installation) Data stored with int32 format and linked with master.h5. [**The original Neggia-plugin**](https://github.com/dectris/neggia/) can process the data.
 
-- **XDS**:  
-    - [Version before 20.Aug.2024](https://github.com/epoc-ed/epoc-utils/commit/2198487645fbb5390e2f629b570ac0dbf18db268) [The plugin derived from Neggia](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) requires `_master.h5` in the filename. Create a symbolic link:
-        ```
-        ln -s [full-path-of-hdffile] linked_master.h5
-        ```
-    - [Version before 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with float32 format. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can work. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can not.
-    - [Version after 10.Oct.2024](https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10) Data stored with int32 format and compressed. [Another plugin](https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master) can work. [Neggia-derived plugin](https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia) can not.
-    - Version after XX.Nov.2024 (JFJ installation) Data stored with int32 format and linked with master.h5. [**The original Neggia-plugin**](https://github.com/dectris/neggia/) can process the data.
 
-- **DIALS**: Install the [updated Format Class](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py) to read the HDF file directly:\
-   ``` dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660 ```
+    - **DIALS**: Install the [updated Format Class for JF1M](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrau1MJFJVIE01.py) to read the HDF file directly:\
+       ``` dials.import [filename.h5] slow_fast_beam_center=532,515```
+- Script-based launching\
+**This procedure is still under testing! Please try it carefully.\
+To run for the datasets recorded with the previous version of GUI, some parameters in the generated files (oscillation, calibrated camera length, etc.) need to be modified manually.**
+1. Copy [metadata_update_server.py](../jungfrau_gui/metadata_uploader/metadata_update_server.py) and [jf1m_reprocess.py](../jungfrau_gui/metadata_uploader/jf1m_reprocess.py) to your local directory path in the processing-server (noether)
+1. (Option) Setup to launch DIALS
+    ```
+    source [dials_installation_path]/dials-v3-22-1/dials_env.sh
+    ```
+1. Run jf1m_reprocess.py to **generate XDS.INP** and **(Optional) run DIALS with default parameters** at your working directory with python or *dxtbx.python*
+    ```
+    (dxtbx.)python jf1m_reprocess.py [full-path-of-xxx_master.h5] [full-path-of-template_directory_path]/XDS-JF1M_JFJ_2024-12-10.INP
+    ```
+\**Expected directory structure:*
+```
+.
+|--XDS
+|    └--XDS.INP
+└--DIALS
+     |--dials.import.log
+     |--imported.expt
+     |--dials.find_spots.log
+     |--strong.refl
+     :
+```
 
 ## Troubleshooting
 

@@ -51,6 +51,7 @@ class ControlWorker(QObject):
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
+    update_xtalinfo = Signal(str, str)
 
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
@@ -184,12 +185,9 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
-        self.file_operations.update_base_data_directory() # Update the GUI
-        # TODO Choose the right fname from the start (increment file_id ?)
-        # TODO Use directly the whole fname -> not the suffix ?
-        filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
-
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
+            self.file_operations.update_base_data_directory() # Update the GUI
+            filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
             if self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
                 task = RecordTask(
                     self,
@@ -207,7 +205,7 @@ class ControlWorker(QObject):
                     standard_h5_recording=True
                 )
         else:
-            task = RecordTask(self, end_angle, filename_suffix.as_posix())
+            task = RecordTask(self, end_angle) #, filename_suffix.as_posix())
 
         self.start_task(task)
 
