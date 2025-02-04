@@ -8,6 +8,7 @@ import os
 import subprocess
 import re
 import hdf5plugin
+import zmq
 # from epoc import ConfigurationClient, auth_token, redis_host
 
 class DIALSparams:
@@ -223,7 +224,6 @@ def getcenter(img_array, center=[515, 532], area=100, bin=5):
 
 class Hdf5MetadataUpdater:
     def __init__(self, port_number = 3463):
-        import zmq
         self.port_number = port_number
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
@@ -441,7 +441,7 @@ class Hdf5MetadataUpdater:
             with open('dials.index.log', 'r') as f:
                 results['cell'] = re.sub('([0-9]*)', "", f.readlines()[-18]).split(sep='[, s]')
                 spotinfo = f.readlines()[-4].split()
-                results['spots'] = [spotsinfo[3], spotsinfo[3]+spotsinfo[5]]
+                results['spots'] = [spotinfo[3], spotinfo[3]+spotinfo[5]]
             results_describe = '{0[0]:.1f} {0[1]:.1f} {0[2]:.1f} {0[3]:.0f} {0[4]:.0f} {0[5]:.0f}, {1[0]}/{1[1]}'.format(results['cell'], results['spots'])
             # self.socket.send_string(results_describe)
             return results_describe
