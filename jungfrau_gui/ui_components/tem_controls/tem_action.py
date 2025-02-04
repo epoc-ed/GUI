@@ -98,6 +98,7 @@ class TEMAction(QObject):
             i.setEnabled(enables)
         self.tem_tasks.gettem_button.setEnabled(enables)
         self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
+        self.tem_tasks.centering_button.setEnabled(enables)
         self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
