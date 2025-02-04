@@ -191,7 +191,7 @@ class TEMTools(QObject):
     def addinfo_to_hdf(self, pixel=0.075):
         tem_status = self.tem_action.control.tem_status       
         filename = self.tem_action.file_operations.formatted_filename
-        beamcenter = self.tem_action.beamcenter
+        beamcenter = self.cfg.beam_center
         interval = self.tem_action.visualization_panel.update_interval.value()
         ht = 200 # keV  # <- HT3
         wavelength = eV2angstrom(ht*1e3) # Angstrom   

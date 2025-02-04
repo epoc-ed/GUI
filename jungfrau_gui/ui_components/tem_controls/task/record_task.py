@@ -277,8 +277,9 @@ class RecordTask(Task):
             for i in range(1):
                 image = master_file['entry/data/data_000001'][i]
                 logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
-                org_x, org_y = self.tem_action.beamcenter[0], \
-                               self.tem_action.beamcenter[1]
+                org_x, org_y = self.cfg.beam_center[0], self.cfg.beam_center[1]
+                # org_x, org_y = self.tem_action.beamcenter[0], \
+                #                self.tem_action.beamcenter[1]
             break
 
         # myxds = XDSparams(xdstempl=xds_template_filepath)
