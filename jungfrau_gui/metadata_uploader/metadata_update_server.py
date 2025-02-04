@@ -266,11 +266,11 @@ class Hdf5MetadataUpdater:
                                         '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
                                         beamcenter_refined, ), daemon=True)
                     xds_thread.start()
-                    dials_thread = threading.Thread(target=self.run_dials, 
-                                                    args=(filename, 
-                                        os.path.dirname(filename) + '/DIALS/' + dataid,
-                                        beamcenter_refined, ), daemon=True)
-                    dials_thread.start()
+                    # dials_thread = threading.Thread(target=self.run_dials, 
+                    #                                 args=(filename, 
+                    #                     os.path.dirname(filename) + '/DIALS/' + dataid,
+                    #                     beamcenter_refined, ), daemon=True)
+                    # dials_thread.start()
             except zmq.ZMQError as e:
                 logging.error(f"Error while receiving request: {e}")
                 # self.socket.send_string("Error updating metadata")

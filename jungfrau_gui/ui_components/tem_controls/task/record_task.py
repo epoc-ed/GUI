@@ -106,7 +106,7 @@ class RecordTask(Task):
                 return
 
             self.control.update_xtalinfo.emit('Measuring', 'XDS')
-            self.control.update_xtalinfo.emit('Measuring', 'DIALS')
+            # self.control.update_xtalinfo.emit('Measuring', 'DIALS')
 
             self.client.Setf1OverRateTxNum(phi_dot_idx)
             time.sleep(1) 
@@ -229,7 +229,7 @@ class RecordTask(Task):
                                         delay=0.1) 
                     
                     self.control.update_xtalinfo.emit('Processing', 'XDS')
-                    self.control.update_xtalinfo.emit('Processing', 'DIALS')
+                    # self.control.update_xtalinfo.emit('Processing', 'DIALS')
 
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None

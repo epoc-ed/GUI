@@ -283,7 +283,7 @@ class TemControls(QGroupBox):
         try:
             if software == 'XDS':
                 self.tem_xtalinfo.xds_results.setText(progress)
-            elif software == 'DIALS':
-                self.tem_xtalinfo.dials_results.setText(progress)
+            # elif software == 'DIALS':
+            #     self.tem_xtalinfo.dials_results.setText(progress)
         except AttributeError:
             pass            
