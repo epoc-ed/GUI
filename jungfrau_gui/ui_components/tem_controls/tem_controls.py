@@ -6,7 +6,7 @@ import pyqtgraph as pg
 from datetime import datetime
 from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
 from PySide6.QtGui import QTransform, QFont
-from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, 
+from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox,
                                QDoubleSpinBox, QCheckBox, QGraphicsEllipseItem, QGraphicsRectItem)
 
 from .toolbox.plot_dialog import PlotDialog
@@ -56,16 +56,22 @@ class TemControls(QGroupBox):
         
         self.label_beam_center = QLabel()
         self.label_beam_center.setText("Beam center (px)")
-        self.beam_center_x = QDoubleSpinBox()
+        
+        self.beam_center_x = QSpinBox()
         self.beam_center_x.setPrefix("X_center: ")
         self.beam_center_x.setValue(1)
         self.beam_center_x.setMaximum(globals.ncol)
-        self.beam_center_x.setReadOnly(True)
-        self.beam_center_y = QDoubleSpinBox()
+        # self.beam_center_x.setReadOnly(True)
+        self.beam_center_x.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_x))
+        self.beam_center_x.editingFinished.connect(self.update_beam_center_x)
+        
+        self.beam_center_y = QSpinBox()
         self.beam_center_y.setPrefix("Y_center: ")
         self.beam_center_y.setValue(1)
         self.beam_center_y.setMaximum(globals.nrow)
-        self.beam_center_y.setReadOnly(True)
+        # self.beam_center_y.setReadOnly(True)
+        self.beam_center_y.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_y))
+        self.beam_center_y.editingFinished.connect(self.update_beam_center_y)
         
         self.label_gauss_height = QLabel()
         self.label_gauss_height.setText("Gaussian height")
@@ -146,6 +152,25 @@ class TemControls(QGroupBox):
                 
         tem_section.addStretch()
         self.setLayout(tem_section)
+
+    def spin_box_modified(self, spin_box):
+        spin_box.setStyleSheet(f"QSpinBox {{ color: orange; background-color: {self.background_color}; }}")
+    
+    def update_beam_center_x(self):
+        self.cfg.beam_center = [self.beam_center_x.value(), self.beam_center_y.value()]
+        self.reset_style(self.beam_center_x)
+        logging.debug(f'New X position (px) of beam center is : {self.cfg.beam_center[0]}')
+        logging.info(f'Beam center position is saved as: {self.cfg.beam_center}')
+    
+    def update_beam_center_y(self):
+        self.cfg.beam_center = [self.beam_center_x.value(), self.beam_center_y.value()]
+        self.reset_style(self.beam_center_y)
+        logging.debug(f'New Y position (px) of beam center is : {self.cfg.beam_center[1]}')
+        logging.info(f'Beam center position is saved as: {self.cfg.beam_center}')
+
+    def reset_style(self, field):
+        text_color = self.palette.color(QPalette.Text).name()
+        field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
 
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
