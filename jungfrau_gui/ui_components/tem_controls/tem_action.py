@@ -1,7 +1,8 @@
 import pyqtgraph as pg
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
-from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject
+from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
+from PySide6.QtGui import QFont
 
 from .toolbox.tool import *
 from .toolbox import config as cfg_jf
@@ -13,11 +14,13 @@ from epoc import ConfigurationClient, auth_token, redis_host
 from .connectivity_inspector import TEM_Connector
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
+import time
 
 class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
+    trigger_additem = Signal(str, str)
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
@@ -38,9 +41,11 @@ class TEMAction(QObject):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
         self.scale = None
+        self.marker = None
         # self.formatted_filename = '' # TODO DELETE? See use in 'callGetInfoTask' below 
         self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
         # self.xds_template_filepath = self.cfg.XDS_template
+        self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
@@ -50,6 +55,11 @@ class TEMAction(QObject):
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
         self.tem_stagectrl.mag_modes.buttonClicked.connect(self.toggle_mag_modes)
+        self.tem_stagectrl.blanking_button.clicked.connect(self.toggle_blank)
+        try:
+            self.tem_stagectrl.screen_button.clicked.connect(self.toggle_screen)
+        except AttributeError:
+            pass
         
         # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
@@ -81,7 +91,11 @@ class TEMAction(QObject):
         #             lambda: self.control.client.SetTiltXAngle(0))
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
-        
+        self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
+        self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
+        self.trigger_additem.connect(self.add_listedposition)
+        self.plot_listedposition()
+
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
         self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
@@ -103,6 +117,13 @@ class TEMAction(QObject):
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
+        self.tem_stagectrl.blanking_button.setEnabled(enables)
+        try:
+            self.tem_stagectrl.screen_button.setEnabled(enables)
+        except AttributeError:
+            pass 
+        self.tem_stagectrl.go_button.setEnabled(enables)
+        self.tem_stagectrl.addpos_button.setEnabled(enables)
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
@@ -115,7 +136,7 @@ class TEMAction(QObject):
             self.connectorWorkerReady = True
             logging.info("Starting tem-connecting process")
             self.tem_tasks.connecttem_button.started = True
-            self.timer_tem_connexion.start(2000)
+            self.timer_tem_connexion.start(self.tem_tasks.polling_frequency.value()) # 0.5 seconds between pings
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")
@@ -146,7 +167,7 @@ class TEMAction(QObject):
             self.tem_tasks.connecttem_button.setText("Disconnected")
         self.enabling(tem_connected) #also disables buttons if tem-gui connection is cut
         if tem_connected:
-            self.control.send_to_tem("#more")
+            self.control.send_to_tem("#info")
         
     def callGetInfoTask(self):
         self.control.init.emit()
@@ -164,21 +185,27 @@ class TEMAction(QObject):
         angle_x = self.control.tem_status["stage.GetPos"][3]
         self.tem_tasks.input_start_angle.setValue(angle_x)
         
-        if self.control.tem_status["eos.GetFunctionMode"][0] in [0, 1, 2]:
-            idx = self.control.tem_status["eos.GetFunctionMode"][0]
-            if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
-            self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
+        # Update Magnification radio button in GUI to refelct status of TEM
+        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
+
+        if Mag_idx in [0, 1, 2]:
+            self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_magnification.setText(magnification)
             self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
-        elif self.control.tem_status["eos.GetFunctionMode"][0] == 4:
-            self.tem_stagectrl.mag_modes.button(4).setChecked(True)
+        elif Mag_idx == 4:
+            self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_det_distance.setText(detector_distance)
             self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
-
+        else:
+            logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
+        
+        # Update rotation_speed radio button in GUI to refelct status of TEM
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
         self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        
+        self.plot_currentposition()
 
         if not self.tem_tasks.rotation_button.started:
             if self.tem_tasks.withwriter_checkbox.isChecked():
@@ -204,18 +231,58 @@ class TEMAction(QObject):
                 self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
             self.scale.setPen(pg.mkPen('w', width=2))
             self.parent.plot.addItem(self.scale)        
-            
-    def toggle_rb_speeds(self):   
-        self.update_rotation_speed_idx_from_ui()
-        self.control.execute_command("Setf1OverRateTxNum("+ str(self.cfg.rotation_speed_idx) +")")
 
+    def toggle_blank(self):
+        if self.control.tem_status["defl.GetBeamBlank"] == 0:
+            self.control.client.SetBeamBlank(1)
+            self.tem_stagectrl.blanking_button.setText("Unblank beam")
+            self.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
+        else:
+            self.control.client.SetBeamBlank(0)
+            self.tem_stagectrl.blanking_button.setText("Blank beam")
+            self.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+
+    def toggle_screen(self):
+        try:
+            screen_status = self.control.client._send_message("GetScreen")
+            if screen_status == 0:
+                self.control.client._send_message("SetScreen", 2)
+                time.sleep(2)
+                self.tem_stagectrl.screen_button.setText("Screen Up")
+            else:
+                self.control.client._send_message("SetScreen", 0)
+                time.sleep(2)
+                self.tem_stagectrl.screen_button.setText("Screen Down")
+        except RuntimeError:
+            logging.warning('To move screen, use specific version of tem_server.py!')
+
+    def toggle_rb_speeds(self):
+        idx_rot_button = self.tem_stagectrl.rb_speeds.checkedId()
+        if self.cfg.rotation_speed_idx != idx_rot_button:
+            self.update_rotation_speed_idx_from_ui(idx_rot_button)
+            result = self.control.execute_command("Setf1OverRateTxNum("+ str(idx_rot_button) +")")
+            if result is not None:
+                logging.info(f"Rotation velocity is set to {[10.0, 2.0, 1.0, 0.5][idx_rot_button]} deg/s")
+            else:
+                rotation_at_tem = self.control.client.Getf1OverRateTxNum()
+                logging.error(f"Changes of rotation speed has failed!\nRotation at TEM is {[10.0, 2.0, 1.0, 0.5][rotation_at_tem]} deg/s")
+                # TODO ? Make sure the right (eq to TEM status) button is checked
+    
     def toggle_mag_modes(self):
-        if self.tem_stagectrl.mag_modes.checkedId() == 4:
+        idx_mag_button = self.tem_stagectrl.mag_modes.checkedId()
+        if idx_mag_button == 4:
             self.visualization_panel.resetContrastBtn.clicked.emit()
-        self.control.execute_command("SelectFunctionMode("+ str(self.tem_stagectrl.mag_modes.checkedId()) +")")
+        try:
+            self.control.client.SelectFunctionMode(idx_mag_button)
+            logging.info(f"Function Mode switched to {self.control.client.GetFunctionMode()[0]} (0=MAG, 2=Low MAG, 4=DIFF)")
+        except Exception as e:
+            logging.warning(f"Error occured when relaying 'SelectFunctionMode({idx_mag_button}': {e}")
+            idx = self.control.client.GetFunctionMode()[0]
+            if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
+            self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
 
-    def update_rotation_speed_idx_from_ui(self):
-        self.cfg.rotation_speed_idx = self.tem_stagectrl.rb_speeds.checkedId()
+    def update_rotation_speed_idx_from_ui(self, idx_rot_button):
+        self.cfg.rotation_speed_idx = idx_rot_button
         logging.debug(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
 
     def toggle_rotation(self):
@@ -292,3 +359,40 @@ class TEMAction(QObject):
                 self.tem_tasks.parent.plotDialog.close_window()
             self.control.actionFit_Beam.emit()
             # self.control.stop_task()
+
+    def go_listedposition(self):
+        position = self.control.client.GetStagePosition() # in nm
+        position_aim = np.array(self.tem_stagectrl.position_list.currentText().split()[1:-2], dtype=float) # in um
+        dif_pos = position_aim[0]*1e3 - position[0], position_aim[1]*1e3 - position[1]
+        try:
+            self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1]) # lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
+            time.sleep(2) # should be updated with referring stage status!!
+            logging.info(f"Moved by x:{dif_pos[0]*1e-3:6.2f} um, y:{dif_pos[1]*1e-3:6.2f} um")
+            logging.info(f"Aim position was x:{position_aim[0]:3.2f} um, y:{position_aim[1]:3.2f} um")
+        except RuntimeError:
+            logging.warning('To set position, use specific version of tem_server.py!')
+            self.tem_stagectrl.go_button.setEnabled(False)
+
+    @Slot(str, str)
+    def add_listedposition(self, color='red', status='new'):
+        position = self.control.client.GetStagePosition()
+        new_id = self.tem_stagectrl.position_list.count() - 4
+        self.tem_stagectrl.position_list.addItems([f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"])
+        self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color))
+        label = pg.TextItem(str(new_id), anchor=(0, 1))
+        label.setFont(QFont('Arial', 8))
+        label.setPos(position[0]*1e-3, position[1]*1e-3)
+        self.tem_stagectrl.gridarea.addItem(label)
+        logging.info(f"{new_id}: {position} is added to the list")
+
+    def plot_listedposition(self, color='gray'):
+        xy_list = [self.tem_stagectrl.position_list.itemText(i).split()[1:-2] for i in range(self.tem_stagectrl.position_list.count())]
+        xy_list = np.array(xy_list).T
+        self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=xy_list[0], y=xy_list[1], brush=color))
+
+    def plot_currentposition(self, color='yellow'):
+        if self.marker != None:
+            self.tem_stagectrl.gridarea.removeItem(self.marker)
+        position = self.control.tem_status["stage.GetPos"]
+        self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
+        self.tem_stagectrl.gridarea.addItem(self.marker)

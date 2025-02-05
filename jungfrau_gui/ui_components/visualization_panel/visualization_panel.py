@@ -855,17 +855,23 @@ class VisualizationPanel(QGroupBox):
 
     def applyCustomColormap(self):
         # Get the LUT from the gradient
+        # Could be of shape 512 x 3 or 512 x 4
         lut = self.parent.histogram.gradient.getLookupTable(512)
 
-        # Ensure the LUT has an alpha channel
+        # Ensure the LUT has an alpha channel i.e. 512 x 4
         if lut.shape[1] == 4:
             pass
         else:
             alpha = np.ones((lut.shape[0], 1), dtype=lut.dtype) * 255
             lut = np.hstack((lut, alpha))
 
-        # Set the first color's alpha to zero to make np.nan transparent
-        lut[0, 3] = 0  # Alpha channel is at index 3
+        # Only do this if you truly want the LUT index 0 to be invisible.
+        # Meaning that all low value pixels that map to the first row (index 0)
+        # of the LUT, will be represented as [R0, G0, B0, A0] with A0 = 0;
+        # where 0=TRANSPARENT VS 255=OPAQUE 
+        # If it kills valid data, comment it out.
+               
+        # lut[0, 3] = 0 
 
         # Apply the modified LUT to the ImageItem
         self.parent.imageItem.setLookupTable(lut)

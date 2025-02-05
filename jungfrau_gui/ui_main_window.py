@@ -76,6 +76,7 @@ class ApplicationWindow(QMainWindow):
         
         self.histogram = pg.HistogramLUTItem()
         self.imageItem = pg.ImageItem()
+        # self.imageItem.setOpts(nanMask=True)
         self.plot.addItem(self.imageItem)
         self.histogram.setImageItem(self.imageItem)
         self.glWidget.addItem(self.histogram)

@@ -9,7 +9,7 @@ tem_mode = False
 # jfj = False
 
 tem_host = cfg.temserver
-
+dev = False
 #Configuration
 nrow = cfg.nrows 
 ncol = cfg.ncols
