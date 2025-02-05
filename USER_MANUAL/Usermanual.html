@@ -5,278 +5,399 @@
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>User Manual for Jungfrau GUI</title>
-  <style type="text/css">
-      code{white-space: pre-wrap;}
-      span.smallcaps{font-variant: small-caps;}
-      span.underline{text-decoration: underline;}
-      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
-  <style type="text/css">
-a.sourceLine { display: inline-block; line-height: 1.25; }
-a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
-a.sourceLine:empty { height: 1.2em; position: absolute; }
-.sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-code.sourceCode { white-space: pre-wrap; }
-a.sourceLine { text-indent: -1em; padding-left: 1em; }
-}
-pre.numberSource a.sourceLine
-  { position: relative; }
-pre.numberSource a.sourceLine:empty
-  { position: absolute; }
-pre.numberSource a.sourceLine::before
-  { content: attr(data-line-number);
-    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
-    border: none; pointer-events: all;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-    color: #aaaaaa;
-  }
-pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
-div.sourceCode
-  {  }
-@media screen {
-a.sourceLine::before { text-decoration: underline; }
-}
-code span.al { color: #ff0000; font-weight: bold; } /* Alert */
-code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
-code span.at { color: #7d9029; } /* Attribute */
-code span.bn { color: #40a070; } /* BaseN */
-code span.bu { } /* BuiltIn */
-code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
-code span.ch { color: #4070a0; } /* Char */
-code span.cn { color: #880000; } /* Constant */
-code span.co { color: #60a0b0; font-style: italic; } /* Comment */
-code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
-code span.do { color: #ba2121; font-style: italic; } /* Documentation */
-code span.dt { color: #902000; } /* DataType */
-code span.dv { color: #40a070; } /* DecVal */
-code span.er { color: #ff0000; font-weight: bold; } /* Error */
-code span.ex { } /* Extension */
-code span.fl { color: #40a070; } /* Float */
-code span.fu { color: #06287e; } /* Function */
-code span.im { } /* Import */
-code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
-code span.kw { color: #007020; font-weight: bold; } /* Keyword */
-code span.op { color: #666666; } /* Operator */
-code span.ot { color: #007020; } /* Other */
-code span.pp { color: #bc7a00; } /* Preprocessor */
-code span.sc { color: #4070a0; } /* SpecialChar */
-code span.ss { color: #bb6688; } /* SpecialString */
-code span.st { color: #4070a0; } /* String */
-code span.va { color: #19177c; } /* Variable */
-code span.vs { color: #4070a0; } /* VerbatimString */
-code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
-  </style>
-  <link rel="stylesheet" href="github-markdown.css">
-  <!--[if lt IE 9]>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
-  <![endif]-->
+  <link rel="stylesheet" href="github-markdown.css" />
 </head>
 <body>
-<header>
+<header id="title-block-header">
 <h1 class="title">User Manual for Jungfrau GUI</h1>
 </header>
-<h1 id="new-receiver-and-viewer-of-jungfrau-for-ed-ccsa-uniwien">New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien</h1>
-<p>This document was updated on 29 Jan 2024<br />
-<strong>When you encounter bug-like behaviors, please check <a href="#Known-bugs">known bugs</a>.</strong></p>
+<h1 id="new-receiver-and-viewer-of-jungfrau-for-ed-ccsa-uniwien">New
+Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien</h1>
+<p>This document was updated on 05 Feb 2024<br />
+<strong>When you encounter bug-like behaviors, please check <a
+href="#Known-bugs">known bugs</a>.</strong></p>
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
 <li><a href="#tem-control-activation">TEM control activation</a></li>
-<li><a href="#starting-the-jungfraujoch-receiver">Starting the Jungfraujoch receiver</a></li>
+<li><a href="#starting-the-jungfraujoch-receiver">Starting the
+Jungfraujoch receiver</a></li>
 <li><a href="#deactivation">Deactivation</a></li>
 <li><a href="#main-functionalities">Main Functionalities</a></li>
-<li><a href="#summing-receiver-controls">Summing Receiver Controls</a></li>
+<li><a href="#summing-receiver-controls">Summing Receiver
+Controls</a></li>
 <li><a href="#tem-control-function">TEM-control Function</a></li>
-<li><a href="#file-operation-and-redis">File Operation and Redis</a></li>
+<li><a href="#file-operation-and-redis">File Operation and
+Redis</a></li>
 <li><a href="#data-recording-workflow">Data-recording workflow</a></li>
 <li><a href="#data-processing-notes">Data-processing notes</a></li>
 <li><a href="#troubleshooting">Troubleshooting</a>
 <ul>
 <li><a href="#Known-bugs">Known bugs (13 Dec 2024)</a></li>
-<li><a href="#Launching-previous-system">Launching previous system</a></li>
+<li><a href="#Launching-previous-system">Launching previous
+system</a></li>
 </ul></li>
 </ul>
 <h2 id="tem-control-activation">TEM Control Activation</h2>
-<h3 id="tem-pc-not-needed-when-you-only-use-the-tem-console-panel">TEM-PC (not needed when you ONLY use the TEM console panel)</h3>
+<h3
+id="tem-pc-not-needed-when-you-only-use-the-tem-console-panel">TEM-PC
+(not needed when you ONLY use the TEM console panel)</h3>
 <ol type="1">
 <li>Activate the TEM server:
 <ul>
-<li>Open a Miniconda PowerShell Prompt (Anaconda submenu) from the Windows Start Menu.<br />
-<small> &gt; Preferably disable the Quick Edit mode of the command prompt:
+<li><p>Open a Miniconda PowerShell Prompt (Anaconda submenu) from the
+Windows Start Menu.<br />
+<small> &gt; Preferably disable the Quick Edit mode of the command
+prompt:</p>
 <ul>
 <li>Right-click on the title bar</li>
 <li>Select <code>Properties</code> from the dropdown menu.</li>
-<li>In the <code>Options</code> tab, uncheck the box for <code>Quick Edit Mode</code></li>
+<li>In the <code>Options</code> tab, uncheck the box for
+<code>Quick Edit Mode</code></li>
 <li>Click <code>OK</code>.</li>
 </ul>
-</small></li>
-<li>Navigate to <code>C:\ProgramData\EPOC</code></li>
+<p></small></p></li>
+<li><p>Navigate to <code>C:\ProgramData\EPOC</code></p></li>
 <li><p>Activate the environment:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ex">conda</span> activate vjem38</a></code></pre></div></li>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate vjem38</span></code></pre></div></li>
 <li><p>Start the TEM server:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ex">python</span> server_tem.py</a></code></pre></div></li>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> server_tem.py</span></code></pre></div></li>
 </ul></li>
 </ol>
-<p><strong>⚠️ The above Step 1. needs to be done before starting the GUI below.</strong></p>
+<p><strong>⚠️ The above Step 1. needs to be done before starting the GUI
+below.</strong></p>
 <ol start="2" type="1">
 <li>Follow the below steps.</li>
 </ol>
-<h2 id="starting-the-jungfraujoch-receiver">Starting the JUNGFRAUJOCH Receiver</h2>
+<h2 id="starting-the-jungfraujoch-receiver">Starting the JUNGFRAUJOCH
+Receiver</h2>
 <h4 id="server-noether">Server (NOETHER)</h4>
-<p><strong>⚠️ In the below, Steps 1. and 2. depict the manual start up of the Jungfraujoch backend.</strong><br />
-<strong>As of 2025-01-24, these steps are no longer necessary as the broker and writer scripts are rare started automatically at boot time of NOETHER.</strong></p>
+<p><strong>⚠️ In the below, Steps 1. and 2. depict the manual start up
+of the Jungfraujoch backend.</strong><br />
+<strong>As of 2025-01-24, these steps are no longer necessary as the
+broker and writer scripts are rare started automatically at boot time of
+NOETHER.</strong></p>
 <ol type="1">
-<li><p>Login as <code>psi</code> and switch to the <strong>root</strong> user.</p></li>
+<li><p>Login as <code>psi</code> and switch to the <strong>root</strong>
+user.</p></li>
 <li><p>Start the Jungfraujoch broker:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="ex">/opt/jfjoch/bin/jfjoch_broker</span> /opt/etc/broker_jf500k.json</a></code></pre></div></li>
-<li><p>For data collection, open a separate terminal and start the Jungfraujoch writer:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ex">/opt/jfjoch/bin/jfjoch_writer</span> -R /data/epoc/storage/jfjoch_test/ tcp://127.0.0.1:5500</a></code></pre></div></li>
-<li><p>(Optional) For writing meta-data in the saved hdf5 files, open a new terminal and start the metadata-writer:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="bu">cd</span> /data/epoc/storage/jem2100plus</a>
-<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="ex">python</span> -i metadata_update_server.py</a></code></pre></div></li>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">/opt/jfjoch/bin/jfjoch_broker</span> /opt/etc/broker_jf500k.json</span></code></pre></div></li>
+<li><p>For data collection, open a separate terminal and start the
+Jungfraujoch writer:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">/opt/jfjoch/bin/jfjoch_writer</span> <span class="at">-R</span> /data/epoc/storage/jfjoch_test/ tcp://127.0.0.1:5500</span></code></pre></div></li>
+<li><p>(Optional) For writing meta-data in the saved hdf5 files, open a
+new terminal and start the metadata-writer:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /data/epoc/storage/jem2100plus</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> <span class="at">-i</span> metadata_update_server.py</span></code></pre></div></li>
 </ol>
 <h4 id="camerapc-hodgkin">CameraPC (HODGKIN)</h4>
 <ol type="1">
-<li><p>To open the JFJ web interface, open the web browser (firefox on HODGKIN) and enter <code>http://noether:5232/</code> in the address bar.<br />
-&gt; This assumes that connection between HODGKIN and NOETHER is up and running.</p></li>
-<li>When logged in as <code>jem2100plus</code>, ensure that the envireonment is activated, if not run: <code>mamba activate dev</code></li>
+<li><p>To open the JFJ web interface, open the web browser (firefox on
+HODGKIN) and enter <code>http://noether:5232/</code> in the address
+bar.<br />
+&gt; This assumes that connection between HODGKIN and NOETHER is up and
+running.</p></li>
+<li><p>When logged in as <code>jem2100plus</code>, ensure that the
+envireonment is activated, if not run:
+<code>mamba activate dev</code></p></li>
 <li><p>Configure the detector:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ex">p</span> config ~/jf.config</a></code></pre></div></li>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">p</span> config ~/jf.config</span></code></pre></div></li>
 <li><p>Change to the GUI directory:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="bu">cd</span> /home/instruments/jem2100plus/GUI</a></code></pre></div></li>
-<li><p>Confirm you are on the <code>testing</code> branch, otherwise switch:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="fu">git</span> branch --contains</a>
-<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="fu">git</span> switch testing</a></code></pre></div></li>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /home/instruments/jem2100plus/GUI</span></code></pre></div></li>
+<li><p>Confirm you are on the <code>testing</code> branch, otherwise
+switch:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> branch <span class="at">--contains</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch testing</span></code></pre></div></li>
 <li><p>Start the GUI:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="ex">python</span> launch_gui.py -t -s tcp://noether:5501</a></code></pre></div>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> launch_gui.py <span class="at">-t</span> <span class="at">-s</span> tcp://noether:5501</span></code></pre></div>
 <p><code>-f</code> : save loggings in a file<br />
-<code>-th</code> : choose host for tem-gui communication e.g. localhost<br />
-<code>-l</code> : Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)<br />
+<code>-th</code> : choose host for tem-gui communication
+e.g. localhost<br />
+<code>-l</code> : Set the logging level (DEBUG, INFO, WARNING, ERROR,
+CRITICAL)<br />
 </p></li>
-<li>To start streaming:<br />
-
+<li><p>To start streaming:<br />
+</p>
 <ul>
-<li>Starting the decoding of the streamed data -&gt; Push <code>View Stream</code><br />
+<li>Starting the decoding of the streamed data -&gt; Push
+<code>View Stream</code><br />
 </li>
-<li>Ensure good connection to JFJ -&gt; Push <code>Connection to Jungfraujoch</code><br />
+<li>Ensure good connection to JFJ -&gt; Push
+<code>Connection to Jungfraujoch</code><br />
 </li>
 <li>Display decoded frames -&gt; <code>Live Stream</code><br />
 </li>
-<li>Record the dark frame -&gt; <code>Record Full Pedestal</code> (Blocking operation so wait until the end)</li>
+<li>Record the dark frame -&gt; <code>Record Full Pedestal</code>
+(Blocking operation so wait until the end)</li>
 </ul></li>
-<li>To collect data when TEM controls are OFF:<br />
-
+<li><p>To collect data when TEM controls are OFF:<br />
+</p>
 <ul>
-<li>Push the button <code>Collect</code> and stop collection with <code>Cancel</code></li>
+<li>Push the button <code>Collect</code> and stop collection with
+<code>Cancel</code></li>
 </ul></li>
 </ol>
 <h2 id="deactivation">Deactivation</h2>
 <h3 id="camerapc-hodgkin-1">CameraPC (hodgkin)</h3>
 <ol type="1">
-<li>Stop the receiver by clicking the <code>Stop</code> pushbutton. This may take several seconds.<br />
+<li>Stop the receiver by clicking the <code>Stop</code> pushbutton. This
+may take several seconds.<br />
 </li>
 <li>Disconnect to TEM, stop streaming, and exit the viewer.</li>
 </ol>
 <h3 id="tem-pc">TEM-PC</h3>
 <ol type="1">
-<li><p>Open another PowerShell console and kill the corresponding python process:</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ex">Get-Process</span> python</a>
-<a class="sourceLine" id="cb10-2" data-line-number="2"><span class="bu">kill</span> [process-id]</a></code></pre></div></li>
+<li><p>Open another PowerShell console and kill the corresponding python
+process:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">Get-Process</span> python</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> [process-id]</span></code></pre></div></li>
 </ol>
 <h2 id="main-functionalities">Main Functionalities</h2>
 <ul>
-<li><code>View Stream</code>: Reads the stream of frames published by the receiver.</li>
-<li><code>Apply Auto Contrast</code>: Dynamically adjusts the contrast of displayed frames (<a href="#Known-bugs">not working correctly</a>).</li>
-<li><code>Reset Contrast</code>: Turn off the auto-contrast and reload preset contrast values from Redis. Four other presets can also be used.</li>
+<li><code>View Stream</code>: Reads the stream of frames published by
+the receiver.</li>
+<li><code>Apply Auto Contrast</code>: Dynamically adjusts the contrast
+of displayed frames (<a href="#Known-bugs">not working
+correctly</a>).</li>
+<li><code>Reset Contrast</code>: Turn off the auto-contrast and reload
+preset contrast values from Redis. Four other presets can also be
+used.</li>
 <li><code>Exit</code>: Exits the GUI.</li>
-<li><code>Beam Gaussian Fit</code>: Starts fitting the beam’s elliptical spot shape (non-TEM mode only, useful for manual focusing).</li>
-<li><code>Magnification</code>, <code>Distance</code>: Displays the magnification and distance values (TEM mode only). <code>scale</code> checkbox displays the scale bar (1 um) or the ring (1 A).</li>
-<li><code>Accumulate in TIFF</code>: Saves a TIFF snapshot to the specified data path (<strong><a href="#Known-bugs">not tested in jfj-version</a></strong>).</li>
-<li><code>Write Stream in H5</code>: Saves an HDF movie to the specified data path (<strong><a href="#Known-bugs">not tested in jfj-version</a></strong>).</li>
+<li><code>Beam Gaussian Fit</code>: Starts fitting the beam’s elliptical
+spot shape (non-TEM mode only, useful for manual focusing).</li>
+<li><code>Magnification</code>, <code>Distance</code>: Displays the
+magnification and distance values (TEM mode only). <code>scale</code>
+checkbox displays the scale bar (1 um) or the ring (1 A).</li>
+<li><code>Accumulate in TIFF</code>: Saves a TIFF snapshot to the
+specified data path (<strong><a href="#Known-bugs">not tested in
+jfj-version</a></strong>).</li>
+<li><code>Write Stream in H5</code>: Saves an HDF movie to the specified
+data path (<strong><a href="#Known-bugs">not tested in
+jfj-version</a></strong>).</li>
 </ul>
 <h3 id="summing-receiver-controls">Summing Receiver Controls</h3>
 <ul>
-<li><code>Connect to jungfraujoch</code>: Establishes a connection with the jungfraujoch-receiver.</li>
+<li><code>Connect to jungfraujoch</code>: Establishes a connection with
+the jungfraujoch-receiver.</li>
 <li><code>Live stream</code>: Displays summed frames.</li>
 <li><code>Data Collection</code>:
 <ul>
-<li><code>Threshold</code>: Defines the energy (<strong>th</strong>) in keV below which values are cut.<br />
+<li><code>Threshold</code>: Defines the energy (<strong>th</strong>) in
+keV below which values are cut.<br />
 - If <strong>th = 0</strong> : Thresholding is disabled<br />
-- If <strong>th &gt; 0</strong> : Pixel values below <strong>th</strong> are reset to zero.<br />
+- If <strong>th &gt; 0</strong> : Pixel values below <strong>th</strong>
+are reset to zero.<br />
 </li>
-<li><code>wait</code>: If checked, this option freezes the GUI during data collection.</li>
+<li><code>wait</code>: If checked, this option freezes the GUI during
+data collection.</li>
 </ul></li>
-<li><code>Collect</code>: Starts recording of frame streams. Ends with <code>Cancel</code>.</li>
-<li><code>Record Full Pedestal</code>: Records and subtracts the dark frames. Temporarily gets unresponsive to any controls (several seconds). Pedestal data is saved in jfj (not in GUI).</li>
+<li><code>Collect</code>: Starts recording of frame streams. Ends with
+<code>Cancel</code>.</li>
+<li><code>Record Full Pedestal</code>: Records and subtracts the dark
+frames. Temporarily gets unresponsive to any controls (several seconds).
+Pedestal data is saved in jfj (not in GUI).</li>
 </ul>
-<h3 id="tem-control-function"><a href="../jungfrau_gui/screenshot/ver_16Aug2024.PNG">TEM-control Function</a></h3>
+<h3 id="tem-control-function"><a
+href="../jungfrau_gui/screenshot/ver_16Aug2024.PNG">TEM-control
+Function</a></h3>
 <ul>
-<li><code>Check TEM connection</code>: Starts communication with TEM.</li>
-<li><code>Get TEM status</code>: Displays the TEM status in the terminal [with the option of writing status in .log file] -<code>recording</code>: <strong>(disabled)</strong> When checked, allows to save the TEM status in a .log file. (<a href="#Known-bugs">not working correctly</a>)</li>
-<li><code>Click-on-Centering</code>: <strong>(disabled)</strong> Activates stage control by clicking the image.</li>
-<li><code>Beam Autofocus</code>: <strong>(Not ready for use)</strong> Sweeps IL1 and ILstig values.</li>
-<li><code>Rotation</code>: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
+<li><code>Check TEM connection</code>: Starts communication with
+TEM.</li>
+<li><code>Get TEM status</code>: Displays the TEM status in the terminal
+[with the option of writing status in .log file]<br />
+-<code>recording</code>: <strong>(disabled)</strong> When checked,
+allows to save the TEM status in a .log file. (<a href="#Known-bugs">not
+working correctly</a>)</li>
+<li><code>Click-on-Centering</code>: Activates stage XY-control by
+clicking on the imageat the pint of interest.</li>
+<li><code>Beam Gaussian Fit</code>: Fits a gaussian to the direct beam
+within the ROI (A preliminary way to get the beam center info to add to
+the metadata)
 <ul>
-<li><code>with Writer</code>: Synchronizes the HDF writer with rotation.</li>
+<li><code>Beam center (px)</code>: Displays the position
+(X_center,Y_center) of the center of the fitted gaussian<br />
+</li>
+<li><code>Gaussian height</code>: Displays the peak of the gaussian
+(keV)</li>
+<li><code>Sigma x (px)</code>: Standard deviation in the major
+x-axis</li>
+<li><code>Sigma y (px)</code>: Standard deviation in the minor
+y-axis</li>
+<li><code>Theta (deg)</code>: Orientation of the gaussian tilt angle
+with respect to the horizontal X-axis of the frame.</li>
+</ul></li>
+<li><code>Beam Autofocus</code>: <strong>(Not ready for use)</strong>
+Sweeps IL1 and ILstig values.</li>
+<li><code>Rotation</code>: Starts stage rotation to the target angle.
+The beam is unblanked during rotation and blanked when rotation ends.
+<ul>
+<li><code>with Writer</code>: Synchronizes the HDF writer with
+rotation.</li>
 <li><code>JFJ</code>: Saves data in JFJ-server (NOETHER).</li>
-<li><code>Auto reset</code>: Resets the tilt to 0 degrees after rotation.</li>
+<li><code>Auto reset</code>: Resets the tilt to 0 degrees after
+rotation.</li>
 </ul></li>
-<li><code>Rotation Speed</code>: Adjusts rotation speed before starting the rotation. Also updates the <code>rotation_speed_idx</code> variable of the Configuration Manager in the data base.</li>
-<li><code>Stage Ctrl</code>: Moves the stage in specific direction. *Rotations are not automatically quicken.</li>
-<li><code>Mag Mode</code>: Switches and indicates the current magnification mode. Also deactivates the Auto-contrast. <a href="https://github.com/epoc-ed/GUI/issues/80">See issue #80</a>.</li>
-<li><code>Positions</code>: Dropdown menu to set the XY positions of the stage
+<li><code>Rotation Speed</code>: Adjusts rotation speed before starting
+the rotation. Also updates the <code>rotation_speed_idx</code> variable
+of the Configuration Manager in the data base.</li>
+<li><code>Stage Ctrl</code>: Moves the stage in specific direction.
+*Rotations are not automatically quicken.</li>
+<li><code>Blank beam</code>: Blanks/unblanks beam and displays the
+blanking status</li>
+<li><code>Screen Up/Down</code>: <strong>(Not ready for use)</strong>
+Moves screen (activated with ‘-e’). Does not indicate the current screen
+status.</li>
+<li><code>Mag Mode</code>: Switches and indicates the current
+magnification mode. Also deactivates the Auto-contrast. <a
+href="https://github.com/epoc-ed/GUI/issues/80">See issue #80</a>.</li>
+<li><code>Positions</code>: Dropdown menu to set the XY positions of the
+stage
 <ul>
-<li><code>Add</code>: Enquires about TEM stage position (through the API) and saves the coordinates in the dropdown menu</li>
-<li><code>Go</code>: Sends the command to move the TEM stage the X-Y coordiantes set in the <code>Positions</code> menu</li>
+<li><code>Add</code>: Enquires about TEM stage position (through the
+API) and saves the coordinates in the dropdown menu</li>
+<li><code>Go</code>: Sends the command to move the TEM stage the X-Y
+coordiantes set in the <code>Positions</code> menu</li>
 </ul></li>
 </ul>
-<h3 id="file-operation-and-redis"><a href="../jungfrau_gui/screenshot/ver_24Sept2024.png">File Operation and Redis</a></h3>
+<h3 id="file-operation-and-redis"><a
+href="../jungfrau_gui/screenshot/ver_24Sept2024.png">File Operation and
+Redis</a></h3>
 <h4 id="redis-store-settings">Redis Store Settings</h4>
 <ul>
-<li><code>Experiment Class</code>: Specifies for whom the data is collected (e.g., UniVie, External, IP).</li>
+<li><code>Experiment Class</code>: Specifies for whom the data is
+collected (e.g., UniVie, External, IP).</li>
 <li><code>User Name</code>*: Enter the PI (Person of Interest).</li>
 <li><code>Project ID</code>*: Enter the project identifier.</li>
-<li><code>Base Data Directory</code>: Specifies the root directory for data saving.</li>
+<li><code>Base Data Directory</code>: Specifies the root directory for
+data saving.</li>
 </ul>
-<p><strong>Note:</strong> The [Get] buttons were coded for debugging purposes. They will be removed for the stable version.</p>
-<p><strong>Important:</strong> TIFF-Writer and HDF5-Writer have not been tested with JFJ. Use <a href="#summing-receiver-controls"><code>Collect</code></a> in Visualization Panel instead.</p>
+<p><strong>Note:</strong> The [Get] buttons were coded for debugging
+purposes. They will be removed for the stable version.</p>
+<p><strong>Important:</strong> TIFF-Writer and HDF5-Writer have not been
+tested with JFJ. Use <a
+href="#summing-receiver-controls"><code>Collect</code></a> in
+Visualization Panel instead.</p>
 <h4 id="tiff-writer">TIFF Writer</h4>
 <ul>
-<li><code>Tiff File Name</code>: Area to define the name of the TIFF file and its index. It contains:<br />
+<li><code>Tiff File Name</code>: Area to define the name of the TIFF
+file and its index. It contains:<br />
 <small>
 <ul>
-<li>First line-edit is read-only and displays the folder where TIFF files are saved.</li>
-<li>Second line-edit is modifiable (ASCII characters and underscores only) and is meant for the file name.</li>
-<li>Spinbox is modifiable, is incremented after each writing and represents the index of the written TIFF.</li>
+<li>First line-edit is read-only and displays the folder where TIFF
+files are saved.</li>
+<li>Second line-edit is modifiable (ASCII characters and underscores
+only) and is meant for the file name.</li>
+<li>Spinbox is modifiable, is incremented after each writing and
+represents the index of the written TIFF.</li>
 </ul>
 </small></li>
 <li><code>index</code>: Set the file index for the TIFF file.</li>
-<li><code>Accumulate in TIFF</code>: Accumulates a specified number of frames in the TIFF file.</li>
+<li><code>Accumulate in TIFF</code>: Accumulates a specified number of
+frames in the TIFF file.</li>
 </ul>
 <h4 id="hdf5-writer">HDF5 Writer</h4>
 <ul>
-<li><code>HDF5 Tag</code>*: Enter the file prefix (ASCII characters and underscores only).</li>
+<li><code>HDF5 Tag</code>*: Enter the file prefix (ASCII characters and
+underscores only).</li>
 <li><code>index</code>*: Set the file index for the HDF5 file.</li>
-<li><code>H5 Output Path</code>: Read-only field showing the path where datasets are saved.</li>
+<li><code>H5 Output Path</code>: Read-only field showing the path where
+datasets are saved.</li>
 </ul>
-<p><strong>⚠️ Important ⚠️</strong> All the fields with (*) are manually editable. During edition, the entered values/text will be displayed in orange. Press [ENTER] to confirm modifications and values will be uploaded to the data base.</p>
+<p><strong>⚠️ Important ⚠️</strong> All the fields with (*) are manually
+editable. During edition, the entered values/text will be displayed in
+orange. Press [ENTER] to confirm modifications and values will be
+uploaded to the data base.</p>
 <h2 id="data-recording-workflow">Data-recording workflow</h2>
 <ol type="1">
 <li>Set up the beam and stage of TEM.</li>
 <li>Blank the beam to avoid sample damage.</li>
-<li>Confirm the data output path on the <code>H5 Output Path</code> line-edit.</li>
+<li>Confirm the data output path on the <code>H5 Output Path</code>
+line-edit.</li>
 <li>Modify the stage rotation speed and end angle.</li>
 <li>Check the <code>with Writer</code> and <code>JFJ</code> boxes.</li>
-<li>Click <code>Rotation</code> to start the rotation and recording.</li>
+<li>Click <code>Rotation</code> to start the rotation and
+recording.</li>
 <li>Continue until the end angle is reached or interrupted.</li>
 <li>Take an HDF movie if needed.</li>
 </ol>
@@ -284,41 +405,82 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li><strong>XDS</strong>:
 <ul>
-<li><a href="https://github.com/epoc-ed/epoc-utils/commit/2198487645fbb5390e2f629b570ac0dbf18db268">Version before 20.Aug.2024</a> <a href="https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia">The plugin derived from Neggia</a> requires <code>_master.h5</code> in the filename. Create a symbolic link: <code>ln -s [full-path-of-hdffile] linked_master.h5</code></li>
-<li><a href="https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10">Version before 10.Oct.2024</a> Data stored with float32 format. <a href="https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia">Neggia-derived plugin</a> can work. <a href="https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master">Another plugin</a> can not.</li>
-<li><a href="https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10">Version after 10.Oct.2024</a> Data stored with int32 format and compressed. <a href="https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master">Another plugin</a> can work. <a href="https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia">Neggia-derived plugin</a> can not.</li>
-<li>Version after XX.Nov.2024 (JFJ installation) Data stored with int32 format and linked with master.h5. <a href="https://github.com/dectris/neggia/"><strong>The original Neggia-plugin</strong></a> can process the data.</li>
+<li><a
+href="https://github.com/epoc-ed/epoc-utils/commit/2198487645fbb5390e2f629b570ac0dbf18db268">Version
+before 20.Aug.2024</a> <a
+href="https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia">The
+plugin derived from Neggia</a> requires <code>_master.h5</code> in the
+filename. Create a symbolic link:
+<code>ln -s [full-path-of-hdffile] linked_master.h5</code></li>
+<li><a
+href="https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10">Version
+before 10.Oct.2024</a> Data stored with float32 format. <a
+href="https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia">Neggia-derived
+plugin</a> can work. <a
+href="https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master">Another
+plugin</a> can not.</li>
+<li><a
+href="https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10">Version
+after 10.Oct.2024</a> Data stored with int32 format and compressed. <a
+href="https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master">Another
+plugin</a> can work. <a
+href="https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia">Neggia-derived
+plugin</a> can not.</li>
+<li>Version after XX.Nov.2024 (JFJ installation) Data stored with int32
+format and linked with master.h5. <a
+href="https://github.com/dectris/neggia/"><strong>The original
+Neggia-plugin</strong></a> can process the data.</li>
 </ul></li>
-<li><strong>DIALS</strong>: Install the <a href="https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py">updated Format Class</a> to read the HDF file directly:<br />
+<li><strong>DIALS</strong>: Install the <a
+href="https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py">updated
+Format Class</a> to read the HDF file directly:<br />
 <code>dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660</code></li>
 </ul>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <ul>
-<li><p><strong>PowerShell console not responding after disconnecting from GUI</strong>: Open another PowerShell console and kill the python process:</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="ex">Get-Process</span> python</a>
-<a class="sourceLine" id="cb11-2" data-line-number="2"><span class="bu">kill</span> [pid]</a></code></pre></div></li>
-<li><p><strong>TEM-control button delay</strong>: There may be a few seconds of delay when responding, especially the first time. Please wait.</p></li>
+<li><p><strong>PowerShell console not responding after disconnecting
+from GUI</strong>: Open another PowerShell console and kill the python
+process:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">Get-Process</span> python</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> [pid]</span></code></pre></div></li>
+<li><p><strong>TEM-control button delay</strong>: There may be a few
+seconds of delay when responding, especially the first time. Please
+wait.</p></li>
 </ul>
 <h3 id="known-bugs">Known bugs</h3>
-<p>updated on 13 Dec 2024 - Autocontrast does not work correctly after installation of JF-1M. Modify contrast manually or use fixed-contrast buttons. - Tiff- and HDF- writers have not been tested after installation of JFJ. Use <a href="#summing-receiver-controls"><code>Collect</code> and <code>Cancel</code></a> in Visualization Panel instead. - Recording of TEM-related values does not correctly output a file. Currently this function is disabled.</p>
+<p>updated on 13 Dec 2024 - Autocontrast does not work correctly after
+installation of JF-1M. Modify contrast manually or use fixed-contrast
+buttons. - Tiff- and HDF- writers have not been tested after
+installation of JFJ. Use <a
+href="#summing-receiver-controls"><code>Collect</code> and
+<code>Cancel</code></a> in Visualization Panel instead. - Recording of
+TEM-related values does not correctly output a file. Currently this
+function is disabled.</p>
 <h3 id="launching-previous-system">Launching previous system</h3>
 <ul>
-<li>Usage of previous rotation commands/scripts under PyJEM3.8 environment</li>
+<li>Usage of previous rotation commands/scripts under PyJEM3.8
+environment</li>
 </ul>
 <ol type="1">
-<li>Open a Miniconda PowerShell Prompt (Anaconda submenu) from the Windows Start Menu.</li>
+<li><p>Open a Miniconda PowerShell Prompt (Anaconda submenu) from the
+Windows Start Menu.</p></li>
 <li><p>activate ‘vjem38’ virtual environment</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="ex">conda</span> activate vjem38</a></code></pre></div></li>
-<li>Navigate to <code>C:\ProgramData\xxxxxx</code></li>
-<li><p>Start interactive python, and load PyJEM module and use the commands:<br />
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate vjem38</span></code></pre></div></li>
+<li><p>Navigate to <code>C:\ProgramData\xxxxxx</code></p></li>
+<li><p>Start interactive python, and load PyJEM module and use the
+commands:<br />
 </p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="ex">python</span></a>
-<a class="sourceLine" id="cb13-2" data-line-number="2"><span class="op">&gt;&gt;&gt;</span> <span class="ex">from</span> PyJEM import TEM3</a>
-<a class="sourceLine" id="cb13-3" data-line-number="3"><span class="op">&gt;&gt;&gt;</span> <span class="ex">stage</span> = TEM3.Stage3()</a>
-<a class="sourceLine" id="cb13-4" data-line-number="4"><span class="op">&gt;&gt;&gt;</span> <span class="ex">stage.Setf1OverRateTxNum</span>(1)</a>
-<a class="sourceLine" id="cb13-5" data-line-number="5"><span class="op">&gt;&gt;&gt;</span> <span class="ex">stage.SetTiltXAngle</span>(60)</a></code></pre></div></li>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> from <span class="ex">PyJEM</span> import TEM3</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stage <span class="ex">=</span> TEM3.Stage3<span class="er">(</span><span class="kw">)</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stage.Setf1OverRateTxNum<span class="kw">(</span><span class="ex">1</span><span class="kw">)</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stage.SetTiltXAngle<span class="kw">(</span><span class="ex">60</span><span class="kw">)</span></span></code></pre></div></li>
 <li><p>Or just call a python script</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="ex">python</span> rotational_devel.py</a></code></pre></div></li>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> rotational_devel.py</span></code></pre></div></li>
 </ol>
 </body>
 </html>

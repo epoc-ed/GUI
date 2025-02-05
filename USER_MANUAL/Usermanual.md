@@ -144,10 +144,10 @@ This document was updated on 05 Feb 2024\
 ### [TEM-control Function](../jungfrau_gui/screenshot/ver_16Aug2024.PNG)
 
 - `Check TEM connection`: Starts communication with TEM.
-- `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file]
-   -`recording`: **(disabled)** When checked, allows to save the TEM status in a .log file. ([not working correctly](#Known-bugs))
+- `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file] \
+    -`recording`: **(disabled)** When checked, allows to save the TEM status in a .log file. ([not working correctly](#Known-bugs))
 - `Click-on-Centering`: Activates stage XY-control by clicking on the imageat the pint of interest.
-- `Beam Gaussian Fit`: Fits a gaussian the direct within the ROI region
+- `Beam Gaussian Fit`: Fits a gaussian to the direct beam  within the ROI (A preliminary way to get the beam center info to add to the metadata)
     - `Beam center (px)`: Displays the position (X_center,Y_center) of the center of the fitted gaussian  
     - `Gaussian height`: Displays the peak of the gaussian (keV)
     - `Sigma x (px)`: Standard deviation in the major x-axis
