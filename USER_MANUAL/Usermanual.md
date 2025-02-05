@@ -146,7 +146,7 @@ This document was updated on 05 Feb 2024\
 - `Check TEM connection`: Starts communication with TEM.
 - `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file]
    -`recording`: **(disabled)** When checked, allows to save the TEM status in a .log file. ([not working correctly](#Known-bugs))
-- `Click-on-Centering`: **(disabled)** Activates stage control by clicking the image.
+- `Click-on-Centring`: Activates stage XY-control by clicking the image.
 - `Beam Autofocus`: **(Not ready for use)** Sweeps IL1 and ILstig values.
 - `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
     - `with Writer`: Synchronizes the HDF writer with rotation.

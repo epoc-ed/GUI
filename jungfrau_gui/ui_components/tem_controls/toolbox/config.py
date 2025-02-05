@@ -12,7 +12,7 @@ parser = json.loads(f.read_text())
 
 class lut:
     distance = parser['distances']
-    magnification = parser['magnification'] # data measured by TG, using Au-grating grid, on 26 Oct 2023
+    magnification = parser['magnification'] # data measured by KT, using Au-grating grid, in Dec 2024 
     cl = parser['CL']
     sa = parser['SA']
     positions = parser['position']
@@ -31,6 +31,10 @@ def pos2textlist():
     textlist = []
     for i in lut.positions:
         textlist.append(f"{i['ID']:3d}:{i['xyz'][0]:7.1f}{i['xyz'][1]:7.1f}{i['xyz'][2]:7.1f}, {i['status']}")
-    return textlist        
-    
-    
+    return textlist
+  
+class others:
+    ### will be removed when these are registered in the dataserver
+    rotation_axis_theta = 21.8 # parser['rotation_axis_theta']
+    rotation_axis_theta_lm1200x = 52.86 # hopefully be replaced with values for each mag
+    pixelsize = 0.075 # parser['pixelsize']
