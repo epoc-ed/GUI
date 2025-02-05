@@ -105,6 +105,18 @@ class TEMStageCtrl(QGroupBox):
         for i in self.mag_modes.buttons():
             self.hbox_magmode.addWidget(i, 1)
         #self.hbox_magmode.addWidget(self.contrast_checkbox, 1)
+
+        self.hbox_extras = QHBoxLayout()
+        self.blanking_button = ToggleButton("Blank beam", self)
+        self.blanking_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.blanking_button.setEnabled(False)
+        self.hbox_extras.addWidget(self.blanking_button)
+        if globals.dev:
+            self.screen_button = ToggleButton("Move Screen", self)
+            self.screen_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+            self.screen_button.setEnabled(False)
+            self.hbox_extras.addWidget(self.screen_button)
+        stage_ctrl_section.addLayout(self.hbox_extras)
         
         self.hbox_gotopos = QHBoxLayout()
         gotopos_label = QLabel("Positions:", self)
