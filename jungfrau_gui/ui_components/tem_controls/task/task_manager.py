@@ -277,11 +277,13 @@ class ControlWorker(QObject):
             logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
             if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
-                self.cfg.mag_value_img = self.tem_status['eos.GetMagValue'][2]
+                # self.cfg.mag_value_img = self.tem_status['eos.GetMagValue'][2]
+                globals.mag_value_img = self.tem_status['eos.GetMagValue'][2]
                 self.tem_update_times['eos.GetMagValue_MAG'] = self.tem_update_times['eos.GetMagValue']
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
-                self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue'][2]
+                # self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue'][2]
+                globals.mag_value_diff = self.tem_status['eos.GetMagValue'][2]
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
             
             # Update blanking button with live status at TEM
@@ -311,10 +313,12 @@ class ControlWorker(QObject):
             logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
             if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
-                self.cfg.mag_value_img = self.tem_status['eos.GetMagValue'][2]
+                # self.cfg.mag_value_img = self.tem_status['eos.GetMagValue'][2]
+                globals.mag_value_img = self.tem_status['eos.GetMagValue'][2]
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
-                self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue'][2]
+                # self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue'][2]
+                globals.mag_value_diff = self.tem_status['eos.GetMagValue'][2]
 
             # Update blanking button with live status at TEM
             if self.tem_status["defl.GetBeamBlank"] == 0:

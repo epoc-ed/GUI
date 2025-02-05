@@ -31,3 +31,6 @@ file_dt = np.int32
 
 #Data type to receive from the stream
 stream_dt = np.float32
+
+mag_value_img = [500, 'X', 'X500']
+mag_value_diff = [300, 'mm', '30cm']
