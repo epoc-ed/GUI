@@ -14,6 +14,7 @@ from epoc import ConfigurationClient, auth_token, redis_host
 from .connectivity_inspector import TEM_Connector
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
+import time
 
 class TEMAction(QObject):
     """
@@ -50,12 +51,17 @@ class TEMAction(QObject):
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
         self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
-        # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
+        self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
         self.tem_tasks.btnGaussianFit.clicked.connect(self.tem_controls.toggle_gaussianFit_beam)
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
         self.tem_stagectrl.mag_modes.buttonClicked.connect(self.toggle_mag_modes)
+        self.tem_stagectrl.blanking_button.clicked.connect(self.toggle_blank)
+        try:
+            self.tem_stagectrl.screen_button.clicked.connect(self.toggle_screen)
+        except AttributeError:
+            pass
         
         # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
@@ -108,12 +114,17 @@ class TEMAction(QObject):
             i.setEnabled(enables)
         self.tem_tasks.gettem_button.setEnabled(enables)
         self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
-        self.tem_tasks.centering_button.setEnabled(False) # Not functional yet
+        self.tem_tasks.centering_button.setEnabled(enables)
         self.tem_tasks.btnGaussianFit.setEnabled(enables)
         self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
+        self.tem_stagectrl.blanking_button.setEnabled(enables)
+        try:
+            self.tem_stagectrl.screen_button.setEnabled(enables)
+        except AttributeError:
+            pass 
         self.tem_stagectrl.go_button.setEnabled(enables)
         self.tem_stagectrl.addpos_button.setEnabled(enables)
 
@@ -222,7 +233,31 @@ class TEMAction(QObject):
                 self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
             self.scale.setPen(pg.mkPen('w', width=2))
             self.parent.plot.addItem(self.scale)        
-            
+
+    def toggle_blank(self):
+        if self.control.tem_status["defl.GetBeamBlank"] == 0:
+            self.control.client.SetBeamBlank(1)
+            self.tem_stagectrl.blanking_button.setText("Unblank beam")
+            self.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
+        else:
+            self.control.client.SetBeamBlank(0)
+            self.tem_stagectrl.blanking_button.setText("Blank beam")
+            self.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+
+    def toggle_screen(self):
+        try:
+            screen_status = self.control.client._send_message("GetScreen")
+            if screen_status == 0:
+                self.control.client._send_message("SetScreen", 2)
+                time.sleep(2)
+                self.tem_stagectrl.screen_button.setText("Screen Up")
+            else:
+                self.control.client._send_message("SetScreen", 0)
+                time.sleep(2)
+                self.tem_stagectrl.screen_button.setText("Screen Down")
+        except RuntimeError:
+            logging.warning('To move screen, use specific version of tem_server.py!')
+
     def toggle_rb_speeds(self):
         idx_rot_button = self.tem_stagectrl.rb_speeds.checkedId()
         if self.cfg.rotation_speed_idx != idx_rot_button:
@@ -271,13 +306,35 @@ class TEMAction(QObject):
             # Interrupt rotation but end task gracefully
             self.control.interruptRotation = True
             
-    # def toggle_centering(self):
-    #     if not self.centering_button.started:
-    #         self.centering_button.setText("Deactivate centering")
-    #         self.centering_button.started = True
-    #     else:
-    #         self.centering_button.setText("Click-on-Centering")
-    #         self.centering_button.started = False
+    def toggle_centering(self):
+        if not self.tem_tasks.centering_button.started:
+            self.tem_tasks.centering_button.setText("Deactivate centering")
+            self.tem_tasks.centering_button.started = True
+        else:
+            self.tem_tasks.centering_button.setText("Click-on-Centering")
+            self.tem_tasks.centering_button.started = False
+            
+    def imageMouseClickEvent(self, event):
+        if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_button.started:
+            logging.debug('Centering is not ready.')
+            return
+        if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
+            logging.warning('Centering should not be performed in Diff-MAG mode.')
+            return
+        im = self.parent.imageItem.image
+        pos = event.pos()
+        i, j = pos.y(), pos.x()
+        i = int(np.clip(i, 0, im.shape[0] - 1))
+        j = int(np.clip(j, 0, im.shape[1] - 1))
+        val = im[i, j]
+        ppos = self.parent.imageItem.mapToParent(pos)
+        x, y = ppos.x(), ppos.y()
+        # if self.tem_action.tem_tasks.centering_checkbox.isChecked():
+        #     self.plot.removeItem(self.roi)
+        # else:
+        #     self.plot.addItem(self.roi)
+        logging.debug(f"{x:0.1f}, {y:0.1f}")
+        self.control.trigger_centering.emit(True, f"{x:0.1f}, {y:0.1f}")
             
     def toggle_beamAutofocus(self):
         if not self.tem_tasks.beamAutofocus.started:
@@ -288,7 +345,7 @@ class TEMAction(QObject):
             self.tem_tasks.beamAutofocus.started = True
             # Pop-up Window
             if self.tem_tasks.popup_checkbox.isChecked():
-                self.tem_tasks.parent.showPlotDialog()  
+                self.tem_tasks.parent.showPlotDialog()
         else:
             """ 
             To correct/adapt the interruption case

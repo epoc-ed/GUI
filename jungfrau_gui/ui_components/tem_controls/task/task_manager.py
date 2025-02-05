@@ -48,7 +48,7 @@ class ControlWorker(QObject):
     trigger_shutdown = Signal()
     # trigger_interactive = Signal()
     trigger_getteminfo = Signal(str)
-    # trigger_centering = Signal(bool, str)
+    trigger_centering = Signal(bool, str)
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
@@ -73,7 +73,7 @@ class ControlWorker(QObject):
         self.trigger_shutdown.connect(self.shutdown)
         # self.trigger_interactive.connect(self.interactive)
         self.trigger_getteminfo.connect(self.getteminfo)
-        # self.trigger_centering.connect(self.centering)
+        self.trigger_centering.connect(self.centering)
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.actionFit_Beam.connect(self.start_beam_fit)
@@ -84,10 +84,11 @@ class ControlWorker(QObject):
         
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": [0, 'X', 'X0k'],
-                           "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k']}
+                           "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k'], "defl.GetBeamBlank": 0,}
         
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
+        self.previous_tx_abs = 0
 
         """ 
         if os.name == 'nt': # test on Win-Win
@@ -169,6 +170,18 @@ class ControlWorker(QObject):
         else:
             task = GetInfoTask(self, gui)
 
+        self.start_task(task)
+
+    @Slot(bool, str)
+    def centering(self, gui=False, vector='10, 1'):
+        logging.info("Start Centering")            
+        if self.task is not None:
+            if self.task.running:
+                logging.warning("\033[38;5;214mCenteringTask\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                return
+        pixels = np.array(vector.split(sep=','), dtype=float)
+        task = CenteringTask(self, pixels)
         self.start_task(task)
 
     @Slot()
@@ -271,6 +284,14 @@ class ControlWorker(QObject):
                 self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue'][2]
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
             
+            # Update blanking button with live status at TEM
+            if self.tem_status["defl.GetBeamBlank"] == 0:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Blank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            else:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Unblank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
+
             logging.debug("TEM Status Dictionnary updated!")
             
             # import json
@@ -294,6 +315,14 @@ class ControlWorker(QObject):
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
                 self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue'][2]
+
+            # Update blanking button with live status at TEM
+            if self.tem_status["defl.GetBeamBlank"] == 0:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Blank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            else:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Unblank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
 
             self.updated.emit()
             
@@ -471,29 +500,6 @@ class ControlWorker(QObject):
                 self.send_to_tem(x)
                 #########################
             x = input() """
-
-        
-    """ 
-    @Slot(bool, str)
-    def centering(self, gui=False, vector='10, 1'):
-        if self.task.running:
-            self.stop()
-            
-        if not gui:
-            x = input('Input translation vector in px, e.g. \'10, 1\'. q: quit\n')
-            while True:
-                if x == 'q':
-                    break
-                elif x != '':
-                    pixels = np.array(x.split(sep=','), dtype=float)
-                    task = CenteringTask(self, pixels)
-                    self.start_task(task)
-                x = input()
-        else:
-            pixels = np.array(vector.split(sep=','), dtype=float)
-            task = CenteringTask(self, pixels)
-            self.start_task(task) 
-        """
     
     def update_rotation_info(self, reset=False):
         if reset:

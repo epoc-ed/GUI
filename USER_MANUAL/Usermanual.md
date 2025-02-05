@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 29 Jan 2024\
+This document was updated on 05 Feb 2024\
 **When you encounter bug-like behaviors, please check [known bugs](#Known-bugs).**
 
 ## Table of Contents
@@ -146,7 +146,7 @@ This document was updated on 29 Jan 2024\
 - `Check TEM connection`: Starts communication with TEM.
 - `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file]
    -`recording`: **(disabled)** When checked, allows to save the TEM status in a .log file. ([not working correctly](#Known-bugs))
-- `Click-on-Centering`: **(disabled)** Activates stage control by clicking the image.
+- `Click-on-Centring`: Activates stage XY-control by clicking the image.
 - `Beam Autofocus`: **(Not ready for use)** Sweeps IL1 and ILstig values.
 - `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
     - `with Writer`: Synchronizes the HDF writer with rotation.
@@ -154,6 +154,8 @@ This document was updated on 29 Jan 2024\
     - `Auto reset`: Resets the tilt to 0 degrees after rotation.
 - `Rotation Speed`: Adjusts rotation speed before starting the rotation. Also updates the `rotation_speed_idx` variable of the Configuration Manager in the data base.
 - `Stage Ctrl`: Moves the stage in specific direction. \*Rotations are not automatically quicken.
+- `Blank beam`: Blanks/unblanks beam and displays the blanking status
+- `Screen Up/Down`: (optionally activated with '-e') Moves screen. Does not indicate the current screen status.
 - `Mag Mode`: Switches and indicates the current magnification mode. Also deactivates the Auto-contrast. [See issue \#80](https://github.com/epoc-ed/GUI/issues/80).
 - `Positions`: Dropdown menu to set the XY positions of the stage
     - `Add`: Enquires about TEM stage position (through the API) and saves the coordinates in the dropdown menu 

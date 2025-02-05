@@ -48,6 +48,7 @@ INFO_QUERIES = [
     "stage.GetStatus", 
     "eos.GetMagValue", 
     "eos.GetFunctionMode", 
+    "defl.GetBeamBlank",
     "stage.Getf1OverRateTxNum"
 ]
 
@@ -76,7 +77,8 @@ INFO_QUERIES_CLIENT = [
     "GetStagePosition()", 
     "GetStageStatus()", 
     "GetMagValue()", 
-    "GetFunctionMode()", 
+    "GetFunctionMode()",
+    "GetBeamBlank()", 
     "Getf1OverRateTxNum()"
 ]
 
@@ -245,7 +247,7 @@ class TEMTools(QObject):
                     # ED-specific, stage
                     f.create_dataset('entry/instrument/stage/stage_x', data = tem_status['stage.GetPos'][0]/1e3, dtype='float')
                     f.create_dataset('entry/instrument/stage/stage_y', data = tem_status['stage.GetPos'][1]/1e3, dtype='float')
-                    f.create_dataset('entry/instrument/stage/stage_z', data = tem_status['stage.GetPos'][2], dtype='float')
+                    f.create_dataset('entry/instrument/stage/stage_z', data = tem_status['stage.GetPos'][2]/1e3, dtype='float')
                     f.create_dataset('entry/instrument/stage/stage_xyz_unit', data ='um')
                     # f.create_dataset('entry/instrument/stage/stage_tx_start', data = tem_status['stage.GetPos'][2], dtype='float')
                     # f.create_dataset('entry/instrument/stage/stage_tx_end', data = tem_status['stage.GetPos'][2], dtype='float')
@@ -258,18 +260,18 @@ class TEMTools(QObject):
                     # f.create_dataset('entry/imagedata_endangle', data = , dtype='float32') # at the end angle
                     # f.create_dataset('entry/imagedata_zerotilt', data = , dtype='float32') # at the zero tile\
                     # for cif
-                    # f.create_dataset('entry/cif/_diffrn_ambient_temperature', data = '293(2)')
-                    # f.create_dataset('entry/cif/_diffrn_radiation_wavelength', data = f'{wavelength:8.5f}')
-                    # f.create_dataset('entry/cif/_diffrn_radiation_probe', data = 'electron')
-                    # f.create_dataset('entry/cif/_diffrn_radiation_type', data = '\'monochromatic beam\'')
-                    # f.create_dataset('entry/cif/_diffrn_source', data = '\'transmission electron microscope, LaB6\'')
-                    # f.create_dataset('entry/cif/_diffrn_source_type', data = '\'JEOL JEM2100Plus\'')
-                    # f.create_dataset('entry/cif/_diffrn_source_voltage', data = f'{ht:3d}')
-                    # f.create_dataset('entry/cif/_diffrn_measurement_device_type', data = '\'single axis tomography holder\'')
-                    # f.create_dataset('entry/cif/_diffrn_detector', data = '\'hybrid pixel area detector\'')
-                    # f.create_dataset('entry/cif/_diffrn_detector_type', data = '\'JUNGFRAU\'')
-                    # # f.create_dataset('entry/cif/_diffrn_detector_dtime', data = '\'single axis tomography holder\'') #20?
-                    # f.create_dataset('entry/cif/_diffrn_detector_area_resol_mean', data = f'{1/pixel:6.3f}') # 13.333 = 1/0.075
+                    f.create_dataset('entry/cif/_diffrn_ambient_temperature', data = '293(2)')
+                    f.create_dataset('entry/cif/_diffrn_radiation_wavelength', data = f'{wavelength:8.5f}')
+                    f.create_dataset('entry/cif/_diffrn_radiation_probe', data = 'electron')
+                    f.create_dataset('entry/cif/_diffrn_radiation_type', data = '\'monochromatic beam\'')
+                    f.create_dataset('entry/cif/_diffrn_source', data = '\'transmission electron microscope, LaB6\'')
+                    f.create_dataset('entry/cif/_diffrn_source_type', data = '\'JEOL JEM2100Plus\'')
+                    f.create_dataset('entry/cif/_diffrn_source_voltage', data = f'{ht:3d}')
+                    f.create_dataset('entry/cif/_diffrn_measurement_device_type', data = '\'single axis tomography holder\'')
+                    f.create_dataset('entry/cif/_diffrn_detector', data = '\'hybrid pixel area detector\'')
+                    f.create_dataset('entry/cif/_diffrn_detector_type', data = '\'JUNGFRAU\'')
+                    # f.create_dataset('entry/cif/_diffrn_detector_dtime', data = '\'single axis tomography holder\'') #20?
+                    f.create_dataset('entry/cif/_diffrn_detector_area_resol_mean', data = f'{1/pixel:6.3f}') # 13.333 = 1/0.075
                     
                     logging.info(f'Information updated in {filename}')
                 except ValueError:
