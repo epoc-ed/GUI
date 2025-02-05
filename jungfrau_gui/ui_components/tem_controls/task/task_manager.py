@@ -84,7 +84,7 @@ class ControlWorker(QObject):
         
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": [0, 'X', 'X0k'],
-                           "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k']}
+                           "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k'], "defl.GetBeamBlank": 0,}
         
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
@@ -269,6 +269,14 @@ class ControlWorker(QObject):
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
             
+            # Update blanking button with live status at TEM
+            if self.tem_status["defl.GetBeamBlank"] == 0:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Blank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            else:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Unblank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
+
             logging.debug("TEM Status Dictionnary updated!")
             
             # import json
@@ -290,6 +298,14 @@ class ControlWorker(QObject):
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
+
+            # Update blanking button with live status at TEM
+            if self.tem_status["defl.GetBeamBlank"] == 0:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Blank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            else:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Unblank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
 
             self.updated.emit()
             
