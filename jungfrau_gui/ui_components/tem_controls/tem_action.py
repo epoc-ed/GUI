@@ -314,10 +314,10 @@ class TEMAction(QObject):
             
     def imageMouseClickEvent(self, event):
         if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_button.started:
-            logging.debug('Centring is not ready.')
+            logging.debug('Centering is not ready.')
             return
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
-            logging.info('Centring should not be performed in Diff-MAG mode.')
+            logging.warning('Centering should not be performed in Diff-MAG mode.')
             return
         im = self.parent.imageItem.image
         pos = event.pos()
@@ -331,8 +331,8 @@ class TEMAction(QObject):
         #     self.plot.removeItem(self.roi)
         # else:
         #     self.plot.addItem(self.roi)
-        logging.debug("%0.1f, %0.1f" % (x, y))
-        self.control.trigger_centering.emit(True, "%0.1f, %0.1f" % (x, y))
+        logging.debug(f"{x:0.1f}, {y:0.1f}")
+        self.control.trigger_centering.emit(True, f"{x:0.1f}, {y:0.1f}")
             
     def toggle_beamAutofocus(self):
         if not self.tem_tasks.beamAutofocus.started:

@@ -172,6 +172,18 @@ class ControlWorker(QObject):
 
         self.start_task(task)
 
+    @Slot(bool, str)
+    def centering(self, gui=False, vector='10, 1'):
+        logging.info("Start Centering")            
+        if self.task is not None:
+            if self.task.running:
+                logging.warning("\033[38;5;214mCenteringTask\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                return
+        pixels = np.array(vector.split(sep=','), dtype=float)
+        task = CenteringTask(self, pixels)
+        self.start_task(task)
+
     @Slot()
     def start_record(self):
         logging.info("Starting Rotation/Record")
@@ -484,19 +496,6 @@ class ControlWorker(QObject):
                 self.send_to_tem(x)
                 #########################
             x = input() """
-
-        
-    @Slot(bool, str)
-    def centering(self, gui=False, vector='10, 1'):
-        if self.task is not None:
-            if self.task.running:
-                logging.warning("\033[38;5;214mRecordTask\033[33m - task is currently running...\n"
-                                "You need to stop the current task before starting a new one.")
-                return
-        logging.info("Start Centering")            
-        pixels = np.array(vector.split(sep=','), dtype=float)
-        task = CenteringTask(self, pixels)
-        self.start_task(task)
     
     def update_rotation_info(self, reset=False):
         if reset:

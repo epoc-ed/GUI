@@ -17,8 +17,7 @@ click-on-move
 class CenteringTask(Task):   
     def __init__(self, control_worker, pixels=[10, 1]):
         super().__init__(control_worker, "Centering")
-        self.conrol = control_worker
-        self.tem_action = self.control.tem_action
+        self.control = control_worker
         self.pixels = pixels
         logging.info("CenteringTask initialized")
         self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
@@ -49,15 +48,15 @@ class CenteringTask(Task):
 
     def run(self):
         px_array = np.array(self.pixels)
-        pos = self.client.GetStagePosition()
-        if np.abs(pos[3]) > 1 and np.abs(pos[3]) < 5:
+        tilt_X_abs = np.abs(self.client.GetTiltXAngle())
+        if tilt_X_abs > 1 and tilt_X_abs < 5:
             logging.warning('Stage tilts! Reset tilting or Adjust Z manually. ')
             return
         magnification = self.control.tem_status["eos.GetMagValue"]
         try:
             movexy = self.translationvector(px_array, magnification) # in um
         except ZeroDivisionError:
-            logging.wargning(f'Value invalid: {magnification[2]}')
+            logging.warning(f'Value invalid: {magnification[2]}')
             return
         
         # == INSERT A ROUTINE HERE TO AVOID OVER-SHIFTING ==
@@ -66,8 +65,7 @@ class CenteringTask(Task):
             logging.info(f'Vector too large: {movexy[0]}, {movexy[1]}')
             return
         
-        tx_abs = np.abs(pos[3])
-        if tx_abs < 5:
+        if tilt_X_abs < 5:
             if np.abs(movexy[0]) < self.thresholds[0] and np.abs(movexy[1]) < self.thresholds[0]:
                 logging.info(f'Vector already small enough (< {self.thresholds[0]} um): {movexy[0]}, {movexy[1]}')
                 return
@@ -77,13 +75,13 @@ class CenteringTask(Task):
             self.client.SetYRel(movexy[1]*-1e3)
             time.sleep(0.5)
         else:
-            if tx_abs < 11:
+            if tilt_X_abs < 11:
                 logging.info('Start Z-adjustment from Tx=0.')
                 self.control.previous_tx_abs = 0
             else:
                 logging.info('Continue Z-adjustment.')
-            movez  = np.round(movexy[1] / (np.sin(np.deg2rad(tx_abs)) - np.sin(np.deg2rad(self.control.previous_tx_abs))), 3) # in um
-            self.control.previous_tx_abs = tx_abs
+            movez  = np.round(movexy[1] / (np.sin(np.deg2rad(tilt_X_abs)) - np.sin(np.deg2rad(self.control.previous_tx_abs))), 3) # in um
+            self.control.previous_tx_abs = tilt_X_abs
             if np.abs(movez) < self.thresholds[2] or np.abs(movez) > self.thresholds[3]:
                 logging.info(f'Too small or too large Z-Vector: {movez}')
                 return
@@ -91,9 +89,11 @@ class CenteringTask(Task):
             logging.warning(f'Move Z is not activated yet!!')
             # self.client.SetZRel(movez*-1e3)
         
-        while not self.client.is_rotating: # should be replaced with 'is_moving'
-            logging.info('Stage movement ends or is interrupted.')
-            break
+        # Wait until the stage is done moving 
+        # (Is this useful?) -> Fast/Async movement  
+        # while self.client.is_moving():
+        #     time.sleep(0.1)
+        # logging.info('Stage movement ended or was interrupted.')
 
         logging.info('Stage is now ready.')
         return
