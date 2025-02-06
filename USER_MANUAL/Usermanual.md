@@ -69,10 +69,10 @@ This document was updated on 6 Feb 2025\
    ```bash
    cd /home/instruments/jem2100plus/GUI
    ```
-5. Confirm you are on the `testing` branch, otherwise switch:
+5. Confirm you are on the `main` branch, otherwise switch:
    ```bash
    git branch --contains
-   git switch testing
+   git switch main
    ```
 6. Start the GUI:
    ```bash
