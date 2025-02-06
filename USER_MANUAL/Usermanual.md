@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 05 Feb 2024\
+This document was updated on 6 Feb 2025\
 **When you encounter bug-like behaviors, please check [known bugs](#Known-bugs).**
 
 ## Table of Contents
@@ -84,10 +84,10 @@ This document was updated on 05 Feb 2024\
    ```bash
    cd /home/instruments/jem2100plus/GUI
    ```
-5. Confirm you are on the `testing` branch, otherwise switch:
+5. Confirm you are on the `main` branch, otherwise switch:
    ```bash
    git branch --contains
-   git switch testing
+   git switch main
    ```
 6. Start the GUI:
    ```bash
@@ -122,7 +122,7 @@ This document was updated on 05 Feb 2024\
 ## Main Functionalities
 
 - `View Stream`: Reads the stream of frames published by the receiver.
-- `Apply Auto Contrast`: Dynamically adjusts the contrast of displayed frames ([not working correctly](#Known-bugs)).
+- `Apply Auto Contrast`: Dynamically adjusts the contrast of displayed frames (~[not working correctly](#Known-bugs)~ fixed).
 - `Reset Contrast`: Turn off the auto-contrast and reload preset contrast values from Redis. Four other presets can also be used.
 - `Exit`: Exits the GUI.
 - `Beam Gaussian Fit`: Starts fitting the beam's elliptical spot shape (non-TEM mode only, useful for manual focusing).
@@ -130,7 +130,8 @@ This document was updated on 05 Feb 2024\
 - `Accumulate in TIFF`: Saves a TIFF snapshot to the specified data path (**[not tested in jfj-version](#Known-bugs)**).
 - `Write Stream in H5`: Saves an HDF movie to the specified data path (**[not tested in jfj-version](#Known-bugs)**).
 
-### Summing Receiver Controls
+### [Summing Receiver Controls](../jungfrau_gui/screenshot/ver_13Dec2024.png)
+
 - `Connect to jungfraujoch`: Establishes a connection with the jungfraujoch-receiver.
 - `Live stream`: Displays summed frames.
 - `Data Collection`:
@@ -156,7 +157,7 @@ This document was updated on 05 Feb 2024\
 - `Beam Autofocus`: **(Not ready for use)** Sweeps IL1 and ILstig values.
 - `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
     - `with Writer`: Synchronizes the HDF writer with rotation.
-    - `JFJ`: Saves data in JFJ-server (NOETHER).
+    - `JFJ`: Saves data in JFJ-server (noether). Otherwise the data will be saved locally (hodgkin).
     - `Auto reset`: Resets the tilt to 0 degrees after rotation.
 - `Rotation Speed`: Adjusts rotation speed before starting the rotation. Also updates the `rotation_speed_idx` variable of the Configuration Manager in the data base.
 - `Stage Ctrl`: Moves the stage in specific direction. \*Rotations are not automatically quicken.
@@ -198,6 +199,7 @@ This document was updated on 05 Feb 2024\
 **⚠️ Important ⚠️** All the fields with (*) are manually editable. During edition, the entered values/text will be displayed in orange. Press [ENTER] to confirm modifications and values will be uploaded to the data base.
 
 ## Data-recording workflow
+
 1. Set up the beam and stage of TEM.
 2. Blank the beam to avoid sample damage.
 3. Confirm the data output path on the `H5 Output Path` line-edit.
@@ -205,7 +207,7 @@ This document was updated on 05 Feb 2024\
 5. Check the `with Writer` and `JFJ` boxes.
 6. Click `Rotation` to start the rotation and recording.
 7. Continue until the end angle is reached or interrupted.
-8. Take an HDF movie if needed.
+8. Take an HDF movie if needed (e.g. crystal picture).
 
 ## Data-processing notes
 

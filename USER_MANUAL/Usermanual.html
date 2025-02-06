@@ -8,10 +8,21 @@
   <style>
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
-    span.underline{text-decoration: underline;}
-    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
     div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
-    ul.task-list{list-style: none;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
     pre > code.sourceCode { white-space: pre; position: relative; }
     pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
     pre > code.sourceCode > span:empty { height: 1.2em; }
@@ -75,7 +86,6 @@
     code span.va { color: #19177c; } /* Variable */
     code span.vs { color: #4070a0; } /* VerbatimString */
     code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
-    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
   <link rel="stylesheet" href="github-markdown.css" />
 </head>
@@ -85,7 +95,7 @@
 </header>
 <h1 id="new-receiver-and-viewer-of-jungfrau-for-ed-ccsa-uniwien">New
 Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien</h1>
-<p>This document was updated on 05 Feb 2024<br />
+<p>This document was updated on 6 Feb 2025<br />
 <strong>When you encounter bug-like behaviors, please check <a
 href="#Known-bugs">known bugs</a>.</strong></p>
 <h2 id="table-of-contents">Table of Contents</h2>
@@ -182,11 +192,11 @@ class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="
 <li><p>Change to the GUI directory:</p>
 <div class="sourceCode" id="cb7"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /home/instruments/jem2100plus/GUI</span></code></pre></div></li>
-<li><p>Confirm you are on the <code>testing</code> branch, otherwise
+<li><p>Confirm you are on the <code>main</code> branch, otherwise
 switch:</p>
 <div class="sourceCode" id="cb8"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> branch <span class="at">--contains</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch testing</span></code></pre></div></li>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> switch main</span></code></pre></div></li>
 <li><p>Start the GUI:</p>
 <div class="sourceCode" id="cb9"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> launch_gui.py <span class="at">-t</span> <span class="at">-s</span> tcp://noether:5501</span></code></pre></div>
@@ -231,15 +241,15 @@ may take several seconds.<br />
 process:</p>
 <div class="sourceCode" id="cb10"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">Get-Process</span> python</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> [process-id]</span></code></pre></div></li>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> <span class="pp">[</span><span class="ss">process</span><span class="pp">-</span><span class="ss">id</span><span class="pp">]</span></span></code></pre></div></li>
 </ol>
 <h2 id="main-functionalities">Main Functionalities</h2>
 <ul>
 <li><code>View Stream</code>: Reads the stream of frames published by
 the receiver.</li>
 <li><code>Apply Auto Contrast</code>: Dynamically adjusts the contrast
-of displayed frames (<a href="#Known-bugs">not working
-correctly</a>).</li>
+of displayed frames (<sub><a href="#Known-bugs">not working
+correctly</a></sub> fixed).</li>
 <li><code>Reset Contrast</code>: Turn off the auto-contrast and reload
 preset contrast values from Redis. Four other presets can also be
 used.</li>
@@ -256,7 +266,9 @@ jfj-version</a></strong>).</li>
 data path (<strong><a href="#Known-bugs">not tested in
 jfj-version</a></strong>).</li>
 </ul>
-<h3 id="summing-receiver-controls">Summing Receiver Controls</h3>
+<h3 id="summing-receiver-controls"><a
+href="../jungfrau_gui/screenshot/ver_13Dec2024.png">Summing Receiver
+Controls</a></h3>
 <ul>
 <li><code>Connect to jungfraujoch</code>: Establishes a connection with
 the jungfraujoch-receiver.</li>
@@ -314,7 +326,8 @@ The beam is unblanked during rotation and blanked when rotation ends.
 <ul>
 <li><code>with Writer</code>: Synchronizes the HDF writer with
 rotation.</li>
-<li><code>JFJ</code>: Saves data in JFJ-server (NOETHER).</li>
+<li><code>JFJ</code>: Saves data in JFJ-server (noether). Otherwise the
+data will be saved locally (hodgkin).</li>
 <li><code>Auto reset</code>: Resets the tilt to 0 degrees after
 rotation.</li>
 </ul></li>
@@ -399,7 +412,7 @@ line-edit.</li>
 <li>Click <code>Rotation</code> to start the rotation and
 recording.</li>
 <li>Continue until the end angle is reached or interrupted.</li>
-<li>Take an HDF movie if needed.</li>
+<li>Take an HDF movie if needed (e.g. crystal picture).</li>
 </ol>
 <h2 id="data-processing-notes">Data-processing notes</h2>
 <ul>
@@ -443,7 +456,7 @@ from GUI</strong>: Open another PowerShell console and kill the python
 process:</p>
 <div class="sourceCode" id="cb11"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">Get-Process</span> python</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> [pid]</span></code></pre></div></li>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> <span class="pp">[</span><span class="ss">pid</span><span class="pp">]</span></span></code></pre></div></li>
 <li><p><strong>TEM-control button delay</strong>: There may be a few
 seconds of delay when responding, especially the first time. Please
 wait.</p></li>
