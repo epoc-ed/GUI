@@ -43,7 +43,8 @@ class TEMAction(QObject):
         self.scale = None
         self.marker = None
         # self.formatted_filename = '' # TODO DELETE? See use in 'callGetInfoTask' below 
-        self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
+        # self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
+        self.cfg.beam_center = [1, 1] # Flag for non-updated metadata
         # self.xds_template_filepath = self.cfg.XDS_template
         self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
         
@@ -53,6 +54,7 @@ class TEMAction(QObject):
         self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
+        self.tem_tasks.btnGaussianFit.clicked.connect(self.tem_controls.toggle_gaussianFit_beam)
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
         self.tem_stagectrl.mag_modes.buttonClicked.connect(self.toggle_mag_modes)
         self.tem_stagectrl.blanking_button.clicked.connect(self.toggle_blank)
@@ -101,7 +103,8 @@ class TEMAction(QObject):
         self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
 
     def enabling(self, enables=True):
-        self.tem_detector.scale_checkbox.setEnabled(enables)
+        if self.cfg.beam_center != [1,1]:
+            self.tem_detector.scale_checkbox.setEnabled(enables)
         for i in self.tem_stagectrl.rb_speeds.buttons():
             i.setEnabled(enables)
         if enables:
@@ -113,6 +116,7 @@ class TEMAction(QObject):
         self.tem_tasks.gettem_button.setEnabled(enables)
         self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
         self.tem_tasks.centering_button.setEnabled(enables)
+        self.tem_tasks.btnGaussianFit.setEnabled(enables)
         self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
@@ -180,8 +184,7 @@ class TEMAction(QObject):
             self.control.trigger_getteminfo.emit('N')
 
     def on_tem_update(self):
-        logging.debug("Updating GUI with last TEM Status...")
-        # self.beamcenter = float(fit_result_best_values['xo']), float(fit_result_best_values['yo'])
+        logging.debug("Updating GUI with last TEM Status...") 
         angle_x = self.control.tem_status["stage.GetPos"][3]
         self.tem_tasks.input_start_angle.setValue(angle_x)
         
@@ -197,7 +200,7 @@ class TEMAction(QObject):
             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_det_distance.setText(detector_distance)
-            self.drawscale_overlay(xo=self.beamcenter[0], yo=self.beamcenter[1])
+            self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
         else:
             logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
         

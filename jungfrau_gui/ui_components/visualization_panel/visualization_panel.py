@@ -25,6 +25,7 @@ from epoc import JungfraujochWrapper, ConfigurationClient, auth_token, redis_hos
 from ...ui_components.palette import *
 from rich import print
 from ..tem_controls.toolbox.progress_pop_up import ProgressPopup
+from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
 
 class BrokerCheckTask(QRunnable):
     def __init__(self, check_function, complete_callback):
@@ -616,7 +617,23 @@ class VisualizationPanel(QGroupBox):
                     
                     logging.warning(f"Starting to collect data...")
                     self.formatted_filename = self.cfg.fpath
-                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname = self.formatted_filename.as_posix(), th = self.thresholdBox.value(), wait = self.wait_option.isChecked())
+                    """ 
+                    DEBUGGING (To Delete after test)
+                    """
+                    print(f"********* beam_x_pxl = {self.cfg.beam_center[0]}")
+                    print(f"********* beam_y_pxl = {self.cfg.beam_center[1]}")
+                    # print(f"********* detector_distance_mm = {cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated')}")
+                    print(f"********* detector_distance_mm = {cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated')}")
+                    
+                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
+                                            fname = self.formatted_filename.as_posix(),
+                                            th = self.thresholdBox.value(),
+                                            beam_x_pxl = self.cfg.beam_center[0],
+                                            beam_y_pxl = self.cfg.beam_center[1],
+                                            # detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated'), #100
+                                            detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated'), #100
+                                            incident_energy_ke_v = 200,
+                                            wait = self.wait_option.isChecked())
                     self.jfj_is_collecting = True
                     # Create and start the wait_until_idle thread for asynchronous monitoring
                     self.idle_thread = threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,), daemon=True)

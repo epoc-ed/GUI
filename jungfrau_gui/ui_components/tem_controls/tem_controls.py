@@ -6,7 +6,7 @@ import pyqtgraph as pg
 from datetime import datetime
 from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
 from PySide6.QtGui import QTransform, QFont
-from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, 
+from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox,
                                QDoubleSpinBox, QCheckBox, QGraphicsEllipseItem, QGraphicsRectItem)
 
 from .toolbox.plot_dialog import PlotDialog
@@ -54,11 +54,39 @@ class TemControls(QGroupBox):
         self.checkbox.setChecked(False)
         self.plotDialog = None
         
+        self.label_voltage = QLabel()
+        self.label_voltage.setText("Voltage (HT)")
+        self.voltage_spBx = QSpinBox()
+        self.voltage_spBx.setMaximum(1000)
+        self.voltage_spBx.setValue(200)
+        self.voltage_spBx.setSuffix(" kV")
+        self.gauss_height_spBx.setReadOnly(True)
+
+        self.label_beam_center = QLabel()
+        self.label_beam_center.setText("Beam center (px)")
+        
+        self.beam_center_x = QSpinBox()
+        self.beam_center_x.setPrefix("X_center: ")
+        self.beam_center_x.setValue(1)
+        self.beam_center_x.setMaximum(globals.ncol)
+        # self.beam_center_x.setReadOnly(True)
+        self.beam_center_x.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_x))
+        self.beam_center_x.editingFinished.connect(self.update_beam_center_x)
+        
+        self.beam_center_y = QSpinBox()
+        self.beam_center_y.setPrefix("Y_center: ")
+        self.beam_center_y.setValue(1)
+        self.beam_center_y.setMaximum(globals.nrow)
+        # self.beam_center_y.setReadOnly(True)
+        self.beam_center_y.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_y))
+        self.beam_center_y.editingFinished.connect(self.update_beam_center_y)
+        
         self.label_gauss_height = QLabel()
         self.label_gauss_height.setText("Gaussian height")
         self.gauss_height_spBx = QDoubleSpinBox()
         self.gauss_height_spBx.setValue(1)
         self.gauss_height_spBx.setMaximum(1e10)
+        self.gauss_height_spBx.setSuffix(" keV")
         self.gauss_height_spBx.setReadOnly(True)
 
         self.label_sigma_x = QLabel()
@@ -133,6 +161,25 @@ class TemControls(QGroupBox):
         tem_section.addStretch()
         self.setLayout(tem_section)
 
+    def spin_box_modified(self, spin_box):
+        spin_box.setStyleSheet(f"QSpinBox {{ color: orange; background-color: {self.background_color}; }}")
+    
+    def update_beam_center_x(self):
+        self.cfg.beam_center = [self.beam_center_x.value(), self.beam_center_y.value()]
+        self.reset_style(self.beam_center_x)
+        logging.debug(f'New X position (px) of beam center is : {self.cfg.beam_center[0]}')
+        logging.info(f'Beam center position is saved as: {self.cfg.beam_center}')
+    
+    def update_beam_center_y(self):
+        self.cfg.beam_center = [self.beam_center_x.value(), self.beam_center_y.value()]
+        self.reset_style(self.beam_center_y)
+        logging.debug(f'New Y position (px) of beam center is : {self.cfg.beam_center[1]}')
+        logging.info(f'Beam center position is saved as: {self.cfg.beam_center}')
+
+    def reset_style(self, field):
+        text_color = self.palette.color(QPalette.Text).name()
+        field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
+
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
     """ ***************************************** """
@@ -155,6 +202,32 @@ class TemControls(QGroupBox):
         else:
             self.btnBeamFocus.setText("Beam Gaussian Fit")
             self.btnBeamFocus.started = False
+            self.parent.timer_fit.stop()  
+            # Close Pop-up Window
+            if self.plotDialog != None:
+                self.plotDialog.close()
+            self.parent.stopWorker(self.thread_fit, self.fitter)
+            self.removeAxes()
+
+    def toggle_gaussianFit_beam(self):
+        if not self.tem_tasks.btnGaussianFit.started:
+            self.thread_fit = QThread()
+            self.fitter = GaussianFitter()
+            self.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
+            self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
+            self.thread_fit.start()
+            self.fitterWorkerReady = True # Flag to indicate worker is ready
+            logging.info("Starting fitting process")
+            self.tem_tasks.btnGaussianFit.setText("Stop Fitting")
+            self.tem_tasks.btnGaussianFit.started = True
+            # Pop-up Window
+            if self.checkbox.isChecked():
+                self.showPlotDialog()   
+            # Timer started
+            self.parent.timer_fit.start(10)
+        else:
+            self.tem_tasks.btnGaussianFit.setText("Beam Gaussian Fit")
+            self.tem_tasks.btnGaussianFit.started = False
             self.parent.timer_fit.stop()  
             # Close Pop-up Window
             if self.plotDialog != None:
@@ -205,11 +278,14 @@ class TemControls(QGroupBox):
         sigma_y = float(fit_result_best_values['sigma_y'])
         theta_deg = float(fit_result_best_values['theta'])
         # Show fitting parameters 
+        self.beam_center_x.setValue(xo)
+        self.beam_center_y.setValue(yo)
         self.gauss_height_spBx.setValue(amplitude)
-        self.sigma_x_spBx.setValue(sigma_x)
         self.sigma_x_spBx.setValue(sigma_x)
         self.sigma_y_spBx.setValue(sigma_y)
         self.angle_spBx.setValue(theta_deg)
+        # Update beam center coordinates in Redis DB
+        self.cfg.beam_center = [xo,yo]
         # Update graph in pop-up Window
         if self.plotDialog != None:
             self.plotDialog.updatePlot(amplitude, sigma_x, sigma_y)
