@@ -60,7 +60,7 @@ class TemControls(QGroupBox):
         self.voltage_spBx.setMaximum(1000)
         self.voltage_spBx.setValue(200)
         self.voltage_spBx.setSuffix(" kV")
-        self.gauss_height_spBx.setReadOnly(True)
+        self.voltage_spBx.setReadOnly(True)
 
         self.label_beam_center = QLabel()
         self.label_beam_center.setText("Beam center (px)")
