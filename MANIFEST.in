@@ -1,0 +1,3 @@
+include jungfrau_gui/version.txt
+include jungfrau_gui/ui_components/tem_controls/toolbox/jfgui2_config.json
+

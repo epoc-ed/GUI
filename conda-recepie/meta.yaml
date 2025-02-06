@@ -1,0 +1,43 @@
+package:
+  name: jungfrau_gui
+  version: "{{ load_setup_py_data().version }}"
+
+source:
+  path: ..
+
+build:
+  noarch: python
+  script: 
+    - git describe --tags | cut -d'-' -f1 > jungfrau_gui/version.txt
+    - python setup.py sdist
+    - pip install dist/*.tar.gz
+
+requirements:
+  build:
+    - python 
+    - setuptools
+    - setuptools_scm
+    
+  run:
+    - python
+    - h5py
+    - hdf5plugin
+    - line_profiler
+    - lmfit
+    - numpy
+    - pyqtgraph
+    - PySide6
+    - pyzmq
+    - scipy
+    - tifffile
+    - boost-histogram
+
+extra:
+  channels:
+    - conda-forge
+
+about:
+  home: https://github.com/epoc-ed/epoc-utils
+  license: MIT
+  license_family: MIT
+  summary: Configuration of experiments in the EPOC project
