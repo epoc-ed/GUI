@@ -103,7 +103,8 @@ class TEMAction(QObject):
         self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
 
     def enabling(self, enables=True):
-        self.tem_detector.scale_checkbox.setEnabled(enables)
+        if self.cfg.beam_center != [1,1]:
+            self.tem_detector.scale_checkbox.setEnabled(enables)
         for i in self.tem_stagectrl.rb_speeds.buttons():
             i.setEnabled(enables)
         if enables:

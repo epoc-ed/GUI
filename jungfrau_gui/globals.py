@@ -32,5 +32,6 @@ file_dt = np.int32
 #Data type to receive from the stream
 stream_dt = np.float32
 
-mag_value_img = [500, 'X', 'X500']
-mag_value_diff = [300, 'mm', '30cm']
+# Flags for non-updated magnification values in MAG and DIFF modes
+mag_value_img = [1, 'X', 'X1']
+mag_value_diff = [0, 'mm', '0cm']

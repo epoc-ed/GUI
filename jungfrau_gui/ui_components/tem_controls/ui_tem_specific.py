@@ -249,7 +249,12 @@ class TEMTasks(QGroupBox):
 
         tasks_section.addWidget(create_horizontal_line_with_margin(20))
 
+        Voltage_layout = QHBoxLayout()
+        Voltage_layout.addWidget(self.parent.label_voltage, 3)  
+        Voltage_layout.addWidget(self.parent.voltage_spBx, 2)
+
         BEAM_group.addWidget(BEAM_label)
+        BEAM_group.addLayout(Voltage_layout)
         BEAM_group.addWidget(self.btnGaussianFit)
         BEAM_group.addWidget(self.beamAutofocus)
         BEAM_group.addWidget(self.popup_checkbox)

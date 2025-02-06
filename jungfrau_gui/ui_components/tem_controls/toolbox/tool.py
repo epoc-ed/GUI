@@ -187,6 +187,7 @@ class TEMTools(QObject):
     def __init__(self, tem_action):
         super().__init__()
         self.tem_action = tem_action
+        self.tem_controls = self.tem_action.tem_controls
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_addinfo_to_hdf5.connect(self.addinfo_to_hdf)     
  
@@ -195,7 +196,7 @@ class TEMTools(QObject):
         filename = self.tem_action.file_operations.formatted_filename
         beamcenter = self.cfg.beam_center
         interval = self.tem_action.visualization_panel.update_interval.value()
-        ht = 200 # keV  # <- HT3
+        ht = self.tem_controls.voltage_spBx.value() #200
         wavelength = eV2angstrom(ht*1e3) # Angstrom   
         stage_rates = [10.0, 2.0, 1.0, 0.5]
         try:

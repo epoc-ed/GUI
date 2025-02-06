@@ -54,6 +54,14 @@ class TemControls(QGroupBox):
         self.checkbox.setChecked(False)
         self.plotDialog = None
         
+        self.label_voltage = QLabel()
+        self.label_voltage.setText("Voltage (HT)")
+        self.voltage_spBx = QSpinBox()
+        self.voltage_spBx.setMaximum(1000)
+        self.voltage_spBx.setValue(200)
+        self.voltage_spBx.setSuffix(" kV")
+        self.gauss_height_spBx.setReadOnly(True)
+
         self.label_beam_center = QLabel()
         self.label_beam_center.setText("Beam center (px)")
         

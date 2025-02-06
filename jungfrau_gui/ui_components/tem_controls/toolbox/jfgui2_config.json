@@ -34,10 +34,19 @@
            "calibrated": 355.0,
            "unit": "mm",
            "date_update": "03/12/2024"
+         },
+         { "displayed": "0cm",
+           "calibrated": 0,
+           "unit": "mm",
+           "date_update": "06/02/2025"
         }
 ],
   "magnification":
         [
+         { "displayed": "X1",
+           "calibrated": 1,
+           "date_update": "06/02/2025"
+        },
          { "displayed": "X100k",
            "calibrated": 140184,
            "date_update": "04/12/2024"
