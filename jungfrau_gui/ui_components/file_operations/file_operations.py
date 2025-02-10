@@ -332,8 +332,7 @@ class FileOperations(QGroupBox):
         else:
             self.parent.visualization_panel.send_command_to_jfjoch('cancel')
             if self.parent.tem_controls.tem_action.temConnector is not None: ## to be checked again
-                self.parent.tem_controls.tem_action.control.send_to_tem("#more")
-                time.sleep(0.2)
+                self.parent.tem_controls.tem_action.control.send_to_tem("#more", asynchronous = False)
                 logging.info(" ******************** Adding Info to H5 over Server...")
                 send_with_retries(self.metadata_notifier.notify_metadata_update, 
                                     self.parent.visualization_panel.formatted_filename, 
@@ -344,7 +343,6 @@ class FileOperations(QGroupBox):
                                     retries=3, 
                                     delay=0.1) 
             logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
-            # self.snapshot_index_input.setValue(self.cfg.file_id+1)
             self.tag_input.setText(self.pre_text) # reset the tag to value before snapshot
             self.update_measurement_tag()
             self.snapshot_button.setText("Write Stream as a snapshot-H5")

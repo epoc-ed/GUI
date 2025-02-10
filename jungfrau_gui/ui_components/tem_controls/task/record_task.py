@@ -182,15 +182,6 @@ class RecordTask(Task):
 
             if os.access(os.path.dirname(self.log_suffix), os.W_OK): logfile.close()
             logging.info(f"Stage rotation end at {phi1:.1f} deg.")
-
-            # Create and show a modal progress dialog
-            progress_dialog = QProgressDialog("Updating TEM status...", None, 0, 0, self)
-            progress_dialog.setWindowModality(Qt.ApplicationModal)
-            progress_dialog.setCancelButton(None)
-            progress_dialog.show()
-
-            # Force the GUI to update and display the dialog
-            QApplication.processEvents()
             
             # GUI updates; should be done before Auto-Reset, which modifies the stage status
             try:
@@ -198,9 +189,6 @@ class RecordTask(Task):
                 logging.info('TEM-status received.')
             except Exception as e:
                 logging.error("Error updating TEM status: {e}")
-            finally:
-                # Close the progress dialog
-                progress_dialog.close()
             
             # Enable auto reset of tilt
             if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
@@ -256,12 +244,9 @@ class RecordTask(Task):
             # in case self.writer is not None
             if self.writer is None:
                 self.reset_rotation_signal.emit()
-
-            # if self.tem_action.tem_tasks.autoreset_checkbox.isChecked():
-            #     time.sleep(phi1/10+0.5)
                 
             self.tem_action.trigger_additem.emit('green', 'recorded')
-            time.sleep(0.1)
+            time.sleep(0.5)
             print("------REACHED END OF TASK----------")
 
             # Restarting TEM polling
