@@ -14,12 +14,15 @@ from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
 from ...ui_components.palette import *
+from ...ui_components.tem_controls.toolbox.tool import send_with_retries
+from ...metadata_uploader.metadata_update_client import MetadataNotifier
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
 from pathlib import Path
 import os
-import re 
+import re
+import time
 
 class FileOperations(QGroupBox):
     trigger_update_h5_index_box = Signal()
@@ -32,6 +35,7 @@ class FileOperations(QGroupBox):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_update_h5_index_box.connect(self.update_index_box)
         self.initUI()
+        self.metadata_notifier = MetadataNotifier(host = "noether")
         
 
     def initUI(self):
@@ -145,48 +149,50 @@ class FileOperations(QGroupBox):
         #####################
         # TIFF Writer Section
         #####################
-        TIFF_section_label = QLabel("TIFF Writer", self)
-        TIFF_section_label.setFont(font_big)
+#         if not globals.jfj:
+#             TIFF_section_label = QLabel("TIFF Writer", self)
+#             TIFF_section_label.setFont(font_big)
 
-        section3.addWidget(TIFF_section_label)
+#             section3.addWidget(TIFF_section_label)
 
-        self.fname = QLabel("TIFF file name", self)
-        self.tiff_path = QLineEdit(self)
-        self.tiff_path.setText(f'{self.cfg.data_dir}')
-        self.tiff_path.setReadOnly(True)
-        self.fname_input = QLineEdit(self)
-        self.fname_input.setText('file_name')
+#             self.fname = QLabel("TIFF file name", self)
+#             self.tiff_path = QLineEdit(self)
+#             self.tiff_path.setText(f'{self.cfg.data_dir}')
+#             self.tiff_path.setReadOnly(True)
+#             self.fname_input = QLineEdit(self)
+#             self.fname_input.setText('file_name')
 
         # Define a regex that matches only valid Unix filename characters
         valid_regex = QRegularExpression("^[a-zA-Z0-9_.-]+$")
-        self.fname_input.setValidator(QRegularExpressionValidator(valid_regex, self))
 
-        self.findex_input = QSpinBox(self)  
+#         if not globals.jfj:
+#             self.fname_input.setValidator(QRegularExpressionValidator(valid_regex, self))
+#             self.findex_input = QSpinBox(self)  
 
-        tiff_file_layout = QHBoxLayout()
-        tiff_file_layout.addWidget(self.fname, 2)
-        tiff_file_layout.addWidget(self.tiff_path, 7)
-        tiff_file_layout.addWidget(self.fname_input, 2)
-        tiff_file_layout.addWidget(self.findex_input, 1)
+#             tiff_file_layout = QHBoxLayout()
+#             tiff_file_layout.addWidget(self.fname, 2)
+#             tiff_file_layout.addWidget(self.tiff_path, 7)
+#             tiff_file_layout.addWidget(self.fname_input, 2)
+#             tiff_file_layout.addWidget(self.findex_input, 1)
 
-        section3.addLayout(tiff_file_layout)
-        
-        self.frameAccumulator = None
-        self.accumulate_button = QPushButton("Accumulate in TIFF", self)
-        self.accumulate_button.setEnabled(False)
-        self.accumulate_button.clicked.connect(self.start_accumulate)
-        self.acc_spin = QSpinBox(self)
-        self.acc_spin.setValue(10)
-        self.acc_spin.setMaximum(1000000)
-        self.acc_spin.setSuffix(' frames')
+#             section3.addLayout(tiff_file_layout)
 
-        accumulate_layout = QHBoxLayout()
-        accumulate_layout.addWidget(self.accumulate_button)
-        accumulate_layout.addWidget(self.acc_spin)
+#             self.frameAccumulator = None
+#             self.accumulate_button = QPushButton("Accumulate in TIFF", self)
+#             self.accumulate_button.setEnabled(False)
+#             self.accumulate_button.clicked.connect(self.start_accumulate)
+#             self.acc_spin = QSpinBox(self)
+#             self.acc_spin.setValue(10)
+#             self.acc_spin.setMaximum(1000000)
+#             self.acc_spin.setSuffix(' frames')
 
-        section3.addLayout(accumulate_layout)
-        
-        section3.addWidget(create_horizontal_line_with_margin(15))
+#             accumulate_layout = QHBoxLayout()
+#             accumulate_layout.addWidget(self.accumulate_button)
+#             accumulate_layout.addWidget(self.acc_spin)
+
+#             section3.addLayout(accumulate_layout)
+
+#             section3.addWidget(create_horizontal_line_with_margin(15))
 
         #####################
         # HDF5 Writer Section
@@ -263,57 +269,132 @@ class FileOperations(QGroupBox):
                 logging.error("Only QLineEdit and QSpinBox objects are supported!")
 
         section3.addLayout(hdf5_writer_layout)
+        # section3.addStretch()
+        # self.setLayout(section3)
+
+        #####################
+        # Snapshot Writer Section !!!! aimed only for temporal use !!!!
+        #####################
+
+        section3.addWidget(create_horizontal_line_with_margin(15))
+        self.pre_text = "dummy"
+
+        snapshot_section_label = QLabel("Snapshot Writer", self)
+        snapshot_section_label.setFont(font_big)
+
+        section3.addWidget(snapshot_section_label)
+
+        self.prefix_label = QLabel("Snapshot file prefix", self)
+        self.prefix_input = QLineEdit(self)
+        self.prefix_input.setText('xtal')
+        # self.prefix_input.setReadOnly(True)
+
+        self.snapshot_index_input = QSpinBox(self)
+        self.snapshot_index_input.setValue(self.cfg.file_id)
+        self.snapshot_index_input.setEnabled(False)
+
+        snapshot_layout = QHBoxLayout()
+        snapshot_layout.addWidget(self.prefix_label, 3)
+        snapshot_layout.addWidget(self.prefix_input, 6)
+        snapshot_layout.addWidget(self.snapshot_index_input, 1)
+
+        section3.addLayout(snapshot_layout)
+
+        self.snapshot_button = ToggleButton("Write Stream as a snapshot-H5", self)
+        self.snapshot_button.clicked.connect(self.toggle_snapshot_btn)
+        self.snapshot_spin = QSpinBox(self)
+        self.snapshot_spin.setMaximum(60000) # 1min
+        self.snapshot_spin.setValue(1000)
+        self.snapshot_spin.setSuffix(' msec')
+
+        snapshot_btn_layout = QHBoxLayout()
+        snapshot_btn_layout.addWidget(self.snapshot_button)
+        snapshot_btn_layout.addWidget(self.snapshot_spin)
+
+        section3.addLayout(snapshot_btn_layout)
         section3.addStretch()
         self.setLayout(section3)
 
-
+    def toggle_snapshot_btn(self):
+        if not self.parent.visualization_panel.jfj_broker_is_ready:
+            logging.warning('JFJ is not ready!!')
+            return
+        if not self.snapshot_button.started:
+            self.pre_text = self.tag_input.text()
+            self.tag_input.setText(self.prefix_input.text())
+            self.update_measurement_tag()
+            self.snapshot_button.setText("Stop")
+            self.snapshot_button.started = True
+            self.parent.visualization_panel.send_command_to_jfjoch('collect')
+            logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
+            time.sleep(int(self.snapshot_spin.value())*1e-3)
+            self.toggle_snapshot_btn()
+        else:
+            self.parent.visualization_panel.send_command_to_jfjoch('cancel')
+            if self.parent.tem_controls.tem_action.temConnector is not None: ## to be checked again
+                self.parent.tem_controls.tem_action.control.send_to_tem("#more", asynchronous = False)
+                logging.info(" ******************** Adding Info to H5 over Server...")
+                send_with_retries(self.metadata_notifier.notify_metadata_update, 
+                                    self.parent.visualization_panel.formatted_filename, 
+                                    self.parent.tem_controls.tem_action.control.tem_status, #self.control.tem_status, 
+                                    self.cfg.beam_center, 
+                                    None, # self.rotations_angles,
+                                    self.cfg.threshold,
+                                    retries=3, 
+                                    delay=0.1) 
+            logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
+            self.tag_input.setText(self.pre_text) # reset the tag to value before snapshot
+            self.update_measurement_tag()
+            self.snapshot_button.setText("Write Stream as a snapshot-H5")
+            self.snapshot_button.started = False
+        
     """ ************************************************ """
     """ Multiprocessing Version of the TIFF file Writing """
     """ ************************************************ """
-    def start_accumulate(self):
-        try:
-            # Retrieve the file index and file path
-            file_index = self.findex_input.value()
-            self.update_base_data_directory() # update in case base_dir is manually changed after gui start
-            fpath = Path(self.tiff_path.text())
+    # def start_accumulate(self):
+    #     try:
+    #         # Retrieve the file index and file path
+    #         file_index = self.findex_input.value()
+    #         self.update_base_data_directory() # update in case base_dir is manually changed after gui start
+    #         fpath = Path(self.tiff_path.text())
             
-            # Attempt to create the directory path if it doesn't exist
-            fpath.mkdir(parents=True, exist_ok=True)
+    #         # Attempt to create the directory path if it doesn't exist
+    #         fpath.mkdir(parents=True, exist_ok=True)
             
-            # Construct the full filename
-            full_fname = (fpath / f'{self.fname_input.text()}_{file_index}.tiff').as_posix()
+    #         # Construct the full filename
+    #         full_fname = (fpath / f'{self.fname_input.text()}_{file_index}.tiff').as_posix()
             
-            # If the folder and file name were successfully created, proceed with accumulation
-            nb_frames_to_take = self.acc_spin.value()
+    #         # If the folder and file name were successfully created, proceed with accumulation
+    #         nb_frames_to_take = self.acc_spin.value()
 
-            # Initialize FrameAccumulator and start accumulation
-            self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
-                                                    dtype=globals.dtype,
-                                                    image_size=(globals.nrow, globals.ncol),
-                                                    nframes=nb_frames_to_take,
-                                                    fname=full_fname)
-            self.frameAccumulator.start()
+    #         # Initialize FrameAccumulator and start accumulation
+    #         self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
+    #                                                 dtype=globals.dtype,
+    #                                                 image_size=(globals.nrow, globals.ncol),
+    #                                                 nframes=nb_frames_to_take,
+    #                                                 fname=full_fname)
+    #         self.frameAccumulator.start()
             
-            # Wait for the process to finish
-            self.frameAccumulator.accumulate_process.join()
+    #         # Wait for the process to finish
+    #         self.frameAccumulator.accumulate_process.join()
 
-            # Check if any error was reported in the error queue
-            if not self.frameAccumulator.error_queue.empty():
-                error = self.frameAccumulator.error_queue.get_nowait()
-                raise error
+    #         # Check if any error was reported in the error queue
+    #         if not self.frameAccumulator.error_queue.empty():
+    #             error = self.frameAccumulator.error_queue.get_nowait()
+    #             raise error
         
-            # Update file number for the next take
-            self.findex_input.setValue(file_index + 1)
+    #         # Update file number for the next take
+    #         self.findex_input.setValue(file_index + 1)
 
-        except OSError as e:
-            # Handle file system-related errors (e.g., permission denied, invalid path...)
-            error_message = f"File system error: {e}"
-            QMessageBox.critical(self, "Error", error_message)
+    #     except OSError as e:
+    #         # Handle file system-related errors (e.g., permission denied, invalid path...)
+    #         error_message = f"File system error: {e}"
+    #         QMessageBox.critical(self, "Error", error_message)
             
-        except Exception as e:
-            # Handle any other unexpected errors
-            error_message = f"An unexpected error occurred: {e}"
-            QMessageBox.critical(self, "Error", error_message)
+    #     except Exception as e:
+    #         # Handle any other unexpected errors
+    #         error_message = f"An unexpected error occurred: {e}"
+    #         QMessageBox.critical(self, "Error", error_message)
 
     # def modify_path_manually(self):
     #     path = self.outPath_input.text()
@@ -409,7 +490,8 @@ class FileOperations(QGroupBox):
     def update_data_directory(self):
         if self.outPath_input.text() != self.cfg.data_dir.as_posix():
             self.outPath_input.setText(self.cfg.data_dir.as_posix())
-            self.tiff_path.setText(self.cfg.data_dir.as_posix())
+            # if not globals.jfj:
+            #     self.tiff_path.setText(self.cfg.data_dir.as_posix())
             logging.info(f"Data directory is: {self.cfg.data_dir.as_posix()}")
             
             # Check if folder exists and contains .h5 files to update file index
@@ -426,12 +508,14 @@ class FileOperations(QGroupBox):
 
     def update_file_index(self):
         self.cfg.file_id = self.index_box.value()
+        self.snapshot_index_input.setValue(self.index_box.value())
         self.update_full_fname_for_jfjoch()
         self.reset_style(self.index_box)
         logging.info(f'H5 file index manually updated by user. Value of "file_id" equal to: {self.cfg.file_id}')
 
     def update_index_box(self, verbose=True):
         self.index_box.setValue(self.cfg.file_id)
+        self.snapshot_index_input.setValue(self.index_box.value())
         self.update_full_fname_for_jfjoch()
         self.reset_style(self.index_box)
         if verbose:

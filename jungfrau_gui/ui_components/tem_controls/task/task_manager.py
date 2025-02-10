@@ -52,6 +52,7 @@ class ControlWorker(QObject):
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
+    update_xtalinfo = Signal(str, str)
 
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
@@ -199,12 +200,9 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
-        self.file_operations.update_base_data_directory() # Update the GUI
-        # TODO Choose the right fname from the start (increment file_id ?)
-        # TODO Use directly the whole fname -> not the suffix ?
-        filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
-
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
+            self.file_operations.update_base_data_directory() # Update the GUI
+            filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
             if self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
                 task = RecordTask(
                     self,
@@ -222,7 +220,7 @@ class ControlWorker(QObject):
                     standard_h5_recording=True
                 )
         else:
-            task = RecordTask(self, end_angle, filename_suffix.as_posix())
+            task = RecordTask(self, end_angle) #, filename_suffix.as_posix())
 
         self.start_task(task)
 
@@ -334,17 +332,21 @@ class ControlWorker(QObject):
             logging.error(f"Error during quick updating tem_status map: {e}")
 
     @Slot(str) 
-    def send_to_tem(self, message):
+    def send_to_tem(self, message, asynchronous = True):
         logging.debug(f'Sending {message} to TEM...')
         if message == "#info":
-            # results = self.get_state()
-            # self.trigger_tem_update.emit(results)
-            threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state())).start()
+            if asynchronous:
+                threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state())).start()
+            else:
+                results = self.get_state()
+                self.trigger_tem_update.emit(results)
 
         elif message == "#more":
-            # results = self.get_state_detailed()
-            # self.trigger_tem_update_detailed.emit(results)
-            threading.Thread(target=lambda: self.trigger_tem_update_detailed.emit(self.get_state_detailed())).start()
+            if asynchronous:
+                threading.Thread(target=lambda: self.trigger_tem_update_detailed.emit(self.get_state_detailed())).start()
+            else:
+                results = self.get_state_detailed()
+                self.trigger_tem_update_detailed.emit(results)
             
         else:
             logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
@@ -376,7 +378,7 @@ class ControlWorker(QObject):
             result["tst_after"] = time.time()
             results[query] = result   
         toc_loop = time.perf_counter()
-        logging.debug(f"Getting #more took {toc_loop - tic_loop} seconds")
+        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
         return results
 
     def execute_command(self, command_str):

@@ -40,7 +40,7 @@ class MetadataNotifier:
     def _now(self):
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    def notify_metadata_update(self, filename, tem_status, beamcenter, timeout_ms = 5000):
+    def notify_metadata_update(self, filename, tem_status, beamcenter, rotations_angles, jf_threshold, timeout_ms = 5000):
         
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
@@ -58,6 +58,8 @@ class MetadataNotifier:
                 "filename": filename.as_posix(),
                 "tem_status": tem_status,
                 "beamcenter": beamcenter,
+                "rotations_angles": rotations_angles,
+                "jf_threshold": jf_threshold,
                 "detector_distance": detector_distance,
                 "aperture_size_cl": aperture_size_cl,
                 "aperture_size_sa": aperture_size_sa
@@ -97,8 +99,10 @@ if __name__ == "__main__":
     with open("tem_status_exemplar.txt", 'r') as file:
         tem_status = json.load(file)
 
-    beamcenter = cfg.beam_center
+    beamcenter = cfg.beam_center # Read from Redis DB
+    rotations_angles = [0.0, 0.0, 0.0, 0.0, 0.0] # Define a list with the correct format 
+    jf_threshold = 5 
     #input("Enter to continue!")
 
     notifier = MetadataNotifier(host=args.host, port=args.port)
-    notifier.notify_metadata_update(args.filepath, tem_status, beamcenter)
+    notifier.notify_metadata_update(args.filepath, tem_status, beamcenter, rotations_angles, jf_threshold)

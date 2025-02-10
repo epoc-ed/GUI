@@ -16,6 +16,8 @@ from .connectivity_inspector import TEM_Connector
 import jungfrau_gui.ui_threading_helpers as thread_manager
 import time
 
+from jungfrau_gui import globals
+
 class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
@@ -30,10 +32,12 @@ class TEMAction(QObject):
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
+        self.tem_xtalinfo = self.tem_controls.tem_xtalinfo
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
 
+        self.temConnector = None
         self.timer_tem_connexion = QTimer()
         self.timer_tem_connexion.timeout.connect(self.checkTemConnexion)
         
@@ -100,7 +104,8 @@ class TEMAction(QObject):
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
-        self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
+        # if not globals.jfj:
+        #     self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
 
     def enabling(self, enables=True):
         if self.cfg.beam_center != [1,1]:
@@ -206,7 +211,8 @@ class TEMAction(QObject):
         
         # Update rotation_speed radio button in GUI to refelct status of TEM
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
-        self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        logging.debug(f"Rotation speed index: {rotation_speed_index}")
+        if rotation_speed_index in [0,1,2,3]: self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         
         self.plot_currentposition()
 
@@ -291,7 +297,7 @@ class TEMAction(QObject):
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:
             self.control.init.emit()
-            self.control.send_to_tem("#more")
+            self.control.send_to_tem("#info")
             self.control.trigger_record.emit()
             self.tem_tasks.rotation_button.setText("Stop")
             self.tem_tasks.rotation_button.started = True

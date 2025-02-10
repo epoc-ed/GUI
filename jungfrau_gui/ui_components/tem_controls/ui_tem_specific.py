@@ -303,3 +303,44 @@ class TEMTasks(QGroupBox):
         tasks_section.addLayout(ROT_group)
         
         self.setLayout(tasks_section)
+
+class XtalInfo(QGroupBox):
+    def __init__(self):
+        super().__init__() # "DataProcessing"
+        self.initUI()
+
+    def initUI(self):
+        font_big = QFont("Arial", 11)
+        font_big.setBold(True)
+
+        xtal_section = QVBoxLayout()
+        xtal_label = QLabel("Result of Processing", self)
+        xtal_label.setFont(font_big)
+
+        xtal_section.addWidget(xtal_label)
+
+        hbox_process = QHBoxLayout()
+        xds_label = QLabel("XDS:", self)
+        # dials_label = QLabel("DIALS:", self)
+        self.xds_results = QLineEdit(self)
+        self.xds_results.setReadOnly(True)
+        # self.dials_results = QLineEdit(self)
+        # self.dials_results.setReadOnly(True)
+        hbox_process.addWidget(xds_label)
+        hbox_process.addWidget(self.xds_results)
+        # hbox_process.addWidget(dials_label)
+        # hbox_process.addWidget(self.dials_results)
+        xtal_section.addLayout(hbox_process)
+
+        # self.hbox_command = QHBoxLayout()
+        # command_label = QLabel("TEMcmd:", self)
+        # self.command_input = QComboBox(self)
+        # # self.command_input.addItems(['#more', 'lens.SetNtrl(0)', 'stage.SetMovementValueMeasurementMethod(0)', 'stage.SetOrg()'])
+        # self.command_input.setEditable(True)
+        # self.send_button = QPushButton("Send", self)
+        # self.hbox_command.addWidget(command_label, 1)
+        # self.hbox_command.addWidget(self.command_input, 7)
+        # self.hbox_command.addWidget(self.send_button, 1)
+        # xtal_section.addLayout(self.hbox_command)
+
+        self.setLayout(xtal_section)

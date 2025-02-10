@@ -31,7 +31,7 @@ def get_git_info():
     try:
         # Fall back to git if version.txt is not available
         tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
-        branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8')
+        branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8').split()[-1]
         return f"Viewer {tag}/{branch}"
     except subprocess.CalledProcessError:
         return "Viewer x.x.x"
@@ -230,10 +230,10 @@ class ApplicationWindow(QMainWindow):
                 if self.file_operations.streamWriter is not None:
                     if self.file_operations.streamWriter.write_process.is_alive():
                         self.file_operations.streamWriter.stop()
-                if self.file_operations.frameAccumulator is not None:
-                    if self.file_operations.frameAccumulator.accumulate_process.is_alive():
-                        self.file_operations.frameAccumulator.accumulate_process.terminate()
-                        self.file_operations.frameAccumulator.accumulate_process.join()
+                # if self.file_operations.frameAccumulator is not None:
+                #     if self.file_operations.frameAccumulator.accumulate_process.is_alive():
+                #         self.file_operations.frameAccumulator.accumulate_process.terminate()
+                #         self.file_operations.frameAccumulator.accumulate_process.join()
                 # if self.tem_controls.fitter is not None:
                 #     self.tem_controls.fitter.stop()
                 for thread, worker in running_threadWorkerPairs:
