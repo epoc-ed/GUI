@@ -81,6 +81,10 @@ class MetadataNotifier:
             context.destroy()
 
 if __name__ == "__main__":
+    from epoc import ConfigurationClient, auth_token, redis_host
+
+    cfg = ConfigurationClient(redis_host(), token=auth_token())
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-fp', '--filepath', type=Path, help="Path to the saved hdf5 file")
     parser.add_argument('-H', '--host', type=str, default="localhost", help="Host address")
@@ -95,10 +99,10 @@ if __name__ == "__main__":
     with open("tem_status_exemplar.txt", 'r') as file:
         tem_status = json.load(file)
 
-    beamcenter = [173, 170] # Read from Redis DB
+    beamcenter = cfg.beam_center # Read from Redis DB
     rotations_angles = [0.0, 0.0, 0.0, 0.0, 0.0] # Define a list with the correct format 
     jf_threshold = 5 
-    input("Enter to continue!")
+    #input("Enter to continue!")
 
     notifier = MetadataNotifier(host=args.host, port=args.port)
     notifier.notify_metadata_update(args.filepath, tem_status, beamcenter, rotations_angles, jf_threshold)

@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
-                               QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy)
+                               QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy, QComboBox,
+                               QSpinBox)
 from PySide6.QtGui import QFont
 from ..toggle_button import ToggleButton
 from ..utils import create_horizontal_line_with_margin
@@ -7,6 +8,8 @@ from ..utils import create_horizontal_line_with_margin
 from epoc import ConfigurationClient, auth_token, redis_host
 
 from ... import globals
+import pyqtgraph as pg
+import numpy as np
 
 class TEMDetector(QGroupBox):
     def __init__(self):
@@ -102,7 +105,50 @@ class TEMStageCtrl(QGroupBox):
         for i in self.mag_modes.buttons():
             self.hbox_magmode.addWidget(i, 1)
         #self.hbox_magmode.addWidget(self.contrast_checkbox, 1)
+
+        self.hbox_extras = QHBoxLayout()
+        self.blanking_button = ToggleButton("Blank beam", self)
+        self.blanking_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.blanking_button.setEnabled(False)
+        self.hbox_extras.addWidget(self.blanking_button)
+        if globals.dev:
+            self.screen_button = ToggleButton("Move Screen", self)
+            self.screen_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+            self.screen_button.setEnabled(False)
+            self.hbox_extras.addWidget(self.screen_button)
+        stage_ctrl_section.addLayout(self.hbox_extras)
         
+        self.hbox_gotopos = QHBoxLayout()
+        gotopos_label = QLabel("Positions:", self)
+        self.position_list = QComboBox(self)
+        self.position_list.setEditable(False)
+        self.addpos_button = QPushButton("Add", self)
+        self.addpos_button.setEnabled(False)
+        self.go_button = QPushButton("Go", self)
+        self.go_button.setEnabled(False)
+        # self.goxyz_button = QPushButton("Go XYZ", self)
+        self.hbox_gotopos.addWidget(gotopos_label, 1)
+        self.hbox_gotopos.addWidget(self.position_list, 7)
+        self.hbox_gotopos.addWidget(self.addpos_button, 1)
+        self.hbox_gotopos.addWidget(self.go_button, 1)
+        stage_ctrl_section.addLayout(self.hbox_gotopos)
+        
+        self.plot_layout = QVBoxLayout()
+        self.grid_plot = pg.PlotWidget()
+        self.plot_layout.addWidget(self.grid_plot)
+        self.gridarea = self.grid_plot.plotItem
+        radius = 3050 # in um
+        x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
+        y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
+        self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
+        radius = 2350 # in um not very correct value!!
+        x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
+        y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
+        self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
+        self.grid_plot.setAspectLocked()
+        self.grid_plot.showGrid(x=True, y=True)
+        stage_ctrl_section.addLayout(self.plot_layout)
+
         self.setLayout(stage_ctrl_section)
 
 class TEMTasks(QGroupBox):
@@ -122,6 +168,14 @@ class TEMTasks(QGroupBox):
         CTN_label.setFont(font_big)
         self.connecttem_button = ToggleButton('Check TEM Connection', self)
         self.connecttem_button.setEnabled(True)
+        self.polling_frequency = QSpinBox(self)
+        self.polling_frequency.setMinimum(100)
+        self.polling_frequency.setMaximum(10000)
+        self.polling_frequency.setValue(1000)
+        self.polling_frequency.setSingleStep(100)
+        self.polling_frequency.setPrefix("Polling Freq: ")
+        self.polling_frequency.setSuffix("ms")
+        self.connecttem_button.setEnabled(True)
         self.gettem_button = QPushButton("Get TEM status", self)
         self.gettem_checkbox = QCheckBox("recording", self)
         self.gettem_button.setEnabled(False)
@@ -133,7 +187,8 @@ class TEMTasks(QGroupBox):
         BEAM_group = QVBoxLayout()
         BEAM_label = QLabel("Beam Sweep & Focus", self)
         BEAM_label.setFont(font_big)
-
+        self.btnGaussianFit = ToggleButton("Beam Gaussian Fit", self)
+        self.btnGaussianFit.setEnabled(False)
         self.beamAutofocus = ToggleButton('Beam Autofocus', self)
         self.beamAutofocus.setEnabled(False)
         self.popup_checkbox = self.parent.checkbox
@@ -185,6 +240,7 @@ class TEMTasks(QGroupBox):
 
         CTN_group.addWidget(CTN_label)
         CTN_section.addWidget(self.connecttem_button)
+        CTN_section.addWidget(self.polling_frequency)
         CTN_section.addWidget(self.gettem_button)
         CTN_section.addWidget(self.gettem_checkbox)
         CTN_group.addLayout(CTN_section)
@@ -193,27 +249,37 @@ class TEMTasks(QGroupBox):
 
         tasks_section.addWidget(create_horizontal_line_with_margin(20))
 
+        Voltage_layout = QHBoxLayout()
+        Voltage_layout.addWidget(self.parent.label_voltage, 3)  
+        Voltage_layout.addWidget(self.parent.voltage_spBx, 2)
+
         BEAM_group.addWidget(BEAM_label)
+        BEAM_group.addLayout(Voltage_layout)
+        BEAM_group.addWidget(self.btnGaussianFit)
         BEAM_group.addWidget(self.beamAutofocus)
         BEAM_group.addWidget(self.popup_checkbox)
         
         BeamFocus_layout = QVBoxLayout()
-
+        gauss_center_layout = QHBoxLayout()
+        gauss_center_layout.addWidget(self.parent.label_beam_center, 3)  
+        gauss_center_layout.addWidget(self.parent.beam_center_x, 2)
+        gauss_center_layout.addWidget(self.parent.beam_center_y, 2)
+        BeamFocus_layout.addLayout(gauss_center_layout)
         gauss_H_layout = QHBoxLayout()
-        gauss_H_layout.addWidget(self.parent.label_gauss_height)  
-        gauss_H_layout.addWidget(self.parent.gauss_height_spBx)
+        gauss_H_layout.addWidget(self.parent.label_gauss_height, 3)  
+        gauss_H_layout.addWidget(self.parent.gauss_height_spBx, 4)
         BeamFocus_layout.addLayout(gauss_H_layout)
         sigma_x_layout = QHBoxLayout()
-        sigma_x_layout.addWidget(self.parent.label_sigma_x)  
-        sigma_x_layout.addWidget(self.parent.sigma_x_spBx)         
+        sigma_x_layout.addWidget(self.parent.label_sigma_x, 3)  
+        sigma_x_layout.addWidget(self.parent.sigma_x_spBx, 4)         
         BeamFocus_layout.addLayout(sigma_x_layout)
         sigma_y_layout = QHBoxLayout()
-        sigma_y_layout.addWidget(self.parent.label_sigma_y)  
-        sigma_y_layout.addWidget(self.parent.sigma_y_spBx)         
+        sigma_y_layout.addWidget(self.parent.label_sigma_y, 3)  
+        sigma_y_layout.addWidget(self.parent.sigma_y_spBx, 4)         
         BeamFocus_layout.addLayout(sigma_y_layout)        
         rot_angle_layout = QHBoxLayout()
-        rot_angle_layout.addWidget(self.parent.label_rot_angle)  
-        rot_angle_layout.addWidget(self.parent.angle_spBx)         
+        rot_angle_layout.addWidget(self.parent.label_rot_angle, 3)  
+        rot_angle_layout.addWidget(self.parent.angle_spBx, 4)         
         BeamFocus_layout.addLayout(rot_angle_layout)
         
         BEAM_group.addLayout(BeamFocus_layout)

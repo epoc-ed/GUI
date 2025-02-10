@@ -9,7 +9,7 @@ tem_mode = False
 # jfj = False
 
 tem_host = cfg.temserver
-
+dev = False
 #Configuration
 nrow = cfg.nrows 
 ncol = cfg.ncols
@@ -31,3 +31,7 @@ file_dt = np.int32
 
 #Data type to receive from the stream
 stream_dt = np.float32
+
+# Flags for non-updated magnification values in MAG and DIFF modes
+mag_value_img = [1, 'X', 'X1']
+mag_value_diff = [0, 'mm', '0cm']

@@ -25,6 +25,7 @@ from epoc import JungfraujochWrapper, ConfigurationClient, auth_token, redis_hos
 from ...ui_components.palette import *
 from rich import print
 from ..tem_controls.toolbox.progress_pop_up import ProgressPopup
+from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
 
 class BrokerCheckTask(QRunnable):
     def __init__(self, check_function, complete_callback):
@@ -616,7 +617,23 @@ class VisualizationPanel(QGroupBox):
                     
                     logging.warning(f"Starting to collect data...")
                     self.formatted_filename = self.cfg.fpath
-                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname = self.formatted_filename.as_posix(), th = self.thresholdBox.value(), wait = self.wait_option.isChecked())
+                    """ 
+                    DEBUGGING (To Delete after test)
+                    """
+                    print(f"********* beam_x_pxl = {self.cfg.beam_center[0]}")
+                    print(f"********* beam_y_pxl = {self.cfg.beam_center[1]}")
+                    # print(f"********* detector_distance_mm = {cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated')}")
+                    print(f"********* detector_distance_mm = {cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated')}")
+                    
+                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
+                                            fname = self.formatted_filename.as_posix(),
+                                            th = self.thresholdBox.value(),
+                                            beam_x_pxl = self.cfg.beam_center[0],
+                                            beam_y_pxl = self.cfg.beam_center[1],
+                                            # detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated'), #100
+                                            detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated'), #100
+                                            incident_energy_ke_v = 200,
+                                            wait = self.wait_option.isChecked())
                     self.jfj_is_collecting = True
                     # Create and start the wait_until_idle thread for asynchronous monitoring
                     self.idle_thread = threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,), daemon=True)
@@ -855,17 +872,23 @@ class VisualizationPanel(QGroupBox):
 
     def applyCustomColormap(self):
         # Get the LUT from the gradient
+        # Could be of shape 512 x 3 or 512 x 4
         lut = self.parent.histogram.gradient.getLookupTable(512)
 
-        # Ensure the LUT has an alpha channel
+        # Ensure the LUT has an alpha channel i.e. 512 x 4
         if lut.shape[1] == 4:
             pass
         else:
             alpha = np.ones((lut.shape[0], 1), dtype=lut.dtype) * 255
             lut = np.hstack((lut, alpha))
 
-        # Set the first color's alpha to zero to make np.nan transparent
-        lut[0, 3] = 0  # Alpha channel is at index 3
+        # Only do this if you truly want the LUT index 0 to be invisible.
+        # Meaning that all low value pixels that map to the first row (index 0)
+        # of the LUT, will be represented as [R0, G0, B0, A0] with A0 = 0;
+        # where 0=TRANSPARENT VS 255=OPAQUE 
+        # If it kills valid data, comment it out.
+               
+        # lut[0, 3] = 0 
 
         # Apply the modified LUT to the ImageItem
         self.parent.imageItem.setLookupTable(lut)

@@ -34,10 +34,19 @@
            "calibrated": 355.0,
            "unit": "mm",
            "date_update": "03/12/2024"
+         },
+         { "displayed": "0cm",
+           "calibrated": 0,
+           "unit": "mm",
+           "date_update": "06/02/2025"
         }
 ],
   "magnification":
         [
+         { "displayed": "X1",
+           "calibrated": 1,
+           "date_update": "06/02/2025"
+        },
          { "displayed": "X100k",
            "calibrated": 140184,
            "date_update": "04/12/2024"
@@ -180,5 +189,33 @@
            "size": 10,
            "unit": "um"
          }
-]
+],
+  "position":
+        [
+         { "ID": 0,
+           "xyz": [0, 0, 0],
+           "status": "preset",
+           "unit": "um"
+         },
+         { "ID": -1,
+           "xyz": [500, 500, 0],
+           "status": "preset",
+           "unit": "um"
+         },
+         { "ID": -2,
+           "xyz": [-500, 500, 0],
+           "status": "preset",
+           "unit": "um"
+         },
+         { "ID": -3,
+           "xyz": [500, -500, 0],
+           "status": "preset",
+           "unit": "um"
+         },
+         { "ID": -4,
+           "xyz": [-500, -500, 0],
+           "status": "preset",
+           "unit": "um"
+         }  
+] 
 }
