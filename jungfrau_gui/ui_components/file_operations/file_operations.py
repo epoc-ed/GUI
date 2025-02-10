@@ -277,7 +277,6 @@ class FileOperations(QGroupBox):
         #####################
 
         section3.addWidget(create_horizontal_line_with_margin(15))
-        self.visualization_panel = self.parent.visualization_panel
         self.pre_text = "dummy"
 
         snapshot_section_label = QLabel("Snapshot Writer", self)
@@ -290,20 +289,19 @@ class FileOperations(QGroupBox):
         self.prefix_input.setText('xtal')
         # self.prefix_input.setReadOnly(True)
 
-        self.pindex_input = QSpinBox(self)
-        self.pindex_input.setValue(self.cfg.file_id)
-        self.pindex_input.setEnabled(False)
+        self.snapshot_index_input = QSpinBox(self)
+        self.snapshot_index_input.setValue(self.cfg.file_id)
+        self.snapshot_index_input.setEnabled(False)
 
         snapshot_layout = QHBoxLayout()
         snapshot_layout.addWidget(self.prefix_label, 3)
         snapshot_layout.addWidget(self.prefix_input, 6)
-        snapshot_layout.addWidget(self.pindex_input, 1)
+        snapshot_layout.addWidget(self.snapshot_index_input, 1)
 
         section3.addLayout(snapshot_layout)
 
         self.snapshot_button = ToggleButton("Write Stream as a snapshot-H5", self)
-        # self.snapshot_button.setEnabled(False)
-        self.snapshot_button.clicked.connect(lambda: self.toggle_snapshot_btn())
+        self.snapshot_button.clicked.connect(self.toggle_snapshot_btn)
         self.snapshot_spin = QSpinBox(self)
         self.snapshot_spin.setMaximum(60000) # 1min
         self.snapshot_spin.setValue(1000)
@@ -318,7 +316,7 @@ class FileOperations(QGroupBox):
         self.setLayout(section3)
 
     def toggle_snapshot_btn(self):
-        if not self.visualization_panel.stop_jfj_measurement.isEnabled():
+        if not self.parent.visualization_panel.jfj_broker_is_ready:
             logging.warning('JFJ is not ready!!')
             return
         if not self.snapshot_button.started:
@@ -327,18 +325,18 @@ class FileOperations(QGroupBox):
             self.update_measurement_tag()
             self.snapshot_button.setText("Stop")
             self.snapshot_button.started = True
-            self.visualization_panel.send_command_to_jfjoch('collect')
+            self.parent.visualization_panel.send_command_to_jfjoch('collect')
             logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
             time.sleep(int(self.snapshot_spin.value())*1e-3)
             self.toggle_snapshot_btn()
         else:
-            self.visualization_panel.send_command_to_jfjoch('cancel')
-            if self.parent.tem_controls.tem_action.temConnector: ## to be checked again
+            self.parent.visualization_panel.send_command_to_jfjoch('cancel')
+            if self.parent.tem_controls.tem_action.temConnector is not None: ## to be checked again
                 self.parent.tem_controls.tem_action.control.send_to_tem("#more")
                 time.sleep(0.2)
                 logging.info(" ******************** Adding Info to H5 over Server...")
                 send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                    self.visualization_panel.formatted_filename, 
+                                    self.parent.visualization_panel.formatted_filename, 
                                     self.parent.tem_controls.tem_action.control.tem_status, #self.control.tem_status, 
                                     self.cfg.beam_center, 
                                     None, # self.rotations_angles,
@@ -346,8 +344,8 @@ class FileOperations(QGroupBox):
                                     retries=3, 
                                     delay=0.1) 
             logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
-            self.pindex_input.setValue(self.cfg.file_id+1)
-            self.tag_input.setText(self.pre_text)
+            # self.snapshot_index_input.setValue(self.cfg.file_id+1)
+            self.tag_input.setText(self.pre_text) # reset the tag to value before snapshot
             self.update_measurement_tag()
             self.snapshot_button.setText("Write Stream as a snapshot-H5")
             self.snapshot_button.started = False
@@ -355,50 +353,50 @@ class FileOperations(QGroupBox):
     """ ************************************************ """
     """ Multiprocessing Version of the TIFF file Writing """
     """ ************************************************ """
-    def start_accumulate(self):
-        try:
-            # Retrieve the file index and file path
-            file_index = self.findex_input.value()
-            self.update_base_data_directory() # update in case base_dir is manually changed after gui start
-            fpath = Path(self.tiff_path.text())
+    # def start_accumulate(self):
+    #     try:
+    #         # Retrieve the file index and file path
+    #         file_index = self.findex_input.value()
+    #         self.update_base_data_directory() # update in case base_dir is manually changed after gui start
+    #         fpath = Path(self.tiff_path.text())
             
-            # Attempt to create the directory path if it doesn't exist
-            fpath.mkdir(parents=True, exist_ok=True)
+    #         # Attempt to create the directory path if it doesn't exist
+    #         fpath.mkdir(parents=True, exist_ok=True)
             
-            # Construct the full filename
-            full_fname = (fpath / f'{self.fname_input.text()}_{file_index}.tiff').as_posix()
+    #         # Construct the full filename
+    #         full_fname = (fpath / f'{self.fname_input.text()}_{file_index}.tiff').as_posix()
             
-            # If the folder and file name were successfully created, proceed with accumulation
-            nb_frames_to_take = self.acc_spin.value()
+    #         # If the folder and file name were successfully created, proceed with accumulation
+    #         nb_frames_to_take = self.acc_spin.value()
 
-            # Initialize FrameAccumulator and start accumulation
-            self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
-                                                    dtype=globals.dtype,
-                                                    image_size=(globals.nrow, globals.ncol),
-                                                    nframes=nb_frames_to_take,
-                                                    fname=full_fname)
-            self.frameAccumulator.start()
+    #         # Initialize FrameAccumulator and start accumulation
+    #         self.frameAccumulator = FrameAccumulator(endpoint=globals.stream,
+    #                                                 dtype=globals.dtype,
+    #                                                 image_size=(globals.nrow, globals.ncol),
+    #                                                 nframes=nb_frames_to_take,
+    #                                                 fname=full_fname)
+    #         self.frameAccumulator.start()
             
-            # Wait for the process to finish
-            self.frameAccumulator.accumulate_process.join()
+    #         # Wait for the process to finish
+    #         self.frameAccumulator.accumulate_process.join()
 
-            # Check if any error was reported in the error queue
-            if not self.frameAccumulator.error_queue.empty():
-                error = self.frameAccumulator.error_queue.get_nowait()
-                raise error
+    #         # Check if any error was reported in the error queue
+    #         if not self.frameAccumulator.error_queue.empty():
+    #             error = self.frameAccumulator.error_queue.get_nowait()
+    #             raise error
         
-            # Update file number for the next take
-            self.findex_input.setValue(file_index + 1)
+    #         # Update file number for the next take
+    #         self.findex_input.setValue(file_index + 1)
 
-        except OSError as e:
-            # Handle file system-related errors (e.g., permission denied, invalid path...)
-            error_message = f"File system error: {e}"
-            QMessageBox.critical(self, "Error", error_message)
+    #     except OSError as e:
+    #         # Handle file system-related errors (e.g., permission denied, invalid path...)
+    #         error_message = f"File system error: {e}"
+    #         QMessageBox.critical(self, "Error", error_message)
             
-        except Exception as e:
-            # Handle any other unexpected errors
-            error_message = f"An unexpected error occurred: {e}"
-            QMessageBox.critical(self, "Error", error_message)
+    #     except Exception as e:
+    #         # Handle any other unexpected errors
+    #         error_message = f"An unexpected error occurred: {e}"
+    #         QMessageBox.critical(self, "Error", error_message)
 
     # def modify_path_manually(self):
     #     path = self.outPath_input.text()
@@ -512,12 +510,14 @@ class FileOperations(QGroupBox):
 
     def update_file_index(self):
         self.cfg.file_id = self.index_box.value()
+        self.snapshot_index_input.setValue(self.index_box.value())
         self.update_full_fname_for_jfjoch()
         self.reset_style(self.index_box)
         logging.info(f'H5 file index manually updated by user. Value of "file_id" equal to: {self.cfg.file_id}')
 
     def update_index_box(self, verbose=True):
         self.index_box.setValue(self.cfg.file_id)
+        self.snapshot_index_input.setValue(self.index_box.value())
         self.update_full_fname_for_jfjoch()
         self.reset_style(self.index_box)
         if verbose:

@@ -37,6 +37,7 @@ class TEMAction(QObject):
         self.control = ControlWorker(self)
         self.version =  self.parent.version
 
+        self.temConnector = None
         self.timer_tem_connexion = QTimer()
         self.timer_tem_connexion.timeout.connect(self.checkTemConnexion)
         
@@ -210,7 +211,7 @@ class TEMAction(QObject):
         
         # Update rotation_speed radio button in GUI to refelct status of TEM
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
-        self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        if rotation_speed_index is not None: self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         
         self.plot_currentposition()
 

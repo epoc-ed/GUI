@@ -6,7 +6,7 @@ import numpy as np
 from .task import Task
 from .dectris2xds import XDSparams
 from PySide6.QtWidgets import QMessageBox
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt, QMetaObject
 
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
@@ -56,7 +56,15 @@ class RecordTask(Task):
 
         try:
             logfile = None  # Initialize logfile to None
-            self.tem_action.toggle_connectTEM()
+
+            # Interrupting TEM Polling
+            if self.tem_action.tem_tasks.connecttem_button.started:
+                QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
+
+            while self.tem_action.tem_tasks.connecttem_button.started:
+                time.sleep(0.1)
+
+            logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection!")
 
             # Attempt to open the logfile and catch potential issues
             try:
@@ -189,8 +197,9 @@ class RecordTask(Task):
                     # send_with_retries(self.client.SetTiltXAngle, 0)
                     # time.sleep(1)
                     self.client.Setf1OverRateTxNum(0)
-                    time.sleep(1)
+                    time.sleep(0.1) # Wait for the command to go through
                     self.tem_action.tem_stagectrl.move0deg.clicked.emit()
+                    time.sleep(0.5) # Wait for the command to go through before checking rotation state
                 except Exception as e:
                     # logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
                     pass              
@@ -236,15 +245,21 @@ class RecordTask(Task):
             if self.writer is None:
                 self.reset_rotation_signal.emit()
 
-            if self.tem_action.tem_tasks.autoreset_checkbox.isChecked():
-                time.sleep(phi1/10+0.5)
+            # if self.tem_action.tem_tasks.autoreset_checkbox.isChecked():
+            #     time.sleep(phi1/10+0.5)
                 
-            # self.tem_action.add_listedposition(color='green', status='recorded')
             self.tem_action.trigger_additem.emit('green', 'recorded')
+            time.sleep(0.1)
             print("------REACHED END OF TASK----------")
-            time.sleep(0.5)
-            self.tem_action.toggle_connectTEM()
-            logging.info('Polling of TEM-info restarted.')
+
+            # Restarting TEM polling
+            if not self.tem_action.tem_tasks.connecttem_button.started:
+                QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
+
+            while self.tem_action.tem_tasks.connecttem_button.started:
+                time.sleep(0.1)
+
+            logging.warning('Polling of TEM-info restarted.')
 
         except TimeoutError as e:
             # Log the timeout error and exit early to avoid writing files

@@ -230,10 +230,10 @@ class ApplicationWindow(QMainWindow):
                 if self.file_operations.streamWriter is not None:
                     if self.file_operations.streamWriter.write_process.is_alive():
                         self.file_operations.streamWriter.stop()
-                if self.file_operations.frameAccumulator is not None:
-                    if self.file_operations.frameAccumulator.accumulate_process.is_alive():
-                        self.file_operations.frameAccumulator.accumulate_process.terminate()
-                        self.file_operations.frameAccumulator.accumulate_process.join()
+                # if self.file_operations.frameAccumulator is not None:
+                #     if self.file_operations.frameAccumulator.accumulate_process.is_alive():
+                #         self.file_operations.frameAccumulator.accumulate_process.terminate()
+                #         self.file_operations.frameAccumulator.accumulate_process.join()
                 # if self.tem_controls.fitter is not None:
                 #     self.tem_controls.fitter.stop()
                 for thread, worker in running_threadWorkerPairs:

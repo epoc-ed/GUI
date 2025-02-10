@@ -374,7 +374,7 @@ class ControlWorker(QObject):
             result["tst_after"] = time.time()
             results[query] = result   
         toc_loop = time.perf_counter()
-        logging.debug(f"Getting #more took {toc_loop - tic_loop} seconds")
+        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
         return results
 
     def execute_command(self, command_str):

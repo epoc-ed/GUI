@@ -57,7 +57,7 @@ class VisualizationPanel(QGroupBox):
 
         # Thread pool for running check tasks in separate threads
         self.thread_pool = QThreadPool()
-        self.check_jfj_task_running = False  # Flag to ensure no overlapping tasks
+        self.checked_jfj_task_running = False  # Flag to ensure no overlapping tasks
         
         font_big = QFont("Arial", 11)
         font_big.setBold(True)
@@ -173,6 +173,7 @@ class VisualizationPanel(QGroupBox):
         
         self.check_jfj_timer = QTimer()
         self.check_jfj_timer.timeout.connect(self.run_check_jfj_ready_in_thread)
+        self.jfj_broker_is_ready = False
 
         grid_connection_jfjoch = QGridLayout()
         grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
@@ -464,18 +465,19 @@ class VisualizationPanel(QGroupBox):
 
     def on_check_jfj_task_complete(self):
         # Reset the running flag once the task is complete
-        self.check_jfj_task_running = False
+        self.checked_jfj_task_running = False
 
     def run_check_jfj_ready_in_thread(self):
-        if not self.check_jfj_task_running:
+        if not self.checked_jfj_task_running:
             # Set the flag to indicate that the task is running
-            self.check_jfj_task_running = True
+            self.checked_jfj_task_running = True
 
             # Create a runnable task to run the check function in a separate thread
             check_task = BrokerCheckTask(self.check_jfj_broker_ready, self.on_check_jfj_task_complete)
             self.thread_pool.start(check_task)
 
     def update_gui_with_jfj_state(self, jfj_broker_is_ready):
+        self.jfj_broker_is_ready = jfj_broker_is_ready
         if jfj_broker_is_ready:
             self.update_gui_with_JFJ_ON()
         else:
@@ -572,7 +574,7 @@ class VisualizationPanel(QGroupBox):
             self.enable_jfjoch_controls(False) # Need to disable controls as the wrapper is None
 
             # Reset the flag if a task is still running
-            self.check_jfj_task_running = False
+            self.checked_jfj_task_running = False
 
     def send_command_to_jfjoch(self, command):
         try:
