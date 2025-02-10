@@ -332,17 +332,21 @@ class ControlWorker(QObject):
             logging.error(f"Error during quick updating tem_status map: {e}")
 
     @Slot(str) 
-    def send_to_tem(self, message):
+    def send_to_tem(self, message, asynchronous = True):
         logging.debug(f'Sending {message} to TEM...')
         if message == "#info":
-            # results = self.get_state()
-            # self.trigger_tem_update.emit(results)
-            threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state())).start()
+            if asynchronous:
+                threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state())).start()
+            else:
+                results = self.get_state()
+                self.trigger_tem_update.emit(results)
 
         elif message == "#more":
-            # results = self.get_state_detailed()
-            # self.trigger_tem_update_detailed.emit(results)
-            threading.Thread(target=lambda: self.trigger_tem_update_detailed.emit(self.get_state_detailed())).start()
+            if asynchronous:
+                threading.Thread(target=lambda: self.trigger_tem_update_detailed.emit(self.get_state_detailed())).start()
+            else:
+                results = self.get_state_detailed()
+                self.trigger_tem_update_detailed.emit(results)
             
         else:
             logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")

@@ -5,7 +5,7 @@ import logging
 import numpy as np
 from .task import Task
 from .dectris2xds import XDSparams
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QMessageBox, QProgressDialog, QApplication
 from PySide6.QtCore import Signal, Qt, QMetaObject
 
 from simple_tem import TEMClient
@@ -183,12 +183,24 @@ class RecordTask(Task):
             if os.access(os.path.dirname(self.log_suffix), os.W_OK): logfile.close()
             logging.info(f"Stage rotation end at {phi1:.1f} deg.")
 
+            # Create and show a modal progress dialog
+            progress_dialog = QProgressDialog("Updating TEM status...", None, 0, 0, self)
+            progress_dialog.setWindowModality(Qt.ApplicationModal)
+            progress_dialog.setCancelButton(None)
+            progress_dialog.show()
+
+            # Force the GUI to update and display the dialog
+            QApplication.processEvents()
+            
             # GUI updates; should be done before Auto-Reset, which modifies the stage status
             try:
-                self.control.send_to_tem("#more")  # Update tem_status map and GUI
+                self.control.send_to_tem("#more", asynchronous = False)  # Update tem_status map and GUI
                 logging.info('TEM-status received.')
             except Exception as e:
                 logging.error("Error updating TEM status: {e}")
+            finally:
+                # Close the progress dialog
+                progress_dialog.close()
             
             # Enable auto reset of tilt
             if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 

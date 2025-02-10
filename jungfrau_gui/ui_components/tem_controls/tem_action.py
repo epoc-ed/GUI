@@ -211,6 +211,7 @@ class TEMAction(QObject):
         
         # Update rotation_speed radio button in GUI to refelct status of TEM
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
+        logging.warning(f"Rotation speed index: {rotation_speed_index}")
         if rotation_speed_index is not None: self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         
         self.plot_currentposition()
@@ -296,7 +297,7 @@ class TEMAction(QObject):
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:
             self.control.init.emit()
-            self.control.send_to_tem("#more")
+            self.control.send_to_tem("#info")
             self.control.trigger_record.emit()
             self.tem_tasks.rotation_button.setText("Stop")
             self.tem_tasks.rotation_button.started = True
