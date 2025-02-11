@@ -131,6 +131,7 @@ class TEMAction(QObject):
             self.tem_stagectrl.screen_button.setEnabled(enables)
         except AttributeError:
             pass 
+        self.tem_stagectrl.position_list.setEnabled(enables)
         self.tem_stagectrl.go_button.setEnabled(enables)
         self.tem_stagectrl.addpos_button.setEnabled(enables)
 

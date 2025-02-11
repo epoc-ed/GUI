@@ -62,11 +62,12 @@ class TemControls(QGroupBox):
         self.voltage_spBx.setSuffix(" kV")
         self.voltage_spBx.setReadOnly(True)
 
-        self.label_beam_center = QLabel()
-        self.label_beam_center.setText("Beam center (px)")
+        self.label_Xo = QLabel()
+        self.label_Xo.setText("X_center (px)")
+        self.label_Yo = QLabel()
+        self.label_Yo.setText("Y_center (px)")
         
         self.beam_center_x = QSpinBox()
-        self.beam_center_x.setPrefix("X_center: ")
         self.beam_center_x.setValue(1)
         self.beam_center_x.setMaximum(globals.ncol)
         # self.beam_center_x.setReadOnly(True)
@@ -74,7 +75,6 @@ class TemControls(QGroupBox):
         self.beam_center_x.editingFinished.connect(self.update_beam_center_x)
         
         self.beam_center_y = QSpinBox()
-        self.beam_center_y.setPrefix("Y_center: ")
         self.beam_center_y.setValue(1)
         self.beam_center_y.setMaximum(globals.nrow)
         # self.beam_center_y.setReadOnly(True)
