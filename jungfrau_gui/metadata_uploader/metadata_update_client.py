@@ -100,7 +100,10 @@ if __name__ == "__main__":
         tem_status = json.load(file)
 
     beamcenter = cfg.beam_center # Read from Redis DB
-    rotations_angles = [0.0, 0.0, 0.0, 0.0, 0.0] # Define a list with the correct format 
+    
+    # Example data for rotation at 10deg/s
+    rotations_angles = [[0.0, 0.0], [1.0, 10.0], [2.0, 19.95], [3.0, 30.12], [4.0, 40.2],[5.0, 50.05],[6.0, 60.0]]
+    
     jf_threshold = 5 
     #input("Enter to continue!")
 

@@ -72,14 +72,14 @@ class FileOperations(QGroupBox):
 
         self.rb_experiment_class.buttonClicked.connect(self.update_experiment_class)
 
-        self.get_experiment_class = QPushButton("Get", self)
-        self.get_experiment_class.clicked.connect(lambda: print(f"Experiment Class: {self.cfg.experiment_class}"))
+        # self.get_experiment_class = QPushButton("Get", self)
+        # self.get_experiment_class.clicked.connect(lambda: print(f"Experiment Class: {self.cfg.experiment_class}"))
 
         redis_experiment_class_layout = QHBoxLayout()
         redis_experiment_class_layout.addWidget(self.experiment_class)
         for rb in self.rb_experiment_class.buttons():
             redis_experiment_class_layout.addWidget(rb, 1)
-        redis_experiment_class_layout.addWidget(self.get_experiment_class)
+        # redis_experiment_class_layout.addWidget(self.get_experiment_class)
 
         section3.addLayout(redis_experiment_class_layout)
         
@@ -91,15 +91,15 @@ class FileOperations(QGroupBox):
         self.redis_fields.append(self.userName_input)
         self.userName_input.setText(f'{self.cfg.PI_name}')
 
-        self.get_userName = QPushButton("Get", self)
-        self.get_userName.clicked.connect(lambda: print(f"PI Name: {self.cfg.PI_name}"))
+        # self.get_userName = QPushButton("Get", self)
+        # self.get_userName.clicked.connect(lambda: print(f"PI Name: {self.cfg.PI_name}"))
 
         self.userName_input.returnPressed.connect(self.update_userName)
 
         redis_UserName_layout = QHBoxLayout()
         redis_UserName_layout.addWidget(self.userName)
         redis_UserName_layout.addWidget(self.userName_input)
-        redis_UserName_layout.addWidget(self.get_userName)
+        # redis_UserName_layout.addWidget(self.get_userName)
 
         section3.addLayout(redis_UserName_layout)
 
@@ -111,15 +111,15 @@ class FileOperations(QGroupBox):
         self.redis_fields.append(self.projectID_input)
         self.projectID_input.setText(f'{self.cfg.project_id}')
 
-        self.get_projectID = QPushButton("Get", self)
-        self.get_projectID.clicked.connect(lambda: print(f"Project ID: {self.cfg.project_id}"))
+        # self.get_projectID = QPushButton("Get", self)
+        # self.get_projectID.clicked.connect(lambda: print(f"Project ID: {self.cfg.project_id}"))
 
         self.projectID_input.returnPressed.connect(self.update_projectID)
 
         redis_projectID_layout = QHBoxLayout()
         redis_projectID_layout.addWidget(self.projectID)
         redis_projectID_layout.addWidget(self.projectID_input)
-        redis_projectID_layout.addWidget(self.get_projectID)
+        # redis_projectID_layout.addWidget(self.get_projectID)
 
         section3.addLayout(redis_projectID_layout)
 
@@ -134,13 +134,13 @@ class FileOperations(QGroupBox):
         self.base_directory_input.setText(f'{self.cfg.base_data_dir}')
         self.base_directory_input.setReadOnly(True)
 
-        self.get_base_directory = QPushButton("Get", self)
-        self.get_base_directory.clicked.connect(lambda: print(f"Base Data Directory: {self.cfg.base_data_dir}"))
+        # self.get_base_directory = QPushButton("Get", self)
+        # self.get_base_directory.clicked.connect(lambda: print(f"Base Data Directory: {self.cfg.base_data_dir}"))
 
         redis_base_directory_layout = QHBoxLayout()
         redis_base_directory_layout.addWidget(self.base_directory)
         redis_base_directory_layout.addWidget(self.base_directory_input)
-        redis_base_directory_layout.addWidget(self.get_base_directory)
+        # redis_base_directory_layout.addWidget(self.get_base_directory)
 
         section3.addLayout(redis_base_directory_layout)
         

@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
                                QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy, QComboBox,
-                               QSpinBox)
+                               QSpinBox, QWidget, QGridLayout)
 from PySide6.QtGui import QFont
 from ..toggle_button import ToggleButton
 from ..utils import create_horizontal_line_with_margin
@@ -10,6 +10,9 @@ from epoc import ConfigurationClient, auth_token, redis_host
 from ... import globals
 import pyqtgraph as pg
 import numpy as np
+
+font_big = QFont("Arial", 11)
+font_big.setBold(True)
 
 class TEMDetector(QGroupBox):
     def __init__(self):
@@ -41,12 +44,20 @@ class TEMDetector(QGroupBox):
 class TEMStageCtrl(QGroupBox):
     def __init__(self):
         super().__init__() #"Stage Status / Quick Moves"
+        self.setTitle("X/Y stage plot")  # optional
+        self.setCheckable(True)
+        self.setChecked(True)
+        # Connect QGroupBox toggled signal to a custom slot
+        self.toggled.connect(self.on_collapsed)
         self.initUI()
 
     def initUI(self):
         cfg = ConfigurationClient(redis_host(), token=auth_token())
 
         stage_ctrl_section = QVBoxLayout()
+        stage_ctrl_label = QLabel("Stage Control", self)
+        stage_ctrl_label.setFont(font_big)
+        stage_ctrl_section.addWidget(stage_ctrl_label)
 
         self.hbox_rot = QHBoxLayout()
         rot_label = QLabel("Rotation Speed:", self)
@@ -64,7 +75,7 @@ class TEMStageCtrl(QGroupBox):
         stage_ctrl_section.addLayout(self.hbox_rot)
         
         self.hbox_move = QHBoxLayout()
-        move_label = QLabel("Stage Ctrl:", self)
+        move_label = QLabel("Fast movement:", self)
         self.movestages = QButtonGroup()
         self.movex10ump = QPushButton('+10 µm', self)
         self.movex10umn = QPushButton('-10 µm', self)
@@ -88,7 +99,7 @@ class TEMStageCtrl(QGroupBox):
             i.setEnabled(False)
 
         self.hbox_magmode = QHBoxLayout()
-        mode_label = QLabel("Mag Mode:", self)
+        mode_label = QLabel("Magnification Mode:", self)
         self.mag_modes = QButtonGroup()
         self.mode_lowmag = QRadioButton('Low MAG', self)
         self.mode_mag =    QRadioButton('MAG', self)
@@ -133,23 +144,58 @@ class TEMStageCtrl(QGroupBox):
         self.hbox_gotopos.addWidget(self.go_button, 1)
         stage_ctrl_section.addLayout(self.hbox_gotopos)
         
-        self.plot_layout = QVBoxLayout()
+        # self.plot_layout = QVBoxLayout()
+        # self.grid_plot = pg.PlotWidget()
+        # self.plot_layout.addWidget(self.grid_plot)
+        # self.gridarea = self.grid_plot.plotItem
+        # radius = 3050 # in um
+        # x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
+        # y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
+        # self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
+        # radius = 2350 # in um not very correct value!!
+        # x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
+        # y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
+        # self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
+        # self.grid_plot.setAspectLocked()
+        # self.grid_plot.showGrid(x=True, y=True)
+        # stage_ctrl_section.addLayout(self.plot_layout)
+
+        # 1) Create a container widget to hold the plot
+        self.plot_container = QWidget()
+        self.plot_layout = QVBoxLayout(self.plot_container)
+
+        # 2) Create the PlotWidget
         self.grid_plot = pg.PlotWidget()
         self.plot_layout.addWidget(self.grid_plot)
+
+        # 3) Access the plotItem if needed
         self.gridarea = self.grid_plot.plotItem
-        radius = 3050 # in um
-        x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
-        y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
+
+        radius1 = 3050
+        x = radius1 * np.cos(np.linspace(0, 2*np.pi, 100))
+        y = radius1 * np.sin(np.linspace(0, 2*np.pi, 100))
         self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
-        radius = 2350 # in um not very correct value!!
-        x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
-        y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
+
+        radius2 = 2350
+        x = radius2 * np.cos(np.linspace(0, 2*np.pi, 100))
+        y = radius2 * np.sin(np.linspace(0, 2*np.pi, 100))
         self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
+
         self.grid_plot.setAspectLocked()
         self.grid_plot.showGrid(x=True, y=True)
-        stage_ctrl_section.addLayout(self.plot_layout)
+
+        # Add the plot_container (with its layout/plot) to the GroupBox layout
+        stage_ctrl_section.addWidget(self.plot_container)
 
         self.setLayout(stage_ctrl_section)
+
+    def on_collapsed(self, checked: bool):
+        """
+        Called whenever the QGroupBox is toggled.
+        If 'checked' is False, collapse (hide) the plot container.
+        If 'checked' is True, show it again.
+        """
+        self.plot_container.setVisible(checked)
 
 class TEMTasks(QGroupBox):
     def __init__(self, parent):
@@ -163,8 +209,6 @@ class TEMTasks(QGroupBox):
         CTN_group = QVBoxLayout()
         CTN_section = QHBoxLayout()
         CTN_label = QLabel("Connection to TEM", self)
-        font_big = QFont("Arial", 11)
-        font_big.setBold(True)
         CTN_label.setFont(font_big)
         self.connecttem_button = ToggleButton('Check TEM Connection', self)
         self.connecttem_button.setEnabled(True)
@@ -187,15 +231,15 @@ class TEMTasks(QGroupBox):
         BEAM_group = QVBoxLayout()
         BEAM_label = QLabel("Beam Sweep & Focus", self)
         BEAM_label.setFont(font_big)
-        self.btnGaussianFit = ToggleButton("Beam Gaussian Fit", self)
+        self.btnGaussianFit = ToggleButton("Gaussian Fit", self)
         self.btnGaussianFit.setEnabled(False)
-        self.beamAutofocus = ToggleButton('Beam Autofocus', self)
+        self.beamAutofocus = ToggleButton('Autofocus', self)
         self.beamAutofocus.setEnabled(False)
         self.popup_checkbox = self.parent.checkbox
         self.plotDialog = self.parent.plotDialog
 
         ROT_group = QVBoxLayout()
-        ROT_label = QLabel("Rotation & Stage Control", self)
+        ROT_label = QLabel("Rotation", self)
         ROT_label.setFont(font_big)
 
         ROT_section_1= QHBoxLayout()
@@ -211,7 +255,7 @@ class TEMTasks(QGroupBox):
         self.autoreset_checkbox = QCheckBox("Auto reset", self)
         self.autoreset_checkbox.setChecked(False)
 
-        ROT_section_2= QVBoxLayout()
+        ROT_section_2= QHBoxLayout()
 
         INPUT_layout = QHBoxLayout()
         input_start_angle_lb = QLabel("Start angle:", self) # current value
@@ -250,37 +294,34 @@ class TEMTasks(QGroupBox):
         tasks_section.addWidget(create_horizontal_line_with_margin(20))
 
         Voltage_layout = QHBoxLayout()
-        Voltage_layout.addWidget(self.parent.label_voltage, 3)  
-        Voltage_layout.addWidget(self.parent.voltage_spBx, 2)
+        Voltage_layout.addWidget(self.parent.label_voltage, 2)  
+        Voltage_layout.addWidget(self.parent.voltage_spBx,  2)
 
         BEAM_group.addWidget(BEAM_label)
         BEAM_group.addLayout(Voltage_layout)
-        BEAM_group.addWidget(self.btnGaussianFit)
-        BEAM_group.addWidget(self.beamAutofocus)
+        BEAM_group.addSpacing(10)
+        layout_Beam_buttons = QHBoxLayout()
+        layout_Beam_buttons.addWidget(self.btnGaussianFit)
+        layout_Beam_buttons.addWidget(self.beamAutofocus)
+        BEAM_group.addLayout(layout_Beam_buttons)
         BEAM_group.addWidget(self.popup_checkbox)
         
-        BeamFocus_layout = QVBoxLayout()
-        gauss_center_layout = QHBoxLayout()
-        gauss_center_layout.addWidget(self.parent.label_beam_center, 3)  
-        gauss_center_layout.addWidget(self.parent.beam_center_x, 2)
-        gauss_center_layout.addWidget(self.parent.beam_center_y, 2)
-        BeamFocus_layout.addLayout(gauss_center_layout)
-        gauss_H_layout = QHBoxLayout()
-        gauss_H_layout.addWidget(self.parent.label_gauss_height, 3)  
-        gauss_H_layout.addWidget(self.parent.gauss_height_spBx, 4)
-        BeamFocus_layout.addLayout(gauss_H_layout)
-        sigma_x_layout = QHBoxLayout()
-        sigma_x_layout.addWidget(self.parent.label_sigma_x, 3)  
-        sigma_x_layout.addWidget(self.parent.sigma_x_spBx, 4)         
-        BeamFocus_layout.addLayout(sigma_x_layout)
-        sigma_y_layout = QHBoxLayout()
-        sigma_y_layout.addWidget(self.parent.label_sigma_y, 3)  
-        sigma_y_layout.addWidget(self.parent.sigma_y_spBx, 4)         
-        BeamFocus_layout.addLayout(sigma_y_layout)        
-        rot_angle_layout = QHBoxLayout()
-        rot_angle_layout.addWidget(self.parent.label_rot_angle, 3)  
-        rot_angle_layout.addWidget(self.parent.angle_spBx, 4)         
-        BeamFocus_layout.addLayout(rot_angle_layout)
+        BeamFocus_layout = QGridLayout()
+
+        BeamFocus_layout.addWidget(self.parent.label_Xo          ,0,0)
+        BeamFocus_layout.addWidget(self.parent.beam_center_x,     0,1)
+        BeamFocus_layout.addWidget(self.parent.label_Yo          ,0,2)
+        BeamFocus_layout.addWidget(self.parent.beam_center_y,     0,3)
+
+        BeamFocus_layout.addWidget(self.parent.label_gauss_height,1,0)  
+        BeamFocus_layout.addWidget(self.parent.gauss_height_spBx, 1,1)
+        BeamFocus_layout.addWidget(self.parent.label_rot_angle,   1,2)  
+        BeamFocus_layout.addWidget(self.parent.angle_spBx,        1,3)
+
+        BeamFocus_layout.addWidget(self.parent.label_sigma_x,     2,0)  
+        BeamFocus_layout.addWidget(self.parent.sigma_x_spBx,      2,1)         
+        BeamFocus_layout.addWidget(self.parent.label_sigma_y,     2,2)  
+        BeamFocus_layout.addWidget(self.parent.sigma_y_spBx,      2,3)         
         
         BEAM_group.addLayout(BeamFocus_layout)
 
@@ -298,6 +339,7 @@ class TEMTasks(QGroupBox):
         ROT_section_1.addWidget(self.autoreset_checkbox)
         ROT_group.addLayout(ROT_section_1)
         ROT_section_2.addLayout(INPUT_layout)
+        ROT_section_2.addSpacing(30)
         ROT_section_2.addLayout(END_layout)
         ROT_group.addLayout(ROT_section_2)
         tasks_section.addLayout(ROT_group)
@@ -310,9 +352,6 @@ class XtalInfo(QGroupBox):
         self.initUI()
 
     def initUI(self):
-        font_big = QFont("Arial", 11)
-        font_big.setBold(True)
-
         xtal_section = QVBoxLayout()
         xtal_label = QLabel("Result of Processing", self)
         xtal_label.setFont(font_big)
