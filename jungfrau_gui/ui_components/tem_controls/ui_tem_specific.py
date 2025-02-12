@@ -72,6 +72,7 @@ class TEMStageCtrl(QGroupBox):
         self.rb_speeds.addButton(self.rb_speed_10, 0)
         self.rb_speeds.button(cfg.rotation_speed_idx).setChecked(True)
         self.hbox_rot.addWidget(rot_label, 1)
+        stage_ctrl_section.addSpacing(10)
         stage_ctrl_section.addLayout(self.hbox_rot)
         
         self.hbox_move = QHBoxLayout()
@@ -239,7 +240,7 @@ class TEMTasks(QGroupBox):
         self.plotDialog = self.parent.plotDialog
 
         ROT_group = QVBoxLayout()
-        ROT_label = QLabel("Rotation", self)
+        ROT_label = QLabel("Rotation/Record", self)
         ROT_label.setFont(font_big)
 
         ROT_section_1= QHBoxLayout()
@@ -249,8 +250,8 @@ class TEMTasks(QGroupBox):
         self.withwriter_checkbox.setChecked(False)
 
         # if globals.jfj:
-        self.JFJwriter_checkbox = QCheckBox("JFJ", self)
-        self.JFJwriter_checkbox.setChecked(False)
+        # self.JFJwriter_checkbox = QCheckBox("JFJ", self)
+        # self.JFJwriter_checkbox.setChecked(False)
         
         self.autoreset_checkbox = QCheckBox("Auto reset", self)
         self.autoreset_checkbox.setChecked(False)
@@ -267,6 +268,7 @@ class TEMTasks(QGroupBox):
         # self.input_start_angle.setValue("")
         self.input_start_angle.setReadOnly(True)
 
+        INPUT_layout.addSpacing(10)
         INPUT_layout.addWidget(input_start_angle_lb)
         INPUT_layout.addWidget(self.input_start_angle)
 
@@ -330,13 +332,14 @@ class TEMTasks(QGroupBox):
         tasks_section.addWidget(create_horizontal_line_with_margin(20))
 
         ROT_group.addWidget(ROT_label)
-        ROT_section_1.addWidget(self.rotation_button)
-        ROT_section_1.addWidget(self.withwriter_checkbox)
+        ROT_section_1.addWidget(self.rotation_button,     2)
+        ROT_section_1.addWidget(self.withwriter_checkbox, 1)
 
         # if globals.jfj:
-        ROT_section_1.addWidget(self.JFJwriter_checkbox)
+        # ROT_section_1.addWidget(self.JFJwriter_checkbox)
 
-        ROT_section_1.addWidget(self.autoreset_checkbox)
+        ROT_section_1.addWidget(self.autoreset_checkbox,  1)
+        ROT_group.addSpacing(10)
         ROT_group.addLayout(ROT_section_1)
         ROT_section_2.addLayout(INPUT_layout)
         ROT_section_2.addSpacing(30)

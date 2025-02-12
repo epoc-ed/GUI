@@ -979,7 +979,7 @@ class VisualizationPanel(QGroupBox):
             self.parent.timer.start()
             # if not globals.jfj:
             #     self.parent.file_operations.accumulate_button.setEnabled(True)
-            self.parent.file_operations.streamWriterButton.setEnabled(True)
+            """ self.parent.file_operations.streamWriterButton.setEnabled(True) """
         else:
             self.stream_view_button.setText("View Stream")
             self.parent.plot.setTitle("Stream stopped at the current Frame")
@@ -990,7 +990,7 @@ class VisualizationPanel(QGroupBox):
             # Disable buttons
             # if not globals.jfj:
             #     self.parent.file_operations.accumulate_button.setEnabled(False)
-            self.parent.file_operations.streamWriterButton.setEnabled(False)
+            """ self.parent.file_operations.streamWriterButton.setEnabled(False) """
             # Wait for thread to actually stop
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")
