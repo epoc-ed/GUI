@@ -229,7 +229,7 @@ class TemControls(QGroupBox):
             # Timer started
             self.parent.timer_fit.start(10)
         else:
-            self.tem_tasks.btnGaussianFit.setText("Beam Gaussian Fit")
+            self.tem_tasks.btnGaussianFit.setText("Gaussian Fit")
             self.tem_tasks.btnGaussianFit.started = False
             self.parent.timer_fit.stop()  
             # Close Pop-up Window
