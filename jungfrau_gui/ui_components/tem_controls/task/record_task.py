@@ -135,6 +135,8 @@ class RecordTask(Task):
                 logging.info("Stage has initiated rotation")
             except TimeoutError as rotation_error:
                 logging.error(f"TimeoutError: Stage rotation failed to start: {rotation_error}")
+                self.client.SetBeamBlank(1)
+                send_with_retries(self.client.StopStage)
                 return 
 
             #If enabled we start writing files 
