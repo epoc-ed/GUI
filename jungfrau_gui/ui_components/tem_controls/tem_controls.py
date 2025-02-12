@@ -55,7 +55,7 @@ class TemControls(QGroupBox):
         self.plotDialog = None
         
         self.label_voltage = QLabel()
-        self.label_voltage.setText("Voltage (HT)")
+        self.label_voltage.setText("Accelerating potential (HT)")
         self.voltage_spBx = QSpinBox()
         self.voltage_spBx.setMaximum(1000)
         self.voltage_spBx.setValue(200)

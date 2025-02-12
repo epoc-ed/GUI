@@ -294,11 +294,12 @@ class TEMTasks(QGroupBox):
         tasks_section.addWidget(create_horizontal_line_with_margin(20))
 
         Voltage_layout = QHBoxLayout()
-        Voltage_layout.addWidget(self.parent.label_voltage, 3)  
-        Voltage_layout.addWidget(self.parent.voltage_spBx, 2)
+        Voltage_layout.addWidget(self.parent.label_voltage, 2)  
+        Voltage_layout.addWidget(self.parent.voltage_spBx,  2)
 
         BEAM_group.addWidget(BEAM_label)
         BEAM_group.addLayout(Voltage_layout)
+        BEAM_group.addSpacing(10)
         layout_Beam_buttons = QHBoxLayout()
         layout_Beam_buttons.addWidget(self.btnGaussianFit)
         layout_Beam_buttons.addWidget(self.beamAutofocus)

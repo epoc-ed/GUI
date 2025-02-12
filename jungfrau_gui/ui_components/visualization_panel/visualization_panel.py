@@ -133,9 +133,9 @@ class VisualizationPanel(QGroupBox):
         view_contrast_group.addWidget(view_contrast_label)
 
         grid_1 = QGridLayout()
-        grid_1.addWidget(self.stream_view_button, 0, 0, 2, 2)  # Span two rows two columns
-        grid_1.addWidget(self.autoContrastBtn, 0, 2)
-        grid_1.addWidget(self.resetContrastBtn, 1, 2)
+        grid_1.addWidget(self.stream_view_button, 0, 0, 2, 3)  # Span two rows two columns
+        grid_1.addWidget(self.autoContrastBtn, 0, 3)
+        grid_1.addWidget(self.resetContrastBtn, 1, 3)
 
         grid_1.addWidget(self.contrast_0_Btn, 2, 0, 1, 1 )
         grid_1.addWidget(self.contrast_1_Btn, 2, 1, 1, 1 )
