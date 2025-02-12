@@ -38,13 +38,6 @@ class RecordTask(Task):
 
     def run(self):
         logging.debug("RecordTask::run()")
-        phi0 = self.client.GetTiltXAngle()
-        phi1 = self.end_angle
-
-        stage_rates = [10.0, 2.0, 1.0, 0.5]
-        phi_dot_idx = self.client.Getf1OverRateTxNum()
-
-        self.phi_dot = stage_rates[phi_dot_idx]
 
         if self.writer is not None:
             try:
@@ -56,6 +49,14 @@ class RecordTask(Task):
 
         try:
             logfile = None  # Initialize logfile to None
+            
+            phi0 = self.client.GetTiltXAngle()
+            phi1 = self.end_angle
+
+            stage_rates = [10.0, 2.0, 1.0, 0.5]
+            phi_dot_idx = self.client.Getf1OverRateTxNum()
+
+            self.phi_dot = stage_rates[phi_dot_idx]
 
             # Interrupting TEM Polling
             if self.tem_action.tem_tasks.connecttem_button.started:
@@ -271,6 +272,8 @@ class RecordTask(Task):
             if self.writer is not None:
                 if self.standard_h5_recording and self.tem_action.file_operations.streamWriterButton.started:
                     self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
+                else:
+                    self.reset_rotation_signal.emit()
             else:
                 self.reset_rotation_signal.emit()
         

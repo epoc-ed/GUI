@@ -274,6 +274,9 @@ class Hdf5MetadataUpdater:
             except zmq.ZMQError as e:
                 logging.error(f"Error while receiving request: {e}")
                 # self.socket.send_string("Error updating metadata")
+            # except Exception as e:
+            #     logging.error(f"Error while receiving/processing request: {e}", exc_info=True)
+            #     break
     
     def stop(self):
         self.running = False
