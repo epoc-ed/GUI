@@ -239,7 +239,7 @@ class Hdf5MetadataUpdater:
                 message = json.loads(message_json)
                 filename = self.root_data_directory + message["filename"]
                 tem_status = message["tem_status"]
-                beamcenter = message["beamcenter"]
+                beamcenter = np.array(message["beamcenter"], dtype=int)
                 rotations_angles = message["rotations_angles"]
                 jf_threshold = message["jf_threshold"]
                 detector_distance = message["detector_distance"]
@@ -252,9 +252,12 @@ class Hdf5MetadataUpdater:
                 if rotations_angles is not None:
                     with h5py.File(filename, 'r') as f:
                         img = f['entry/data/data_000001'][()][100] #, dynamic definition would be better
-                    beamcenter_pre = getcenter(img, center=beamcenter, bin=4, area=100)
-                    beamcenter_refined = getcenter(img, center=beamcenter_pre[0], bin=1, area=20)[0]
-                    logging.info(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
+                        if beamcenter[0]*beamcenter[1] != 1:
+                            beamcenter_refined = beamcenter
+                        else:
+                            beamcenter_pre = getcenter(img, bin=4, area=100)
+                            beamcenter_refined = getcenter(img, center=beamcenter_pre[0], bin=1, area=20)[0]
+                            logging.info(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
                     # self.socket.send_string(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
 
                     dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
@@ -321,8 +324,8 @@ class Hdf5MetadataUpdater:
                     
                     # tagname mimicked from dectris HDF
                     create_or_update_dataset('entry/instrument/detector/detector_name', data = 'JUNGFRAU-1M FOR ED AT UNIVERSITY OF VIENNA')
-                    create_or_update_dataset('entry/instrument/detector/beam_center_x', data = beamcenter[0], dtype='float') # <- FITTING
-                    create_or_update_dataset('entry/instrument/detector/beam_center_y', data = beamcenter[1], dtype='float') # <- FITTING
+                    create_or_update_dataset('entry/instrument/detector/beam_center_x', data = beamcenter[0], dtype='int') # <- FITTING
+                    create_or_update_dataset('entry/instrument/detector/beam_center_y', data = beamcenter[1], dtype='int') # <- FITTING
                     create_or_update_dataset('entry/instrument/detector/detector_distance', data = detector_distance, dtype='uint64') # <- LUT
                     create_or_update_dataset('entry/instrument/detector/framerate', data = detector_framerate, dtype='uint64')
                     # create_or_update_dataset('entry/instrument/detector/virtual_pixel_correction_applied', data = 200, dtype='float') # =GAIN?
