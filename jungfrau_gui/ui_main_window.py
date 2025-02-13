@@ -92,7 +92,8 @@ class ApplicationWindow(QMainWindow):
         self.glWidget.installEventFilter(self.hoverFilter)
 
         # ROI setup
-        self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        # self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        self.roi = pg.RectROI([globals.ncol//2+1-75, globals.nrow//2+1-50], [150, 100], pen=(9,6))
         self.plot.addItem(self.roi)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
@@ -133,7 +134,7 @@ class ApplicationWindow(QMainWindow):
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
         
-        self.imageItem.mouseClickEvent = self.tem_controls.tem_action.imageMouseClickEvent
+        # self.imageItem.mouseClickEvent = self.tem_controls.tem_action.imageMouseClickEvent
         
         tab_widget.addTab(self.visualization_panel, "Visualization Panel")
         tab_widget.addTab(self.tem_controls, "TEM Controls")
