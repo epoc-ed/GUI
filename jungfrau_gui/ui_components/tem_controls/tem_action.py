@@ -372,7 +372,8 @@ class TEMAction(QObject):
 
     def go_listedposition(self):
         try:
-            position = self.control.client.GetStagePosition() # in nm
+            # position = self.control.client.GetStagePosition() # in nm
+            position = send_with_retries(self.control.client.GetStagePosition)
         except Exception as e:
             logging.error(f"Error: {e}")
             return
@@ -390,7 +391,8 @@ class TEMAction(QObject):
     @Slot(str, str)
     def add_listedposition(self, color='red', status='new'):
         try:
-            position = self.control.client.GetStagePosition()
+            # position = self.control.client.GetStagePosition()
+            position = send_with_retries(self.control.client.GetStagePosition)
         except Exception as e:
             logging.error(f"Error: {e}")
             return
