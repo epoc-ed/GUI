@@ -124,6 +124,7 @@ class TemControls(QGroupBox):
             self.tem_xtalinfo = XtalInfo()
             tem_section.addWidget(self.tem_tasks)
             self.tem_action = TEMAction(self, self.parent)
+            self.parent.imageItem.mouseClickEvent = self.tem_action.imageMouseClickEvent
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
             self.tem_action.control.fit_complete.connect(self.updateFitParams)
