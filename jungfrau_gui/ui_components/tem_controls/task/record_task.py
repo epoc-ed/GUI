@@ -231,18 +231,21 @@ class RecordTask(Task):
                 # else:
                 time.sleep(0.1)
                 logging.info(" ******************** Adding Info to H5 over Server...")
-
-                send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                    self.tem_action.visualization_panel.formatted_filename, 
-                                    self.control.tem_status, 
-                                    self.cfg.beam_center, 
-                                    self.rotations_angles,
-                                    self.cfg.threshold,
-                                    retries=3, 
-                                    delay=0.1) 
-                
-                self.control.update_xtalinfo.emit('Processing', 'XDS')
-                # self.control.update_xtalinfo.emit('Processing', 'DIALS')
+                try:
+                    send_with_retries(self.metadata_notifier.notify_metadata_update, 
+                                        self.tem_action.visualization_panel.formatted_filename, 
+                                        self.control.tem_status, 
+                                        self.cfg.beam_center, 
+                                        self.rotations_angles,
+                                        self.cfg.threshold,
+                                        retries=3, 
+                                        delay=0.1) 
+                    
+                    self.control.update_xtalinfo.emit('Processing', 'XDS')
+                    # self.control.update_xtalinfo.emit('Processing', 'DIALS')
+                except Exception as e:
+                        logging.error(f"Metadata Update Error: {e}")
+                        self.control.update_xtalinfo.emit('Metadata error', 'XDS')
 
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None

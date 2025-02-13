@@ -334,14 +334,17 @@ class FileOperations(QGroupBox):
             if self.parent.tem_controls.tem_action.temConnector is not None: ## to be checked again
                 self.parent.tem_controls.tem_action.control.send_to_tem("#more", asynchronous = False)
                 logging.info(" ******************** Adding Info to H5 over Server...")
-                send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                    self.parent.visualization_panel.formatted_filename, 
-                                    self.parent.tem_controls.tem_action.control.tem_status, #self.control.tem_status, 
-                                    self.cfg.beam_center, 
-                                    None, # self.rotations_angles,
-                                    self.cfg.threshold,
-                                    retries=3, 
+                try:
+                    send_with_retries(self.metadata_notifier.notify_metadata_update, 
+                                        self.parent.visualization_panel.formatted_filename, 
+                                        self.parent.tem_controls.tem_action.control.tem_status, #self.control.tem_status, 
+                                        self.cfg.beam_center, 
+                                        None, # self.rotations_angles,
+                                        self.cfg.threshold,
+                                        retries=3, 
                                     delay=0.1) 
+                except Exception as e:
+                    logging.error(f"Metadata Update Error: {e}")
             logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
             self.tag_input.setText(self.pre_text) # reset the tag to value before snapshot
             self.update_measurement_tag()
