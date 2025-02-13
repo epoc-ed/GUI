@@ -102,7 +102,7 @@ class ApplicationWindow(QMainWindow):
         self.roi.sigRegionChanged.connect(self.roiChanged)
 
         # Initial data (optional)
-        data = create_gaussian(globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
+        data = create_gaussian(1000, globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
         # data = np.random.rand(globals.nrow,globals.ncol).astype(globals.dtype)
         logging.debug(f"type(data) is {type(data[0,0])}")
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)

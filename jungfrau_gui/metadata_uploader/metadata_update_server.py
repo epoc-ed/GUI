@@ -53,8 +53,8 @@ class DIALSparams:
 
 class XDSparams:
     """
-Stores parameters for XDS and creates the template XDS.INP in the current directory
-"""
+    Stores parameters for XDS and creates the template XDS.INP in the current directory
+    """
     def __init__(self, xdstempl):
         self.xdstempl = xdstempl
 
@@ -200,27 +200,139 @@ def eV2angstrom(voltage):
     h, m0, e, c = 6.62607004e-34, 9.10938356e-31, 1.6021766208e-19, 299792458.0
     return h/np.sqrt(2*m0*e*voltage*(1.+e*voltage/2./m0/c**2)) * 1.e10
 
-def rebin(arr, bin_rate):
-    if bin_rate == 1:
-        return arr
-    new_shape = np.array(arr.shape) // bin_rate
-    shape = (new_shape[0], arr.shape[0] // new_shape[0],
-             new_shape[1], arr.shape[1] // new_shape[1])
-    return arr.reshape(shape).mean(-1).mean(1) #.astype('uint16')
+def rebin(arr, bin_factor, method='mean'):
+    """
+    Downsample (bin) a 2D array by an integer factor.
 
-def getcenter(img_array, center=[515, 532], area=100, bin=5):
-    clipped = img_array[center[1]-area//2 : center[1]+area//2,
-                        center[0]-area//2 : center[0]+area//2]
-    scaled = clipped / np.max(clipped) * np.iinfo(np.int16).max / bin // bin
-    binned = rebin(clipped, bin)
-    brighty, brightx = np.where(binned == np.max(binned))
-    brightx *= bin
-    brighty *= bin
-    brightx += center[0]-area//2 + 1
-    brighty += center[1]-area//2 + 1
-    bright = list(zip(brightx, brighty))
-    # print(np.array(bright).mean(axis=0), np.array(bright).mean(axis=1), np.array(bright).mean(axis=-1))
-    return np.array(bright) #.mean(axis=0) #, clipped
+    Parameters
+    ----------
+    arr : np.ndarray
+        2D array to be rebinned.
+    bin_factor : int
+        Factor by which to downsample.
+    method : str, optional
+        How to combine values within each bin. 
+        Options: 'mean' (default) or 'sum'.
+
+    Returns
+    -------
+    np.ndarray
+        Re-binned 2D array. Shape will be:
+        (arr.shape[0] // bin_factor, arr.shape[1] // bin_factor).
+    """
+    # Check of bin_factor value to make the method generic and reusable
+    if bin_factor < 1:
+        raise ValueError("bin_factor must be >= 1.")
+    if bin_factor == 1:
+        return arr  # No change
+
+    # Original array dimensions
+    height, width = arr.shape
+
+    # Compute the new shape, ignoring any remainder
+    new_height = height // bin_factor
+    new_width = width // bin_factor
+
+    # Crop off any remainder if the image size is not perfectly divisible
+    cropped_arr = arr[:new_height * bin_factor, :new_width * bin_factor]
+
+    # Reshape to a 4D array where each bin_factor x bin_factor block is grouped
+    reshaped = cropped_arr.reshape(
+        new_height, bin_factor,
+        new_width, bin_factor
+    )
+
+    if method == 'mean':
+        # Average within each block
+        return reshaped.mean(axis=(1, 3))
+    elif method == 'sum':
+        # Sum within each block
+        return reshaped.sum(axis=(1, 3))
+    else:
+        raise ValueError("In rebin(), method should be either 'mean' or 'sum'.")
+
+def getcenter(img_array, center=(515, 532), area=100, bin_factor=5, return_all_maxima=True):
+    """
+    Extract a region around a given center, bin it, and find the brightest spot(s).
+
+    Parameters
+    ----------
+    img_array : np.ndarray
+        2D image from which to find a center.
+    center : tuple of int, optional
+        (x, y) pixel coordinates around which to extract the region.
+    area : int, optional
+        Size of the square region (in pixels) to extract around `center`.
+    bin_factor : int, optional
+        Factor by which to downsample (bin) the extracted region.
+    return_all_maxima : bool, optional
+        If True, return all (x, y) locations with the same maximum value.
+        If False, return only the average of all maxima (as a single (x, y)).
+
+    Returns
+    -------
+    np.ndarray
+        If `return_all_maxima` is True:
+            Array of shape (N, 2) containing all max (x, y) coordinates.
+        Otherwise:
+            A single (x, y) coordinate (shape (2,)) as the average of all maxima.
+
+    Notes
+    -----
+    - Be mindful of the coordinate convention:
+        center=(x, y) means x->column index, y->row index.
+    - This function will safely clip the extracted area if `area` is too large
+      and extends beyond the image boundaries.
+    """
+    # Unpack center
+    cx, cy = center
+
+    # Ensure we stay within the image bounds when clipping
+    height, width = img_array.shape
+    half_area = area // 2
+
+    # Compute valid boundaries
+    top = max(cy - half_area, 0)
+    bottom = min(cy + half_area, height)
+    left = max(cx - half_area, 0)
+    right = min(cx + half_area, width)
+
+    # Extract the region
+    clipped = img_array[top:bottom, left:right]
+
+    # Edge case: if clipped is empty, return something sensible
+    if clipped.size == 0:
+        # Return an empty array or a special value
+        return np.array([])
+
+    # Bin the region using the improved rebin function
+    binned = rebin(clipped, bin_factor, method='mean')
+
+    # Find the brightest value in the binned region
+    max_val = np.max(binned)
+    # If the entire binned region is zero, fallback
+    if max_val == 0:
+        # Return something indicating no bright spot
+        return np.array([0, 0])
+
+    # Get indices of all maxima in the binned array
+    max_y, max_x = np.where(binned == max_val)
+
+    # Convert binned coords back to original image coords
+    # (x, y) in binned -> multiply by bin_factor -> offset by top/left
+    # Note: +left or +top because we clipped from the original image
+    # Add 0.5*bin_factor if you want the center of the bin, not the corner.
+    max_x_mapped = max_x * bin_factor + left
+    max_y_mapped = max_y * bin_factor + top
+
+    # Combine into (x, y) pairs
+    bright_spots = np.column_stack((max_x_mapped, max_y_mapped))
+
+    if return_all_maxima:
+        return bright_spots
+    else:
+        # Return the average location (single point)
+        return np.round(bright_spots.mean(axis=0)).astype(int)
 
 class Hdf5MetadataUpdater:
     def __init__(self, port_number = 3463):
@@ -255,9 +367,19 @@ class Hdf5MetadataUpdater:
                         if beamcenter[0]*beamcenter[1] != 1:
                             beamcenter_refined = beamcenter
                         else:
-                            beamcenter_pre = getcenter(img, bin=4, area=100)
-                            beamcenter_refined = getcenter(img, center=beamcenter_pre[0], bin=1, area=20)[0]
-                            logging.info(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
+                            beamcenter_pre = getcenter(img,
+                                                       center=(515, 532),
+                                                       area=100,
+                                                       bin_factor=4,
+                                                       return_all_maxima=False)
+                            
+                            beamcenter_refined = getcenter(img,
+                                                           center=beamcenter_pre,
+                                                           area=20,
+                                                           bin_factor=1,
+                                                           return_all_maxima=False)
+                            
+                            logging.info(f"Refined beam center: X = {beamcenter_refined[0]:d}; Y = {beamcenter_refined[1]:d}")
                     # self.socket.send_string(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
 
                     dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
@@ -277,8 +399,8 @@ class Hdf5MetadataUpdater:
             except zmq.ZMQError as e:
                 logging.error(f"Error while receiving request: {e}")
                 # self.socket.send_string("Error updating metadata")
-            # except Exception as e:
-            #     logging.error(f"Error while receiving/processing request: {e}", exc_info=True)
+            except Exception as e:
+                logging.error(f"Error while receiving/processing request: {e}", exc_info=True)
             #     break
     
     def stop(self):
