@@ -95,7 +95,7 @@
 </header>
 <h1 id="new-receiver-and-viewer-of-jungfrau-for-ed-ccsa-uniwien">New
 Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien</h1>
-<p>This document was updated on 6 Feb 2025<br />
+<p>This document was updated on 13 Feb 2025<br />
 <strong>When you encounter bug-like behaviors, please check <a
 href="#Known-bugs">known bugs</a>.</strong></p>
 <h2 id="table-of-contents">Table of Contents</h2>
@@ -259,12 +259,6 @@ spot shape (non-TEM mode only, useful for manual focusing).</li>
 <li><code>Magnification</code>, <code>Distance</code>: Displays the
 magnification and distance values (TEM mode only). <code>scale</code>
 checkbox displays the scale bar (1 um) or the ring (1 A).</li>
-<li><code>Accumulate in TIFF</code>: Saves a TIFF snapshot to the
-specified data path (<strong><a href="#Known-bugs">not tested in
-jfj-version</a></strong>).</li>
-<li><code>Write Stream in H5</code>: Saves an HDF movie to the specified
-data path (<strong><a href="#Known-bugs">not tested in
-jfj-version</a></strong>).</li>
 </ul>
 <h3 id="summing-receiver-controls"><a
 href="../jungfrau_gui/screenshot/ver_13Dec2024.png">Summing Receiver
@@ -303,9 +297,9 @@ allows to save the TEM status in a .log file. (<a href="#Known-bugs">not
 working correctly</a>)</li>
 <li><code>Click-on-Centering</code>: Activates stage XY-control by
 clicking on the imageat the pint of interest.</li>
-<li><code>Beam Gaussian Fit</code>: Fits a gaussian to the direct beam
-within the ROI (A preliminary way to get the beam center info to add to
-the metadata)
+<li><code>Gaussian Fit</code>: Fits a gaussian to the direct beam within
+the ROI (A preliminary way to get the beam center info to add to the
+metadata)
 <ul>
 <li><code>Beam center (px)</code>: Displays the position
 (X_center,Y_center) of the center of the fitted gaussian<br />
@@ -326,8 +320,6 @@ The beam is unblanked during rotation and blanked when rotation ends.
 <ul>
 <li><code>with Writer</code>: Synchronizes the HDF writer with
 rotation.</li>
-<li><code>JFJ</code>: Saves data in JFJ-server (noether). Otherwise the
-data will be saved locally (hodgkin).</li>
 <li><code>Auto reset</code>: Resets the tilt to 0 degrees after
 rotation.</li>
 </ul></li>
@@ -365,31 +357,7 @@ collected (e.g., UniVie, External, IP).</li>
 <li><code>Base Data Directory</code>: Specifies the root directory for
 data saving.</li>
 </ul>
-<p><strong>Note:</strong> The [Get] buttons were coded for debugging
-purposes. They will be removed for the stable version.</p>
-<p><strong>Important:</strong> TIFF-Writer and HDF5-Writer have not been
-tested with JFJ. Use <a
-href="#summing-receiver-controls"><code>Collect</code></a> in
-Visualization Panel instead.</p>
-<h4 id="tiff-writer">TIFF Writer</h4>
-<ul>
-<li><code>Tiff File Name</code>: Area to define the name of the TIFF
-file and its index. It contains:<br />
-<small>
-<ul>
-<li>First line-edit is read-only and displays the folder where TIFF
-files are saved.</li>
-<li>Second line-edit is modifiable (ASCII characters and underscores
-only) and is meant for the file name.</li>
-<li>Spinbox is modifiable, is incremented after each writing and
-represents the index of the written TIFF.</li>
-</ul>
-</small></li>
-<li><code>index</code>: Set the file index for the TIFF file.</li>
-<li><code>Accumulate in TIFF</code>: Accumulates a specified number of
-frames in the TIFF file.</li>
-</ul>
-<h4 id="hdf5-writer">HDF5 Writer</h4>
+<h4 id="hdf5-output">HDF5 output</h4>
 <ul>
 <li><code>HDF5 Tag</code>*: Enter the file prefix (ASCII characters and
 underscores only).</li>
@@ -408,55 +376,76 @@ uploaded to the data base.</p>
 <li>Confirm the data output path on the <code>H5 Output Path</code>
 line-edit.</li>
 <li>Modify the stage rotation speed and end angle.</li>
-<li>Check the <code>with Writer</code> and <code>JFJ</code> boxes.</li>
+<li>Check the <code>with Writer</code> box.</li>
 <li>Click <code>Rotation</code> to start the rotation and
 recording.</li>
 <li>Continue until the end angle is reached or interrupted.</li>
 <li>Take an HDF movie if needed (e.g. crystal picture).</li>
 </ol>
 <h2 id="data-processing-notes">Data-processing notes</h2>
-<ul>
-<li><strong>XDS</strong>:
-<ul>
-<li><a
+<p>updated on 19 Jan 2025 - Data loading - <strong>XDS</strong>: - <a
 href="https://github.com/epoc-ed/epoc-utils/commit/2198487645fbb5390e2f629b570ac0dbf18db268">Version
 before 20.Aug.2024</a> <a
 href="https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia">The
 plugin derived from Neggia</a> requires <code>_master.h5</code> in the
 filename. Create a symbolic link:
-<code>ln -s [full-path-of-hdffile] linked_master.h5</code></li>
-<li><a
+<code>ln -s [full-path-of-hdffile] linked_master.h5</code> - <a
 href="https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10">Version
 before 10.Oct.2024</a> Data stored with float32 format. <a
 href="https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia">Neggia-derived
 plugin</a> can work. <a
 href="https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master">Another
-plugin</a> can not.</li>
-<li><a
+plugin</a> can not. - <a
 href="https://github.com/epoc-ed/GUI/releases/tag/v2024.10.10">Version
 after 10.Oct.2024</a> Data stored with int32 format and compressed. <a
 href="https://github.com/epoc-ed/xdslib_epoc-jungfrau/tree/master">Another
 plugin</a> can work. <a
 href="https://github.com/epoc-ed/DataProcessing/tree/main/XDS/neggia">Neggia-derived
-plugin</a> can not.</li>
-<li>Version after XX.Nov.2024 (JFJ installation) Data stored with int32
-format and linked with master.h5. <a
+plugin</a> can not. - Version after XX.Nov.2024 (JFJ installation) Data
+stored with int32 format and linked with master.h5. <a
 href="https://github.com/dectris/neggia/"><strong>The original
-Neggia-plugin</strong></a> can process the data.</li>
-</ul></li>
-<li><strong>DIALS</strong>: Install the <a
-href="https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrauVIE02.py">updated
-Format Class</a> to read the HDF file directly:<br />
-<code>dials.import [filename.h5] slow_fast_beam_center=257,515 distance=660</code></li>
+Neggia-plugin</strong></a> can process the data.</p>
+<pre><code>- **DIALS**: Install the [updated Format Class for JF1M](https://github.com/epoc-ed/DataProcessing/blob/main/DIALS/format/FormatHDFJungfrau1MJFJVIE01.py) to read the HDF file directly:\
+   ``` dials.import [filename.h5] slow_fast_beam_center=532,515```</code></pre>
+<ul>
+<li>Script-based launching<br />
+<strong>This procedure is still under testing! Please try it
+carefully.<br />
+To run for the datasets recorded with the previous version of GUI, some
+parameters in the generated files (oscillation, calibrated camera
+length, etc.) need to be modified manually.</strong></li>
 </ul>
+<ol type="1">
+<li>Copy <a
+href="../jungfrau_gui/metadata_uploader/metadata_update_server.py">metadata_update_server.py</a>
+and <a
+href="../jungfrau_gui/metadata_uploader/jf1m_reprocess.py">jf1m_reprocess.py</a>
+to your local directory path in the processing-server (noether)</li>
+<li>(Option) Setup to launch DIALS
+<code>source [dials_installation_path]/dials-v3-22-1/dials_env.sh</code></li>
+<li>Run jf1m_reprocess.py to <strong>generate XDS.INP</strong> and
+<strong>(Optional) run DIALS with default parameters</strong> at your
+working directory with python or <em>dxtbx.python</em>
+<code>(dxtbx.)python jf1m_reprocess.py [full-path-of-xxx_master.h5] [full-path-of-template_directory_path]/XDS-JF1M_JFJ_2024-12-10.INP</code>
+*<em>Expected directory structure:</em></li>
+</ol>
+<pre><code>.
+|--XDS
+|    └--XDS.INP
+└--DIALS
+     |--dials.import.log
+     |--imported.expt
+     |--dials.find_spots.log
+     |--strong.refl
+     :</code></pre>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <ul>
 <li><p><strong>PowerShell console not responding after disconnecting
 from GUI</strong>: Open another PowerShell console and kill the python
 process:</p>
-<div class="sourceCode" id="cb11"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">Get-Process</span> python</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> <span class="pp">[</span><span class="ss">pid</span><span class="pp">]</span></span></code></pre></div></li>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">Get-Process</span> python</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> <span class="pp">[</span><span class="ss">pid</span><span class="pp">]</span></span></code></pre></div></li>
 <li><p><strong>TEM-control button delay</strong>: There may be a few
 seconds of delay when responding, especially the first time. Please
 wait.</p></li>
@@ -464,12 +453,8 @@ wait.</p></li>
 <h3 id="known-bugs">Known bugs</h3>
 <p>updated on 13 Dec 2024 - Autocontrast does not work correctly after
 installation of JF-1M. Modify contrast manually or use fixed-contrast
-buttons. - Tiff- and HDF- writers have not been tested after
-installation of JFJ. Use <a
-href="#summing-receiver-controls"><code>Collect</code> and
-<code>Cancel</code></a> in Visualization Panel instead. - Recording of
-TEM-related values does not correctly output a file. Currently this
-function is disabled.</p>
+buttons. - Recording of TEM-related values does not correctly output a
+file. Currently this function is disabled.</p>
 <h3 id="launching-previous-system">Launching previous system</h3>
 <ul>
 <li>Usage of previous rotation commands/scripts under PyJEM3.8
@@ -479,21 +464,21 @@ environment</li>
 <li><p>Open a Miniconda PowerShell Prompt (Anaconda submenu) from the
 Windows Start Menu.</p></li>
 <li><p>activate ‘vjem38’ virtual environment</p>
-<div class="sourceCode" id="cb12"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate vjem38</span></code></pre></div></li>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate vjem38</span></code></pre></div></li>
 <li><p>Navigate to <code>C:\ProgramData\xxxxxx</code></p></li>
 <li><p>Start interactive python, and load PyJEM module and use the
 commands:<br />
 </p>
-<div class="sourceCode" id="cb13"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> from <span class="ex">PyJEM</span> import TEM3</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stage <span class="ex">=</span> TEM3.Stage3<span class="er">(</span><span class="kw">)</span></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stage.Setf1OverRateTxNum<span class="kw">(</span><span class="ex">1</span><span class="kw">)</span></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stage.SetTiltXAngle<span class="kw">(</span><span class="ex">60</span><span class="kw">)</span></span></code></pre></div></li>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> from <span class="ex">PyJEM</span> import TEM3</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stage <span class="ex">=</span> TEM3.Stage3<span class="er">(</span><span class="kw">)</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stage.Setf1OverRateTxNum<span class="kw">(</span><span class="ex">1</span><span class="kw">)</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stage.SetTiltXAngle<span class="kw">(</span><span class="ex">60</span><span class="kw">)</span></span></code></pre></div></li>
 <li><p>Or just call a python script</p>
-<div class="sourceCode" id="cb14"><pre
-class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> rotational_devel.py</span></code></pre></div></li>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> rotational_devel.py</span></code></pre></div></li>
 </ol>
 </body>
 </html>
