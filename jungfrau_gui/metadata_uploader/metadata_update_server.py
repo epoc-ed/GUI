@@ -432,7 +432,6 @@ class Hdf5MetadataUpdater:
         ht = 200  # keV  # <- HT3
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
         stage_rates = [10.0, 2.0, 1.0, 0.5]
-        jfj_version = "1.0.0-rc.24"
         if rotations_angles is not None:
             del_rotations_angles = np.diff(np.array(rotations_angles, dtype='float').T)
             rotation_mean, rotation_std = np.mean(del_rotations_angles[1] / del_rotations_angles[0]), np.std(del_rotations_angles[1] / del_rotations_angles[0])
@@ -455,11 +454,8 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/detector/detectorSpecific/element', data = 'Si')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_count_time', data = data_shape[0], dtype='uint64')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_period', data = data_shape[0], dtype='uint64') = frame_count_time in SINGLA
-                    create_or_update_dataset('entry/instrument/detector/detectorSpecific/software_version', data = 'Jungfraujoch/' + jfj_version)
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/software_version_gui', data = self.***.version)
                     create_or_update_dataset('entry/instrument/detector/count_threshold_in_keV', data = jf_threshold, dtype='uint64')
-                    # ED-specific, some namings from https://github.com/dials/dxtbx/blob/main/src/dxtbx/format/FormatNXmxED.py
-                    create_or_update_dataset('entry/source/probe', data = 'electron')
                     # already implemented with the identical names in JFJ
                     # create_or_update_dataset('entry/instrument/detector/saturation_value', data = np.iinfo('int32').max, dtype='uint32')
                     # create_or_update_dataset('entry/instrument/detector/sensor_material', data = 'Si')
@@ -468,6 +464,9 @@ class Hdf5MetadataUpdater:
                     # create_or_update_dataset('entry/instrument/detector/frame_time', data = interval, dtype='float')
                     # create_or_update_dataset('entry/instrument/detector/frame_time_unit', data = 's')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/ntrigger', data = 1, dtype='uint64')
+                    # create_or_update_dataset('entry/instrument/detector/detectorSpecific/software_version', data = 'Jungfraujoch/' + jfj_version)
+                    # ED-specific, some namings from https://github.com/dials/dxtbx/blob/main/src/dxtbx/format/FormatNXmxED.py
+                    create_or_update_dataset('entry/source/probe', data = 'electron')
                     # ED-specific, optics
                     create_or_update_dataset('entry/instrument/optics/info_acquisition_date_time', data = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
                     create_or_update_dataset('entry/instrument/optics/microscope_name', data = 'JEOL JEM2100Plus')
