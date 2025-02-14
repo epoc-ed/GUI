@@ -115,17 +115,19 @@ class VisualizationPanel(QGroupBox):
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
         self.autoContrastBtn.clicked.connect(self.toggle_autoContrast)
         self.resetContrastBtn = QPushButton("Reset Contrast")
-        self.resetContrastBtn.clicked.connect(self.resetContrast)
+        self.resetContrastBtn.clicked.connect(lambda: self.set_contrast(self.cfg.viewer_cmin, self.cfg.viewer_cmax))
         
-        self.contrast_0_Btn = QPushButton("-100 - 100")
-        self.contrast_1_Btn = QPushButton("0 - 500")
-        self.contrast_2_Btn = QPushButton("0 - 1000")
-        self.contrast_3_Btn = QPushButton("0 - 1e5")
+        self.contrast_0_Btn = QPushButton("-50 - 50")
+        self.contrast_1_Btn = QPushButton("0 - 100")
+        self.contrast_2_Btn = QPushButton("0 - 500")
+        self.contrast_3_Btn = QPushButton("0 - 1000")
+        self.contrast_4_Btn = QPushButton("0 - 1e5")
 
-        self.contrast_0_Btn.clicked.connect(self.contrast_0)
-        self.contrast_1_Btn.clicked.connect(self.contrast_1)
-        self.contrast_2_Btn.clicked.connect(self.contrast_2)
-        self.contrast_3_Btn.clicked.connect(self.contrast_3)
+        self.contrast_0_Btn.clicked.connect(lambda: self.set_contrast(-50, 50))
+        self.contrast_1_Btn.clicked.connect(lambda: self.set_contrast(0, 100))
+        self.contrast_2_Btn.clicked.connect(lambda: self.set_contrast(0, 500))
+        self.contrast_3_Btn.clicked.connect(lambda: self.set_contrast(0, 1000))
+        self.contrast_4_Btn.clicked.connect(lambda: self.set_contrast(0, 100000))
 
         view_contrast_group = QVBoxLayout()
         view_contrast_label = QLabel("Streaming & Contrast")
@@ -133,14 +135,15 @@ class VisualizationPanel(QGroupBox):
         view_contrast_group.addWidget(view_contrast_label)
 
         grid_1 = QGridLayout()
-        grid_1.addWidget(self.stream_view_button, 0, 0, 2, 3)  # Span two rows two columns
-        grid_1.addWidget(self.autoContrastBtn, 0, 3)
-        grid_1.addWidget(self.resetContrastBtn, 1, 3)
+        grid_1.addWidget(self.stream_view_button, 0, 0, 2, 4)  # Span two rows two columns
+        grid_1.addWidget(self.autoContrastBtn, 0, 4)
+        grid_1.addWidget(self.resetContrastBtn, 1, 4)
 
         grid_1.addWidget(self.contrast_0_Btn, 2, 0, 1, 1 )
         grid_1.addWidget(self.contrast_1_Btn, 2, 1, 1, 1 )
         grid_1.addWidget(self.contrast_2_Btn, 2, 2, 1, 1 )
         grid_1.addWidget(self.contrast_3_Btn, 2, 3, 1, 1 )
+        grid_1.addWidget(self.contrast_4_Btn, 2, 4, 1, 1 )
  
         view_contrast_group.addLayout(grid_1)
         section_visual.addLayout(view_contrast_group)
@@ -895,40 +898,12 @@ class VisualizationPanel(QGroupBox):
         # Apply the modified LUT to the ImageItem
         self.parent.imageItem.setLookupTable(lut)
 
-    def resetContrast(self):
+    def set_contrast(self, lower, upper):
         self.parent.timer_contrast.stop()
         self.autoContrastBtn.started = False
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
         self.autoContrastBtn.setText('Apply Auto Contrast')
-        self.parent.histogram.setLevels(self.cfg.viewer_cmin, self.cfg.viewer_cmax)
-    
-    def contrast_0(self):
-        self.parent.timer_contrast.stop()
-        self.autoContrastBtn.started = False
-        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
-        self.autoContrastBtn.setText('Apply Auto Contrast')
-        self.parent.histogram.setLevels(-50,50)
-    
-    def contrast_1(self):
-        self.parent.timer_contrast.stop()
-        self.autoContrastBtn.started = False
-        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
-        self.autoContrastBtn.setText('Apply Auto Contrast')
-        self.parent.histogram.setLevels(0, 500)
-    
-    def contrast_2(self):
-        self.parent.timer_contrast.stop()
-        self.autoContrastBtn.started = False
-        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
-        self.autoContrastBtn.setText('Apply Auto Contrast')
-        self.parent.histogram.setLevels(0, 1000)
-    
-    def contrast_3(self):
-        self.parent.timer_contrast.stop()
-        self.autoContrastBtn.started = False
-        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
-        self.autoContrastBtn.setText('Apply Auto Contrast')
-        self.parent.histogram.setLevels(0, 100000) # '0-1e5'
+        self.parent.histogram.setLevels(lower, upper)
     
     def toggle_autoContrast(self):
         if not self.autoContrastBtn.started:
@@ -979,7 +954,7 @@ class VisualizationPanel(QGroupBox):
             self.parent.timer.start()
             # if not globals.jfj:
             #     self.parent.file_operations.accumulate_button.setEnabled(True)
-            self.parent.file_operations.streamWriterButton.setEnabled(True)
+            """ self.parent.file_operations.streamWriterButton.setEnabled(True) """
         else:
             self.stream_view_button.setText("View Stream")
             self.parent.plot.setTitle("Stream stopped at the current Frame")
@@ -990,7 +965,7 @@ class VisualizationPanel(QGroupBox):
             # Disable buttons
             # if not globals.jfj:
             #     self.parent.file_operations.accumulate_button.setEnabled(False)
-            self.parent.file_operations.streamWriterButton.setEnabled(False)
+            """ self.parent.file_operations.streamWriterButton.setEnabled(False) """
             # Wait for thread to actually stop
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")

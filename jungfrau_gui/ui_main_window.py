@@ -92,7 +92,8 @@ class ApplicationWindow(QMainWindow):
         self.glWidget.installEventFilter(self.hoverFilter)
 
         # ROI setup
-        self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        # self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        self.roi = pg.RectROI([globals.ncol//2+1-75, globals.nrow//2+1-50], [150, 100], pen=(9,6))
         self.plot.addItem(self.roi)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
@@ -101,7 +102,7 @@ class ApplicationWindow(QMainWindow):
         self.roi.sigRegionChanged.connect(self.roiChanged)
 
         # Initial data (optional)
-        data = create_gaussian(globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
+        data = create_gaussian(1000, globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
         # data = np.random.rand(globals.nrow,globals.ncol).astype(globals.dtype)
         logging.debug(f"type(data) is {type(data[0,0])}")
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
@@ -133,7 +134,7 @@ class ApplicationWindow(QMainWindow):
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
         
-        self.imageItem.mouseClickEvent = self.tem_controls.tem_action.imageMouseClickEvent
+        # self.imageItem.mouseClickEvent = self.tem_controls.tem_action.imageMouseClickEvent
         
         tab_widget.addTab(self.visualization_panel, "Visualization Panel")
         tab_widget.addTab(self.tem_controls, "TEM Controls")
@@ -227,9 +228,9 @@ class ApplicationWindow(QMainWindow):
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 globals.exit_flag.value = True
-                if self.file_operations.streamWriter is not None:
+                """ if self.file_operations.streamWriter is not None:
                     if self.file_operations.streamWriter.write_process.is_alive():
-                        self.file_operations.streamWriter.stop()
+                        self.file_operations.streamWriter.stop() """
                 # if self.file_operations.frameAccumulator is not None:
                 #     if self.file_operations.frameAccumulator.accumulate_process.is_alive():
                 #         self.file_operations.frameAccumulator.accumulate_process.terminate()

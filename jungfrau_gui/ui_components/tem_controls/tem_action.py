@@ -302,8 +302,8 @@ class TEMAction(QObject):
             self.control.trigger_record.emit()
             self.tem_tasks.rotation_button.setText("Stop")
             self.tem_tasks.rotation_button.started = True
-            if self.tem_tasks.withwriter_checkbox.isChecked():
-                self.file_operations.streamWriterButton.setEnabled(False)
+            """ if self.tem_tasks.withwriter_checkbox.isChecked():
+                self.file_operations.streamWriterButton.setEnabled(False) """
         else:
             # In case of unwarranted interruption, to avoid button stuck in "Stop"
             if self.control.interruptRotation: 
@@ -371,7 +371,12 @@ class TEMAction(QObject):
             # self.control.stop_task()
 
     def go_listedposition(self):
-        position = self.control.client.GetStagePosition() # in nm
+        try:
+            # position = self.control.client.GetStagePosition() # in nm
+            position = send_with_retries(self.control.client.GetStagePosition)
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return
         position_aim = np.array(self.tem_stagectrl.position_list.currentText().split()[1:-2], dtype=float) # in um
         dif_pos = position_aim[0]*1e3 - position[0], position_aim[1]*1e3 - position[1]
         try:
@@ -385,7 +390,12 @@ class TEMAction(QObject):
 
     @Slot(str, str)
     def add_listedposition(self, color='red', status='new'):
-        position = self.control.client.GetStagePosition()
+        try:
+            # position = self.control.client.GetStagePosition()
+            position = send_with_retries(self.control.client.GetStagePosition)
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return
         new_id = self.tem_stagectrl.position_list.count() - 4
         self.tem_stagectrl.position_list.addItems([f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"])
         self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color))

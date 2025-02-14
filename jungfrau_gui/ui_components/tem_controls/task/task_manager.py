@@ -203,22 +203,27 @@ class ControlWorker(QObject):
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI
             filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
-            if self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
-                task = RecordTask(
-                    self,
-                    end_angle,
-                    filename_suffix.as_posix(),
-                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit],
-                    standard_h5_recording=False
-                )
-            else:
-                task = RecordTask(
-                    self,
-                    end_angle,
-                    filename_suffix.as_posix(),
-                    writer_event = [self.file_operations.start_H5_recording.emit, self.file_operations.stop_H5_recording.emit],
-                    standard_h5_recording=True
-                )
+            # if self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
+            #     task = RecordTask(
+            #         self,
+            #         end_angle,
+            #         filename_suffix.as_posix(),
+            #         writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit],
+            #         standard_h5_recording=False
+            #     )
+            # else:
+            #     task = RecordTask(
+            #         self,
+            #         end_angle,
+            #         filename_suffix.as_posix(),
+            #         writer_event = [self.file_operations.start_H5_recording.emit, self.file_operations.stop_H5_recording.emit],
+            #         standard_h5_recording=True
+            #     )
+            task = RecordTask(
+                self,
+                end_angle,
+                filename_suffix.as_posix(),
+                writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit])
         else:
             task = RecordTask(self, end_angle) #, filename_suffix.as_posix())
 

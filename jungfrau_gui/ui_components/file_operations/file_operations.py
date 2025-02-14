@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QPushButton, QFileDialog, QCheckBox,
                                 QMessageBox, QGridLayout, QRadioButton)
 
-from .stream_writer import StreamWriter
+# from .stream_writer import StreamWriter
 from .frame_accumulator_mp import FrameAccumulator
 
 
@@ -26,8 +26,8 @@ import time
 
 class FileOperations(QGroupBox):
     trigger_update_h5_index_box = Signal()
-    start_H5_recording = Signal()
-    stop_H5_recording = Signal()
+    # start_H5_recording = Signal()
+    # stop_H5_recording = Signal()
     
     def __init__(self, parent):
         super().__init__()
@@ -197,7 +197,7 @@ class FileOperations(QGroupBox):
         #####################
         # HDF5 Writer Section
         #####################
-        HDF5_section_label = QLabel("HDF5 Writer", self)
+        HDF5_section_label = QLabel("HDF5 output", self)
         HDF5_section_label.setFont(font_big)
 
         section3.addWidget(HDF5_section_label)
@@ -247,16 +247,16 @@ class FileOperations(QGroupBox):
 
         section3.addLayout(output_folder_layout)
 
-        hdf5_writer_layout = QGridLayout()
+        """ hdf5_writer_layout = QGridLayout()
         self.streamWriter = None
         self.streamWriterButton = ToggleButton("Write Stream in H5", self)
         self.streamWriterButton.setEnabled(False)
         self.streamWriterButton.clicked.connect(self.toggle_hdf5Writer)
         self.start_H5_recording.connect(self.toggle_hdf5Writer_ON)
-        self.stop_H5_recording.connect(self.toggle_hdf5Writer_OFF)
+        self.stop_H5_recording.connect(self.toggle_hdf5Writer_OFF) """
         # self.xds_checkbox = QCheckBox("Prepare for XDS processing", self)
         # self.xds_checkbox.setChecked(True)
-        hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2)
+        """ hdf5_writer_layout.addWidget(self.streamWriterButton, 0, 0, 1, 2) """
         # hdf5_writer_layout.addWidget(self.xds_checkbox, 1, 0)
 
         # Change text color to orange when text is modified
@@ -268,7 +268,7 @@ class FileOperations(QGroupBox):
             else:
                 logging.error("Only QLineEdit and QSpinBox objects are supported!")
 
-        section3.addLayout(hdf5_writer_layout)
+        """ section3.addLayout(hdf5_writer_layout) """
         # section3.addStretch()
         # self.setLayout(section3)
 
@@ -327,21 +327,24 @@ class FileOperations(QGroupBox):
             self.snapshot_button.started = True
             self.parent.visualization_panel.send_command_to_jfjoch('collect')
             logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
-            time.sleep(int(self.snapshot_spin.value())*1e-3)
+            time.sleep(int(self.snapshot_spin.value())*1e-3) # Blocking (Desired?)
             self.toggle_snapshot_btn()
         else:
             self.parent.visualization_panel.send_command_to_jfjoch('cancel')
             if self.parent.tem_controls.tem_action.temConnector is not None: ## to be checked again
                 self.parent.tem_controls.tem_action.control.send_to_tem("#more", asynchronous = False)
                 logging.info(" ******************** Adding Info to H5 over Server...")
-                send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                    self.parent.visualization_panel.formatted_filename, 
-                                    self.parent.tem_controls.tem_action.control.tem_status, #self.control.tem_status, 
-                                    self.cfg.beam_center, 
-                                    None, # self.rotations_angles,
-                                    self.cfg.threshold,
-                                    retries=3, 
+                try:
+                    send_with_retries(self.metadata_notifier.notify_metadata_update, 
+                                        self.parent.visualization_panel.formatted_filename, 
+                                        self.parent.tem_controls.tem_action.control.tem_status, #self.control.tem_status, 
+                                        self.cfg.beam_center, 
+                                        None, # self.rotations_angles,
+                                        self.cfg.threshold,
+                                        retries=3, 
                                     delay=0.1) 
+                except Exception as e:
+                    logging.error(f"Metadata Update Error: {e}")
             logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
             self.tag_input.setText(self.pre_text) # reset the tag to value before snapshot
             self.update_measurement_tag()
@@ -401,7 +404,7 @@ class FileOperations(QGroupBox):
     #     if os.path.exists(path): 
     #         self.h5_folder_name = path
     
-    def toggle_hdf5Writer_ON(self):
+    """ def toggle_hdf5Writer_ON(self):
         if not self.streamWriterButton.started:
             self.toggle_hdf5Writer()
 
@@ -453,7 +456,7 @@ class FileOperations(QGroupBox):
             logging.info(f"Total number of frames written in H5 file:   {self.streamWriter.number_frames_witten}")
 
             self.streamWriterButton.setText("Write Stream in H5")
-            self.streamWriterButton.started = False
+            self.streamWriterButton.started = False """
     
     def text_modified(self, line_edit): 
         line_edit.setStyleSheet(f"QLineEdit {{ color: orange; background-color: {self.background_color}; }}")

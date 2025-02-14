@@ -19,7 +19,8 @@ from .... import globals
 class RecordTask(Task):
     reset_rotation_signal = Signal()
 
-    def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None, standard_h5_recording=False):
+    # def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None, standard_h5_recording=False):
+    def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None):
         super().__init__(control_worker, "Record")
         self.phi_dot = 0 # 10 deg/s
         self.control = control_worker
@@ -32,19 +33,12 @@ class RecordTask(Task):
         self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.metadata_notifier = MetadataNotifier(host = "noether")
-        self.standard_h5_recording = standard_h5_recording
+        # self.standard_h5_recording = standard_h5_recording
 
         self.reset_rotation_signal.connect(self.reset_rotation_button)
 
     def run(self):
         logging.debug("RecordTask::run()")
-        phi0 = self.client.GetTiltXAngle()
-        phi1 = self.end_angle
-
-        stage_rates = [10.0, 2.0, 1.0, 0.5]
-        phi_dot_idx = self.client.Getf1OverRateTxNum()
-
-        self.phi_dot = stage_rates[phi_dot_idx]
 
         if self.writer is not None:
             try:
@@ -56,6 +50,14 @@ class RecordTask(Task):
 
         try:
             logfile = None  # Initialize logfile to None
+            
+            phi0 = self.client.GetTiltXAngle()
+            phi1 = self.end_angle
+
+            stage_rates = [10.0, 2.0, 1.0, 0.5]
+            phi_dot_idx = self.client.Getf1OverRateTxNum()
+
+            self.phi_dot = stage_rates[phi_dot_idx]
 
             # Interrupting TEM Polling
             if self.tem_action.tem_tasks.connecttem_button.started:
@@ -133,8 +135,10 @@ class RecordTask(Task):
                 logging.info("Waiting for stage rotation to start...")
                 self.client.wait_until_rotate_starts()
                 logging.info("Stage has initiated rotation")
-            except TimeoutError as rotation_error:
-                logging.error(f"TimeoutError: Stage rotation failed to start: {rotation_error}")
+            except Exception as rotation_error:
+                logging.error(f"Stage rotation failed to start: {rotation_error}")
+                self.client.SetBeamBlank(1)
+                # send_with_retries(self.client.StopStage) # stop_task() willtake care of this 
                 return 
 
             #If enabled we start writing files 
@@ -213,21 +217,21 @@ class RecordTask(Task):
 
             # Add H5 info and file finalization
             if self.writer is not None:
-                if self.standard_h5_recording:
-                    logging.info(" ******************** Adding Info to H5...")
+                # if self.standard_h5_recording:
+                #     logging.info(" ******************** Adding Info to H5...")
                     
-                    self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                    # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-                    formatted_filename= self.tem_action.file_operations.formatted_filename
-                    os.rename(self.log_suffix + '.log', formatted_filename.with_suffix('.log'))
+                #     self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
+                #     # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
+                #     formatted_filename= self.tem_action.file_operations.formatted_filename
+                #     os.rename(self.log_suffix + '.log', formatted_filename.with_suffix('.log'))
                     
-                    logging.info(" ******************** Updating file_id in DB...")
-                    self.cfg.after_write()
-                    self.tem_action.file_operations.trigger_update_h5_index_box.emit()
-                else:
-                    time.sleep(0.1)
-                    logging.info(" ******************** Adding Info to H5 over Server...")
-
+                #     logging.info(" ******************** Updating file_id in DB...")
+                #     self.cfg.after_write()
+                #     self.tem_action.file_operations.trigger_update_h5_index_box.emit()
+                # else:
+                time.sleep(0.1)
+                logging.info(" ******************** Adding Info to H5 over Server...")
+                try:
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
                                         self.tem_action.visualization_panel.formatted_filename, 
                                         self.control.tem_status, 
@@ -239,6 +243,9 @@ class RecordTask(Task):
                     
                     self.control.update_xtalinfo.emit('Processing', 'XDS')
                     # self.control.update_xtalinfo.emit('Processing', 'DIALS')
+                except Exception as e:
+                        logging.error(f"Metadata Update Error: {e}")
+                        self.control.update_xtalinfo.emit('Metadata error', 'XDS')
 
             # Same below is taken care of in FileOperations::toggle_hdf5Writer
             # in case self.writer is not None
@@ -268,11 +275,14 @@ class RecordTask(Task):
         finally:
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
-            if self.writer is not None:
-                if self.standard_h5_recording and self.tem_action.file_operations.streamWriterButton.started:
-                    self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
-            else:
-                self.reset_rotation_signal.emit()
+            # if self.writer is not None:
+            #     if self.standard_h5_recording and self.tem_action.file_operations.streamWriterButton.started:
+            #         self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
+            #     else:
+            #         self.reset_rotation_signal.emit()
+            # else:
+            #     self.reset_rotation_signal.emit()
+            self.reset_rotation_signal.emit()
         
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
@@ -281,7 +291,7 @@ class RecordTask(Task):
     def reset_rotation_button(self):
         self.tem_action.tem_tasks.rotation_button.setText("Rotation")
         self.tem_action.tem_tasks.rotation_button.started = False
-        self.tem_action.file_operations.streamWriterButton.setEnabled(True)
+        # self.tem_action.file_operations.streamWriterButton.setEnabled(True)
          
     # def on_tem_receive(self):
     #     self.rotations_angles.append(
