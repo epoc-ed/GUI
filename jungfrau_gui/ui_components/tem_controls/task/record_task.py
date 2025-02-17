@@ -137,8 +137,6 @@ class RecordTask(Task):
                 logging.info("Stage has initiated rotation")
             except Exception as rotation_error:
                 logging.error(f"Stage rotation failed to start: {rotation_error}")
-                self.client.SetBeamBlank(1)
-                # send_with_retries(self.client.StopStage) # stop_task() willtake care of this 
                 return 
 
             #If enabled we start writing files 
@@ -198,14 +196,12 @@ class RecordTask(Task):
             if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
                 logging.info("Return the stage tilt to zero.")
                 try:
-                    # send_with_retries(self.client.SetTiltXAngle, 0)
-                    # time.sleep(1)
                     self.client.Setf1OverRateTxNum(0)
                     time.sleep(0.1) # Wait for the command to go through
                     self.tem_action.tem_stagectrl.move0deg.clicked.emit()
                     time.sleep(0.5) # Wait for the command to go through before checking rotation state
                 except Exception as e:
-                    # logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
+                    logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
                     pass              
                 
             # Waiting for the rotation to end
@@ -217,18 +213,6 @@ class RecordTask(Task):
 
             # Add H5 info and file finalization
             if self.writer is not None:
-                # if self.standard_h5_recording:
-                #     logging.info(" ******************** Adding Info to H5...")
-                    
-                #     self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                #     # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-                #     formatted_filename= self.tem_action.file_operations.formatted_filename
-                #     os.rename(self.log_suffix + '.log', formatted_filename.with_suffix('.log'))
-                    
-                #     logging.info(" ******************** Updating file_id in DB...")
-                #     self.cfg.after_write()
-                #     self.tem_action.file_operations.trigger_update_h5_index_box.emit()
-                # else:
                 time.sleep(0.1)
                 logging.info(" ******************** Adding Info to H5 over Server...")
                 try:
@@ -275,13 +259,7 @@ class RecordTask(Task):
         finally:
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
-            # if self.writer is not None:
-            #     if self.standard_h5_recording and self.tem_action.file_operations.streamWriterButton.started:
-            #         self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
-            #     else:
-            #         self.reset_rotation_signal.emit()
-            # else:
-            #     self.reset_rotation_signal.emit()
+            self.client.SetBeamBlank(1)
             self.reset_rotation_signal.emit()
         
         # self.make_xds_file(master_filepath,

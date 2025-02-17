@@ -1,6 +1,6 @@
 import logging
 from PySide6.QtGui import QIcon, QFont, QRegularExpressionValidator
-from PySide6.QtCore import Signal, Qt, QRegularExpression
+from PySide6.QtCore import Signal, Qt, QRegularExpression, QTimer
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QLineEdit, QSpinBox, QButtonGroup,
                                 QPushButton, QFileDialog, QCheckBox,
@@ -327,8 +327,7 @@ class FileOperations(QGroupBox):
             self.snapshot_button.started = True
             self.parent.visualization_panel.send_command_to_jfjoch('collect')
             logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
-            time.sleep(int(self.snapshot_spin.value())*1e-3) # Blocking (Desired?)
-            self.toggle_snapshot_btn()
+            QTimer.singleShot(self.snapshot_spin.value(), self.toggle_snapshot_btn)
         else:
             self.parent.visualization_panel.send_command_to_jfjoch('cancel')
             if self.parent.tem_controls.tem_action.temConnector is not None: ## to be checked again

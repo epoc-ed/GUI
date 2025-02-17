@@ -363,10 +363,11 @@ class Hdf5MetadataUpdater:
                 
                 if rotations_angles is not None:
                     with h5py.File(filename, 'r') as f:
-                        img = f['entry/data/data_000001'][()][100] #, dynamic definition would be better
                         if beamcenter[0]*beamcenter[1] != 1:
                             beamcenter_refined = beamcenter
                         else:
+                            middle_index = f["entry/data/data_000001"].shape[0] // 2
+                            img = f['entry/data/data_000001'][middle_index] 
                             beamcenter_pre = getcenter(img,
                                                        center=(515, 532),
                                                        area=100,
