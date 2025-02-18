@@ -68,6 +68,13 @@ class RecordTask(Task):
 
             logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection!")
 
+            # Disable the Gaussian Fitting
+            QMetaObject.invokeMethod(self.tem_action.tem_controls, 
+                                    "disableGaussianFitButton", 
+                                    Qt.QueuedConnection
+            )
+            logging.warning("Gaussina Fitting is disabled during rotation/record task!")
+            
             # Attempt to open the logfile and catch potential issues
             try:
                 logfile = open(self.log_suffix + '.log', 'w')

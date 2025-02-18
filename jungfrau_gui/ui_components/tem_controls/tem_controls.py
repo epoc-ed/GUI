@@ -239,6 +239,10 @@ class TemControls(QGroupBox):
             self.parent.stopWorker(self.thread_fit, self.fitter)
             self.removeAxes()
 
+    @Slot()
+    def disableGaussianFitButton(self):
+        self.tem_tasks.btnGaussianFit.setEnabled(False)
+
     def initializeWorker(self, thread, worker):
         thread_manager.move_worker_to_thread(thread, worker)
         worker.finished.connect(self.updateFitParams)

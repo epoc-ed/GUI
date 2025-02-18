@@ -200,10 +200,9 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
-        # Stop and disable the Gaussian Fitting 
+        # Stop the Gaussian Fitting if running
         if self.tem_action.tem_tasks.btnGaussianFit.started:
             self.tem_action.tem_controls.toggle_gaussianFit_beam()
-        self.tem_action.tem_tasks.btnGaussianFit.setEnabled(False)
 
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI
