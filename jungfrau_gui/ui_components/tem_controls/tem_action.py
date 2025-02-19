@@ -198,6 +198,8 @@ class TEMAction(QObject):
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
 
         if Mag_idx in [0, 1, 2]:
+            if not self.visualization_panel.autoContrastBtn.started:
+                self.visualization_panel.autoContrastBtn.clicked.emit()
             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_magnification.setText(magnification)
