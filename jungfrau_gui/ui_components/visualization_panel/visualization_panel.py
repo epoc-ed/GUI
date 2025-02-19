@@ -589,9 +589,16 @@ class VisualizationPanel(QGroupBox):
 
                     logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
-                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
-                    # self.jfjoch_client.start(n_images = 500, fname="", th = self.thresholdBox.value())
-
+                    # self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
+                    self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
+                                            fname = "",
+                                            th = self.thresholdBox.value(),
+                                            beam_x_pxl = self.cfg.beam_center[0],
+                                            beam_y_pxl = self.cfg.beam_center[1],
+                                            # detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated'), #100
+                                            detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated'), #100
+                                            incident_energy_ke_v = 200,
+                                            wait = self.wait_option.isChecked())
                     logging.warning("Live stream started successfully.")
                     
                     return True  # Indicate success

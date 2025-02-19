@@ -2,6 +2,7 @@ import ctypes
 import numpy as np
 import multiprocessing as mp
 from epoc import ConfigurationClient
+import subprocess
 
 cfg = ConfigurationClient()
 stream = "tcp://localhost:4545"
@@ -36,5 +37,6 @@ stream_dt = np.float32
 mag_value_img = [1, 'X', 'X1']
 mag_value_diff = [0, 'mm', '0cm']
 
-tag = 'tag_of_release'
-branch = 'branch_of_development'
+tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
+branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8').split()[-1]
+# commit = 
