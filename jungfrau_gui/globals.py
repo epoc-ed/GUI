@@ -35,7 +35,7 @@ stream_dt = np.float32
 
 # Flags for non-updated magnification values in MAG and DIFF modes
 mag_value_img = [1, 'X', 'X1']
-mag_value_diff = [0, 'mm', '0cm']
+mag_value_diff = [1, 'mm', '1cm']
 
 tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
 branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8').split()[-1]
