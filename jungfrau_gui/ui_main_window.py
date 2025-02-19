@@ -16,7 +16,6 @@ from .ui_components.utils import create_gaussian
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
-import subprocess
 from importlib import resources
 
 def get_git_info():
@@ -30,10 +29,8 @@ def get_git_info():
     
     try:
         # Fall back to git if version.txt is not available
-        tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
-        branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8').split()[-1]
-        return f"Viewer {tag}/{branch}"
-    except subprocess.CalledProcessError:
+        return f"Viewer {globals.tag}/{globals.branch}"
+    except Exception as e:
         return "Viewer x.x.x"
 
 class EventFilter(QObject):

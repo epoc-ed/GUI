@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 import argparse
 from pathlib import Path
+from .. import globals
 
 # Handle imports correctly when running as a standalone script
 if __name__ == "__main__" and __package__ is None:
@@ -40,7 +41,7 @@ class MetadataNotifier:
     def _now(self):
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    def notify_metadata_update(self, filename, tem_status, beamcenter, rotations_angles, jf_threshold, timeout_ms = 5000):
+    def notify_metadata_update(self, filename, tem_status, beamcenter, rotations_angles, jf_threshold, jf_gui_tag = globals.tag, timeout_ms = 5000):
         
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
@@ -62,7 +63,8 @@ class MetadataNotifier:
                 "jf_threshold": jf_threshold,
                 "detector_distance": detector_distance,
                 "aperture_size_cl": aperture_size_cl,
-                "aperture_size_sa": aperture_size_sa
+                "aperture_size_sa": aperture_size_sa,
+                "jf_gui_tag": jf_gui_tag
             }
             message_json = json.dumps(message, cls=CustomJSONEncoder)
             if self.verbose:

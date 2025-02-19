@@ -17,6 +17,8 @@ from .ui_main_window import ApplicationWindow
 from pathlib import Path
 from epoc import ConfigurationClient, auth_token, redis_host
 
+import subprocess
+
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
     # Foreground (text) colors
@@ -139,10 +141,10 @@ def main():
     globals.tem_mode = args.tem
     globals.tem_host = args.temhost
     globals.dev = args.dev
+    globals.tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
+    globals.branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8').split()[-1]
 
-    logging.debug(f"globals.tem_host = {globals.tem_host}")
-
-    logging.debug(type(globals.acc_image[0,0]))
+    logging.info(f"Tag of GUI: {globals.tag}")
 
     Rcv = ZmqReceiver(endpoint=args.stream, dtype=args.dtype) 
 

@@ -350,14 +350,19 @@ class Hdf5MetadataUpdater:
                 message_json = self.socket.recv_string()
                 message = json.loads(message_json)
                 filename = self.root_data_directory + message["filename"]
-                tem_status = message["tem_status"]
                 beamcenter = np.array(message["beamcenter"], dtype=int)
-                rotations_angles = message["rotations_angles"]
-                jf_threshold = message["jf_threshold"]
-                detector_distance = message["detector_distance"]
-                aperture_size_cl = message["aperture_size_cl"]
-                aperture_size_sa = message["aperture_size_sa"]
-                self.addinfo_to_hdf(filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold)
+                rotations_angles=message["rotations_angles"]
+                self.addinfo_to_hdf(
+                    filename=filename,
+                    tem_status=message["tem_status"],
+                    beamcenter=beamcenter,
+                    detector_distance=message["detector_distance"],
+                    aperture_size_cl=message["aperture_size_cl"],
+                    aperture_size_sa=message["aperture_size_sa"],
+                    rotations_angles=rotations_angles,
+                    jf_threshold=message["jf_threshold"],
+                    jf_gui_tag=message["jf_gui_tag"],
+                )
                 self.addusermask_to_hdf(filename)
                 self.socket.send_string("Metadata/Maskdata added successfully") # self.socket.send_string("Metadata added successfully")
                 
@@ -428,7 +433,7 @@ class Hdf5MetadataUpdater:
         except OSError as e:
             logging.error(f"Failed to update maskdata in {filename}: {e}")
         
-    def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold, pixel=0.075):
+    def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold, jf_gui_tag, pixel=0.075):
         detector_framerate = 2000 # Hz for Jungfrau
         ht = 200  # keV  # <- HT3
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
@@ -455,7 +460,7 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/detector/detectorSpecific/element', data = 'Si')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_count_time', data = data_shape[0], dtype='uint64')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_period', data = data_shape[0], dtype='uint64') = frame_count_time in SINGLA
-                    # create_or_update_dataset('entry/instrument/detector/detectorSpecific/software_version_gui', data = self.***.version)
+                    create_or_update_dataset('entry/instrument/detector/detectorSpecific/software_version_gui', data = 'JF_GUI/' + jf_gui_tag)
                     create_or_update_dataset('entry/instrument/detector/count_threshold_in_keV', data = jf_threshold, dtype='uint64')
                     # already implemented with the identical names in JFJ
                     # create_or_update_dataset('entry/instrument/detector/saturation_value', data = np.iinfo('int32').max, dtype='uint32')
