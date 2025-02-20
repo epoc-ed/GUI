@@ -32,7 +32,7 @@ class TEMAction(QObject):
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
-        self.tem_xtalinfo = self.tem_controls.tem_xtalinfo
+        # self.tem_xtalinfo = self.tem_controls.tem_xtalinfo
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version

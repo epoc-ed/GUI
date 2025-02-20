@@ -67,7 +67,8 @@ class XtalInfo(QGroupBox):
 
 class FileOperations(QGroupBox):
     trigger_update_h5_index_box = Signal()
-    
+    update_xtalinfo_signal = Signal(str, str)
+
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -272,9 +273,14 @@ class FileOperations(QGroupBox):
         snapshot_btn_layout.addWidget(self.snapshot_spin)
 
         section3.addLayout(snapshot_btn_layout)
+        section3.addWidget(create_horizontal_line_with_margin(15))
+        
+        #####################
+        # XDS Processing
+        #####################
 
         self.tem_xtalinfo = XtalInfo()
-        self.parent.tem_controls.tem_action.control.update_xtalinfo.connect(self.update_xtalinfo)
+        self.update_xtalinfo_signal.connect(self.update_xtalinfo)
         section3.addWidget(self.tem_xtalinfo)
 
         section3.addStretch()

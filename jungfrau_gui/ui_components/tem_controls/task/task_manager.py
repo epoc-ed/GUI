@@ -52,7 +52,7 @@ class ControlWorker(QObject):
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
-    update_xtalinfo = Signal(str, str)
+    # update_xtalinfo = Signal(str, str)
 
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()

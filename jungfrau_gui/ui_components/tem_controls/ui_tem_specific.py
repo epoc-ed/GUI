@@ -294,7 +294,7 @@ class TEMTasks(QGroupBox):
         BeamFocus_layout.addWidget(self.parent.beam_center_x,     0,1)
         BeamFocus_layout.addWidget(self.parent.label_Yo          ,0,2)
         BeamFocus_layout.addWidget(self.parent.beam_center_y,     0,3)
-
+        """
         BeamFocus_layout.addWidget(self.parent.label_gauss_height,1,0)  
         BeamFocus_layout.addWidget(self.parent.gauss_height_spBx, 1,1)
         BeamFocus_layout.addWidget(self.parent.label_rot_angle,   1,2)  
@@ -304,6 +304,11 @@ class TEMTasks(QGroupBox):
         BeamFocus_layout.addWidget(self.parent.sigma_x_spBx,      2,1)         
         BeamFocus_layout.addWidget(self.parent.label_sigma_y,     2,2)  
         BeamFocus_layout.addWidget(self.parent.sigma_y_spBx,      2,3)         
+        """
+        BeamFocus_layout.addWidget(self.parent.label_sigma_x,     1,0)  
+        BeamFocus_layout.addWidget(self.parent.sigma_x_spBx,      1,1)         
+        BeamFocus_layout.addWidget(self.parent.label_sigma_y,     1,2)  
+        BeamFocus_layout.addWidget(self.parent.sigma_y_spBx,      1,3)
         
         BEAM_group.addLayout(BeamFocus_layout)
 

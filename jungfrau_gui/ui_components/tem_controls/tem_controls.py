@@ -13,7 +13,7 @@ from .toolbox.plot_dialog import PlotDialog
 from .gaussian_fitter import GaussianFitter
 
 from ...ui_components.toggle_button import ToggleButton
-from .ui_tem_specific import TEMStageCtrl, TEMTasks, XtalInfo
+from .ui_tem_specific import TEMStageCtrl, TEMTasks #, XtalInfo
 from .tem_action import TEMAction
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
