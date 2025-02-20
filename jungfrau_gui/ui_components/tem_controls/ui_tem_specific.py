@@ -144,22 +144,6 @@ class TEMStageCtrl(QGroupBox):
         self.hbox_gotopos.addWidget(self.addpos_button, 1)
         self.hbox_gotopos.addWidget(self.go_button, 1)
         stage_ctrl_section.addLayout(self.hbox_gotopos)
-        
-        # self.plot_layout = QVBoxLayout()
-        # self.grid_plot = pg.PlotWidget()
-        # self.plot_layout.addWidget(self.grid_plot)
-        # self.gridarea = self.grid_plot.plotItem
-        # radius = 3050 # in um
-        # x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
-        # y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
-        # self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
-        # radius = 2350 # in um not very correct value!!
-        # x = radius * np.cos(np.linspace(0, 2*np.pi, 100))
-        # y = radius * np.sin(np.linspace(0, 2*np.pi, 100))
-        # self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
-        # self.grid_plot.setAspectLocked()
-        # self.grid_plot.showGrid(x=True, y=True)
-        # stage_ctrl_section.addLayout(self.plot_layout)
 
         # 1) Create a container widget to hold the plot
         self.plot_container = QWidget()
@@ -248,10 +232,6 @@ class TEMTasks(QGroupBox):
         self.rotation_button  = ToggleButton("Rotation", self) # Rotation/Record
         self.withwriter_checkbox = QCheckBox("with Writer", self)
         self.withwriter_checkbox.setChecked(False)
-
-        # if globals.jfj:
-        # self.JFJwriter_checkbox = QCheckBox("JFJ", self)
-        # self.JFJwriter_checkbox.setChecked(False)
         
         self.autoreset_checkbox = QCheckBox("Auto reset", self)
         self.autoreset_checkbox.setChecked(False)
@@ -335,9 +315,6 @@ class TEMTasks(QGroupBox):
         ROT_section_1.addWidget(self.rotation_button,     2)
         ROT_section_1.addWidget(self.withwriter_checkbox, 1)
 
-        # if globals.jfj:
-        # ROT_section_1.addWidget(self.JFJwriter_checkbox)
-
         ROT_section_1.addWidget(self.autoreset_checkbox,  1)
         ROT_group.addSpacing(10)
         ROT_group.addLayout(ROT_section_1)
@@ -348,41 +325,3 @@ class TEMTasks(QGroupBox):
         tasks_section.addLayout(ROT_group)
         
         self.setLayout(tasks_section)
-
-class XtalInfo(QGroupBox):
-    def __init__(self):
-        super().__init__() # "DataProcessing"
-        self.initUI()
-
-    def initUI(self):
-        xtal_section = QVBoxLayout()
-        xtal_label = QLabel("Result of Processing", self)
-        xtal_label.setFont(font_big)
-
-        xtal_section.addWidget(xtal_label)
-
-        hbox_process = QHBoxLayout()
-        xds_label = QLabel("XDS:", self)
-        # dials_label = QLabel("DIALS:", self)
-        self.xds_results = QLineEdit(self)
-        self.xds_results.setReadOnly(True)
-        # self.dials_results = QLineEdit(self)
-        # self.dials_results.setReadOnly(True)
-        hbox_process.addWidget(xds_label)
-        hbox_process.addWidget(self.xds_results)
-        # hbox_process.addWidget(dials_label)
-        # hbox_process.addWidget(self.dials_results)
-        xtal_section.addLayout(hbox_process)
-
-        # self.hbox_command = QHBoxLayout()
-        # command_label = QLabel("TEMcmd:", self)
-        # self.command_input = QComboBox(self)
-        # # self.command_input.addItems(['#more', 'lens.SetNtrl(0)', 'stage.SetMovementValueMeasurementMethod(0)', 'stage.SetOrg()'])
-        # self.command_input.setEditable(True)
-        # self.send_button = QPushButton("Send", self)
-        # self.hbox_command.addWidget(command_label, 1)
-        # self.hbox_command.addWidget(self.command_input, 7)
-        # self.hbox_command.addWidget(self.send_button, 1)
-        # xtal_section.addLayout(self.hbox_command)
-
-        self.setLayout(xtal_section)
