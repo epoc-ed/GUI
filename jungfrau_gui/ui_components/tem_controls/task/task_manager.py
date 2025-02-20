@@ -203,26 +203,10 @@ class ControlWorker(QObject):
         # Stop the Gaussian Fitting if running
         if self.tem_action.tem_tasks.btnGaussianFit.started:
             self.tem_action.tem_controls.toggle_gaussianFit_beam()
-
+        time.sleep(0.1)
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI
             filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
-            # if self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
-            #     task = RecordTask(
-            #         self,
-            #         end_angle,
-            #         filename_suffix.as_posix(),
-            #         writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit],
-            #         standard_h5_recording=False
-            #     )
-            # else:
-            #     task = RecordTask(
-            #         self,
-            #         end_angle,
-            #         filename_suffix.as_posix(),
-            #         writer_event = [self.file_operations.start_H5_recording.emit, self.file_operations.stop_H5_recording.emit],
-            #         standard_h5_recording=True
-            #     )
             task = RecordTask(
                 self,
                 end_angle,

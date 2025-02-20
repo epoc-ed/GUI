@@ -135,6 +135,10 @@ class TEMAction(QObject):
         self.tem_stagectrl.go_button.setEnabled(enables)
         self.tem_stagectrl.addpos_button.setEnabled(enables)
 
+    def reset_rotation_button(self):
+        self.tem_tasks.rotation_button.setText("Rotation")
+        self.tem_tasks.rotation_button.started = False
+
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
             self.control.init.emit()
@@ -192,7 +196,7 @@ class TEMAction(QObject):
     def on_tem_update(self):
         logging.debug("Updating GUI with last TEM Status...") 
         angle_x = self.control.tem_status["stage.GetPos"][3]
-        self.tem_tasks.input_start_angle.setValue(angle_x)
+        if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
         
         # Update Magnification radio button in GUI to refelct status of TEM
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
@@ -304,8 +308,6 @@ class TEMAction(QObject):
             self.control.trigger_record.emit()
             self.tem_tasks.rotation_button.setText("Stop")
             self.tem_tasks.rotation_button.started = True
-            """ if self.tem_tasks.withwriter_checkbox.isChecked():
-                self.file_operations.streamWriterButton.setEnabled(False) """
         else:
             # In case of unwarranted interruption, to avoid button stuck in "Stop"
             if self.control.interruptRotation: 

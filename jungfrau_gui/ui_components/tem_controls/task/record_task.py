@@ -35,7 +35,7 @@ class RecordTask(Task):
         self.metadata_notifier = MetadataNotifier(host = "noether")
         # self.standard_h5_recording = standard_h5_recording
 
-        self.reset_rotation_signal.connect(self.reset_rotation_button)
+        self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)
 
     def run(self):
         logging.debug("RecordTask::run()")
@@ -132,10 +132,19 @@ class RecordTask(Task):
 
             # Send SetTiltXAngle with retry mechanism
             try:
-                send_with_retries(self.client.SetTiltXAngle, phi1)
+                self.client.SetTiltXAngle(phi1)
             except Exception as e:
-                logging.error(f"Unexpected error: {e}") # Only catch other exceptions if necessary
-                return
+                logging.error(f"Unexpected error while sending SetTiltXAngle: {e}")
+                self.client.SetBeamBlank(1)
+                logging.warning(f"Beam blanked to protect sample!")
+                if not self.client.is_rotating:
+                    # If you can verify the stage is indeed not rotating, then bail out
+                    return
+                else:
+                    logging.warning("Stage appears to be rotating despite the error.")
+                    self.client.SetBeamBlank(0)
+                    logging.warning("Unblanked the beam and ready to proceed...")
+                    time.sleep(0.1)
             
             try:
                 # Attempt to wait for the rotation to start
@@ -238,8 +247,6 @@ class RecordTask(Task):
                         logging.error(f"Metadata Update Error: {e}")
                         self.control.update_xtalinfo.emit('Metadata error', 'XDS')
 
-            # Same below is taken care of in FileOperations::toggle_hdf5Writer
-            # in case self.writer is not None
             if self.writer is None:
                 self.reset_rotation_signal.emit()
                 
@@ -251,7 +258,7 @@ class RecordTask(Task):
             if not self.tem_action.tem_tasks.connecttem_button.started:
                 QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
 
-            while self.tem_action.tem_tasks.connecttem_button.started:
+            while not self.tem_action.tem_tasks.connecttem_button.started:
                 time.sleep(0.1)
 
             logging.warning('Polling of TEM-info restarted.')
@@ -267,16 +274,12 @@ class RecordTask(Task):
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
             self.client.SetBeamBlank(1)
+            time.sleep(0.01)
             self.reset_rotation_signal.emit()
         
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
         #                    self.tem_action.xds_template_filepath)
-
-    def reset_rotation_button(self):
-        self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-        self.tem_action.tem_tasks.rotation_button.started = False
-        # self.tem_action.file_operations.streamWriterButton.setEnabled(True)
          
     # def on_tem_receive(self):
     #     self.rotations_angles.append(
