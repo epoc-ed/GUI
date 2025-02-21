@@ -121,7 +121,6 @@ class TemControls(QGroupBox):
         if globals.tem_mode:
             self.tem_tasks = TEMTasks(self)
             self.tem_stagectrl = TEMStageCtrl()
-            # self.tem_xtalinfo = XtalInfo()
             tem_section.addWidget(self.tem_tasks)
             self.tem_action = TEMAction(self, self.parent)
             self.parent.imageItem.mouseClickEvent = self.tem_action.imageMouseClickEvent
@@ -130,8 +129,6 @@ class TemControls(QGroupBox):
             self.tem_action.control.fit_complete.connect(self.updateFitParams)
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
-            # tem_section.addWidget(self.tem_xtalinfo)
-            # self.tem_action.control.update_xtalinfo.connect(self.update_xtalinfo)
         else: 
             test_fitting_label = QLabel("Test Gaussian Fitting")
             test_fitting_label.setFont(font_big)

@@ -589,7 +589,6 @@ class VisualizationPanel(QGroupBox):
 
                     logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
-                    # self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
                                             fname = "",
                                             th = self.thresholdBox.value(),
@@ -629,13 +628,6 @@ class VisualizationPanel(QGroupBox):
                     
                     logging.warning(f"Starting to collect data...")
                     self.formatted_filename = self.cfg.fpath
-                    """ 
-                    DEBUGGING (To Delete after test)
-                    """
-                    print(f"********* beam_x_pxl = {self.cfg.beam_center[0]}")
-                    print(f"********* beam_y_pxl = {self.cfg.beam_center[1]}")
-                    # print(f"********* detector_distance_mm = {cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated')}")
-                    print(f"********* detector_distance_mm = {cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated')}")
                     
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
                                             fname = self.formatted_filename.as_posix(),
@@ -851,9 +843,6 @@ class VisualizationPanel(QGroupBox):
             logging.info(f"Timer interval: {self.parent.timer.interval()}")
             # Start timer and enable file operation buttons
             self.parent.timer.start()
-            # if not globals.jfj:
-            #     self.parent.file_operations.accumulate_button.setEnabled(True)
-            """ self.parent.file_operations.streamWriterButton.setEnabled(True) """
         else:
             self.stream_view_button.setText("View Stream")
             self.parent.plot.setTitle("Stream stopped at the current Frame")
@@ -861,10 +850,6 @@ class VisualizationPanel(QGroupBox):
             self.parent.timer.stop()
             # Properly stop and cleanup worker and thread  
             self.parent.stopWorker(self.thread_read, self.streamReader)
-            # Disable buttons
-            # if not globals.jfj:
-            #     self.parent.file_operations.accumulate_button.setEnabled(False)
-            """ self.parent.file_operations.streamWriterButton.setEnabled(False) """
             # Wait for thread to actually stop
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")
