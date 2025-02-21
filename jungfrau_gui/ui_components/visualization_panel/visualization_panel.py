@@ -589,7 +589,6 @@ class VisualizationPanel(QGroupBox):
 
                     logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
-                    # self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images, fname="", th = self.thresholdBox.value())
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
                                             fname = "",
                                             th = self.thresholdBox.value(),
@@ -629,13 +628,6 @@ class VisualizationPanel(QGroupBox):
                     
                     logging.warning(f"Starting to collect data...")
                     self.formatted_filename = self.cfg.fpath
-                    """ 
-                    DEBUGGING (To Delete after test)
-                    """
-                    print(f"********* beam_x_pxl = {self.cfg.beam_center[0]}")
-                    print(f"********* beam_y_pxl = {self.cfg.beam_center[1]}")
-                    # print(f"********* detector_distance_mm = {cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated')}")
-                    print(f"********* detector_distance_mm = {cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated')}")
                     
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
                                             fname = self.formatted_filename.as_posix(),
@@ -766,114 +758,6 @@ class VisualizationPanel(QGroupBox):
                     self.toggle_LiveStream()  # Start the stream after stopping
             QTimer.singleShot(200, restart_stream)  # Additional delay to ensure cancel completes
 
-    """ ********************************************* """
-    """ Methods for the REUSS receiver (CPU Solution) """
-    """ ********************************************* """
-    # def enable_receiver_controls(self, enables=False):
-    #     self.startReceiverStream.setEnabled(enables)
-    #     self.stopSreceiverBtn.setEnabled(enables)
-        
-    #     #TODO! Fix changing frames to sum
-    #     # At the moment not safe to change while the receiver is running
-    #     self.setFramesToSumBtn.setEnabled(False)
-    #     self.frames_to_sum.setEnabled(False) 
-
-    #     self.recordPedestalBtn.setEnabled(enables)
-    #     self.recordGain0Btn.setEnabled(enables)   
-
-    # def is_receiver_running(self):
-    #     try:
-    #         # Try creating a ReceiverClient, which pings in its constructor
-    #         self.receiver_client = ReceiverClient(host="localhost", port=5555)
-    #         return True
-    #     except Exception as e:
-    #         logging.warning(f"The summing receiver is not running: {e}")
-    #         return False
-        
-    # def connect_and_start_receiver_client(self):
-    #     if self.connectToSreceiver.started == False:
-    #         self.connectToSreceiver.started = True
-    #         if self.is_receiver_running():  # Use ping instead of process checking
-    #             logging.info("Sreceiver already running!!")
-    #             # self.receiver_client = ReceiverClient(host="localhost", port=5555, verbose=True)
-    #             try:
-    #                 # if self.receiver_client.ping():
-    #                 self.connectToSreceiver.setStyleSheet('background-color: green; color: white;')
-    #                 self.connectToSreceiver.setText("Communication OK")
-    #                 self.enable_receiver_controls(True)
-    #                 time.sleep(0.01)
-    #                 self.send_command_to_srecv("get_frames_to_sum")
-    #             except TimeoutError as e:
-    #                 logging.error(f"Connection attempt timed out: {e}")
-    #                 self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
-    #                 self.connectToSreceiver.setText("Connection Timed Out")
-    #             except ConnectionError as e:
-    #                 logging.error(f"Connection failed: {e}")
-    #                 self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
-    #                 self.connectToSreceiver.setText("Connection Failed")
-    #             except ValueError as e:
-    #                 logging.error(f"Unexpected server response: {e}")
-    #                 self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
-    #                 self.connectToSreceiver.setText("Connection Failed")
-    #         else:
-    #             logging.warning("ReceiverServer not running")
-    #             self.connectToSreceiver.setStyleSheet('background-color: red; color: white;')
-    #             self.connectToSreceiver.setText("Receiver Not Running")
-    #         # self.trigger_idle_srecv_btn.emit() # To toggle OFF the receiver button after 5 seconds
-    #     else:
-    #         self.connectToSreceiver.started = False
-    #         self.connectToSreceiver.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-    #         self.connectToSreceiver.setText('Connect to Receiver')
-
-    # def srecv_btn_toggle_OFF(self):
-    #     if self.connectToSreceiver.started:
-    #         # Use QTimer to introduce a 5-second delay -> Non-blocking operation
-    #         QTimer.singleShot(5000, self.connect_and_start_receiver_client)
-
-    # def send_command_to_srecv(self, command):
-    #     def thread_command_relay():
-    #         try:
-    #             if command == 'start':
-    #                 self.receiver_client.start()
-    #                 logging.info("Communication with the Receiver Server is established.\nPlease proceed with desired operation through availbale buttons... ")
-    #             elif command == 'collect_pedestal':
-    #                 self.receiver_client.collect_pedestal()
-    #                 logging.info("Full pedestal collected!")
-    #             elif command == 'tune_pedestal':
-    #                 self.receiver_client.tune_pedestal()
-    #                 logging.info("Pedestal tuned i.e. collected pedestal for gain G0")
-    #             elif command == 'get_frames_to_sum':
-    #                 summing_factor = self.receiver_client.frames_to_sum
-    #                 self.trigger_update_frames_to_sum.emit(int(summing_factor))
-    #                 logging.info(f"Recorded the default summing factor {summing_factor}")
-    #             elif command[:10] == 'set_frames':
-    #                 new_summing_factor = int(command.split('(')[1].split(')')[0])
-    #                 self.receiver_client.frames_to_sum = new_summing_factor
-    #                 logging.info(f"Summing factor in receiver set to {new_summing_factor}")
-    #             elif command == 'stop':
-    #                 self.trigger_disable_receiver_controls.emit()      
-    #                 logging.info(f"Stopping Receiver...") 
-    #                 self.receiver_client.stop()
-    #         except Exception as e:
-    #             logging.error(f"GUI caught relayed error: {e}")
-
-    #     if self.receiver_client is not None:
-    #         # Start the network) operation in a new thread
-    #         threading.Thread(target=thread_command_relay, daemon=True).start()
-    #     else: 
-    #         logging.warning(
-    #             f'Failed attempt to relay the command "{command}" as ReceiverClient instance is None...'
-    #             '\nPlease check that the receiver is up and running before sending further commands!'
-    #         )
-
-    # def send_set_frames_command(self):
-    #     value = self.frames_to_sum.value()
-    #     command = f"set_frames_to_sum({value})"
-    #     self.send_command_to_srecv(command)
-
-    # def update_frames_to_sum(self, value):
-    #     self.frames_to_sum.setValue(value)
-
     """ ******************************************** """
     """ Methods for Streaming/Contrasting operations """
     """ ******************************************** """
@@ -959,9 +843,6 @@ class VisualizationPanel(QGroupBox):
             logging.info(f"Timer interval: {self.parent.timer.interval()}")
             # Start timer and enable file operation buttons
             self.parent.timer.start()
-            # if not globals.jfj:
-            #     self.parent.file_operations.accumulate_button.setEnabled(True)
-            """ self.parent.file_operations.streamWriterButton.setEnabled(True) """
         else:
             self.stream_view_button.setText("View Stream")
             self.parent.plot.setTitle("Stream stopped at the current Frame")
@@ -969,10 +850,6 @@ class VisualizationPanel(QGroupBox):
             self.parent.timer.stop()
             # Properly stop and cleanup worker and thread  
             self.parent.stopWorker(self.thread_read, self.streamReader)
-            # Disable buttons
-            # if not globals.jfj:
-            #     self.parent.file_operations.accumulate_button.setEnabled(False)
-            """ self.parent.file_operations.streamWriterButton.setEnabled(False) """
             # Wait for thread to actually stop
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")

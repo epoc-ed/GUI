@@ -25,6 +25,7 @@ class RecordTask(Task):
         self.phi_dot = 0 # 10 deg/s
         self.control = control_worker
         self.tem_action = self.control.tem_action
+        self.file_operations = self.tem_action.file_operations
         self.writer = writer_event
         self.end_angle = end_angle
         self.rotations_angles = []
@@ -122,8 +123,8 @@ class RecordTask(Task):
                 logging.error(f"Unexpected error while opening logfile: {e}")
                 return
 
-            self.control.update_xtalinfo.emit('Measuring', 'XDS')
-            # self.control.update_xtalinfo.emit('Measuring', 'DIALS')
+            self.file_operations.update_xtalinfo_signal.emit('Measuring', 'XDS')
+            # self.file_operations.update_xtalinfo_signal.emit('Measuring', 'DIALS')
 
             self.client.Setf1OverRateTxNum(phi_dot_idx)
             time.sleep(1) 
@@ -241,11 +242,11 @@ class RecordTask(Task):
                                         retries=3, 
                                         delay=0.1) 
                     
-                    self.control.update_xtalinfo.emit('Processing', 'XDS')
-                    # self.control.update_xtalinfo.emit('Processing', 'DIALS')
+                    self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
+                    # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')
                 except Exception as e:
                         logging.error(f"Metadata Update Error: {e}")
-                        self.control.update_xtalinfo.emit('Metadata error', 'XDS')
+                        self.file_operations.update_xtalinfo_signal.emit('Metadata error', 'XDS')
 
             if self.writer is None:
                 self.reset_rotation_signal.emit()

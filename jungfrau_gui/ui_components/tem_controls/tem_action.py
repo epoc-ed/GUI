@@ -32,7 +32,6 @@ class TEMAction(QObject):
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
-        self.tem_xtalinfo = self.tem_controls.tem_xtalinfo
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
@@ -46,10 +45,7 @@ class TEMAction(QObject):
 
         self.scale = None
         self.marker = None
-        # self.formatted_filename = '' # TODO DELETE? See use in 'callGetInfoTask' below 
-        # self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
         self.cfg.beam_center = [1, 1] # Flag for non-updated metadata
-        # self.xds_template_filepath = self.cfg.XDS_template
         self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
         
         # connect buttons with tem-functions
@@ -67,34 +63,25 @@ class TEMAction(QObject):
         except AttributeError:
             pass
         
-        # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
         
         # Move X positive 10 micrometers
-        # self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.client.SetXRel(10000))
         self.tem_stagectrl.movex10ump.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetXRel, args=(10000,)).start())
         
         # Move X negative 10 micrometers
-        # self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.client.SetXRel(-10000))
         self.tem_stagectrl.movex10umn.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
 
         # Move TX positive 10 degrees
-        # self.tem_stagectrl.move10degp.clicked.connect(
-        #             lambda: self.control.client.SetTXRel(10))
         self.tem_stagectrl.move10degp.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTXRel, args=(10,)).start())
 
-        # Move TX negative 10 degrees
-        # self.tem_stagectrl.move10degn.clicked.connect(
-        #             lambda: self.control.client.SetTXRel(-10))        
+        # Move TX negative 10 degrees    
         self.tem_stagectrl.move10degn.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTXRel, args=(-10,)).start())
 
         # Set Tilt X Angle to 0 degrees
-        # self.tem_stagectrl.move0deg.clicked.connect(
-        #             lambda: self.control.client.SetTiltXAngle(0))
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
@@ -104,8 +91,6 @@ class TEMAction(QObject):
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
-        # if not globals.jfj:
-        #     self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
 
     def enabling(self, enables=True):
         if self.cfg.beam_center != [1,1]:
@@ -209,6 +194,8 @@ class TEMAction(QObject):
             self.tem_detector.input_magnification.setText(magnification)
             self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
         elif Mag_idx == 4:
+            if self.visualization_panel.autoContrastBtn.started:
+                self.visualization_panel.resetContrastBtn.clicked.emit()
             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_det_distance.setText(detector_distance)

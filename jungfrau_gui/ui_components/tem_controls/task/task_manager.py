@@ -32,9 +32,7 @@ class ControlWorker(QObject):
     received = Signal(str)
     send = Signal(str)
     init = Signal()
-    """ finished_task = Signal() """
     finished_record_task = Signal()
-    # tem_socket_status = Signal(int, str)
     
     trigger_tem_update_detailed = Signal(dict)
     trigger_tem_update = Signal(dict)
@@ -52,7 +50,6 @@ class ControlWorker(QObject):
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
-    update_xtalinfo = Signal(str, str)
 
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
@@ -128,7 +125,6 @@ class ControlWorker(QObject):
 
     @Slot()
     def on_task_finished(self):
-        """ self.finished_task.emit() """
         logging.info(f"\033[1mFinished Task [{self.task.task_name}] !")
         self.handle_task_cleanup()
         thread_manager.disconnect_worker_signals(self.task)
@@ -427,13 +423,6 @@ class ControlWorker(QObject):
         if isinstance(self.task, BeamFitTask):
                 logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
                 self.remove_ellipse.emit() 
-
-    """ @Slot()
-    def stop(self):
-        tools.send_with_retries(self.client.StopStage)
-        self.finished_task.emit()
-        pass
-    """
 
     @Slot()
     def shutdown(self):
