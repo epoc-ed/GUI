@@ -206,22 +206,15 @@ class ApplicationWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
-         
-        # Add a ViewBox to the GraphicsLayoutWidget
-        #self.view_box = self.glWidget.addViewBox()
-        
-        # Create and add an ImageItem to the ViewBox
-        #self.view_box.addItem(self.imageItem)
         
         # Create a keyboard shortcut for Auto Range
-        #self.shortcut_autorange = QShortcut(QKeySequence("A"), self)
-        #self.shortcut_autorange.activated.connect(self.auto_range)
+        self.shortcut_autorange = QShortcut(QKeySequence("A"), self)
+        self.shortcut_autorange.activated.connect(self.auto_range)
 
         logging.info("Viewer ready!")
 
     def auto_range(self):
         """Trigger the Auto Range (center image and scale view)."""
-        #self.view_box.autoRange()
         self.plot.autoRange()
 
     def set_contrast(self, lower, upper):
