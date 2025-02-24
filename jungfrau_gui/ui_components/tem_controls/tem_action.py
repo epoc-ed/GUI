@@ -187,15 +187,15 @@ class TEMAction(QObject):
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
 
         if Mag_idx in [0, 1, 2]:
-            if not self.visualization_panel.autoContrastBtn.started:
-                self.visualization_panel.autoContrastBtn.clicked.emit()
+            if not self.parent.autoContrastBtn.started:
+                self.parent.autoContrastBtn.clicked.emit()
             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_magnification.setText(magnification)
             self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
         elif Mag_idx == 4:
-            if self.visualization_panel.autoContrastBtn.started:
-                self.visualization_panel.resetContrastBtn.clicked.emit()
+            if self.parent.autoContrastBtn.started:
+                self.parent.resetContrastBtn.clicked.emit()
             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_det_distance.setText(detector_distance)
@@ -274,7 +274,7 @@ class TEMAction(QObject):
     def toggle_mag_modes(self):
         idx_mag_button = self.tem_stagectrl.mag_modes.checkedId()
         if idx_mag_button == 4:
-            self.visualization_panel.resetContrastBtn.clicked.emit()
+            self.parent.resetContrastBtn.clicked.emit()
         try:
             self.control.client.SelectFunctionMode(idx_mag_button)
             logging.info(f"Function Mode switched to {self.control.client.GetFunctionMode()[0]} (0=MAG, 2=Low MAG, 4=DIFF)")

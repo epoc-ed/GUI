@@ -2,8 +2,6 @@ import time
 import logging
 import numpy as np
 import threading
-from boost_histogram import Histogram
-from boost_histogram.axis import Regular
 from PySide6.QtGui import QFont, QPalette
 from PySide6.QtCore import Qt, QThread, QMetaObject, Signal, QTimer, QThreadPool, QRunnable
 from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit, 
@@ -111,39 +109,14 @@ class VisualizationPanel(QGroupBox):
         )
         self.stream_view_button.setMaximumHeight(50)
         self.stream_view_button.clicked.connect(self.toggle_viewStream)
-        self.autoContrastBtn = ToggleButton('Apply Auto Contrast', self)
-        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
-        self.autoContrastBtn.clicked.connect(self.toggle_autoContrast)
-        self.resetContrastBtn = QPushButton("Reset Contrast")
-        self.resetContrastBtn.clicked.connect(lambda: self.set_contrast(self.cfg.viewer_cmin, self.cfg.viewer_cmax))
-        
-        self.contrast_0_Btn = QPushButton("-50 - 50")
-        self.contrast_1_Btn = QPushButton("0 - 100")
-        self.contrast_2_Btn = QPushButton("0 - 500")
-        self.contrast_3_Btn = QPushButton("0 - 1000")
-        self.contrast_4_Btn = QPushButton("0 - 1e5")
-
-        self.contrast_0_Btn.clicked.connect(lambda: self.set_contrast(-50, 50))
-        self.contrast_1_Btn.clicked.connect(lambda: self.set_contrast(0, 100))
-        self.contrast_2_Btn.clicked.connect(lambda: self.set_contrast(0, 500))
-        self.contrast_3_Btn.clicked.connect(lambda: self.set_contrast(0, 1000))
-        self.contrast_4_Btn.clicked.connect(lambda: self.set_contrast(0, 100000))
 
         view_contrast_group = QVBoxLayout()
-        view_contrast_label = QLabel("Streaming & Contrast")
+        view_contrast_label = QLabel("Streaming")
         view_contrast_label.setFont(font_big)
         view_contrast_group.addWidget(view_contrast_label)
 
         grid_1 = QGridLayout()
-        grid_1.addWidget(self.stream_view_button, 0, 0, 2, 4)  # Span two rows two columns
-        grid_1.addWidget(self.autoContrastBtn, 0, 4)
-        grid_1.addWidget(self.resetContrastBtn, 1, 4)
-
-        grid_1.addWidget(self.contrast_0_Btn, 2, 0, 1, 1 )
-        grid_1.addWidget(self.contrast_1_Btn, 2, 1, 1, 1 )
-        grid_1.addWidget(self.contrast_2_Btn, 2, 2, 1, 1 )
-        grid_1.addWidget(self.contrast_3_Btn, 2, 3, 1, 1 )
-        grid_1.addWidget(self.contrast_4_Btn, 2, 4, 1, 1 )
+        grid_1.addWidget(self.stream_view_button, 0, 0, 2, 5)  # Span two rows two columns
  
         view_contrast_group.addLayout(grid_1)
         section_visual.addLayout(view_contrast_group)
@@ -207,20 +180,6 @@ class VisualizationPanel(QGroupBox):
         grid_collection_label.setFont(font_small)
 
         grid_collection_jfjoch.addWidget(grid_collection_label)
-
-        # self.nbFrames = QSpinBox(self)
-        # self.nbFrames.setMaximum(1000000000)
-        # self.nbFrames.setValue(72000)
-        # self.nbFrames.setDisabled(True)
-        # self.nbFrames.setSingleStep(1000)
-        # self.nbFrames.setPrefix("Nb Frames per trigger: ")
-
-        # self.last_nbFrames_value = self.nbFrames.value()
-        # self.nbFrames.valueChanged.connect(lambda value: (
-        #     self.track_nbFrames_value(value),  # Store the latest value
-        #     self.spin_box_modified(self.nbFrames)  # Update the spin box style
-        # )))
-        # self.nbFrames.editingFinished.connect(self.update_jfjoch_wrapper)
 
         self.thresholdBox = QSpinBox(self)
         self.thresholdBox.setMinimum(0)
@@ -290,90 +249,6 @@ class VisualizationPanel(QGroupBox):
 
         section_visual.addLayout(jfjoch_control_group)
 
-        # else:
-
-        #     receiver_control_group = QVBoxLayout()
-        #     receiver_control_label = QLabel("Summming Receiver Controls")
-        #     receiver_control_label.setFont(font_big)
-        #     receiver_control_group.addWidget(receiver_control_label)
-
-        #     self.connectToSreceiver = ToggleButton('Connect to Receiver', self)
-        #     self.connectToSreceiver.setMaximumHeight(50)
-        #     self.connectToSreceiver.clicked.connect(self.connect_and_start_receiver_client)
-
-        #     self.startReceiverStream = QPushButton('Start Stream', self)
-        #     self.startReceiverStream.setDisabled(True)
-        #     self.startReceiverStream.clicked.connect(lambda: self.send_command_to_srecv('start'))
-            
-        #     self.stopSreceiverBtn = QPushButton('Stop Receiver', self)
-        #     self.stopSreceiverBtn.setDisabled(True)
-        #     self.stopSreceiverBtn.clicked.connect(lambda: self.send_command_to_srecv('stop'))
-
-        #     grid_comm_receiver = QGridLayout()
-        #     grid_comm_receiver.addWidget(self.connectToSreceiver, 0, 0, 2, 2)
-        #     grid_comm_receiver.addWidget(self.startReceiverStream, 0, 2, 2, 2)
-        #     grid_comm_receiver.addWidget(self.stopSreceiverBtn, 0, 4, 2, 2)
-
-        #     spacer = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
-        #     grid_comm_receiver.addItem(spacer)
-
-        #     receiver_control_group.addLayout(grid_comm_receiver)
-
-        #     Frames_Sum_layout=QVBoxLayout() 
-        #     Frames_Sum_section_label = QLabel("Summming Parameters")
-        #     Frames_Sum_section_label.setFont(font_small)
-
-        #     Frame_number_layout = QHBoxLayout()
-
-        #     self.frames_to_sum_lb = QLabel("Summing Factor:", self)
-        #     self.frames_to_sum = QSpinBox(self)
-        #     self.frames_to_sum.setMaximum(200)
-        #     self.frames_to_sum.setDisabled(True)
-        #     self.frames_to_sum.setSingleStep(10)
-
-        #     Frame_number_layout.addWidget(self.frames_to_sum_lb)
-        #     Frame_number_layout.addWidget(self.frames_to_sum)
-
-        #     Frame_buttons_layout = QHBoxLayout()
-        #     # self.getFramesToSumBtn = QPushButton('Get Frames Number', self)
-        #     # self.getFramesToSumBtn.clicked.connect(lambda: self.send_command_to_srecv("get_frames_to_sum"))
-
-        #     self.setFramesToSumBtn = QPushButton('Set Frames Number', self)
-        #     self.setFramesToSumBtn.setDisabled(True) 
-        #     self.setFramesToSumBtn.clicked.connect(self.send_set_frames_command)
-
-        #     # Frame_buttons_layout.addWidget(self.getFramesToSumBtn)
-        #     Frame_buttons_layout.addWidget(self.setFramesToSumBtn)
-
-        #     Frames_Sum_layout.addWidget(Frames_Sum_section_label)
-        #     Frames_Sum_layout.addLayout(Frame_number_layout)
-        #     Frames_Sum_layout.addLayout(Frame_buttons_layout)
-
-        #     spacer2 = QSpacerItem(20, 20)  # 20 pixels wide, 40 pixels tall
-        #     Frames_Sum_layout.addItem(spacer2)
-            
-        #     receiver_control_group.addLayout(Frames_Sum_layout) 
-        
-        #     pedestal_layout = QVBoxLayout()
-        #     pedestal_section_label = QLabel("Dark Frame controls")
-        #     pedestal_section_label.setFont(font_small)
-
-        #     self.recordPedestalBtn = QPushButton('Record Full Pedestal', self)
-        #     self.recordPedestalBtn.setDisabled(True)
-        #     self.recordPedestalBtn.clicked.connect(lambda: self.send_command_to_srecv('collect_pedestal'))
-            
-        #     self.recordGain0Btn = QPushButton('Record Gain G0', self)
-        #     self.recordGain0Btn.setDisabled(True)
-        #     self.recordGain0Btn.clicked.connect(lambda: self.send_command_to_srecv('tune_pedestal'))
-
-        #     pedestal_layout.addWidget(pedestal_section_label)
-        #     pedestal_layout.addWidget(self.recordPedestalBtn)
-        #     pedestal_layout.addWidget(self.recordGain0Btn)
-
-        #     receiver_control_group.addLayout(pedestal_layout)
-
-        #     section_visual.addLayout(receiver_control_group)
-
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
         if globals.tem_mode:
@@ -415,8 +290,8 @@ class VisualizationPanel(QGroupBox):
             self.parent.plot.setTitle("Stream stopped")
             self.jfjoch_client.cancel()
             self.live_stream_button.started = False
-            if self.autoContrastBtn.started:
-                self.toggle_autoContrast()
+            if self.parent.autoContrastBtn.started:
+                self.parent.toggle_autoContrast()
 
     # TODO Repetition of method in file_operations
     def reset_style(self, field):
@@ -427,23 +302,11 @@ class VisualizationPanel(QGroupBox):
             field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
 
     def update_threshold_for_jfjoch(self):
-        # if globals.jfj:
         if self.cfg.threshold != self.last_threshold_value:            
             self.cfg.threshold = self.thresholdBox.value()
             self.reset_style(self.thresholdBox)
             logging.info(f"Threshold energy set to: {self.cfg.threshold} keV")
             self.resume_live_stream() # Restarting the stream automatically
-
-    # def update_jfjoch_wrapper(self):
-    #     if self.jfjoch_client is not None:
-    #         if self.jfjoch_client._lots_of_images != self.last_nbFrames_value:
-    #             self.jfjoch_client._lots_of_images = self.nbFrames.value()
-    #             self.reset_style(self.nbFrames)
-    #             logging.info(f'Updated Jungfraujoch client...\nNumber of frames per trigger is equal to: {self.jfjoch_client._lots_of_images}')
-
-    # Helper method to track the latest value for nbFrames
-    # def track_nbFrames_value(self, value):
-    #     self.last_nbFrames_value = value
 
     # Helper method to track the latest value for threshold
     def track_threshold_value(self, value):
@@ -458,12 +321,8 @@ class VisualizationPanel(QGroupBox):
             self.startCollection.setEnabled(enables)
         self.stop_jfj_measurement.setEnabled(enables)
         self.live_stream_button.setEnabled(enables)
-        
-        # self.nbFrames.setEnabled(enables)
         self.wait_option.setEnabled(enables) 
-
         self.thresholdBox.setEnabled(enables)
-
         self.recordPedestalBtn.setEnabled(enables)
 
     def on_check_jfj_task_complete(self):
@@ -789,43 +648,6 @@ class VisualizationPanel(QGroupBox):
         # Apply the modified LUT to the ImageItem
         self.parent.imageItem.setLookupTable(lut)
 
-    def set_contrast(self, lower, upper):
-        self.parent.timer_contrast.stop()
-        self.autoContrastBtn.started = False
-        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
-        self.autoContrastBtn.setText('Apply Auto Contrast')
-        self.parent.histogram.setLevels(lower, upper)
-    
-    def toggle_autoContrast(self):
-        if not self.autoContrastBtn.started:
-            self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
-            self.autoContrastBtn.setText('Stop Auto Contrast')
-            self.autoContrastBtn.started = True
-            self.parent.timer_contrast.start(10) # Assuming 100Hz streaming frequency at most
-        else:
-            self.parent.timer_contrast.stop()
-            self.autoContrastBtn.started = False
-            self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
-            self.autoContrastBtn.setText('Apply Auto Contrast')
-    
-    # @profile
-    def applyAutoContrast(self, histo_boost = False):
-        if histo_boost:
-            data_flat = self.parent.imageItem.image.flatten()
-            histogram = Histogram(Regular(1000000, data_flat.min(), data_flat.max()))
-            histogram.fill(data_flat)
-            cumsum_pre = np.cumsum(histogram.view())
-            cumsum = cumsum_pre[np.where(cumsum_pre < np.iinfo('int32').max-1)]
-            total = cumsum[-1]
-            low_thresh = np.searchsorted(cumsum, total * 0.01)
-            high_thresh = np.searchsorted(cumsum, total * 0.99999)
-        else:
-            image_data = self.parent.imageItem.image
-            image_data_deloverflow = image_data[np.where(image_data < np.iinfo('int32').max-1)]
-            low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 99.999))
-
-        self.parent.histogram.setLevels(low_thresh, high_thresh)
-
     def toggle_viewStream(self):
         if not self.stream_view_button.started:
             self.thread_read = QThread()
@@ -854,8 +676,8 @@ class VisualizationPanel(QGroupBox):
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")
                 time.sleep(0.1) 
-            if self.autoContrastBtn.started:
-                self.toggle_autoContrast()
+            if self.parent.autoContrastBtn.started:
+                self.parent.toggle_autoContrast()
 
     def initializeWorker(self, thread, worker):
         thread_manager.move_worker_to_thread(thread, worker)
