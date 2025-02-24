@@ -126,7 +126,8 @@ class TemControls(QGroupBox):
             self.parent.imageItem.mouseClickEvent = self.tem_action.imageMouseClickEvent
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
-            self.tem_action.control.fit_complete.connect(self.updateFitParams)
+            # self.tem_action.control.fit_complete.connect(self.updateFitParams)
+            self.tem_action.control.fit_complete.connect(lambda fit_result_best_values: self.updateFitParams(fit_result_best_values, draw=False))
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
         else: 
@@ -274,7 +275,7 @@ class TemControls(QGroupBox):
         self.plotDialog.show() 
 
     @Slot()
-    def updateFitParams(self, fit_result_best_values):
+    def updateFitParams(self, fit_result_best_values, draw = True):
         logging.info(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
@@ -295,7 +296,8 @@ class TemControls(QGroupBox):
         if self.plotDialog != None:
             self.plotDialog.updatePlot(amplitude, sigma_x, sigma_y)
         # Draw the fitting line at the FWHM of the 2d-gaussian
-        self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
+        if draw:
+            self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 
     def drawFittingEllipse(self, xo, yo, sigma_x, sigma_y, theta_deg):
         # p = 0.5 is equivalent to using the Full Width at Half Maximum (FWHM)

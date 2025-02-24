@@ -150,20 +150,7 @@ class ControlWorker(QObject):
                 logging.info("The \033[1mBeamFitTask\033[0m\033[34m has ended, performing cleanup...")
             
             self.stop_task()
-
-    def stop_task(self):
-        if self.task:
-            if isinstance(self.task, RecordTask):
-                logging.info("Ensuring that stage is stopped!")
-                try:
-                    tools.send_with_retries(self.client.StopStage)
-                except Exception as e:
-                    logging.error(f"Unexpected error @ client.StopStage(): {e}")
-                    pass
             
-            elif isinstance(self.task, BeamFitTask):
-                    self.reset_autofocus_button()
-
     def reset_autofocus_button(self):
         self.tem_action.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
         self.tem_action.tem_tasks.beamAutofocus.started = False
@@ -272,6 +259,11 @@ class ControlWorker(QObject):
             # Switching to Diffraction Mode
             self.client.SelectFunctionMode(4)
 
+        # Stop the Gaussian Fitting if running
+        if self.tem_action.tem_tasks.btnGaussianFit.started:
+            self.tem_action.tem_controls.toggle_gaussianFit_beam()
+        time.sleep(0.1)
+
         task = BeamFitTask(self)
         self.start_task(task)
 
@@ -333,12 +325,51 @@ class ControlWorker(QObject):
             self.updateWorkerParams(im_data_copy, roi_coords_copy, il1_value)
             time.sleep(0.01) # ensure update goes through before fitting starts 
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
-
+    """
     def process_fit_results(self, im, fit_result, il1_value):
         amplitude = float(fit_result['amplitude'])
         self.task.amp_il1_map[amplitude] = (il1_value, im) 
         if amplitude > self.task.max_amplitude:
             self.task.max_amplitude = amplitude
+        logging.info(dt.now().strftime(" PROCESSED @ %H:%M:%S.%f")[:-3])
+    """
+    def process_fit_results(self, im, fit_result, il1_value):
+        # Extract necessary fit parameters
+        sigma_x = float(fit_result["sigma_x"])
+        sigma_y = float(fit_result["sigma_y"])
+        
+        # Compute metrics
+        area = sigma_x * sigma_y
+        aspect_ratio = max(sigma_x, sigma_y) / min(sigma_x, sigma_y)
+        
+        # Simple combined figure of merit
+        # Variation: FOM = area * aspect_ratio
+        # Another variation: FOM = (area**alpha) * (aspect_ratio**beta)
+        fom = area * aspect_ratio
+        
+        # Initialize self.task.results if not present
+        if not hasattr(self.task, "results"):
+            self.task.results = []
+        
+        # Store all results
+        self.task.results.append({
+            "il1_value": il1_value,
+            "im": im,
+            "sigma_x": sigma_x,
+            "sigma_y": sigma_y,
+            "area": area,
+            "aspect_ratio": aspect_ratio,
+            "fom": fom
+        })
+        
+        # Optionally keep track of the best so far
+        # If we haven't picked a best yet, or if this one is better
+        if not hasattr(self.task, "best_result"):
+            self.task.best_result = self.task.results[-1]
+        else:
+            if fom < self.task.best_result["fom"]:
+                self.task.best_result = self.task.results[-1]
+        
         logging.info(dt.now().strftime(" PROCESSED @ %H:%M:%S.%f")[:-3])
 
     def stop_and_clean_fitter(self):
@@ -510,13 +541,13 @@ class ControlWorker(QObject):
             logging.error(f"Error: {e}")
             return None
 
-    """
     def stop_task(self):
         if self.task:
             if isinstance(self.task, BeamFitTask):
                 logging.info("Stopping the - \033[1mSweeping\033[0m\033[34m - task!")
-                self.trigger_stop_autofocus.emit()
-
+                #self.trigger_stop_autofocus.emit()
+                self.reset_autofocus_button()
+            
             elif isinstance(self.task, RecordTask):
                 logging.info("Stopping the - \033[1mRecord\033[0m\033[34m - task!")
                 try:
@@ -527,11 +558,6 @@ class ControlWorker(QObject):
 
             elif isinstance(self.task, GetInfoTask):
                 logging.info("Stopping the - \033[1mGetInfo\033[0m\033[34m - task!")
-
-        if isinstance(self.task, BeamFitTask):
-                logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
-                self.remove_ellipse.emit() 
-    """
 
     @Slot()
     def shutdown(self):

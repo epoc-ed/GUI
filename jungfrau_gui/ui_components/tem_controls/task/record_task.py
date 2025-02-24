@@ -74,7 +74,7 @@ class RecordTask(Task):
                                     "disableGaussianFitButton", 
                                     Qt.QueuedConnection
             )
-            logging.warning("Gaussina Fitting is disabled during rotation/record task!")
+            logging.warning("Gaussian Fitting is disabled during rotation/record task!")
             
             # Attempt to open the logfile and catch potential issues
             try:
