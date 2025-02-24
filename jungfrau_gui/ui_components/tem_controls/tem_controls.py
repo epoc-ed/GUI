@@ -13,7 +13,7 @@ from .toolbox.plot_dialog import PlotDialog
 from .gaussian_fitter import GaussianFitter
 
 from ...ui_components.toggle_button import ToggleButton
-from .ui_tem_specific import TEMStageCtrl, TEMTasks, XtalInfo
+from .ui_tem_specific import TEMStageCtrl, TEMTasks #, XtalInfo
 from .tem_action import TEMAction
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
@@ -121,7 +121,6 @@ class TemControls(QGroupBox):
         if globals.tem_mode:
             self.tem_tasks = TEMTasks(self)
             self.tem_stagectrl = TEMStageCtrl()
-            self.tem_xtalinfo = XtalInfo()
             tem_section.addWidget(self.tem_tasks)
             self.tem_action = TEMAction(self, self.parent)
             self.parent.imageItem.mouseClickEvent = self.tem_action.imageMouseClickEvent
@@ -130,8 +129,6 @@ class TemControls(QGroupBox):
             self.tem_action.control.fit_complete.connect(self.updateFitParams)
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
-            tem_section.addWidget(self.tem_xtalinfo)
-            self.tem_action.control.update_xtalinfo.connect(self.update_xtalinfo)
         else: 
             test_fitting_label = QLabel("Test Gaussian Fitting")
             test_fitting_label.setFont(font_big)
@@ -238,6 +235,10 @@ class TemControls(QGroupBox):
                 self.plotDialog.close()
             self.parent.stopWorker(self.thread_fit, self.fitter)
             self.removeAxes()
+
+    @Slot()
+    def disableGaussianFitButton(self):
+        self.tem_tasks.btnGaussianFit.setEnabled(False)
 
     def initializeWorker(self, thread, worker):
         thread_manager.move_worker_to_thread(thread, worker)
@@ -354,13 +355,3 @@ class TemControls(QGroupBox):
         if self.sigma_y_fit.scene():
             logging.debug("Removing sigma_y_fit from scene")
             self.sigma_y_fit.scene().removeItem(self.sigma_y_fit)
-
-    @Slot(str, str)
-    def update_xtalinfo(self, progress, software='XDS'):
-        try:
-            if software == 'XDS':
-                self.tem_xtalinfo.xds_results.setText(progress)
-            # elif software == 'DIALS':
-            #     self.tem_xtalinfo.dials_results.setText(progress)
-        except AttributeError:
-            pass            

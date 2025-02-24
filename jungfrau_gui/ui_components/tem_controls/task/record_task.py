@@ -25,6 +25,7 @@ class RecordTask(Task):
         self.phi_dot = 0 # 10 deg/s
         self.control = control_worker
         self.tem_action = self.control.tem_action
+        self.file_operations = self.tem_action.file_operations
         self.writer = writer_event
         self.end_angle = end_angle
         self.rotations_angles = []
@@ -35,7 +36,7 @@ class RecordTask(Task):
         self.metadata_notifier = MetadataNotifier(host = "noether")
         # self.standard_h5_recording = standard_h5_recording
 
-        self.reset_rotation_signal.connect(self.reset_rotation_button)
+        self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)
 
     def run(self):
         logging.debug("RecordTask::run()")
@@ -68,6 +69,13 @@ class RecordTask(Task):
 
             logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection!")
 
+            # Disable the Gaussian Fitting
+            QMetaObject.invokeMethod(self.tem_action.tem_controls, 
+                                    "disableGaussianFitButton", 
+                                    Qt.QueuedConnection
+            )
+            logging.warning("Gaussina Fitting is disabled during rotation/record task!")
+            
             # Attempt to open the logfile and catch potential issues
             try:
                 logfile = open(self.log_suffix + '.log', 'w')
@@ -115,8 +123,8 @@ class RecordTask(Task):
                 logging.error(f"Unexpected error while opening logfile: {e}")
                 return
 
-            self.control.update_xtalinfo.emit('Measuring', 'XDS')
-            # self.control.update_xtalinfo.emit('Measuring', 'DIALS')
+            self.file_operations.update_xtalinfo_signal.emit('Measuring', 'XDS')
+            # self.file_operations.update_xtalinfo_signal.emit('Measuring', 'DIALS')
 
             self.client.Setf1OverRateTxNum(phi_dot_idx)
             time.sleep(1) 
@@ -125,10 +133,19 @@ class RecordTask(Task):
 
             # Send SetTiltXAngle with retry mechanism
             try:
-                send_with_retries(self.client.SetTiltXAngle, phi1)
+                self.client.SetTiltXAngle(phi1)
             except Exception as e:
-                logging.error(f"Unexpected error: {e}") # Only catch other exceptions if necessary
-                return
+                logging.error(f"Unexpected error while sending SetTiltXAngle: {e}")
+                self.client.SetBeamBlank(1)
+                logging.warning(f"Beam blanked to protect sample!")
+                if not self.client.is_rotating:
+                    # If you can verify the stage is indeed not rotating, then bail out
+                    return
+                else:
+                    logging.warning("Stage appears to be rotating despite the error.")
+                    self.client.SetBeamBlank(0)
+                    logging.warning("Unblanked the beam and ready to proceed...")
+                    time.sleep(0.1)
             
             try:
                 # Attempt to wait for the rotation to start
@@ -137,8 +154,6 @@ class RecordTask(Task):
                 logging.info("Stage has initiated rotation")
             except Exception as rotation_error:
                 logging.error(f"Stage rotation failed to start: {rotation_error}")
-                self.client.SetBeamBlank(1)
-                # send_with_retries(self.client.StopStage) # stop_task() willtake care of this 
                 return 
 
             #If enabled we start writing files 
@@ -198,14 +213,12 @@ class RecordTask(Task):
             if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
                 logging.info("Return the stage tilt to zero.")
                 try:
-                    # send_with_retries(self.client.SetTiltXAngle, 0)
-                    # time.sleep(1)
                     self.client.Setf1OverRateTxNum(0)
                     time.sleep(0.1) # Wait for the command to go through
                     self.tem_action.tem_stagectrl.move0deg.clicked.emit()
                     time.sleep(0.5) # Wait for the command to go through before checking rotation state
                 except Exception as e:
-                    # logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
+                    logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
                     pass              
                 
             # Waiting for the rotation to end
@@ -217,18 +230,6 @@ class RecordTask(Task):
 
             # Add H5 info and file finalization
             if self.writer is not None:
-                # if self.standard_h5_recording:
-                #     logging.info(" ******************** Adding Info to H5...")
-                    
-                #     self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                #     # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-                #     formatted_filename= self.tem_action.file_operations.formatted_filename
-                #     os.rename(self.log_suffix + '.log', formatted_filename.with_suffix('.log'))
-                    
-                #     logging.info(" ******************** Updating file_id in DB...")
-                #     self.cfg.after_write()
-                #     self.tem_action.file_operations.trigger_update_h5_index_box.emit()
-                # else:
                 time.sleep(0.1)
                 logging.info(" ******************** Adding Info to H5 over Server...")
                 try:
@@ -241,14 +242,12 @@ class RecordTask(Task):
                                         retries=3, 
                                         delay=0.1) 
                     
-                    self.control.update_xtalinfo.emit('Processing', 'XDS')
-                    # self.control.update_xtalinfo.emit('Processing', 'DIALS')
+                    self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
+                    # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')
                 except Exception as e:
                         logging.error(f"Metadata Update Error: {e}")
-                        self.control.update_xtalinfo.emit('Metadata error', 'XDS')
+                        self.file_operations.update_xtalinfo_signal.emit('Metadata error', 'XDS')
 
-            # Same below is taken care of in FileOperations::toggle_hdf5Writer
-            # in case self.writer is not None
             if self.writer is None:
                 self.reset_rotation_signal.emit()
                 
@@ -260,7 +259,7 @@ class RecordTask(Task):
             if not self.tem_action.tem_tasks.connecttem_button.started:
                 QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
 
-            while self.tem_action.tem_tasks.connecttem_button.started:
+            while not self.tem_action.tem_tasks.connecttem_button.started:
                 time.sleep(0.1)
 
             logging.warning('Polling of TEM-info restarted.')
@@ -275,23 +274,13 @@ class RecordTask(Task):
         finally:
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
-            # if self.writer is not None:
-            #     if self.standard_h5_recording and self.tem_action.file_operations.streamWriterButton.started:
-            #         self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
-            #     else:
-            #         self.reset_rotation_signal.emit()
-            # else:
-            #     self.reset_rotation_signal.emit()
+            self.client.SetBeamBlank(1)
+            time.sleep(0.01)
             self.reset_rotation_signal.emit()
         
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
         #                    self.tem_action.xds_template_filepath)
-
-    def reset_rotation_button(self):
-        self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-        self.tem_action.tem_tasks.rotation_button.started = False
-        # self.tem_action.file_operations.streamWriterButton.setEnabled(True)
          
     # def on_tem_receive(self):
     #     self.rotations_angles.append(

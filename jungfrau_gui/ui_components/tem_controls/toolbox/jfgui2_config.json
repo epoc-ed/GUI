@@ -35,8 +35,8 @@
            "unit": "mm",
            "date_update": "03/12/2024"
          },
-         { "displayed": "0cm",
-           "calibrated": 0,
+         { "displayed": "1cm",
+           "calibrated": 1,
            "unit": "mm",
            "date_update": "06/02/2025"
         }

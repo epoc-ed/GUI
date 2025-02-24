@@ -139,10 +139,8 @@ def main():
     globals.tem_mode = args.tem
     globals.tem_host = args.temhost
     globals.dev = args.dev
-
-    logging.debug(f"globals.tem_host = {globals.tem_host}")
-
-    logging.debug(type(globals.acc_image[0,0]))
+    
+    logging.info(f"Tag of GUI: {globals.tag}")
 
     Rcv = ZmqReceiver(endpoint=args.stream, dtype=args.dtype) 
 
