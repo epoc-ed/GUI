@@ -10,19 +10,19 @@ class GaussianFitter(QObject):
     finished = Signal(object, object, object)
     updateParamsSignal = Signal(object, object, object)
 
-    def __init__(self, image, roi_coords, il1_value = None):
+    def __init__(self, image, roi_coords, lens_params = None):
         super(GaussianFitter, self).__init__()
         self.image = image
         self.task_name = "Gaussian Fitter"
         self.roi_coords = roi_coords
-        self.il1_value = il1_value
+        self.lens_params = lens_params
         self.updateParamsSignal.connect(self.updateParams)
     
     @Slot()
-    def updateParams(self, image, roi_coords, il1_value):
+    def updateParams(self, image, roi_coords, lens_params):
         self.image = image
         self.roi_coords = roi_coords
-        self.il1_value = il1_value
+        self.lens_params = lens_params
         logging.info(datetime.now().strftime(" UPDATED FITTER @ %H:%M:%S.%f")[:-3])
 
     @Slot()
@@ -31,7 +31,7 @@ class GaussianFitter(QObject):
         # fit_result = fit_2d_gaussian_roi_fast(self.image, self.roi_coords, function = super_gaussian2d_rotated)
         fit_result = fit_2d_gaussian_roi_NaN_fast(self.image, self.roi_coords, function = super_gaussian2d_rotated)
         logging.info(datetime.now().strftime(" END FITTING @ %H:%M:%S.%f")[:-3])
-        self.finished.emit(self.image, fit_result.best_values, self.il1_value)
+        self.finished.emit(self.image, fit_result.best_values, self.lens_params)
 
     def __str__(self) -> str:
         return "Gaussian Fitter"

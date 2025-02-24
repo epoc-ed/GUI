@@ -53,8 +53,10 @@ class ControlWorker(QObject):
     trigger_tem_update_detailed = Signal(dict)
     trigger_tem_update = Signal(dict)
 
-    fit_complete = Signal(dict, int)
-    request_fit = Signal(int)
+    # fit_complete = Signal(dict, int)
+    # request_fit = Signal(int)
+    fit_complete = Signal(dict, object)
+    request_fit = Signal(object)
     # cleanup_fitter = Signal()
     
     trigger_stop_autofocus = Signal()
@@ -272,14 +274,17 @@ class ControlWorker(QObject):
         self.sweepingWorkerReady = False
 
     
-    def handle_request_fit(self, il1_value):
+    def handle_request_fit(self, lens_params):
+        """
+        lens_params is a dict like: {"il1": int, "ils": [int, int]}
+        """
         if self.task.is_first_beamfit:
-            self.do_fit(il1_value)  # Run do_fit the first time
+            self.do_fit(lens_params)  # Run do_fit the first time
             self.task.is_first_beamfit = False  # Set flag to False after the first run
         else:
-            self.getFitParams(il1_value)
+            self.getFitParams(lens_params)
 
-    def do_fit(self, il1_value):
+    def do_fit(self, lens_params):
         if self.task is not None:
             im_data = self.tem_action.parent.imageItem.image
             roi_coords = create_roi_coord_tuple(self.tem_action.parent.roi)
@@ -289,32 +294,34 @@ class ControlWorker(QObject):
 
             self.thread_fit = QThread()
             # self.fitter = GaussianFitter(imageItem=im, roi=roi, il1_value = il1_value)
-            self.fitter = GaussianFitter(image=im_data_copy, roi_coords=roi_coords_copy, il1_value= il1_value)
+            self.fitter = GaussianFitter(image=im_data_copy,
+                                         roi_coords=roi_coords_copy,
+                                         lens_params= lens_params)
             self.tem_action.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
-            self.initializeFitter(self.thread_fit, self.fitter, il1_value) # Initialize the worker thread and fitter
+            self.initializeFitter(self.thread_fit, self.fitter, lens_params) # Initialize the worker thread and fitter
             self.fitterWorkerReady = True # Flag to indicate worker is ready
             self.thread_fit.start()
             logging.info("Starting fitting process")
         else:
             logging.warning("Fitting worker has been deleted ! ")
 
-    def initializeFitter(self, thread, worker, il1_value):
+    def initializeFitter(self, thread, worker, lens_params):
         thread_manager.move_worker_to_thread(thread, worker)
         worker.finished.connect(self.emit_fit_complete_signal)
         worker.finished.connect(self.getFitterReady)
 
-    def emit_fit_complete_signal(self, im, fit_result_best_values, il1_value):
-        self.fit_complete.emit(fit_result_best_values, il1_value)
-        self.process_fit_results(im, fit_result_best_values, il1_value)
+    def emit_fit_complete_signal(self, im, fit_result_best_values, lens_params):
+        self.fit_complete.emit(fit_result_best_values, lens_params)
+        self.process_fit_results(im, fit_result_best_values, lens_params)
 
     def getFitterReady(self):
         self.fitterWorkerReady = True
 
-    def updateWorkerParams(self, im_data, roi_coords, il1_value):
+    def updateWorkerParams(self, im_data, roi_coords, lens_params):
         if self.thread_fit.isRunning():
-            self.fitter.updateParamsSignal.emit(im_data, roi_coords, il1_value)  
+            self.fitter.updateParamsSignal.emit(im_data, roi_coords, lens_params)  
 
-    def getFitParams(self, il1_value):
+    def getFitParams(self, lens_params):
         if self.fitterWorkerReady:
             self.fitterWorkerReady = False
 
@@ -322,11 +329,11 @@ class ControlWorker(QObject):
             roi_coords = create_roi_coord_tuple(self.tem_action.parent.roi)
             roi_coords_copy = copy.deepcopy(roi_coords)
 
-            self.updateWorkerParams(im_data_copy, roi_coords_copy, il1_value)
+            self.updateWorkerParams(im_data_copy, roi_coords_copy, lens_params)
             time.sleep(0.01) # ensure update goes through before fitting starts 
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
 
-    def process_fit_results(self, im, fit_result, il1_value):
+    def process_fit_results(self, im, fit_result, lens_params):
         # Extract necessary fit parameters
         sigma_x = float(fit_result["sigma_x"])
         sigma_y = float(fit_result["sigma_y"])
@@ -336,9 +343,7 @@ class ControlWorker(QObject):
         aspect_ratio = max(sigma_x, sigma_y) / min(sigma_x, sigma_y)
         
         # Simple combined figure of merit
-        # Variation: FOM = area * aspect_ratio
-        # Another variation: FOM = (area**alpha) * (aspect_ratio**beta)
-        fom = area * aspect_ratio
+        fom = area * aspect_ratio #TODO: Optimize FOM
         
         # Initialize self.task.results if not present
         if not hasattr(self.task, "results"):
@@ -346,7 +351,8 @@ class ControlWorker(QObject):
         
         # Store all results
         self.task.results.append({
-            "il1_value": il1_value,
+            "il1_value": lens_params["il1"],
+            "ils_value": lens_params["ils"],
             "im": im,
             "sigma_x": sigma_x,
             "sigma_y": sigma_y,

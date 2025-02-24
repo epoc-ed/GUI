@@ -23,9 +23,13 @@ class BeamFitTask(Task):
         self.tem_action = self.control.tem_action
         self.is_first_beamfit = True        
         self.client = TEMClient(globals.tem_host, 3535)
+        self.lens_parameters = {
+                                "il1": self.client.GetIL1(), # an integer
+                                "ils": self.client.GetILs(), # two integers for stigmation
+        }
         self.results = []
 
-    def run(self, init_IL1=IL1_0):
+    def run(self, init_IL1=IL1_0, init_stigm=ILs_0):
         try:
             # ------------------------
             # Interrupting TEM Polling
@@ -66,6 +70,8 @@ class BeamFitTask(Task):
             self.client.SetILFocus(il1_guess1)
             time.sleep(1)
 
+            self.lens_parameters["il1"] = il1_guess1
+
             logging.info("################ Start IL1 fine-sweeping ################")
             completed = self.sweep_il1_linear(il1_guess1 - 45, il1_guess1 + 50, 5)
             if not completed:
@@ -83,7 +89,13 @@ class BeamFitTask(Task):
                 time.sleep(WAIT_TIME_S)
             self.client.SetILFocus(il1_guess2)
             time.sleep(1)
+
+            self.lens_parameters["il1"] = il1_guess2
             
+            # ------------------
+            # Start ILs Sweeping 
+            # ------------------
+
         except Exception as e:
             logging.error(f"Unexpected error during beam focusing: {e}")
         finally:
@@ -125,22 +137,90 @@ class BeamFitTask(Task):
             self.client.SetILFocus(il1_value)
             logging.debug(f"{datetime.now()}, il1_value = {il1_value}")
 
+            # Update dictionnary
+            self.lens_parameters["il1"] = il1_value
+
             # Wait for the system to stabilize after setting IL1
             time.sleep(wait_time_s)
 
             # Emit the signal to request Gaussian fitting
             logging.info(datetime.now().strftime(" REQUESTED_FIT @ %H:%M:%S.%f")[:-3])
-            self.control.request_fit.emit(il1_value)
+            # self.control.request_fit.emit(il1_value)
+            self.control.request_fit.emit(self.lens_parameters)
 
             # Wait before proceeding to the next IL1 position
             time.sleep(1)
         
         return True
 
-        # logging.info("Now reset to the initial value (for safety in testing)")
-        # self.client.SetILFocus((lower + upper-step)//2)
-        # time.sleep(wait_time_s)
+    def sweep_stig_linear(self, init_stigm, deviation, step, wait_time_s=WAIT_TIME_S):
+        """
+        Perform a linear sweep of the stigmation parameters in the X and Y directions.
 
+        Starting from an initial stigmation value (`init_stigm = [ils_x0, ils_y0]`), this function
+        scans over the range `[ils_x0 - deviation, ils_x0 + deviation]` for the X-axis and
+        `[ils_y0 - deviation, ils_y0 + deviation]` for the Y-axis, incrementing in steps of `step`.
+        At each stigmation setting, it sets the ILs lens, waits for the system to stabilize,
+        and then requests a Gaussian (or Super-Gaussian) fit. The sweeping is aborted if
+        `sweepingWorkerReady` becomes False at any point.
+
+        Parameters
+        ----------
+        init_stigm : list or tuple of length 2
+            The initial stigmation values along the X and Y axes, e.g. [ils_x0, ils_y0].
+        deviation : int
+            The ± range around `init_stigm` to explore for each axis.
+        step : int
+            The increment between stigmation values in each axis.
+        wait_time_s : float, optional
+            The time (in seconds) to wait after setting each stigmation value before requesting
+            a fit. Defaults to the class constant `WAIT_TIME_S`.
+
+        Returns
+        -------
+        bool
+            True if the sweep completes successfully.
+            False if the sweeping is interrupted (e.g., `sweepingWorkerReady` becomes False).
+
+        Notes
+        -----
+        - The method updates the class attribute `lens_parameters["ils"]` with the current (X, Y)
+        stigmation values before emitting the fit request signal.
+        - A short additional wait of 1 second is included at the end of each X-axis iteration
+        before proceeding to the next value in the sweep.
+        - Logs at various stages indicate when a fit request is issued or if the sweep is interrupted.
+        """
+        for ils_x in range(init_stigm[0] - deviation, init_stigm[0] + deviation + step, step):
+            if not self.control.sweepingWorkerReady:
+                logging.warning(f"Interrupting Task - {self.control.task.task_name} -")
+                return False
+
+            # Wait for the system to stabilize after setting ILs_x
+            time.sleep(wait_time_s)
+
+            for ils_y in range(init_stigm[1] - deviation, init_stigm[1] + deviation + step, step):
+                if not self.control.sweepingWorkerReady:
+                    logging.warning(f"Interrupting Task - {self.control.task.task_name} -")
+                    return False
+                
+                # Set ILs lens to the current position
+                self.client.SetILs(ils_x, ils_y)
+                logging.debug(f"{datetime.now()}, ILs = [{ils_x}, {ils_y}]")
+
+                # Update dictionnary
+                self.lens_parameters["ils"] = [ils_x, ils_y]
+
+                # Wait for the system to stabilize after setting IL1
+                time.sleep(wait_time_s)
+
+                # Emit the signal to request Gaussian fitting
+                logging.info(datetime.now().strftime(" REQUESTED_FIT @ %H:%M:%S.%f")[:-3])
+                self.control.request_fit.emit(self.lens_parameters)
+
+            # Wait before proceeding to the next ILs_x position
+            time.sleep(1)
+        
+        return True
 
 
 # import time
