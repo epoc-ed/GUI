@@ -325,14 +325,7 @@ class ControlWorker(QObject):
             self.updateWorkerParams(im_data_copy, roi_coords_copy, il1_value)
             time.sleep(0.01) # ensure update goes through before fitting starts 
             QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
-    """
-    def process_fit_results(self, im, fit_result, il1_value):
-        amplitude = float(fit_result['amplitude'])
-        self.task.amp_il1_map[amplitude] = (il1_value, im) 
-        if amplitude > self.task.max_amplitude:
-            self.task.max_amplitude = amplitude
-        logging.info(dt.now().strftime(" PROCESSED @ %H:%M:%S.%f")[:-3])
-    """
+
     def process_fit_results(self, im, fit_result, il1_value):
         # Extract necessary fit parameters
         sigma_x = float(fit_result["sigma_x"])

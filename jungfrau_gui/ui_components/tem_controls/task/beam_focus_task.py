@@ -5,7 +5,7 @@ import numpy as np
 from .task import Task
 
 from .... import globals
-from PySide6.QtCore import Signal, Qt, QMetaObject
+from PySide6.QtCore import Qt, QMetaObject
 from datetime import datetime
 
 from simple_tem import TEMClient
@@ -23,11 +23,6 @@ class BeamFitTask(Task):
         self.tem_action = self.control.tem_action
         self.is_first_beamfit = True        
         self.client = TEMClient(globals.tem_host, 3535)
-        # self.control.fit_complete.connect(self.process_fit_results)
-        """
-        self.max_amplitude = -float('inf')
-         self.amp_il1_map = {}
-        """
         self.results = []
 
     def run(self, init_IL1=IL1_0):
@@ -56,20 +51,13 @@ class BeamFitTask(Task):
             logging.info("################ Start IL1 rough-sweeping ################")
             completed = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 550, 50)
             if not completed:
-                logging.warning("Sweep interrupted! Exiting BeamFitTask::run() method...")
+                logging.warning("ROUGH Sweep interrupted! Exiting BeamFitTask::run() method...")
                 return  # Exit the run method if the sweep was interrupted
 
             # Determine the rough optimal IL1 value
-            """il1_guess1, _capture_im = self.amp_il1_map[self.max_amplitude]"""
-            best_result = min(self.task.results, key=lambda x: x["fom"])
-            il1_guess1 = best_result["il1_value"]
-            logging.info(f"{datetime.now()}, ROUGH OPTIMAL VALUE IS {il1_guess1}")
-
-            # Remove overlays from the image area
-            self.control.remove_ellipse.emit()
-
-            logging.warning("---------------------- [IL1 ROUGH] Moving to the optimal Position -----------------------")
-            time.sleep(1)
+            best_result_IL1_rough = min(self.results, key=lambda x: x["fom"])
+            il1_guess1 = best_result_IL1_rough["il1_value"]
+            logging.warning(f"{datetime.now()}, ROUGH OPTIMAL VALUE IS {il1_guess1}")
 
             # Once task finished, move lens to optimal position 
             for il1_value in range(init_IL1 - 500, il1_guess1+150, 50): 
@@ -77,29 +65,24 @@ class BeamFitTask(Task):
                 time.sleep(WAIT_TIME_S)
             self.client.SetILFocus(il1_guess1)
             time.sleep(1)
-            # Need to update the drawn ellipse to fit the optimal the choice
 
-            """ logging.info("################ Start IL1 fine-sweeping ################")
-            self.sweep_il1_linear(il1_guess1 - 45, il1_guess1 + 50, 5)
-            il1_guess2, _capture_im = self.amp_il1_map[self.max_amplitude]
-            logging.info(f"{datetime.now()}, FINE OPTIMAL VALUE IS {il1_guess2}")
-            self.control.remove_ellipse.emit()  
+            logging.info("################ Start IL1 fine-sweeping ################")
+            completed = self.sweep_il1_linear(il1_guess1 - 45, il1_guess1 + 50, 5)
+            if not completed:
+                logging.warning("FINE Sweep interrupted! Exiting BeamFitTask::run() method...")
+                return  # Exit the run method if the sweep was interrupted
+
+            # Determine the rough optimal IL1 value
+            best_result_IL1_fine = min(self.results, key=lambda x: x["fom"])
+            il1_guess2 = best_result_IL1_fine["il1_value"]
+            logging.warning(f"{datetime.now()}, FINE OPTIMAL VALUE IS {il1_guess2}")
+
             # Once task finished, move lens to optimal position 
-            print("------------------------------ BIG SLEEP ------------------------------")
-            time.sleep(1)
             for il1_value in range(il1_guess1 - 45, il1_guess2 + 15, 5): # upper = {il1_guess2 + 5} ???
                 self.client.SetILFocus(il1_value)
-                time.sleep(wait_time_s)
+                time.sleep(WAIT_TIME_S)
             self.client.SetILFocus(il1_guess2)
-            time.sleep(1) """
-
-            # if self.control.sweepingWorkerReady == True:
-            #     self.control.tem_action.tem_tasks.beamAutofocus.setText("Remove axis / pop-up")   
-            # else:
-            #     print("********************* Emitting 'remove_ellipse' signal from -SWEEPING- Thread *********************")
-            #     self.control.remove_ellipse.emit()  
-            
-            # self.control.cleanup_fitter.emit()
+            time.sleep(1)
             
         except Exception as e:
             logging.error(f"Unexpected error during beam focusing: {e}")
