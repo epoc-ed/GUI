@@ -24,6 +24,11 @@ from boost_histogram.axis import Regular
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
+from PySide6.QtGui import QFont
+
+font_big = QFont("Arial", 11)
+font_big.setBold(True)
+
 def get_git_info():
     # Load version from installed package resources
     try:
@@ -130,6 +135,8 @@ class ApplicationWindow(QMainWindow):
 
         contrast_group = QGridLayout()
         contrast_label = QLabel("Contrast Controls")
+        contrast_label.setFont(font_big)
+
         contrast_section.addWidget(contrast_label)
 
         self.autoContrastBtn = ToggleButton('Apply Auto Contrast', self)
