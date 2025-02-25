@@ -182,6 +182,40 @@ class TemControls(QGroupBox):
         text_color = self.palette.color(QPalette.Text).name()
         field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
 
+    """ *********************************************** """
+    """ Multiprocessing Version of the gaussian fitting """
+    """ *********************************************** """
+    """ def toggle_gaussianFit(self):
+        if not self.btnBeamFocus.started:
+            if self.fitter is None:
+                self.fitter = GaussianFitter()
+            logging.debug(f"0.Fitter is Ready? {globals.fitterWorkerReady.value}")
+            self.fitter.updateParams(self.parent.imageItem, self.parent.roi)
+            logging.debug(f"1/2.Fitter should be Ready! Is it? --> {globals.fitterWorkerReady.value}")
+            self.fitter.finished.connect(self.updateFitParams) 
+            self.fitter.start()
+            logging.debug(f"1.Fitter is Ready? {globals.fitterWorkerReady.value}")
+            self.btnBeamFocus.setText("Stop Fitting")
+            self.btnBeamFocus.started = True  
+            # Timer started
+            self.parent.timer_fit.start(10)
+        else:
+            self.btnBeamFocus.setText("Beam Gaussian Fit")
+            self.btnBeamFocus.started = False
+            self.parent.timer_fit.stop()  
+            # Close Pop-up Window
+            self.fitter.finished.disconnect()
+            self.fitter.stop()
+            self.fitter = None
+            globals.fitterWorkerReady.value = False
+
+    def getFitParams(self):
+        self.fitter.check_output_queue()
+        logging.debug(f"2.Fitter is Ready? {globals.fitterWorkerReady.value}")
+        if not globals.fitterWorkerReady.value:
+            self.fitter.updateParams(self.parent.imageItem, self.parent.roi)  
+    """
+    
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
     """ ***************************************** """

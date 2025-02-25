@@ -18,8 +18,8 @@ ncol = cfg.ncols
 dtype = np.float32
 cdtype = ctypes.c_float
 
-# fitterWorkerReady = mp.Value(ctypes.c_bool)
-# fitterWorkerReady.value = False
+fitterWorkerReady = mp.Value(ctypes.c_bool)
+fitterWorkerReady.value = False
 
 accframes = 0
 acc_image = np.zeros((nrow,ncol), dtype = dtype)
