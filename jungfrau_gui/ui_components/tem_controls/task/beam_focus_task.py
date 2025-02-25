@@ -84,7 +84,7 @@ class BeamFitTask(Task):
 
             # Determine the rough optimal IL1 value
             best_result_ILs_rough = min(self.results, key=lambda x: x["fom"])
-            ils_guess1 = best_result_ILs_rough["il1_value"]
+            ils_guess1 = best_result_ILs_rough["ils_value"]
             logging.warning(f"{datetime.now()}, ROUGH ILs OPTIMAL VALUE IS {ils_guess1}")
             
             # DEBUGGING ####################################
