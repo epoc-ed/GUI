@@ -158,15 +158,16 @@ class TEMStageCtrl(QGroupBox):
         # 3) Access the plotItem if needed
         self.gridarea = self.grid_plot.plotItem
 
-        radius1 = 3050
+        radius1 = 1800
         x = radius1 * np.cos(np.linspace(0, 2*np.pi, 100))
         y = radius1 * np.sin(np.linspace(0, 2*np.pi, 100))
-        self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
+        self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen('darkGray')))
 
-        radius2 = 2350
+        radius2 = 1200
         x = radius2 * np.cos(np.linspace(0, 2*np.pi, 100))
         y = radius2 * np.sin(np.linspace(0, 2*np.pi, 100))
-        self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y))
+        # crystals outside of this ring should be cared for rotation limit
+        self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen('yellow')))
 
         self.grid_plot.setAspectLocked()
         self.grid_plot.showGrid(x=True, y=True)
@@ -207,13 +208,15 @@ class TEMTasks(QGroupBox):
         self.polling_frequency.setPrefix("Polling Freq: ")
         self.polling_frequency.setSuffix("ms")
         self.connecttem_button.setEnabled(True)
-        self.gettem_button = QPushButton("Get TEM status", self)
-        self.gettem_checkbox = QCheckBox("recording", self)
-        self.gettem_button.setEnabled(False)
-        self.gettem_checkbox.setChecked(False) #False
-        self.centering_button = ToggleButton("Click-on-Centering", self)
-        self.centering_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        self.centering_button.setEnabled(False) # not secured function
+        # self.gettem_button = QPushButton("Get TEM status", self)
+        # self.gettem_checkbox = QCheckBox("recording", self)
+        # self.gettem_button.setEnabled(False)
+        # self.gettem_checkbox.setChecked(False) #False
+        self.centering_checkbox = QCheckBox("Click-on-Centering", self)
+        self.centering_checkbox.setChecked(False)
+        # self.centering_button = ToggleButton("Click-on-Centering", self)
+        # self.centering_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        # self.centering_button.setEnabled(False) # not secured function
         
         BEAM_group = QVBoxLayout()
         BEAM_label = QLabel("Beam Sweep & Focus", self)
@@ -269,10 +272,11 @@ class TEMTasks(QGroupBox):
         CTN_group.addWidget(CTN_label)
         CTN_section.addWidget(self.connecttem_button)
         CTN_section.addWidget(self.polling_frequency)
-        CTN_section.addWidget(self.gettem_button)
-        CTN_section.addWidget(self.gettem_checkbox)
+        # CTN_section.addWidget(self.gettem_button)
+        # CTN_section.addWidget(self.gettem_checkbox)
+        CTN_section.addWidget(self.centering_checkbox)
         CTN_group.addLayout(CTN_section)
-        CTN_group.addWidget(self.centering_button)
+        # CTN_group.addWidget(self.centering_button)
         tasks_section.addLayout(CTN_group)
 
         tasks_section.addWidget(create_horizontal_line_with_margin(20))

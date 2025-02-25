@@ -37,6 +37,9 @@ stream_dt = np.float32
 mag_value_img = [1, 'X', 'X1']
 mag_value_diff = [1, 'mm', '1cm']
 
-tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
-branch = subprocess.check_output(['git', 'branch', '--show-current']).strip().decode('utf-8').split()[-1]
+try:
+    tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
+    branch = subprocess.check_output(['git', 'branch', '--show-current']).strip().decode('utf-8').split()[-1]
+except subprocess.CalledProcessError: # for developers' local testing
+    tag, branch = 'no-tagged-version', 'noname-branch'
 # commit = 

@@ -50,8 +50,8 @@ class TEMAction(QObject):
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
-        self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
-        self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
+        # self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
+        # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
         self.tem_tasks.btnGaussianFit.clicked.connect(self.tem_controls.toggle_gaussianFit_beam)
@@ -103,9 +103,10 @@ class TEMAction(QObject):
             i.setEnabled(enables)
         for i in self.tem_stagectrl.mag_modes.buttons():
             i.setEnabled(enables)
-        self.tem_tasks.gettem_button.setEnabled(enables)
-        self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
-        self.tem_tasks.centering_button.setEnabled(enables)
+        # self.tem_tasks.gettem_button.setEnabled(enables)
+        # self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
+        # self.tem_tasks.centering_button.setEnabled(enables)
+        self.tem_tasks.centering_checkbox.setEnabled(enables)
         self.tem_tasks.btnGaussianFit.setEnabled(enables)
         self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
@@ -305,16 +306,17 @@ class TEMAction(QObject):
             # Interrupt rotation but end task gracefully
             self.control.interruptRotation = True
             
-    def toggle_centering(self):
-        if not self.tem_tasks.centering_button.started:
-            self.tem_tasks.centering_button.setText("Deactivate centering")
-            self.tem_tasks.centering_button.started = True
-        else:
-            self.tem_tasks.centering_button.setText("Click-on-Centering")
-            self.tem_tasks.centering_button.started = False
+    # def toggle_centering(self):
+    #     if not self.tem_tasks.centering_button.started:
+    #         self.tem_tasks.centering_button.setText("Deactivate centering")
+    #         self.tem_tasks.centering_button.started = True
+    #     else:
+    #         self.tem_tasks.centering_button.setText("Click-on-Centering")
+    #         self.tem_tasks.centering_button.started = False
             
     def imageMouseClickEvent(self, event):
-        if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_button.started:
+        # if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_button.started:
+        if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_checkbox.isChecked():       
             logging.debug('Centering is not ready.')
             return
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
