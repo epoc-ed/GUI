@@ -32,7 +32,6 @@ class TEMAction(QObject):
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
-        self.tem_xtalinfo = self.tem_controls.tem_xtalinfo
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
@@ -46,16 +45,13 @@ class TEMAction(QObject):
 
         self.scale = None
         self.marker = None
-        # self.formatted_filename = '' # TODO DELETE? See use in 'callGetInfoTask' below 
-        # self.beamcenter = self.cfg.beam_center # TODO! read the value when needed!
         self.cfg.beam_center = [1, 1] # Flag for non-updated metadata
-        # self.xds_template_filepath = self.cfg.XDS_template
         self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
-        self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
-        self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
+        # self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
+        # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
         self.tem_tasks.btnGaussianFit.clicked.connect(self.tem_controls.toggle_gaussianFit_beam)
@@ -67,34 +63,25 @@ class TEMAction(QObject):
         except AttributeError:
             pass
         
-        # self.control.tem_socket_status.connect(self.on_sockstatus_change)
         self.control.updated.connect(self.on_tem_update)
         
         # Move X positive 10 micrometers
-        # self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.client.SetXRel(10000))
         self.tem_stagectrl.movex10ump.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetXRel, args=(10000,)).start())
         
         # Move X negative 10 micrometers
-        # self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.client.SetXRel(-10000))
         self.tem_stagectrl.movex10umn.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
 
         # Move TX positive 10 degrees
-        # self.tem_stagectrl.move10degp.clicked.connect(
-        #             lambda: self.control.client.SetTXRel(10))
         self.tem_stagectrl.move10degp.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTXRel, args=(10,)).start())
 
-        # Move TX negative 10 degrees
-        # self.tem_stagectrl.move10degn.clicked.connect(
-        #             lambda: self.control.client.SetTXRel(-10))        
+        # Move TX negative 10 degrees    
         self.tem_stagectrl.move10degn.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTXRel, args=(-10,)).start())
 
         # Set Tilt X Angle to 0 degrees
-        # self.tem_stagectrl.move0deg.clicked.connect(
-        #             lambda: self.control.client.SetTiltXAngle(0))
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
@@ -104,8 +91,6 @@ class TEMAction(QObject):
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
-        # if not globals.jfj:
-        #     self.file_operations.tiff_path.setText(self.cfg.data_dir.as_posix() + '/')
 
     def enabling(self, enables=True):
         if self.cfg.beam_center != [1,1]:
@@ -118,9 +103,10 @@ class TEMAction(QObject):
             i.setEnabled(enables)
         for i in self.tem_stagectrl.mag_modes.buttons():
             i.setEnabled(enables)
-        self.tem_tasks.gettem_button.setEnabled(enables)
-        self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
-        self.tem_tasks.centering_button.setEnabled(enables)
+        # self.tem_tasks.gettem_button.setEnabled(enables)
+        # self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
+        # self.tem_tasks.centering_button.setEnabled(enables)
+        self.tem_tasks.centering_checkbox.setEnabled(enables)
         self.tem_tasks.btnGaussianFit.setEnabled(enables)
         self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
@@ -131,8 +117,13 @@ class TEMAction(QObject):
             self.tem_stagectrl.screen_button.setEnabled(enables)
         except AttributeError:
             pass 
+        self.tem_stagectrl.position_list.setEnabled(enables)
         self.tem_stagectrl.go_button.setEnabled(enables)
         self.tem_stagectrl.addpos_button.setEnabled(enables)
+
+    def reset_rotation_button(self):
+        self.tem_tasks.rotation_button.setText("Rotation")
+        self.tem_tasks.rotation_button.started = False
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
@@ -191,17 +182,21 @@ class TEMAction(QObject):
     def on_tem_update(self):
         logging.debug("Updating GUI with last TEM Status...") 
         angle_x = self.control.tem_status["stage.GetPos"][3]
-        self.tem_tasks.input_start_angle.setValue(angle_x)
+        if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
         
         # Update Magnification radio button in GUI to refelct status of TEM
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
 
         if Mag_idx in [0, 1, 2]:
+            if not self.parent.autoContrastBtn.started:
+                self.parent.autoContrastBtn.clicked.emit()
             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             magnification = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_magnification.setText(magnification)
             self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
         elif Mag_idx == 4:
+            if self.parent.autoContrastBtn.started:
+                self.parent.resetContrastBtn.clicked.emit()
             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             detector_distance = self.control.tem_status["eos.GetMagValue"][2]
             self.tem_detector.input_det_distance.setText(detector_distance)
@@ -280,7 +275,7 @@ class TEMAction(QObject):
     def toggle_mag_modes(self):
         idx_mag_button = self.tem_stagectrl.mag_modes.checkedId()
         if idx_mag_button == 4:
-            self.visualization_panel.resetContrastBtn.clicked.emit()
+            self.parent.resetContrastBtn.clicked.emit()
         try:
             self.control.client.SelectFunctionMode(idx_mag_button)
             logging.info(f"Function Mode switched to {self.control.client.GetFunctionMode()[0]} (0=MAG, 2=Low MAG, 4=DIFF)")
@@ -301,8 +296,6 @@ class TEMAction(QObject):
             self.control.trigger_record.emit()
             self.tem_tasks.rotation_button.setText("Stop")
             self.tem_tasks.rotation_button.started = True
-            if self.tem_tasks.withwriter_checkbox.isChecked():
-                self.file_operations.streamWriterButton.setEnabled(False)
         else:
             # In case of unwarranted interruption, to avoid button stuck in "Stop"
             if self.control.interruptRotation: 
@@ -313,16 +306,17 @@ class TEMAction(QObject):
             # Interrupt rotation but end task gracefully
             self.control.interruptRotation = True
             
-    def toggle_centering(self):
-        if not self.tem_tasks.centering_button.started:
-            self.tem_tasks.centering_button.setText("Deactivate centering")
-            self.tem_tasks.centering_button.started = True
-        else:
-            self.tem_tasks.centering_button.setText("Click-on-Centering")
-            self.tem_tasks.centering_button.started = False
+    # def toggle_centering(self):
+    #     if not self.tem_tasks.centering_button.started:
+    #         self.tem_tasks.centering_button.setText("Deactivate centering")
+    #         self.tem_tasks.centering_button.started = True
+    #     else:
+    #         self.tem_tasks.centering_button.setText("Click-on-Centering")
+    #         self.tem_tasks.centering_button.started = False
             
     def imageMouseClickEvent(self, event):
-        if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_button.started:
+        # if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_button.started:
+        if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_checkbox.isChecked():       
             logging.debug('Centering is not ready.')
             return
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
@@ -370,7 +364,12 @@ class TEMAction(QObject):
             # self.control.stop_task()
 
     def go_listedposition(self):
-        position = self.control.client.GetStagePosition() # in nm
+        try:
+            # position = self.control.client.GetStagePosition() # in nm
+            position = send_with_retries(self.control.client.GetStagePosition)
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return
         position_aim = np.array(self.tem_stagectrl.position_list.currentText().split()[1:-2], dtype=float) # in um
         dif_pos = position_aim[0]*1e3 - position[0], position_aim[1]*1e3 - position[1]
         try:
@@ -384,7 +383,12 @@ class TEMAction(QObject):
 
     @Slot(str, str)
     def add_listedposition(self, color='red', status='new'):
-        position = self.control.client.GetStagePosition()
+        try:
+            # position = self.control.client.GetStagePosition()
+            position = send_with_retries(self.control.client.GetStagePosition)
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return
         new_id = self.tem_stagectrl.position_list.count() - 4
         self.tem_stagectrl.position_list.addItems([f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"])
         self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color))

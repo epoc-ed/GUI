@@ -1,5 +1,5 @@
 # New Receiver and Viewer of JUNGFRAU for ED, CCSA-UniWien
-This document was updated on 6 Feb 2025\
+This document was updated on 13 Feb 2025\
 **When you encounter bug-like behaviors, please check [known bugs](#Known-bugs).**
 
 ## Table of Contents
@@ -127,8 +127,6 @@ This document was updated on 6 Feb 2025\
 - `Exit`: Exits the GUI.
 - `Beam Gaussian Fit`: Starts fitting the beam's elliptical spot shape (non-TEM mode only, useful for manual focusing).
 - `Magnification`, `Distance`: Displays the magnification and distance values (TEM mode only). `scale` checkbox displays the scale bar (1 um) or the ring (1 A).
-- `Accumulate in TIFF`: Saves a TIFF snapshot to the specified data path (**[not tested in jfj-version](#Known-bugs)**).
-- `Write Stream in H5`: Saves an HDF movie to the specified data path (**[not tested in jfj-version](#Known-bugs)**).
 
 ### [Summing Receiver Controls](../jungfrau_gui/screenshot/ver_13Dec2024.png)
 
@@ -148,7 +146,7 @@ This document was updated on 6 Feb 2025\
 - `Get TEM status`: Displays the TEM status in the terminal [with the option of writing status in .log file] \
     -`recording`: **(disabled)** When checked, allows to save the TEM status in a .log file. ([not working correctly](#Known-bugs))
 - `Click-on-Centering`: Activates stage XY-control by clicking on the imageat the pint of interest.
-- `Beam Gaussian Fit`: Fits a gaussian to the direct beam  within the ROI (A preliminary way to get the beam center info to add to the metadata)
+- `Gaussian Fit`: Fits a gaussian to the direct beam  within the ROI (A preliminary way to get the beam center info to add to the metadata)
     - `Beam center (px)`: Displays the position (X_center,Y_center) of the center of the fitted gaussian  
     - `Gaussian height`: Displays the peak of the gaussian (keV)
     - `Sigma x (px)`: Standard deviation in the major x-axis
@@ -157,7 +155,6 @@ This document was updated on 6 Feb 2025\
 - `Beam Autofocus`: **(Not ready for use)** Sweeps IL1 and ILstig values.
 - `Rotation`: Starts stage rotation to the target angle. The beam is unblanked during rotation and blanked when rotation ends.
     - `with Writer`: Synchronizes the HDF writer with rotation.
-    - `JFJ`: Saves data in JFJ-server (noether). Otherwise the data will be saved locally (hodgkin).
     - `Auto reset`: Resets the tilt to 0 degrees after rotation.
 - `Rotation Speed`: Adjusts rotation speed before starting the rotation. Also updates the `rotation_speed_idx` variable of the Configuration Manager in the data base.
 - `Stage Ctrl`: Moves the stage in specific direction. \*Rotations are not automatically quicken.
@@ -176,22 +173,7 @@ This document was updated on 6 Feb 2025\
 - `Project ID`*: Enter the project identifier.
 - `Base Data Directory`: Specifies the root directory for data saving.
 
-**Note:** The [Get] buttons were coded for debugging purposes. They will be removed for the stable version.
-
-**Important:** TIFF-Writer and HDF5-Writer have not been tested with JFJ. Use [`Collect`](#summing-receiver-controls) in Visualization Panel instead.
-
-#### TIFF Writer
-- `Tiff File Name`: Area to define the name of the TIFF file and its index. It contains:\
-   <small>
-   - First line-edit is read-only and displays the folder where TIFF files are saved.
-   - Second line-edit is modifiable (ASCII characters and underscores only) and is meant for the file name.
-   - Spinbox is modifiable, is incremented after each writing and represents the index of the written TIFF.
-
-   </small>
-- `index`: Set the file index for the TIFF file.
-- `Accumulate in TIFF`: Accumulates a specified number of frames in the TIFF file.
-
-#### HDF5 Writer
+#### HDF5 output
 - `HDF5 Tag`*: Enter the file prefix (ASCII characters and underscores only).
 - `index`*: Set the file index for the HDF5 file.
 - `H5 Output Path`: Read-only field showing the path where datasets are saved.
@@ -204,7 +186,7 @@ This document was updated on 6 Feb 2025\
 2. Blank the beam to avoid sample damage.
 3. Confirm the data output path on the `H5 Output Path` line-edit.
 4. Modify the stage rotation speed and end angle.
-5. Check the `with Writer` and `JFJ` boxes.
+5. Check the `with Writer` box.
 6. Click `Rotation` to start the rotation and recording.
 7. Continue until the end angle is reached or interrupted.
 8. Take an HDF movie if needed (e.g. crystal picture).
@@ -262,7 +244,6 @@ To run for the datasets recorded with the previous version of GUI, some paramete
 ### Known bugs
 updated on 13 Dec 2024
 - Autocontrast does not work correctly after installation of JF-1M. Modify contrast manually or use fixed-contrast buttons.
-- Tiff- and HDF- writers have not been tested after installation of JFJ. Use [`Collect` and `Cancel`](#summing-receiver-controls) in Visualization Panel instead.
 - Recording of TEM-related values does not correctly output a file. Currently this function is disabled.
 
 ### Launching previous system

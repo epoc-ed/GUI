@@ -32,9 +32,7 @@ class ControlWorker(QObject):
     received = Signal(str)
     send = Signal(str)
     init = Signal()
-    """ finished_task = Signal() """
     finished_record_task = Signal()
-    # tem_socket_status = Signal(int, str)
     
     trigger_tem_update_detailed = Signal(dict)
     trigger_tem_update = Signal(dict)
@@ -52,7 +50,6 @@ class ControlWorker(QObject):
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
-    update_xtalinfo = Signal(str, str)
 
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
@@ -128,7 +125,6 @@ class ControlWorker(QObject):
 
     @Slot()
     def on_task_finished(self):
-        """ self.finished_task.emit() """
         logging.info(f"\033[1mFinished Task [{self.task.task_name}] !")
         self.handle_task_cleanup()
         thread_manager.disconnect_worker_signals(self.task)
@@ -200,25 +196,18 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
+        # Stop the Gaussian Fitting if running
+        if self.tem_action.tem_tasks.btnGaussianFit.started:
+            self.tem_action.tem_controls.toggle_gaussianFit_beam()
+        time.sleep(0.1)
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI
             filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
-            if self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
-                task = RecordTask(
-                    self,
-                    end_angle,
-                    filename_suffix.as_posix(),
-                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit],
-                    standard_h5_recording=False
-                )
-            else:
-                task = RecordTask(
-                    self,
-                    end_angle,
-                    filename_suffix.as_posix(),
-                    writer_event = [self.file_operations.start_H5_recording.emit, self.file_operations.stop_H5_recording.emit],
-                    standard_h5_recording=True
-                )
+            task = RecordTask(
+                self,
+                end_angle,
+                filename_suffix.as_posix(),
+                writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit])
         else:
             task = RecordTask(self, end_angle) #, filename_suffix.as_posix())
 
@@ -246,8 +235,6 @@ class ControlWorker(QObject):
             
             # Switching to Diffraction Mode
             self.client.SelectFunctionMode(4)
-            # self.tem_action.tem_stagectrl.mag_modes.button(4).setChecked(True)
-            # self.tem_action.mag_modes.buttonClicked.emit(self.tem_action.tem_stagectrl.mag_modes.button(4))
 
         task = BeamFitTask(self)
         self.start_task(task)
@@ -436,13 +423,6 @@ class ControlWorker(QObject):
         if isinstance(self.task, BeamFitTask):
                 logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
                 self.remove_ellipse.emit() 
-
-    """ @Slot()
-    def stop(self):
-        tools.send_with_retries(self.client.StopStage)
-        self.finished_task.emit()
-        pass
-    """
 
     @Slot()
     def shutdown(self):

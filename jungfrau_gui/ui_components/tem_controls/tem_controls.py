@@ -13,7 +13,7 @@ from .toolbox.plot_dialog import PlotDialog
 from .gaussian_fitter import GaussianFitter
 
 from ...ui_components.toggle_button import ToggleButton
-from .ui_tem_specific import TEMStageCtrl, TEMTasks, XtalInfo
+from .ui_tem_specific import TEMStageCtrl, TEMTasks #, XtalInfo
 from .tem_action import TEMAction
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
@@ -55,18 +55,19 @@ class TemControls(QGroupBox):
         self.plotDialog = None
         
         self.label_voltage = QLabel()
-        self.label_voltage.setText("Voltage (HT)")
+        self.label_voltage.setText("Accelerating potential (HT)")
         self.voltage_spBx = QSpinBox()
         self.voltage_spBx.setMaximum(1000)
         self.voltage_spBx.setValue(200)
         self.voltage_spBx.setSuffix(" kV")
         self.voltage_spBx.setReadOnly(True)
 
-        self.label_beam_center = QLabel()
-        self.label_beam_center.setText("Beam center (px)")
+        self.label_Xo = QLabel()
+        self.label_Xo.setText("X_center (px)")
+        self.label_Yo = QLabel()
+        self.label_Yo.setText("Y_center (px)")
         
         self.beam_center_x = QSpinBox()
-        self.beam_center_x.setPrefix("X_center: ")
         self.beam_center_x.setValue(1)
         self.beam_center_x.setMaximum(globals.ncol)
         # self.beam_center_x.setReadOnly(True)
@@ -74,7 +75,6 @@ class TemControls(QGroupBox):
         self.beam_center_x.editingFinished.connect(self.update_beam_center_x)
         
         self.beam_center_y = QSpinBox()
-        self.beam_center_y.setPrefix("Y_center: ")
         self.beam_center_y.setValue(1)
         self.beam_center_y.setMaximum(globals.nrow)
         # self.beam_center_y.setReadOnly(True)
@@ -121,16 +121,14 @@ class TemControls(QGroupBox):
         if globals.tem_mode:
             self.tem_tasks = TEMTasks(self)
             self.tem_stagectrl = TEMStageCtrl()
-            self.tem_xtalinfo = XtalInfo()
             tem_section.addWidget(self.tem_tasks)
             self.tem_action = TEMAction(self, self.parent)
+            self.parent.imageItem.mouseClickEvent = self.tem_action.imageMouseClickEvent
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
             self.tem_action.control.fit_complete.connect(self.updateFitParams)
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
-            tem_section.addWidget(self.tem_xtalinfo)
-            self.tem_action.control.update_xtalinfo.connect(self.update_xtalinfo)
         else: 
             test_fitting_label = QLabel("Test Gaussian Fitting")
             test_fitting_label.setFont(font_big)
@@ -229,7 +227,7 @@ class TemControls(QGroupBox):
             # Timer started
             self.parent.timer_fit.start(10)
         else:
-            self.tem_tasks.btnGaussianFit.setText("Beam Gaussian Fit")
+            self.tem_tasks.btnGaussianFit.setText("Gaussian Fit")
             self.tem_tasks.btnGaussianFit.started = False
             self.parent.timer_fit.stop()  
             # Close Pop-up Window
@@ -237,6 +235,10 @@ class TemControls(QGroupBox):
                 self.plotDialog.close()
             self.parent.stopWorker(self.thread_fit, self.fitter)
             self.removeAxes()
+
+    @Slot()
+    def disableGaussianFitButton(self):
+        self.tem_tasks.btnGaussianFit.setEnabled(False)
 
     def initializeWorker(self, thread, worker):
         thread_manager.move_worker_to_thread(thread, worker)
@@ -353,13 +355,3 @@ class TemControls(QGroupBox):
         if self.sigma_y_fit.scene():
             logging.debug("Removing sigma_y_fit from scene")
             self.sigma_y_fit.scene().removeItem(self.sigma_y_fit)
-
-    @Slot(str, str)
-    def update_xtalinfo(self, progress, software='XDS'):
-        try:
-            if software == 'XDS':
-                self.tem_xtalinfo.xds_results.setText(progress)
-            # elif software == 'DIALS':
-            #     self.tem_xtalinfo.dials_results.setText(progress)
-        except AttributeError:
-            pass            
