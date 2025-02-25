@@ -49,9 +49,9 @@ class BeamFitTask(Task):
             )
             logging.warning("Gaussian Fitting is disabled during Beam Autofocus task!")
             
-            # ------------------
-            # Start IL1 Sweeping 
-            # ------------------
+            # --------------------------
+            # Start IL1 Sweeping (ROUGH)
+            # --------------------------
             logging.info("################ Start IL1 rough-sweeping ################")
             completed = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 550, 50)
             if not completed:
@@ -61,7 +61,7 @@ class BeamFitTask(Task):
             # Determine the rough optimal IL1 value
             best_result_IL1_rough = min(self.results, key=lambda x: x["fom"])
             il1_guess1 = best_result_IL1_rough["il1_value"]
-            logging.warning(f"{datetime.now()}, ROUGH OPTIMAL VALUE IS {il1_guess1}")
+            logging.warning(f"{datetime.now()}, ROUGH IL1 OPTIMAL VALUE IS {il1_guess1}")
 
             # Once task finished, move lens to optimal position 
             for il1_value in range(init_IL1 - 500, il1_guess1+150, 50): 
@@ -71,6 +71,44 @@ class BeamFitTask(Task):
             time.sleep(1)
 
             self.lens_parameters["il1"] = il1_guess1
+            
+            # ------------------
+            # Start ILs Sweeping 
+            # ------------------
+
+            logging.info("################ Start ILs rough-sweeping ################")
+            completed = self.sweep_stig_linear(init_stigm=init_stigm, deviation=1000, step=50)
+            if not completed:
+                logging.warning("STIG Sweep interrupted! Exiting BeamFitTask::run() method...")
+                return  # Exit the run method if the sweep was interrupted
+
+            # Determine the rough optimal IL1 value
+            best_result_ILs_rough = min(self.results, key=lambda x: x["fom"])
+            ils_guess1 = best_result_ILs_rough["il1_value"]
+            logging.warning(f"{datetime.now()}, ROUGH ILs OPTIMAL VALUE IS {ils_guess1}")
+            
+            # DEBUGGING ####################################
+            # Check whether IL1 has changed
+            print("@@@@@@@@@@ OPTIMAL LENS VALUES AFTER ROUGH IL1 and ILs SWEEPS @@@@@@@@@@")
+            # for key, value in best_result_ILs_rough.items():
+            #     print(f"{key}: {value}")
+            logging.warning(f"Is IL1_guess the same after rough ILs sweep? --> {best_result_ILs_rough["il1_value"] == il1_guess1}")
+            print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+            # ##############################################
+
+            # Once task finished, move lens to optimal position 
+            for ils_x_value in range(ILs_0[0] - 1000, ils_guess1[0] + 150, 50): 
+                for ils_y_value in range(ILs_0[1] - 1000, ils_guess1[1] + 150, 50): 
+                    self.client.SetILs(ils_x_value, ils_y_value)
+                    time.sleep(WAIT_TIME_S)
+            self.client.SetILs(*ils_guess1)
+            time.sleep(1)
+
+            self.lens_parameters["ils"] = ils_guess1
+
+            # -------------------------
+            # Start IL1 Sweeping (FINE)
+            # -------------------------
 
             logging.info("################ Start IL1 fine-sweeping ################")
             completed = self.sweep_il1_linear(il1_guess1 - 45, il1_guess1 + 50, 5)
@@ -81,10 +119,10 @@ class BeamFitTask(Task):
             # Determine the rough optimal IL1 value
             best_result_IL1_fine = min(self.results, key=lambda x: x["fom"])
             il1_guess2 = best_result_IL1_fine["il1_value"]
-            logging.warning(f"{datetime.now()}, FINE OPTIMAL VALUE IS {il1_guess2}")
+            logging.warning(f"{datetime.now()}, FINE IL1 OPTIMAL VALUE IS {il1_guess2}")
 
             # Once task finished, move lens to optimal position 
-            for il1_value in range(il1_guess1 - 45, il1_guess2 + 15, 5): # upper = {il1_guess2 + 5} ???
+            for il1_value in range(il1_guess1 - 45, il1_guess2 + 15, 5):
                 self.client.SetILFocus(il1_value)
                 time.sleep(WAIT_TIME_S)
             self.client.SetILFocus(il1_guess2)
@@ -92,10 +130,6 @@ class BeamFitTask(Task):
 
             self.lens_parameters["il1"] = il1_guess2
             
-            # ------------------
-            # Start ILs Sweeping 
-            # ------------------
-
         except Exception as e:
             logging.error(f"Unexpected error during beam focusing: {e}")
         finally:
@@ -114,7 +148,7 @@ class BeamFitTask(Task):
 
         This method adjusts the IL1 (Intermediate Lens 1) focus of a Transmission Electron Microscope (TEM)
         through a specified range of positions, incrementing by 'step'. At each lens position, it requests
-        a Gaussian fitting for the current beam frame, representing the beam's status at that particular setting.
+        a (Super) Gaussian fitting for the current beam frame, representing the beam's status at that particular setting.
 
         The sweep continues as long as 'sweepingWorkerReady' is True. If it becomes False, the sweep is interrupted,
         and the method returns False to indicate that the sweep did not complete successfully.
@@ -192,33 +226,30 @@ class BeamFitTask(Task):
         """
         for ils_x in range(init_stigm[0] - deviation, init_stigm[0] + deviation + step, step):
             if not self.control.sweepingWorkerReady:
-                logging.warning(f"Interrupting Task - {self.control.task.task_name} -")
+                logging.warning(f"Interrupting Task - {self.control.task.task_name} - during STIG X Sweeping")
                 return False
-
-            # Wait for the system to stabilize after setting ILs_x
-            time.sleep(wait_time_s)
 
             for ils_y in range(init_stigm[1] - deviation, init_stigm[1] + deviation + step, step):
                 if not self.control.sweepingWorkerReady:
-                    logging.warning(f"Interrupting Task - {self.control.task.task_name} -")
+                    logging.warning(f"Interrupting Task - {self.control.task.task_name} - during STIG Y Sweeping")
                     return False
                 
                 # Set ILs lens to the current position
                 self.client.SetILs(ils_x, ils_y)
-                logging.debug(f"{datetime.now()}, ILs = [{ils_x}, {ils_y}]")
+                logging.info(f"{datetime.now()}, ILs = [{ils_x}, {ils_y}]")
 
                 # Update dictionnary
                 self.lens_parameters["ils"] = [ils_x, ils_y]
 
-                # Wait for the system to stabilize after setting IL1
+                # Wait for the system to stabilize after setting ILs
                 time.sleep(wait_time_s)
 
                 # Emit the signal to request Gaussian fitting
                 logging.info(datetime.now().strftime(" REQUESTED_FIT @ %H:%M:%S.%f")[:-3])
                 self.control.request_fit.emit(self.lens_parameters)
 
-            # Wait before proceeding to the next ILs_x position
-            time.sleep(1)
+                # Wait before proceeding to the next ILs_x position
+                time.sleep(1)
         
         return True
 
