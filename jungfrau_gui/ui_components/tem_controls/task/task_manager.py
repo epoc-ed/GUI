@@ -32,10 +32,9 @@ class ControlWorker(QObject):
     received = Signal(str)
     send = Signal(str)
     init = Signal()
-    """ finished_task = Signal() """
     finished_record_task = Signal()
-    # tem_socket_status = Signal(int, str)
     
+    trigger_tem_update_detailed = Signal(dict)
     trigger_tem_update = Signal(dict)
 
     fit_complete = Signal(dict)
@@ -47,7 +46,7 @@ class ControlWorker(QObject):
     trigger_shutdown = Signal()
     # trigger_interactive = Signal()
     trigger_getteminfo = Signal(str)
-    # trigger_centering = Signal(bool, str)
+    trigger_centering = Signal(bool, str)
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
@@ -72,20 +71,22 @@ class ControlWorker(QObject):
         self.trigger_shutdown.connect(self.shutdown)
         # self.trigger_interactive.connect(self.interactive)
         self.trigger_getteminfo.connect(self.getteminfo)
-        # self.trigger_centering.connect(self.centering)
+        self.trigger_centering.connect(self.centering)
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.actionFit_Beam.connect(self.start_beam_fit)
         self.trigger_stop_autofocus.connect(self.set_worker_not_ready)
         
+        self.trigger_tem_update_detailed.connect(self.update_tem_status_detailed)
         self.trigger_tem_update.connect(self.update_tem_status)
         
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": [0, 'X', 'X0k'],
-                           "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k']}
+                           "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k'], "defl.GetBeamBlank": 0,}
         
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
+        self.previous_tx_abs = 0
 
         """ 
         if os.name == 'nt': # test on Win-Win
@@ -124,7 +125,6 @@ class ControlWorker(QObject):
 
     @Slot()
     def on_task_finished(self):
-        """ self.finished_task.emit() """
         logging.info(f"\033[1mFinished Task [{self.task.task_name}] !")
         self.handle_task_cleanup()
         thread_manager.disconnect_worker_signals(self.task)
@@ -169,6 +169,18 @@ class ControlWorker(QObject):
 
         self.start_task(task)
 
+    @Slot(bool, str)
+    def centering(self, gui=False, vector='10, 1'):
+        logging.info("Start Centering")            
+        if self.task is not None:
+            if self.task.running:
+                logging.warning("\033[38;5;214mCenteringTask\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                return
+        pixels = np.array(vector.split(sep=','), dtype=float)
+        task = CenteringTask(self, pixels)
+        self.start_task(task)
+
     @Slot()
     def start_record(self):
         logging.info("Starting Rotation/Record")
@@ -184,30 +196,20 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
-        self.file_operations.update_base_data_directory() # Update the GUI
-        # TODO Choose the right fname from the start (increment file_id ?)
-        # TODO Use directly the whole fname -> not the suffix ?
-        filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
-
+        # Stop the Gaussian Fitting if running
+        if self.tem_action.tem_tasks.btnGaussianFit.started:
+            self.tem_action.tem_controls.toggle_gaussianFit_beam()
+        time.sleep(0.1)
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
-            if self.tem_action.tem_tasks.JFJwriter_checkbox.isChecked():
-                task = RecordTask(
-                    self,
-                    end_angle,
-                    filename_suffix.as_posix(),
-                    writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit],
-                    standard_h5_recording=False
-                )
-            else:
-                task = RecordTask(
-                    self,
-                    end_angle,
-                    filename_suffix.as_posix(),
-                    writer_event = [self.file_operations.start_H5_recording.emit, self.file_operations.stop_H5_recording.emit],
-                    standard_h5_recording=True
-                )
+            self.file_operations.update_base_data_directory() # Update the GUI
+            filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
+            task = RecordTask(
+                self,
+                end_angle,
+                filename_suffix.as_posix(),
+                writer_event = [self.visualization_panel.startCollection.clicked.emit, self.visualization_panel.stop_jfj_measurement.clicked.emit])
         else:
-            task = RecordTask(self, end_angle, filename_suffix.as_posix())
+            task = RecordTask(self, end_angle) #, filename_suffix.as_posix())
 
         self.start_task(task)
 
@@ -233,8 +235,6 @@ class ControlWorker(QObject):
             
             # Switching to Diffraction Mode
             self.client.SelectFunctionMode(4)
-            # self.tem_action.tem_stagectrl.mag_modes.button(4).setChecked(True)
-            # self.tem_action.mag_modes.buttonClicked.emit(self.tem_action.tem_stagectrl.mag_modes.button(4))
 
         task = BeamFitTask(self)
         self.start_task(task)
@@ -244,7 +244,7 @@ class ControlWorker(QObject):
         self.sweepingWorkerReady = False
 
     @Slot(dict)
-    def update_tem_status(self, response):
+    def update_tem_status_detailed(self, response):
         """ 
         #*************** 
         print(f"Display update values")
@@ -262,12 +262,24 @@ class ControlWorker(QObject):
             logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
             if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
+                # self.cfg.mag_value_img = self.tem_status['eos.GetMagValue']
+                globals.mag_value_img = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_MAG'] = self.tem_update_times['eos.GetMagValue']
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
+                # self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue']
+                globals.mag_value_diff = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
             
-            logging.info("TEM Status Dictionnary updated!")
+            # Update blanking button with live status at TEM
+            if self.tem_status["defl.GetBeamBlank"] == 0:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Blank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            else:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Unblank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
+
+            logging.debug("TEM Status Dictionnary updated!")
             
             # import json
             # # Save to text file
@@ -278,18 +290,50 @@ class ControlWorker(QObject):
         except Exception as e:
             logging.error(f"Error during updating tem_status map: {e}")
 
+    @Slot(dict)
+    def update_tem_status(self, response):
+        try:
+            for entry in response:
+                self.tem_status[entry] = response[entry]
+            logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
+            if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
+                self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
+                # self.cfg.mag_value_img = self.tem_status['eos.GetMagValue']
+                globals.mag_value_img = self.tem_status['eos.GetMagValue']
+            elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
+                self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
+                # self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue']
+                globals.mag_value_diff = self.tem_status['eos.GetMagValue']
+
+            # Update blanking button with live status at TEM
+            if self.tem_status["defl.GetBeamBlank"] == 0:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Blank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            else:
+                self.tem_action.tem_stagectrl.blanking_button.setText("Unblank beam")
+                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
+
+            self.updated.emit()
+            
+        except Exception as e:
+            logging.error(f"Error during quick updating tem_status map: {e}")
+
     @Slot(str) 
-    def send_to_tem(self, message):
+    def send_to_tem(self, message, asynchronous = True):
         logging.debug(f'Sending {message} to TEM...')
         if message == "#info":
-            # results = self.get_state()
-            # self.trigger_tem_update.emit(results)
-            threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state())).start()
+            if asynchronous:
+                threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state())).start()
+            else:
+                results = self.get_state()
+                self.trigger_tem_update.emit(results)
 
         elif message == "#more":
-            # results = self.get_state_detailed()
-            # self.trigger_tem_update.emit(results)
-            threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state_detailed())).start()
+            if asynchronous:
+                threading.Thread(target=lambda: self.trigger_tem_update_detailed.emit(self.get_state_detailed())).start()
+            else:
+                results = self.get_state_detailed()
+                self.trigger_tem_update_detailed.emit(results)
             
         else:
             logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
@@ -297,6 +341,7 @@ class ControlWorker(QObject):
 
     def get_state(self):
         results = {}
+        tic_loop = time.perf_counter()
         for query in tools.INFO_QUERIES:
             tic = time.perf_counter()
             logging.debug(" ++++++++++++++++ ")
@@ -305,18 +350,22 @@ class ControlWorker(QObject):
             results[query] = self.execute_command(tools.full_mapping[query])
             logging.debug(f"results[query] is {results[query]}")
             toc = time.perf_counter()
-            logging.info(f"Getting info for {query} took {toc - tic} seconds")
-
+            logging.debug(f"Getting info for {query} took {toc - tic} seconds")
+        toc_loop = time.perf_counter()
+        logging.debug(f"Getting #info took {toc_loop - tic_loop} seconds")
         return results
     
     def get_state_detailed(self):
         results = {}
+        tic_loop = time.perf_counter()
         for query in tools.MORE_QUERIES:
             result = {}
             result["tst_before"] = time.time()
             result["val"] = self.execute_command(tools.full_mapping[query])
             result["tst_after"] = time.time()
-            results[query] = result
+            results[query] = result   
+        toc_loop = time.perf_counter()
+        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
         return results
 
     def execute_command(self, command_str):
@@ -374,13 +423,6 @@ class ControlWorker(QObject):
         if isinstance(self.task, BeamFitTask):
                 logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
                 self.remove_ellipse.emit() 
-
-    """ @Slot()
-    def stop(self):
-        tools.send_with_retries(self.client.StopStage)
-        self.finished_task.emit()
-        pass
-    """
 
     @Slot()
     def shutdown(self):
@@ -444,29 +486,6 @@ class ControlWorker(QObject):
                 self.send_to_tem(x)
                 #########################
             x = input() """
-
-        
-    """ 
-    @Slot(bool, str)
-    def centering(self, gui=False, vector='10, 1'):
-        if self.task.running:
-            self.stop()
-            
-        if not gui:
-            x = input('Input translation vector in px, e.g. \'10, 1\'. q: quit\n')
-            while True:
-                if x == 'q':
-                    break
-                elif x != '':
-                    pixels = np.array(x.split(sep=','), dtype=float)
-                    task = CenteringTask(self, pixels)
-                    self.start_task(task)
-                x = input()
-        else:
-            pixels = np.array(vector.split(sep=','), dtype=float)
-            task = CenteringTask(self, pixels)
-            self.start_task(task) 
-        """
     
     def update_rotation_info(self, reset=False):
         if reset:

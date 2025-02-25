@@ -5,8 +5,8 @@ import logging
 import numpy as np
 from .task import Task
 from .dectris2xds import XDSparams
-from PySide6.QtWidgets import QMessageBox
-from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QMessageBox, QProgressDialog, QApplication
+from PySide6.QtCore import Signal, Qt, QMetaObject
 
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
@@ -19,11 +19,13 @@ from .... import globals
 class RecordTask(Task):
     reset_rotation_signal = Signal()
 
-    def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None, standard_h5_recording=False):
+    # def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None, standard_h5_recording=False):
+    def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None):
         super().__init__(control_worker, "Record")
         self.phi_dot = 0 # 10 deg/s
         self.control = control_worker
         self.tem_action = self.control.tem_action
+        self.file_operations = self.tem_action.file_operations
         self.writer = writer_event
         self.end_angle = end_angle
         self.rotations_angles = []
@@ -32,81 +34,97 @@ class RecordTask(Task):
         self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.metadata_notifier = MetadataNotifier(host = "noether")
-        self.standard_h5_recording = standard_h5_recording
+        # self.standard_h5_recording = standard_h5_recording
 
-        self.reset_rotation_signal.connect(self.reset_rotation_button)
+        self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)
 
     def run(self):
         logging.debug("RecordTask::run()")
-        phi0 = self.client.GetTiltXAngle()
-        phi1 = self.end_angle
 
-        stage_rates = [10.0, 2.0, 1.0, 0.5]
-        phi_dot_idx = self.client.Getf1OverRateTxNum()
-
-        self.phi_dot = stage_rates[phi_dot_idx]
-
-        try:
-            self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
-        except Exception as e:
-            # Handle any unexpected errors
-            error_message = f"An unexpected error occurred: {e}"
-            QMessageBox.critical(self, "Error", error_message)
+        if self.writer is not None:
+            try:
+                self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
+            except Exception as e:
+                # Handle any unexpected errors
+                error_message = f"An unexpected error occurred: {e}"
+                QMessageBox.critical(self, "Error", error_message)
 
         try:
             logfile = None  # Initialize logfile to None
+            
+            phi0 = self.client.GetTiltXAngle()
+            phi1 = self.end_angle
 
-            print("\n\n\n---------OPEN LOG-----------------\n\n\n")
+            stage_rates = [10.0, 2.0, 1.0, 0.5]
+            phi_dot_idx = self.client.Getf1OverRateTxNum()
+
+            self.phi_dot = stage_rates[phi_dot_idx]
+
+            # Interrupting TEM Polling
+            if self.tem_action.tem_tasks.connecttem_button.started:
+                QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
+
+            while self.tem_action.tem_tasks.connecttem_button.started:
+                time.sleep(0.1)
+
+            logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection!")
+
+            # Disable the Gaussian Fitting
+            QMetaObject.invokeMethod(self.tem_action.tem_controls, 
+                                    "disableGaussianFitButton", 
+                                    Qt.QueuedConnection
+            )
+            logging.warning("Gaussina Fitting is disabled during rotation/record task!")
             
             # Attempt to open the logfile and catch potential issues
             try:
                 logfile = open(self.log_suffix + '.log', 'w')
+                logging.info("\n\n\n---------OPEN LOG-----------------\n\n\n")
+            
+                logfile.write("# TEM Record\n")
+                logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")
+                logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
+                logfile.write(f"# Final Angle (scheduled): {phi1:6.3f} deg\n")
+                logfile.write(f"# angular Speed:           {self.phi_dot:6.2f} deg/s\n")
+                logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n")
+                logfile.write(f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n")
+                # Beam parameters
+                try:
+                    logfile.write(f"# spot_size:               {self.client.GetSpotSize()}\n")
+                    logfile.write(f"# alpha_angle:             {self.client.GetAlpha()}\n")
+                except Exception as e:
+                    logging.error(f"Error retrieving beam parameters: {e}")
+                # Aperture sizes
+                try:
+                    logfile.write(f"# CL#:                     {self.client.GetAperatureSize(1)}\n")
+                    logfile.write(f"# SA#:                     {self.client.GetAperatureSize(4)}\n")
+                except Exception as e:
+                    logging.error(f"Error retrieving aperture sizes: {e}")
+                # Lens parameters
+                try:
+                    logfile.write(f"# brightness:              {self.client.GetCL3()}\n")
+                    logfile.write(f"# diff_focus:              {self.client.GetIL1()}\n")
+                    logfile.write(f"# IL_focus:                {self.client.GetILs()}\n")
+                    logfile.write(f"# PL_align:                {self.client.GetPLA()}\n")
+                except Exception as e:
+                    logging.error(f"Error retrieving lens parameters: {e}")
+                # Stage position
+                try:
+                    logfile.write(f"# stage_position:          {self.client.GetStagePosition()}\n")
+                except Exception as e:
+                    logging.error(f"Error retrieving stage position: {e}")
             except FileNotFoundError as fnf_error:
                 logging.error(f"FileNotFoundError: Directory does not exist for logfile: {fnf_error}")
                 return
             except PermissionError as perm_error:
                 logging.error(f"PermissionError: No write access to logfile: {perm_error}")
-                return
+                # return
             except Exception as e:
                 logging.error(f"Unexpected error while opening logfile: {e}")
                 return
-            
-            logfile.write("# TEM Record\n")
-            logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")
-            logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
-            logfile.write(f"# Final Angle (scheduled): {phi1:6.3f} deg\n")
-            logfile.write(f"# angular Speed:           {self.phi_dot:6.2f} deg/s\n")
-            logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n")
-            logfile.write(f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n")
 
-            # Beam parameters
-            try:
-                logfile.write(f"# spot_size:               {self.client.GetSpotSize()}\n")
-                logfile.write(f"# alpha_angle:             {self.client.GetAlpha()}\n")
-            except Exception as e:
-                logging.error(f"Error retrieving beam parameters: {e}")
-            
-            # Aperture sizes
-            try:
-                logfile.write(f"# CL#:                     {self.client.GetAperatureSize(1)}\n")
-                logfile.write(f"# SA#:                     {self.client.GetAperatureSize(4)}\n")
-            except Exception as e:
-                logging.error(f"Error retrieving aperture sizes: {e}")
-            
-            # Lens parameters
-            try:
-                logfile.write(f"# brightness:              {self.client.GetCL3()}\n")
-                logfile.write(f"# diff_focus:              {self.client.GetIL1()}\n")
-                logfile.write(f"# IL_focus:                {self.client.GetILs()}\n")
-                logfile.write(f"# PL_align:                {self.client.GetPLA()}\n")
-            except Exception as e:
-                logging.error(f"Error retrieving lens parameters: {e}")
-            
-            # Stage position
-            try:
-                logfile.write(f"# stage_position:          {self.client.GetStagePosition()}\n")
-            except Exception as e:
-                logging.error(f"Error retrieving stage position: {e}")
+            self.file_operations.update_xtalinfo_signal.emit('Measuring', 'XDS')
+            # self.file_operations.update_xtalinfo_signal.emit('Measuring', 'DIALS')
 
             self.client.Setf1OverRateTxNum(phi_dot_idx)
             time.sleep(1) 
@@ -115,18 +133,27 @@ class RecordTask(Task):
 
             # Send SetTiltXAngle with retry mechanism
             try:
-                send_with_retries(self.client.SetTiltXAngle, phi1)
+                self.client.SetTiltXAngle(phi1)
             except Exception as e:
-                logging.error(f"Unexpected error: {e}") # Only catch other exceptions if necessary
-                return
+                logging.error(f"Unexpected error while sending SetTiltXAngle: {e}")
+                self.client.SetBeamBlank(1)
+                logging.warning(f"Beam blanked to protect sample!")
+                if not self.client.is_rotating:
+                    # If you can verify the stage is indeed not rotating, then bail out
+                    return
+                else:
+                    logging.warning("Stage appears to be rotating despite the error.")
+                    self.client.SetBeamBlank(0)
+                    logging.warning("Unblanked the beam and ready to proceed...")
+                    time.sleep(0.1)
             
             try:
                 # Attempt to wait for the rotation to start
                 logging.info("Waiting for stage rotation to start...")
                 self.client.wait_until_rotate_starts()
                 logging.info("Stage has initiated rotation")
-            except TimeoutError as rotation_error:
-                logging.error(f"TimeoutError: Stage rotation failed to start: {rotation_error}")
+            except Exception as rotation_error:
+                logging.error(f"Stage rotation failed to start: {rotation_error}")
                 return 
 
             #If enabled we start writing files 
@@ -143,7 +170,11 @@ class RecordTask(Task):
                             send_with_retries(self.client.StopStage)
                         pos = self.client.GetStagePosition()
                         t = time.time()
-                        logfile.write(f"{t - t0:20.6f}  {pos[3]:8.3f} deg\n")
+                        # difference in timers of TEM and GUI might cause small error and should be evaluated.
+                        if os.access(os.path.dirname(self.log_suffix), os.W_OK):
+                            logfile.write(f"{t - t0:10.6f}  {pos[3]:8.3f} deg\n")
+                        logging.info(f"{t - t0:10.6f}  {pos[3]:8.3f} deg")
+                        self.rotations_angles.append([f'{t-t0:10.6f}', f'{pos[3]:8.3f}'])
                         time.sleep(0.1)
                     except Exception as e:
                         logging.error(f"Error getting stage position, skipping iteration: {e}")
@@ -163,22 +194,31 @@ class RecordTask(Task):
 
             try:
                 phi1 = self.client.GetTiltXAngle()
-                if os.access(os.path.dirname(self.log_suffix), os.W_OK):            
+                if os.access(os.path.dirname(self.log_suffix), os.W_OK):
                     logfile.write(f"# Final Angle (measured):   {phi1:.3f} deg\n")
             except Exception as e:
                 logging.error(f"Failed to get final tilt angle: {e}")   
 
-            logfile.close()
+            if os.access(os.path.dirname(self.log_suffix), os.W_OK): logfile.close()
             logging.info(f"Stage rotation end at {phi1:.1f} deg.")
-
+            
+            # GUI updates; should be done before Auto-Reset, which modifies the stage status
+            try:
+                self.control.send_to_tem("#more", asynchronous = False)  # Update tem_status map and GUI
+                logging.info('TEM-status received.')
+            except Exception as e:
+                logging.error("Error updating TEM status: {e}")
+            
             # Enable auto reset of tilt
             if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
                 logging.info("Return the stage tilt to zero.")
                 try:
-                    send_with_retries(self.client.SetTiltXAngle, 0)
-                    time.sleep(1)
+                    self.client.Setf1OverRateTxNum(0)
+                    time.sleep(0.1) # Wait for the command to go through
+                    self.tem_action.tem_stagectrl.move0deg.clicked.emit()
+                    time.sleep(0.5) # Wait for the command to go through before checking rotation state
                 except Exception as e:
-                    # logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
+                    logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
                     pass              
                 
             # Waiting for the rotation to end
@@ -188,42 +228,41 @@ class RecordTask(Task):
             except Exception as e:
                 logging.error(f'Error during "Auto-Reset" rotation: {e}')
 
-            # GUI updates
-            try:
-                self.control.send_to_tem("#more")  # Update tem_status map and GUI 
-            except Exception as e:
-                logging.error("Error updating TEM status: {e}")
-
             # Add H5 info and file finalization
             if self.writer is not None:
-                if self.standard_h5_recording:
-                    logging.info(" ******************** Adding Info to H5...")
-                    
-                    self.tem_action.temtools.trigger_addinfo_to_hdf5.emit()
-                    # os.rename(self.log_suffix + '.log', (self.cfg.data_dir/self.cfg.fname).with_suffix('.log'))
-                    formatted_filename= self.tem_action.file_operations.formatted_filename
-                    os.rename(self.log_suffix + '.log', formatted_filename.with_suffix('.log'))
-                    
-                    logging.info(" ******************** Updating file_id in DB...")
-                    self.cfg.after_write()
-                    self.tem_action.file_operations.trigger_update_h5_index_box.emit()
-                else:
-                    time.sleep(0.1)
-                    logging.info(" ******************** Adding Info to H5...")
-
+                time.sleep(0.1)
+                logging.info(" ******************** Adding Info to H5 over Server...")
+                try:
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
                                         self.tem_action.visualization_panel.formatted_filename, 
                                         self.control.tem_status, 
                                         self.cfg.beam_center, 
+                                        self.rotations_angles,
+                                        self.cfg.threshold,
                                         retries=3, 
                                         delay=0.1) 
+                    
+                    self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
+                    # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')
+                except Exception as e:
+                        logging.error(f"Metadata Update Error: {e}")
+                        self.file_operations.update_xtalinfo_signal.emit('Metadata error', 'XDS')
 
-            # Same below is taken care of in FileOperations::toggle_hdf5Writer
-            # in case self.writer is not None
             if self.writer is None:
                 self.reset_rotation_signal.emit()
-
+                
+            self.tem_action.trigger_additem.emit('green', 'recorded')
+            time.sleep(0.5)
             print("------REACHED END OF TASK----------")
+
+            # Restarting TEM polling
+            if not self.tem_action.tem_tasks.connecttem_button.started:
+                QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
+
+            while not self.tem_action.tem_tasks.connecttem_button.started:
+                time.sleep(0.1)
+
+            logging.warning('Polling of TEM-info restarted.')
 
         except TimeoutError as e:
             # Log the timeout error and exit early to avoid writing files
@@ -235,27 +274,20 @@ class RecordTask(Task):
         finally:
             if logfile is not None:
                 logfile.close()  # Ensure the logfile is closed in case of any errors
-            if self.writer is not None:
-                if self.standard_h5_recording and self.tem_action.file_operations.streamWriterButton.started:
-                    self.writer[1]() # self.tem_action.file_operations.stop_H5_recording.emit()
-            else:
-                self.reset_rotation_signal.emit()
+            self.client.SetBeamBlank(1)
+            time.sleep(0.01)
+            self.reset_rotation_signal.emit()
         
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
         #                    self.tem_action.xds_template_filepath)
-
-    def reset_rotation_button(self):
-        self.tem_action.tem_tasks.rotation_button.setText("Rotation")
-        self.tem_action.tem_tasks.rotation_button.started = False
-        self.tem_action.file_operations.streamWriterButton.setEnabled(True)
          
-    def on_tem_receive(self):
-        self.rotations_angles.append(
-            (self.control.tem_update_times['stage.GetPos'][0],
-            self.control.tem_status['stage.GetPos'][3],
-            self.control.tem_update_times['stage.GetPos'][1])
-        )
+    # def on_tem_receive(self):
+    #     self.rotations_angles.append(
+    #         (self.control.tem_update_times['stage.GetPos'][0],
+    #         self.control.tem_status['stage.GetPos'][3],
+    #         self.control.tem_update_times['stage.GetPos'][1])
+    #     )
 
     def make_xds_file(self, master_filepath, xds_filepath, xds_template_filepath):
         master_file = h5py.File(master_filepath, 'r')
@@ -275,8 +307,9 @@ class RecordTask(Task):
             for i in range(1):
                 image = master_file['entry/data/data_000001'][i]
                 logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
-                org_x, org_y = self.tem_action.beamcenter[0], \
-                               self.tem_action.beamcenter[1]
+                org_x, org_y = self.cfg.beam_center[0], self.cfg.beam_center[1]
+                # org_x, org_y = self.tem_action.beamcenter[0], \
+                #                self.tem_action.beamcenter[1]
             break
 
         # myxds = XDSparams(xdstempl=xds_template_filepath)

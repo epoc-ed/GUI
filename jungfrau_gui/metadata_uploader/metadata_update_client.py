@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 import argparse
 from pathlib import Path
+from .. import globals
 
 # Handle imports correctly when running as a standalone script
 if __name__ == "__main__" and __package__ is None:
@@ -40,7 +41,7 @@ class MetadataNotifier:
     def _now(self):
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    def notify_metadata_update(self, filename, tem_status, beamcenter, timeout_ms = 5000):
+    def notify_metadata_update(self, filename, tem_status, beamcenter, rotations_angles, jf_threshold, jf_gui_tag = globals.tag, timeout_ms = 5000):
         
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
@@ -58,9 +59,12 @@ class MetadataNotifier:
                 "filename": filename.as_posix(),
                 "tem_status": tem_status,
                 "beamcenter": beamcenter,
+                "rotations_angles": rotations_angles,
+                "jf_threshold": jf_threshold,
                 "detector_distance": detector_distance,
                 "aperture_size_cl": aperture_size_cl,
-                "aperture_size_sa": aperture_size_sa
+                "aperture_size_sa": aperture_size_sa,
+                "jf_gui_tag": jf_gui_tag
             }
             message_json = json.dumps(message, cls=CustomJSONEncoder)
             if self.verbose:
@@ -79,6 +83,10 @@ class MetadataNotifier:
             context.destroy()
 
 if __name__ == "__main__":
+    from epoc import ConfigurationClient, auth_token, redis_host
+
+    cfg = ConfigurationClient(redis_host(), token=auth_token())
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-fp', '--filepath', type=Path, help="Path to the saved hdf5 file")
     parser.add_argument('-H', '--host', type=str, default="localhost", help="Host address")
@@ -93,8 +101,13 @@ if __name__ == "__main__":
     with open("tem_status_exemplar.txt", 'r') as file:
         tem_status = json.load(file)
 
-    beamcenter = [173, 170] # Read from Redis DB
+    beamcenter = cfg.beam_center # Read from Redis DB
+    
+    # Example data for rotation at 10deg/s
+    rotations_angles = [[0.0, 0.0], [1.0, 10.0], [2.0, 19.95], [3.0, 30.12], [4.0, 40.2],[5.0, 50.05],[6.0, 60.0]]
+    
+    jf_threshold = 5 
     #input("Enter to continue!")
 
     notifier = MetadataNotifier(host=args.host, port=args.port)
-    notifier.notify_metadata_update(args.filepath, tem_status, beamcenter)
+    notifier.notify_metadata_update(args.filepath, tem_status, beamcenter, rotations_angles, jf_threshold)

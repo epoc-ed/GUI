@@ -50,10 +50,129 @@ def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
 # roi_start_col = 412
 # roi_end_col = 611
 
+def fit_2d_gaussian_roi_NaN(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col):
+    """Fit a rotated 2D Gaussian to an ROI of `im`, ignoring NaN (masked) pixels."""
+    # Extract the ROI
+    im_roi = im[roi_start_row : roi_end_row + 1,
+                roi_start_col : roi_end_col + 1]
+    
+    # Set up x,y mesh for ROI
+    n_rows_roi, n_cols_roi = im_roi.shape
+    x_roi, y_roi = np.meshgrid(
+        np.arange(n_cols_roi), 
+        np.arange(n_rows_roi)
+    )
+
+    # Flatten
+    z_flat_roi = im_roi.ravel()
+    x_flat_roi = x_roi.ravel()
+    y_flat_roi = y_roi.ravel()
+
+    # ------------------------------------------------
+    # 1) Exclude any NaN entries in z_flat_roi
+    # ------------------------------------------------
+    valid_mask = ~np.isnan(z_flat_roi)
+    z_flat_roi_clean = z_flat_roi[valid_mask]
+    x_flat_roi_clean = x_flat_roi[valid_mask]
+    y_flat_roi_clean = y_flat_roi[valid_mask]
+
+    # Optionally also exclude infinities, just in case
+    valid_mask_inf = np.isfinite(z_flat_roi_clean)
+    z_flat_roi_clean = z_flat_roi_clean[valid_mask_inf]
+    x_flat_roi_clean = x_flat_roi_clean[valid_mask_inf]
+    y_flat_roi_clean = y_flat_roi_clean[valid_mask_inf]
+
+    # Now ensure we have some data left
+    if len(z_flat_roi_clean) == 0:
+        raise ValueError("No valid data left in ROI after removing NaNs/infs. Cannot fit.")
+
+    # ------------------------------------------------
+    # 2) Compute initial guesses
+    # ------------------------------------------------
+    total_intensity = np.nansum(z_flat_roi_clean)
+    # Weighted averages (x, y) for initial guess
+    # (Note we must use the cleaned arrays)
+    # x_flat_roi_clean, y_flat_roi_clean are relative to the ROI.
+    col_sums = np.nansum(im_roi, axis=0)  # sum along rows
+    row_sums = np.nansum(im_roi, axis=1)  # sum along columns
+    # Weighted average index in X (across columns):
+    linspace_cols = np.arange(n_cols_roi)
+    if col_sums.sum() != 0:
+        xo_init = np.dot(col_sums, linspace_cols) / col_sums.sum()
+    else:
+        xo_init = n_cols_roi/2
+    # Weighted average index in Y (across rows):
+    linspace_rows = np.arange(n_rows_roi)
+    if row_sums.sum() != 0:
+        yo_init = np.dot(row_sums, linspace_rows) / row_sums.sum()
+    else:
+        yo_init = n_rows_roi/2
+
+    amp_guess = 0.5 * np.nanmax(im_roi)  # might be NaN if ROI all NaN, but we handled that case above
+    if np.isnan(amp_guess) or amp_guess < 1:
+        amp_guess = 1.0
+
+    diag_roi = np.sqrt(n_rows_roi**2 + n_cols_roi**2)
+
+    # ------------------------------------------------
+    # 3) Create the model and parameters
+    # ------------------------------------------------
+    model_roi = Model(
+        gaussian2d_rotated, 
+        independent_vars=['x','y'],
+    )
+
+    params_roi = Parameters()
+    params_roi.add('amplitude', value=amp_guess, min=1, max=1.0 * np.nanmax(im_roi))
+    params_roi.add('xo', value=xo_init, min=0, max=n_cols_roi)
+    params_roi.add('yo', value=yo_init, min=0, max=n_rows_roi)
+    params_roi.add('sigma_x', value=max(n_cols_roi//4, 1), min=1, max=diag_roi/2)
+    params_roi.add('sigma_y', value=max(n_rows_roi//4, 1), min=1, max=diag_roi/2)
+    params_roi.add('theta', value=0, min=-np.pi/2, max=np.pi/2)
+
+    # ------------------------------------------------
+    # 4) Perform the fit on the cleaned data
+    # ------------------------------------------------
+    result_roi = model_roi.fit(
+        z_flat_roi_clean,
+        x=x_flat_roi_clean,
+        y=y_flat_roi_clean,
+        params=params_roi
+    )
+
+    # Adjust the best-fit center to the full image coordinates
+    result_roi.best_values['xo'] += (roi_start_col + 0.5)
+    result_roi.best_values['yo'] += (roi_start_row + 0.5)
+
+    # Ensure sigma_x >= sigma_y for a consistent convention (optional)
+    if result_roi.best_values['sigma_x'] < result_roi.best_values['sigma_y']:
+        sx = result_roi.best_values['sigma_x']
+        sy = result_roi.best_values['sigma_y']
+        result_roi.best_values['sigma_x'] = sy
+        result_roi.best_values['sigma_y'] = sx
+        result_roi.best_values['theta'] += np.pi/2
+
+    # Keep angle between [-90, +90) degrees, etc.
+    if result_roi.best_values['theta'] > np.pi/2:
+        result_roi.best_values['theta'] -= np.pi
+    elif result_roi.best_values['theta'] < -np.pi/2:
+        result_roi.best_values['theta'] += np.pi
+
+    # Convert theta to degrees
+    result_roi.best_values['theta'] = np.degrees(result_roi.best_values['theta'])
+
+    return result_roi
+
 # @profile
 def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col):
-    
+    print(f"***** roi_start_row = {roi_start_row}")    
+    print(f"***** roi_end_row = {roi_end_row}")
+    print(f"***** roi_start_col = {roi_start_col}")
+    print(f"***** roi_end_col = {roi_end_col}")
+
     im_roi = im[roi_start_row:roi_end_row+1, roi_start_col:roi_end_col+1]
+    print(f"++++++np.max(im_roi) = {np.max(im_roi)}")
+    print(im_roi)
     # filtered_im_roi = filter_outliers(im_roi) # remove outliers
     # mean_intensity = np.mean(filtered_im_roi)
     # std_intensity = np.std(filtered_im_roi)
@@ -80,8 +199,12 @@ def fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_c
     x_flat_roi = x_roi.ravel()
     y_flat_roi = y_roi.ravel()
 
+    print(f'***** x_flat_roi.shape = {x_flat_roi.shape}')
+    print(f'***** y_flat_roi.shape = {y_flat_roi.shape}')
+    print(f'***** z_flat_roi.shape = {z_flat_roi.shape}')
+
     # Create model and parameters for ROI fitting
-    model_roi = Model(gaussian2d_rotated, independent_vars=['x','y'], nan_policy='omit')
+    model_roi = Model(gaussian2d_rotated, independent_vars=['x','y']) #, nan_policy='omit')
     params_roi = Parameters()
     # params_roi.add('amplitude', value=np.max(im_roi), min=1, max=1.2*np.max(filtered_im_roi))
     params_roi.add('amplitude', value=0.5*np.max(im_roi), min=1, max=1.0*np.max(im_roi))

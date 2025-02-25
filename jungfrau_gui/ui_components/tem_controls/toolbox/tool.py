@@ -48,6 +48,7 @@ INFO_QUERIES = [
     "stage.GetStatus", 
     "eos.GetMagValue", 
     "eos.GetFunctionMode", 
+    "defl.GetBeamBlank",
     "stage.Getf1OverRateTxNum"
 ]
 
@@ -76,7 +77,8 @@ INFO_QUERIES_CLIENT = [
     "GetStagePosition()", 
     "GetStageStatus()", 
     "GetMagValue()", 
-    "GetFunctionMode()", 
+    "GetFunctionMode()",
+    "GetBeamBlank()", 
     "Getf1OverRateTxNum()"
 ]
 
@@ -100,6 +102,14 @@ MORE_QUERIES_CLIENT = [
     "GetBeamBlank()",
     "GetMovementValueMeasurementMethod()"  # 0=encoder/1=potentio
 ]
+
+# Map of Magnification status and correspondent radio button i.e. {Mag_idx : button_idx}
+mag_indices = {
+    0:0, # 0=MAG     is equivalent to check button 0
+    1:0, # 1=MAG2    is equivalent to check button 0
+    2:2, # 2=Low MAG is equivalent to check button 2
+    4:4  # 4=DIFF    is equivalent to check button 4
+}
 
 # Creating the full mapping
 full_mapping = create_full_mapping(INFO_QUERIES, MORE_QUERIES, INFO_QUERIES_CLIENT, MORE_QUERIES_CLIENT)
@@ -177,15 +187,16 @@ class TEMTools(QObject):
     def __init__(self, tem_action):
         super().__init__()
         self.tem_action = tem_action
+        self.tem_controls = self.tem_action.tem_controls
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_addinfo_to_hdf5.connect(self.addinfo_to_hdf)     
  
     def addinfo_to_hdf(self, pixel=0.075):
         tem_status = self.tem_action.control.tem_status       
         filename = self.tem_action.file_operations.formatted_filename
-        beamcenter = self.tem_action.beamcenter
+        beamcenter = self.cfg.beam_center
         interval = self.tem_action.visualization_panel.update_interval.value()
-        ht = 200 # keV  # <- HT3
+        ht = self.tem_controls.voltage_spBx.value() #200
         wavelength = eV2angstrom(ht*1e3) # Angstrom   
         stage_rates = [10.0, 2.0, 1.0, 0.5]
         try:
@@ -237,7 +248,7 @@ class TEMTools(QObject):
                     # ED-specific, stage
                     f.create_dataset('entry/instrument/stage/stage_x', data = tem_status['stage.GetPos'][0]/1e3, dtype='float')
                     f.create_dataset('entry/instrument/stage/stage_y', data = tem_status['stage.GetPos'][1]/1e3, dtype='float')
-                    f.create_dataset('entry/instrument/stage/stage_z', data = tem_status['stage.GetPos'][2], dtype='float')
+                    f.create_dataset('entry/instrument/stage/stage_z', data = tem_status['stage.GetPos'][2]/1e3, dtype='float')
                     f.create_dataset('entry/instrument/stage/stage_xyz_unit', data ='um')
                     # f.create_dataset('entry/instrument/stage/stage_tx_start', data = tem_status['stage.GetPos'][2], dtype='float')
                     # f.create_dataset('entry/instrument/stage/stage_tx_end', data = tem_status['stage.GetPos'][2], dtype='float')
@@ -250,18 +261,18 @@ class TEMTools(QObject):
                     # f.create_dataset('entry/imagedata_endangle', data = , dtype='float32') # at the end angle
                     # f.create_dataset('entry/imagedata_zerotilt', data = , dtype='float32') # at the zero tile\
                     # for cif
-                    # f.create_dataset('entry/cif/_diffrn_ambient_temperature', data = '293(2)')
-                    # f.create_dataset('entry/cif/_diffrn_radiation_wavelength', data = f'{wavelength:8.5f}')
-                    # f.create_dataset('entry/cif/_diffrn_radiation_probe', data = 'electron')
-                    # f.create_dataset('entry/cif/_diffrn_radiation_type', data = '\'monochromatic beam\'')
-                    # f.create_dataset('entry/cif/_diffrn_source', data = '\'transmission electron microscope, LaB6\'')
-                    # f.create_dataset('entry/cif/_diffrn_source_type', data = '\'JEOL JEM2100Plus\'')
-                    # f.create_dataset('entry/cif/_diffrn_source_voltage', data = f'{ht:3d}')
-                    # f.create_dataset('entry/cif/_diffrn_measurement_device_type', data = '\'single axis tomography holder\'')
-                    # f.create_dataset('entry/cif/_diffrn_detector', data = '\'hybrid pixel area detector\'')
-                    # f.create_dataset('entry/cif/_diffrn_detector_type', data = '\'JUNGFRAU\'')
-                    # # f.create_dataset('entry/cif/_diffrn_detector_dtime', data = '\'single axis tomography holder\'') #20?
-                    # f.create_dataset('entry/cif/_diffrn_detector_area_resol_mean', data = f'{1/pixel:6.3f}') # 13.333 = 1/0.075
+                    f.create_dataset('entry/cif/_diffrn_ambient_temperature', data = '293(2)')
+                    f.create_dataset('entry/cif/_diffrn_radiation_wavelength', data = f'{wavelength:8.5f}')
+                    f.create_dataset('entry/cif/_diffrn_radiation_probe', data = 'electron')
+                    f.create_dataset('entry/cif/_diffrn_radiation_type', data = '\'monochromatic beam\'')
+                    f.create_dataset('entry/cif/_diffrn_source', data = '\'transmission electron microscope, LaB6\'')
+                    f.create_dataset('entry/cif/_diffrn_source_type', data = '\'JEOL JEM2100Plus\'')
+                    f.create_dataset('entry/cif/_diffrn_source_voltage', data = f'{ht:3d}')
+                    f.create_dataset('entry/cif/_diffrn_measurement_device_type', data = '\'single axis tomography holder\'')
+                    f.create_dataset('entry/cif/_diffrn_detector', data = '\'hybrid pixel area detector\'')
+                    f.create_dataset('entry/cif/_diffrn_detector_type', data = '\'JUNGFRAU\'')
+                    # f.create_dataset('entry/cif/_diffrn_detector_dtime', data = '\'single axis tomography holder\'') #20?
+                    f.create_dataset('entry/cif/_diffrn_detector_area_resol_mean', data = f'{1/pixel:6.3f}') # 13.333 = 1/0.075
                     
                     logging.info(f'Information updated in {filename}')
                 except ValueError:

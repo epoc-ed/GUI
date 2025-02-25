@@ -5,19 +5,29 @@ import pyqtgraph as pg
 from .ui_components.overlay import draw_overlay 
 from pyqtgraph.dockarea import Dock
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget,
-                                QHBoxLayout, QPushButton,
-                                QMessageBox, QTabWidget)
+                                QHBoxLayout, QPushButton, QGridLayout,
+                                QMessageBox, QTabWidget, QLabel)
 from PySide6.QtCore import Qt, QObject, QEvent, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence
 from .ui_components.visualization_panel.visualization_panel import VisualizationPanel
 from .ui_components.tem_controls.tem_controls import TemControls
 from .ui_components.file_operations.file_operations import FileOperations
 from .ui_components.utils import create_gaussian
+from .ui_components.toggle_button import ToggleButton
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
-import subprocess
 from importlib import resources
+
+from boost_histogram import Histogram
+from boost_histogram.axis import Regular
+
+from epoc import ConfigurationClient, auth_token, redis_host
+
+from PySide6.QtGui import QFont
+
+font_big = QFont("Arial", 11)
+font_big.setBold(True)
 
 def get_git_info():
     # Load version from installed package resources
@@ -30,10 +40,8 @@ def get_git_info():
     
     try:
         # Fall back to git if version.txt is not available
-        tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
-        branch = subprocess.check_output(['git', 'branch', '--contains']).strip().decode('utf-8')
-        return f"Viewer {tag}/{branch}"
-    except subprocess.CalledProcessError:
+        return f"Viewer {globals.tag}/{globals.branch}"
+    except Exception as e:
         return "Viewer x.x.x"
 
 class EventFilter(QObject):
@@ -61,6 +69,8 @@ class ApplicationWindow(QMainWindow):
         self.initUI()
 
     def initUI(self):
+        self.cfg =  ConfigurationClient(redis_host(), token=auth_token())
+
         # Window Geometry
         self.setWindowTitle(self.version)
         self.setGeometry(50, 50, 1500, 1000)
@@ -76,6 +86,7 @@ class ApplicationWindow(QMainWindow):
         
         self.histogram = pg.HistogramLUTItem()
         self.imageItem = pg.ImageItem()
+        # self.imageItem.setOpts(nanMask=True)
         self.plot.addItem(self.imageItem)
         self.histogram.setImageItem(self.imageItem)
         self.glWidget.addItem(self.histogram)
@@ -91,7 +102,8 @@ class ApplicationWindow(QMainWindow):
         self.glWidget.installEventFilter(self.hoverFilter)
 
         # ROI setup
-        self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        # self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
+        self.roi = pg.RectROI([globals.ncol//2+1-75, globals.nrow//2+1-50], [150, 100], pen=(9,6))
         self.plot.addItem(self.roi)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
@@ -100,8 +112,7 @@ class ApplicationWindow(QMainWindow):
         self.roi.sigRegionChanged.connect(self.roiChanged)
 
         # Initial data (optional)
-        data = create_gaussian(globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
-        # data = np.random.rand(globals.nrow,globals.ncol).astype(globals.dtype)
+        data = create_gaussian(1000, globals.ncol, globals.nrow, 30, 15, np.deg2rad(35))
         logging.debug(f"type(data) is {type(data[0,0])}")
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         
@@ -111,11 +122,57 @@ class ApplicationWindow(QMainWindow):
         # Mouse hovering
         self.imageItem.hoverEvent = self.imageHoverEvent
         
+        """ *********** """
+        """ Main Layout """
+        """ *********** """
+
         main_layout = QVBoxLayout()
         tools_layout = QHBoxLayout()
-        tools_layout.addWidget(self.dock,3)
 
-        # sections_layout = QHBoxLayout()
+        dock_layout = QVBoxLayout()
+
+        contrast_section = QVBoxLayout()
+
+        contrast_group = QGridLayout()
+        contrast_label = QLabel("Contrast Controls")
+        contrast_label.setFont(font_big)
+
+        contrast_section.addWidget(contrast_label)
+
+        self.autoContrastBtn = ToggleButton('Apply Auto Contrast', self)
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.clicked.connect(self.toggle_autoContrast)
+        self.resetContrastBtn = QPushButton("Reset Contrast")
+        self.resetContrastBtn.clicked.connect(lambda: self.set_contrast(self.cfg.viewer_cmin, self.cfg.viewer_cmax))
+
+        self.contrast_0_Btn = QPushButton("-50 - 50")
+        self.contrast_1_Btn = QPushButton("0 - 100")
+        self.contrast_2_Btn = QPushButton("0 - 500")
+        self.contrast_3_Btn = QPushButton("0 - 1000")
+        self.contrast_4_Btn = QPushButton("0 - 1e5")
+
+        self.contrast_0_Btn.clicked.connect(lambda: self.set_contrast(-50, 50))
+        self.contrast_1_Btn.clicked.connect(lambda: self.set_contrast(0, 100))
+        self.contrast_2_Btn.clicked.connect(lambda: self.set_contrast(0, 500))
+        self.contrast_3_Btn.clicked.connect(lambda: self.set_contrast(0, 1000))
+        self.contrast_4_Btn.clicked.connect(lambda: self.set_contrast(0, 100000))
+
+        contrast_group.addWidget(self.autoContrastBtn, 0, 0,  1, 4)
+        contrast_group.addWidget(self.resetContrastBtn, 0, 4, 1, 4)
+
+        contrast_group.addWidget(self.contrast_0_Btn, 0, 8,  1, 1 )
+        contrast_group.addWidget(self.contrast_1_Btn, 0, 9,  1, 1 )
+        contrast_group.addWidget(self.contrast_2_Btn, 0, 10, 1, 1 )
+        contrast_group.addWidget(self.contrast_3_Btn, 0, 11, 1, 1 )
+        contrast_group.addWidget(self.contrast_4_Btn, 0, 12, 1, 1 )
+
+        contrast_section.addLayout(contrast_group)
+
+        dock_layout.addWidget(self.dock)
+        dock_layout.addLayout(contrast_section)
+
+        tools_layout.addLayout(dock_layout,3)
+
         tab_widget = QTabWidget()
 
         self.visualization_panel = VisualizationPanel(self)
@@ -125,13 +182,15 @@ class ApplicationWindow(QMainWindow):
         self.timer.timeout.connect(self.visualization_panel.captureImage)
 
         self.timer_contrast = QTimer(self)
-        self.timer_contrast.timeout.connect(self.visualization_panel.applyAutoContrast)
+        self.timer_contrast.timeout.connect(self.applyAutoContrast)
 
         self.tem_controls = TemControls(self)
-        if not globals.tem_mode:
-            self.timer_fit = QTimer()
-            self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
-
+        
+        self.timer_fit = QTimer()
+        self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
+        
+        # self.imageItem.mouseClickEvent = self.tem_controls.tem_action.imageMouseClickEvent
+        
         tab_widget.addTab(self.visualization_panel, "Visualization Panel")
         tab_widget.addTab(self.tem_controls, "TEM Controls")
         tab_widget.addTab(self.file_operations, "File operations")
@@ -147,22 +206,53 @@ class ApplicationWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
-         
-        # Add a ViewBox to the GraphicsLayoutWidget
-        #self.view_box = self.glWidget.addViewBox()
-        
-        # Create and add an ImageItem to the ViewBox
-        #self.view_box.addItem(self.imageItem)
         
         # Create a keyboard shortcut for Auto Range
-        #self.shortcut_autorange = QShortcut(QKeySequence("Ctrl+A"), self)
-        #self.shortcut_autorange.activated.connect(self.auto_range)
+        self.shortcut_autorange = QShortcut(QKeySequence("A"), self)
+        self.shortcut_autorange.activated.connect(self.auto_range)
 
         logging.info("Viewer ready!")
 
     def auto_range(self):
         """Trigger the Auto Range (center image and scale view)."""
-        self.view_box.autoRange()
+        self.plot.autoRange()
+
+    def set_contrast(self, lower, upper):
+        self.timer_contrast.stop()
+        self.autoContrastBtn.started = False
+        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+        self.autoContrastBtn.setText('Apply Auto Contrast')
+        self.histogram.setLevels(lower, upper)
+    
+    def toggle_autoContrast(self):
+        if not self.autoContrastBtn.started:
+            self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
+            self.autoContrastBtn.setText('Stop Auto Contrast')
+            self.autoContrastBtn.started = True
+            self.timer_contrast.start(10) # Assuming 100Hz streaming frequency at most
+        else:
+            self.timer_contrast.stop()
+            self.autoContrastBtn.started = False
+            self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
+            self.autoContrastBtn.setText('Apply Auto Contrast')
+    
+    # @profile
+    def applyAutoContrast(self, histo_boost = False):
+        if histo_boost:
+            data_flat = self.imageItem.image.flatten()
+            histogram = Histogram(Regular(1000000, data_flat.min(), data_flat.max()))
+            histogram.fill(data_flat)
+            cumsum_pre = np.cumsum(histogram.view())
+            cumsum = cumsum_pre[np.where(cumsum_pre < np.iinfo('int32').max-1)]
+            total = cumsum[-1]
+            low_thresh = np.searchsorted(cumsum, total * 0.01)
+            high_thresh = np.searchsorted(cumsum, total * 0.99999)
+        else:
+            image_data = self.imageItem.image
+            image_data_deloverflow = image_data[np.where(image_data < np.iinfo('int32').max-1)]
+            low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 99.999))
+
+        self.histogram.setLevels(low_thresh, high_thresh)
 
     def roiChanged(self):
         roiPos = self.roi.pos()
@@ -224,13 +314,13 @@ class ApplicationWindow(QMainWindow):
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 globals.exit_flag.value = True
-                if self.file_operations.streamWriter is not None:
+                """ if self.file_operations.streamWriter is not None:
                     if self.file_operations.streamWriter.write_process.is_alive():
-                        self.file_operations.streamWriter.stop()
-                if self.file_operations.frameAccumulator is not None:
-                    if self.file_operations.frameAccumulator.accumulate_process.is_alive():
-                        self.file_operations.frameAccumulator.accumulate_process.terminate()
-                        self.file_operations.frameAccumulator.accumulate_process.join()
+                        self.file_operations.streamWriter.stop() """
+                # if self.file_operations.frameAccumulator is not None:
+                #     if self.file_operations.frameAccumulator.accumulate_process.is_alive():
+                #         self.file_operations.frameAccumulator.accumulate_process.terminate()
+                #         self.file_operations.frameAccumulator.accumulate_process.join()
                 # if self.tem_controls.fitter is not None:
                 #     self.tem_controls.fitter.stop()
                 for thread, worker in running_threadWorkerPairs:

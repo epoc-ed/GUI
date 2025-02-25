@@ -87,6 +87,7 @@ def main():
     parser.add_argument("-th", "--temhost", default=cfg.temserver, help="Choose host for tem-gui communication")
     parser.add_argument('-l', '--log', default='INFO', help='Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument("-f", "--logfile", action="store_true", help="File-output of logging")
+    parser.add_argument("-e", "--dev", action="store_true", help="Activate developing function")
 
     args = parser.parse_args()
 
@@ -137,10 +138,9 @@ def main():
     globals.acc_image = np.zeros((globals.nrow,globals.ncol), dtype = args.dtype)
     globals.tem_mode = args.tem
     globals.tem_host = args.temhost
-
-    logging.debug(f"globals.tem_host = {globals.tem_host}")
-
-    logging.debug(type(globals.acc_image[0,0]))
+    globals.dev = args.dev
+    
+    logging.info(f"Tag of GUI: {globals.tag}")
 
     Rcv = ZmqReceiver(endpoint=args.stream, dtype=args.dtype) 
 

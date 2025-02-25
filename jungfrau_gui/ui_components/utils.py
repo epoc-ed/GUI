@@ -2,7 +2,7 @@
 import numpy as np
 from PySide6.QtWidgets import (QVBoxLayout, QWidget, QFrame)
 
-def create_gaussian(size_x, size_y, sigma_x, sigma_y, theta):
+def create_gaussian(amplitude, size_x, size_y, sigma_x, sigma_y, theta):
     """
     Create a 2D Gaussian distribution tilted by an angle theta.
     
@@ -24,7 +24,7 @@ def create_gaussian(size_x, size_y, sigma_x, sigma_y, theta):
     b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
     c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
     
-    gaussian = np.exp(-(a*x**2 + 2*b*x*y + c*y**2))
+    gaussian = amplitude * np.exp(-(a*x**2 + 2*b*x*y + c*y**2))
     return gaussian.astype(np.float32)
 
 def create_horizontal_line_with_margin(margin=10):
