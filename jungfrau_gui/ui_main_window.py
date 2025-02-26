@@ -249,20 +249,22 @@ class ApplicationWindow(QMainWindow):
             cumsum = cumsum_pre[np.where(cumsum_pre < np.iinfo('int32').max-1)]
             total = cumsum[-1]
             low_thresh = np.searchsorted(cumsum, total * 0.01)
-            high_thresh = np.searchsorted(cumsum, total * 0.99999)
+            high_thresh = np.searchsorted(cumsum, total * 0.9)
         else:
             image_data = self.imageItem.image
             image_data_deloverflow = image_data[np.where(image_data < np.iinfo('int32').max-1)]
-            low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 99.999))
+            low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 90))
 
+        self.histogram.setLevels(low_thresh, high_thresh)
+    """
          # --- Only update the levels if thresholds differ by more than 20% ---
         if self.should_update_levels(low_thresh, high_thresh):
             self.histogram.setLevels(low_thresh, high_thresh)
             self.prev_low_thresh = low_thresh
             self.prev_high_thresh = high_thresh
 
-    def should_update_levels(self, new_low, new_high, tolerance=0.2):
-        """Return True if new thresholds differ from previous by more than `tolerance` fraction."""
+    def should_update_levels(self, new_low, new_high, tolerance=0.5):
+        # Return True if new thresholds differ from previous by more than `tolerance` fraction.
         # If first time (no previous thresholds), always update:
         if self.prev_low_thresh is None or self.prev_high_thresh is None:
             return True
@@ -272,7 +274,7 @@ class ApplicationWindow(QMainWindow):
             old_val = float(old_val)
             new_val = float(new_val)
             # If old_val ~ 0, treat any change as significant
-            if abs(old_val) < 1e-10:
+            if abs(old_val) < 1e-20:
                 return True
             return (abs(new_val - old_val) / abs(old_val)) > tolerance
         
@@ -283,6 +285,7 @@ class ApplicationWindow(QMainWindow):
         else:
             return False
 
+    """
     def roiChanged(self):
         roiPos = self.roi.pos()
         roiSize = self.roi.size()
