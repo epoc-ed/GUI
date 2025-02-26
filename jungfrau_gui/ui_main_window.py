@@ -221,10 +221,8 @@ class ApplicationWindow(QMainWindow):
         self.plot.autoRange()
 
     def set_contrast(self, lower, upper):
-        self.timer_contrast.stop()
-        self.autoContrastBtn.started = False
-        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
-        self.autoContrastBtn.setText('Apply Auto Contrast')
+        if self.autoContrastBtn.started:
+            self.toggle_autoContrast()
         self.histogram.setLevels(lower, upper)
     
     def toggle_autoContrast(self):
@@ -251,11 +249,11 @@ class ApplicationWindow(QMainWindow):
             cumsum = cumsum_pre[np.where(cumsum_pre < np.iinfo('int32').max-1)]
             total = cumsum[-1]
             low_thresh = np.searchsorted(cumsum, total * 0.01)
-            high_thresh = np.searchsorted(cumsum, total * 0.95)
+            high_thresh = np.searchsorted(cumsum, total * 0.99)
         else:
             image_data = self.imageItem.image
             image_data_deloverflow = image_data[np.where(image_data < np.iinfo('int32').max-1)]
-            low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 95))
+            low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 99))
 
          # --- Only update the levels if thresholds differ by more than 20% ---
         if self.should_update_levels(low_thresh, high_thresh):
@@ -270,7 +268,7 @@ class ApplicationWindow(QMainWindow):
 
         :param new_low: Newly computed 'low' threshold
         :param new_high: Newly computed 'high' threshold
-        :param tolerance: Relative difference threshold for high changes (e.g., 0.2 = 20%)
+        :param tolerance: Relative difference threshold for high changes (e.g. 0.25 = 25%)
         :param abs_wiggle_low: Absolute difference threshold allowed for low changes
         """
         # If we have never stored thresholds, we must update

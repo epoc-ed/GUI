@@ -186,8 +186,9 @@ class TEMAction(QObject):
         if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
         
         # Update Magnification radio button in GUI to refelct status of TEM
-        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
-
+        # Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
+        Mag_idx = self.control.client.GetFunctionMode[0]
+        print(f"---- Mag_idx = {Mag_idx}")
         # Only do something if the mode *changed*
         if Mag_idx != self.last_mag_mode:
             if Mag_idx in [0, 1, 2]:
