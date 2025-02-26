@@ -96,6 +96,9 @@ class ApplicationWindow(QMainWindow):
         self.histogram.hide()  # Start hidden
         self.plot.setAspectLocked(True)
 
+        self.prev_low_thresh = None
+        self.prev_high_thresh = None
+
         # Set up event filter for hover and apply it correctly
         self.hoverFilter = EventFilter(self.histogram, self)
         self.glWidget.setAttribute(Qt.WA_Hover, True)  # Explicitly enable hover events
@@ -252,7 +255,33 @@ class ApplicationWindow(QMainWindow):
             image_data_deloverflow = image_data[np.where(image_data < np.iinfo('int32').max-1)]
             low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 99.999))
 
-        self.histogram.setLevels(low_thresh, high_thresh)
+         # --- Only update the levels if thresholds differ by more than 20% ---
+        if self.should_update_levels(low_thresh, high_thresh):
+            self.histogram.setLevels(low_thresh, high_thresh)
+            self.prev_low_thresh = low_thresh
+            self.prev_high_thresh = high_thresh
+
+    def should_update_levels(self, new_low, new_high, tolerance=0.2):
+        """Return True if new thresholds differ from previous by more than `tolerance` fraction."""
+        # If first time (no previous thresholds), always update:
+        if self.prev_low_thresh is None or self.prev_high_thresh is None:
+            return True
+
+        # Helper to check relative change. We handle division by zero or near zero carefully:
+        def has_significant_change(old_val, new_val):
+            old_val = float(old_val)
+            new_val = float(new_val)
+            # If old_val ~ 0, treat any change as significant
+            if abs(old_val) < 1e-10:
+                return True
+            return (abs(new_val - old_val) / abs(old_val)) > tolerance
+        
+        # Check either low or high changed by more than `tolerance` fraction
+        if (has_significant_change(self.prev_low_thresh, new_low) or 
+            has_significant_change(self.prev_high_thresh, new_high)):
+            return True
+        else:
+            return False
 
     def roiChanged(self):
         roiPos = self.roi.pos()
