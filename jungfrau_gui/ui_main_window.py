@@ -249,11 +249,11 @@ class ApplicationWindow(QMainWindow):
             cumsum = cumsum_pre[np.where(cumsum_pre < np.iinfo('int32').max-1)]
             total = cumsum[-1]
             low_thresh = np.searchsorted(cumsum, total * 0.01)
-            high_thresh = np.searchsorted(cumsum, total * 0.99)
+            high_thresh = np.searchsorted(cumsum, total * 0.99999)
         else:
             image_data = self.imageItem.image
             image_data_deloverflow = image_data[np.where(image_data < np.iinfo('int32').max-1)]
-            low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 99))
+            low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 99.999))
 
          # --- Only update the levels if thresholds differ by more than 20% ---
         if self.should_update_levels(low_thresh, high_thresh):
