@@ -40,6 +40,6 @@ mag_value_diff = [1, 'mm', '1cm']
 try:
     tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
     branch = subprocess.check_output(['git', 'branch', '--show-current']).strip().decode('utf-8').split()[-1]
-    commit = subprocess.run(["git", "rev-parse", branch])
+    commit = subprocess.check_output(["git", "rev-parse", branch]).strip().decode("utf-8")
 except subprocess.CalledProcessError: # for developers' local testing
     tag, branch, commit  = 'no-tagged-version', 'noname-branch', 'no-commit-hash'
