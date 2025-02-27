@@ -96,6 +96,9 @@ class ApplicationWindow(QMainWindow):
         self.histogram.hide()  # Start hidden
         self.plot.setAspectLocked(True)
 
+        self.prev_low_thresh = None
+        self.prev_high_thresh = None
+
         # Set up event filter for hover and apply it correctly
         self.hoverFilter = EventFilter(self.histogram, self)
         self.glWidget.setAttribute(Qt.WA_Hover, True)  # Explicitly enable hover events
@@ -218,10 +221,8 @@ class ApplicationWindow(QMainWindow):
         self.plot.autoRange()
 
     def set_contrast(self, lower, upper):
-        self.timer_contrast.stop()
-        self.autoContrastBtn.started = False
-        self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
-        self.autoContrastBtn.setText('Apply Auto Contrast')
+        if self.autoContrastBtn.started:
+            self.toggle_autoContrast()
         self.histogram.setLevels(lower, upper)
     
     def toggle_autoContrast(self):
@@ -235,6 +236,8 @@ class ApplicationWindow(QMainWindow):
             self.autoContrastBtn.started = False
             self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
             self.autoContrastBtn.setText('Apply Auto Contrast')
+            self.prev_low_thresh = None
+            self.prev_high_thresh = None
     
     # @profile
     def applyAutoContrast(self, histo_boost = False):
@@ -252,7 +255,48 @@ class ApplicationWindow(QMainWindow):
             image_data_deloverflow = image_data[np.where(image_data < np.iinfo('int32').max-1)]
             low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 99.999))
 
-        self.histogram.setLevels(low_thresh, high_thresh)
+         # --- Only update the levels if thresholds differ by more than 20% ---
+        if self.should_update_levels(low_thresh, high_thresh):
+            self.histogram.setLevels(low_thresh, high_thresh)
+            self.prev_low_thresh = low_thresh
+            self.prev_high_thresh = high_thresh
+
+    def should_update_levels(self, new_low, new_high, tolerance=0.25, abs_wiggle_low = 100):
+        """
+        Returns True if the new thresholds differ enough from the old ones
+        to warrant updating the histogram.
+
+        :param new_low: Newly computed 'low' threshold
+        :param new_high: Newly computed 'high' threshold
+        :param tolerance: Relative difference threshold for high changes (e.g. 0.25 = 25%)
+        :param abs_wiggle_low: Absolute difference threshold allowed for low changes
+        """
+        # If we have never stored thresholds, we must update
+        if self.prev_low_thresh is None or self.prev_high_thresh is None:
+            return True
+
+        old_low = float(self.prev_low_thresh)
+        old_high = float(self.prev_high_thresh)
+        new_low = float(new_low)
+        new_high = float(new_high)
+
+        # --- 1) Check low threshold with an ABSOLUTE comparison ---
+        # Because old_low is near zero, a relative difference would always fire.
+        # E.g., only update if the low threshold moves by more than ±abs_wiggle_low
+        changed_low = abs(new_low - old_low) > abs_wiggle_low
+
+        # --- 2) Check high threshold with a RELATIVE comparison ---
+        # If old_high is not near zero, do a relative difference check
+        def changed_relatively(old_val, new_val, fraction):
+            # handle near-zero old_val if needed
+            if abs(old_val) < 1e-10:
+                # fallback to an absolute difference if old_val is extremely small
+                return abs(new_val - old_val) > abs_wiggle_low
+            return (abs(new_val - old_val) / abs(old_val)) > fraction
+
+        changed_high = changed_relatively(old_high, new_high, tolerance)
+
+        return changed_low or changed_high
 
     def roiChanged(self):
         roiPos = self.roi.pos()
