@@ -10,6 +10,8 @@ from datetime import datetime
 
 import globals
 
+from queue import Empty  # or multiprocessing.queues.Empty
+
 def create_roi_coord_tuple(roiPos, roiSize):
     # roiPos = roi.pos()
     # roiSize = roi.size()
@@ -51,7 +53,7 @@ def fit_2d_gaussian_roi(im, roi_coords):
     fit_result.best_values['yo'] +=  roi_start_row
 
     return fit_result
-
+'''
 def _fitGaussian(input_queue, output_queue):
     while True:
         if globals.fitterWorkerReady.value:
@@ -76,6 +78,26 @@ def _fitGaussian(input_queue, output_queue):
             logging.warning(f"*** Output Queue is Empty? : {output_queue.empty()} ***")
             globals.fitterWorkerReady.value = False
 
+'''
+
+def _fitGaussian(input_queue, output_queue):
+    while True:
+        task = input_queue.get()  # Blocking call, waits for new data
+           
+        if task is None: # None is used as a signal to stop the process
+            print("/!\/!\/!\ Stopping Fitting Process!" )
+            break
+            
+        logging.debug("Ongoing Fitting.......")
+        image_data, roiPos, roiSize = task
+
+        roi_coord = create_roi_coord_tuple(roiPos, roiSize)
+        logging.info(datetime.now().strftime(" START FITTING @ %H:%M:%S.%f")[:-3])
+        fit_result = fit_2d_gaussian_roi_NaN_fast(image_data, roi_coord, function = super_gaussian2d_rotated)
+        logging.info(datetime.now().strftime(" END FITTING @ %H:%M:%S.%f")[:-3])
+        output_queue.put(fit_result.best_values)
+        logging.warning(f"*** Output Queue is Empty? : {output_queue.empty()} ***")
+
 class GaussianFitterMP(QObject):
     finished = Signal(object)
 
@@ -91,6 +113,14 @@ class GaussianFitterMP(QObject):
             self.fitting_process = mp.Process(target=_fitGaussian, args=(self.input_queue, self.output_queue))
             self.fitting_process.start()
 
+    def updateParams(self, image, roi):
+        logging.debug("Updating parameters in the processing Queue...")
+        roiPos = (roi.pos().x(), roi.pos().y())
+        roiSize = (roi.size().x(), roi.size().y())
+        self.input_queue.put((image, roiPos, roiSize))
+        logging.info(datetime.now().strftime(" UPDATED FITTER @ %H:%M:%S.%f")[:-3])
+    
+    '''
     def updateParams(self, imageItem, roi):
         logging.debug("Updating parameters in the processing Queue...")
         image_data = imageItem.image.copy()  # Assuming image data can be accessed and is pickleable
@@ -101,15 +131,19 @@ class GaussianFitterMP(QObject):
         logging.info(datetime.now().strftime(" UPDATED FITTER @ %H:%M:%S.%f")[:-3])
         logging.info(f"3.Fitter should be ready! Is it? --> {globals.fitterWorkerReady.value}")
 
-
     def fetch_result(self):
         logging.debug("--------------Checking---------------")
         if not self.output_queue.empty():
             logging.debug("+++++++++++ Output queue not empty +++++++++++++++")
-            result = self.output_queue.get()
-            if result:
-                self.finished.emit(result)
-                logging.info("4. Fitter finished ")
+            return self.output_queue.get(timeout=2.0)
+        return None
+    '''
+
+    def fetch_result(self):
+        try:
+            return self.output_queue.get(timeout=2.0)
+        except Empty:
+            return None
 
     def stop(self):
         logging.debug("Stopping Gaussian Fitting Process")

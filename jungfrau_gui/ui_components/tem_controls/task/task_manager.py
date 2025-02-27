@@ -65,8 +65,8 @@ class ControlWorker(QObject):
 
     # fit_complete = Signal(dict, int)
     # request_fit = Signal(int)
-    fit_complete = Signal(dict, object)
-    request_fit = Signal(object)
+    # fit_complete = Signal(dict, object)
+    # request_fit = Signal(object)
     # cleanup_fitter = Signal()
     
     trigger_stop_autofocus = Signal()
@@ -105,7 +105,7 @@ class ControlWorker(QObject):
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.actionFit_Beam.connect(self.start_beam_fit)
-        self.request_fit.connect(self.handle_request_fit) 
+        # self.request_fit.connect(self.handle_request_fit) 
         # self.trigger_stop_autofocus.connect(self.set_sweeper_to_off_state)
         # self.cleanup_fitter.connect(self.stop_and_clean_fitter)
         
@@ -279,7 +279,7 @@ class ControlWorker(QObject):
         # Stop the Gaussian Fitting if running
         if self.tem_action.tem_tasks.btnGaussianFit.started:
             self.tem_action.tem_controls.toggle_gaussianFit_beam()
-        time.sleep(0.1)
+        time.sleep(0.05)
 
         task = BeamFitTask(self)
         self.start_task(task)

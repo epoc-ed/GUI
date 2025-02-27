@@ -104,9 +104,9 @@ class BeamFitTask(Task):
                 return False
 
             # Set IL1 to current position
-            logging.warning(f"{datetime.now().strftime("%H:%M:%S.%f")[:-3]} BEGIN SetILFocus({il1_value}")
+            logging.warning(f"{datetime.now().strftime('%H:%M:%S.%f')[:-3]} BEGIN SetILFocus({il1_value}")
             self.client.SetILFocus(il1_value)
-            logging.warning(f"{datetime.now().strftime("%H:%M:%S.%f")[:-3]} END SetILFocus({il1_value}")
+            logging.warning(f"{datetime.now().strftime('%H:%M:%S.%f')[:-3]} END SetILFocus({il1_value}")
 
             self.lens_parameters["ils"] = self.client.GetILs() # ??? Double checking if ILs changed without explicitly changing it
 
@@ -117,12 +117,17 @@ class BeamFitTask(Task):
             self.lens_parameters["il1"] = il1_value
 
             # Now request a fit. We'll pass the current image & ROI.
-            image_item = self.tem_action.parent.imageItem
+            '''image_item = self.tem_action.parent.imageItem
             roi = self.tem_action.parent.roi
-            self.beam_fitter.updateParams(image_item, roi)
+            self.beam_fitter.updateParams(image_item, roi)'''
+
+            image_data = self.tem_action.parent.imageItem.image.copy()
+            roi = self.tem_action.parent.roi
+            self.beam_fitter.updateParams(image_data, roi)
 
             # Wait for the result (blocking in this thread only!)
-            fit_result = self._wait_for_fit_result(timeout=2.0)
+            '''fit_result = self._wait_for_fit_result(timeout=2.0)'''
+            fit_result = self.beam_fitter.fetch_result()
             if fit_result is None:
                 logging.warning("No fit result arrived in time; continuing anyway.")
                 continue
@@ -134,7 +139,7 @@ class BeamFitTask(Task):
             # because we've already waited for the fit to complete.
 
         return True
-    
+    '''
     def _wait_for_fit_result(self, timeout=2.0, poll_interval=0.05):
         start = time.time()
         while (time.time() - start) < timeout:
@@ -143,6 +148,7 @@ class BeamFitTask(Task):
                 return result
             time.sleep(poll_interval)
         return None
+    '''
 
     def process_fit_results(self, fit_values):
         """
