@@ -236,7 +236,7 @@ class TEMTasks(QGroupBox):
 
         self.rotation_button  = ToggleButton("Rotation", self) # Rotation/Record
         self.withwriter_checkbox = QCheckBox("with Writer", self)
-        self.withwriter_checkbox.setChecked(False)
+        self.withwriter_checkbox.setChecked(True)
         
         self.autoreset_checkbox = QCheckBox("Auto reset", self)
         self.autoreset_checkbox.setChecked(False)
