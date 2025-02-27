@@ -81,7 +81,7 @@ def main():
     cfg = ConfigurationClient(redis_host(), token=auth_token())
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--stream', type=str, default="tcp://localhost:4545", help="zmq stream")
+    parser.add_argument('-s', '--stream', type=str, default="tcp://noether:5501", help="zmq stream") # default="tcp://localhost:4545"
     parser.add_argument("-d", "--dtype", help="Data type", type = np.dtype, default=np.float32)
     parser.add_argument("-t", "--tem", action="store_true", help="Activate tem-control functions")
     parser.add_argument("-th", "--temhost", default=cfg.temserver, help="Choose host for tem-gui communication")
