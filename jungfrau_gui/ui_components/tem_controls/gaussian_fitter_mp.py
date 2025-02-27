@@ -5,17 +5,10 @@ from lmfit import Model, Parameters
 from PySide6.QtCore import QObject, Signal
 from line_profiler import LineProfiler
 
-import globals
+from .toolbox.fit_beam_intensity import fit_2d_gaussian_roi_fast, gaussian2d_rotated, super_gaussian2d_rotated, fit_2d_gaussian_roi_NaN_fast
+from datetime import datetime
 
-# Define a rotated 2D Gaussian function
-def gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta):
-    xo = float(xo)
-    yo = float(yo)    
-    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = amplitude * np.exp( - (a * ((x-xo)**2) + 2 * b * (x-xo) * (y-yo) + c * ((y-yo)**2)))
-    return g.ravel()
+import globals
 
 def create_roi_coord_tuple(roiPos, roiSize):
     # roiPos = roi.pos()
@@ -76,16 +69,18 @@ def _fitGaussian(input_queue, output_queue):
             image_data, roiPos, roiSize = task
 
             roi_coord = create_roi_coord_tuple(roiPos, roiSize)
-            fit_result = fit_2d_gaussian_roi(image_data, roi_coord)
+            logging.info(datetime.now().strftime(" START FITTING @ %H:%M:%S.%f")[:-3])
+            fit_result = fit_2d_gaussian_roi_NaN_fast(image_data, roi_coord, function = super_gaussian2d_rotated)
+            logging.info(datetime.now().strftime(" END FITTING @ %H:%M:%S.%f")[:-3])
             output_queue.put(fit_result.best_values)
-            logging.debug(f"*** Output Queue is Empty: {output_queue.empty()} ***")
+            logging.warning(f"*** Output Queue is Empty? : {output_queue.empty()} ***")
             globals.fitterWorkerReady.value = False
 
-class GaussianFitter(QObject):
+class GaussianFitterMP(QObject):
     finished = Signal(object)
 
     def __init__(self):
-        super(GaussianFitter, self).__init__()
+        super(GaussianFitterMP, self).__init__()
         self.input_queue = mp.Queue()
         self.output_queue = mp.Queue()
         self.fitting_process = None 
@@ -103,20 +98,21 @@ class GaussianFitter(QObject):
         roiSize = (roi.size().x(), roi.size().y())
         self.input_queue.put((image_data, roiPos, roiSize))
         globals.fitterWorkerReady.value = True
-        logging.debug(f"3.Fitter should be ready! Is it? --> {globals.fitterWorkerReady.value}")
+        logging.info(datetime.now().strftime(" UPDATED FITTER @ %H:%M:%S.%f")[:-3])
+        logging.info(f"3.Fitter should be ready! Is it? --> {globals.fitterWorkerReady.value}")
 
 
-    def check_output_queue(self):
+    def fetch_result(self):
         logging.debug("--------------Checking---------------")
         if not self.output_queue.empty():
             logging.debug("+++++++++++ Output queue not empty +++++++++++++++")
             result = self.output_queue.get()
             if result:
                 self.finished.emit(result)
-                logging.debug("4. !!!!!!!!!!!!!!!!!! Fitter finished !!!!!!!!!!!!!!!!!!")
+                logging.info("4. Fitter finished ")
 
     def stop(self):
-        logging.info("Stopping Gaussian Fitting Process")
+        logging.debug("Stopping Gaussian Fitting Process")
         if self.fitting_process is not None:
             self.input_queue.put(None)  # Send sentinel value to signal the process to exit
             # self.fitting_process.terminate() # Does not allow graceful break of while loop in _fitGaussian

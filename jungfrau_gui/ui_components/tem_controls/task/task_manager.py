@@ -9,7 +9,10 @@ from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt
 
 from .task import Task
 from .record_task import RecordTask
-from .beam_focus_task import BeamFitTask
+
+# from .beam_focus_task import BeamFitTask
+from .beam_focus_task_test import BeamFitTask
+
 from .adjustZ_task import AdjustZ
 from .get_teminfo_task import GetInfoTask
 from .stage_centering_task import CenteringTask
@@ -24,8 +27,10 @@ import jungfrau_gui.ui_threading_helpers as thread_manager
 from .... import globals
 
 from ..gaussian_fitter_autofocus import GaussianFitter
+from ..gaussian_fitter_mp import GaussianFitterMP
 import copy
 
+'''
 def create_roi_coord_tuple(roi):
     roiPos = roi.pos()
     roiSize = roi.size()
@@ -37,6 +42,11 @@ def create_roi_coord_tuple(roi):
     roi_coords = (roi_start_row, roi_end_row, roi_start_col, roi_end_col)
 
     return roi_coords
+'''
+
+def on_new_best_result_in_main_thread(result_dict):
+    # This runs in the main thread. We can safely update GUI elements, logs, etc.
+    print("New best result =>", result_dict)
 
 class ControlWorker(QObject):
     """
@@ -96,7 +106,7 @@ class ControlWorker(QObject):
 
         self.actionFit_Beam.connect(self.start_beam_fit)
         self.request_fit.connect(self.handle_request_fit) 
-        self.trigger_stop_autofocus.connect(self.set_sweeper_to_off_state)
+        # self.trigger_stop_autofocus.connect(self.set_sweeper_to_off_state)
         # self.cleanup_fitter.connect(self.stop_and_clean_fitter)
         
         self.trigger_tem_update_detailed.connect(self.update_tem_status_detailed)
@@ -131,7 +141,8 @@ class ControlWorker(QObject):
         logging.info(f"\033[1mFinished Task [{self.task.task_name}] !")
         
         if isinstance(self.task, BeamFitTask):
-            self.stop_and_clean_fitter()
+            #self.stop_and_clean_fitter()
+            self.stop_and_clean_fitter_mp()
             logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
             self.remove_ellipse.emit()
 
@@ -165,6 +176,10 @@ class ControlWorker(QObject):
         self.last_task = self.task
         self.task = task
         if isinstance(self.task, BeamFitTask):
+            self.beam_fitter = GaussianFitterMP()
+            # Optional ###############
+            self.task.newBestResult.connect(on_new_best_result_in_main_thread)
+            # ########################
             self.sweepingWorkerReady = True
 
         # Create a new QThread for each task to avoid reuse issues
@@ -273,7 +288,7 @@ class ControlWorker(QObject):
         logging.info("####### ######## Sweeping worker ready? --> FALSE")
         self.sweepingWorkerReady = False
 
-    
+    '''
     def handle_request_fit(self, lens_params):
         """
         lens_params is a dict like: {"il1": int, "ils": [int, int]}
@@ -377,6 +392,7 @@ class ControlWorker(QObject):
         thread_manager.terminate_thread(self.thread_fit)
         thread_manager.remove_worker_thread_pair(self.tem_action.parent.threadWorkerPairs, self.thread_fit)
         thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
+    '''
 
 # AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 

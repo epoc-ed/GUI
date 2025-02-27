@@ -188,7 +188,7 @@ class TemControls(QGroupBox):
     """ def toggle_gaussianFit(self):
         if not self.btnBeamFocus.started:
             if self.fitter is None:
-                self.fitter = GaussianFitter()
+                self.fitter = GaussianFitterMP()
             logging.debug(f"0.Fitter is Ready? {globals.fitterWorkerReady.value}")
             self.fitter.updateParams(self.parent.imageItem, self.parent.roi)
             logging.debug(f"1/2.Fitter should be Ready! Is it? --> {globals.fitterWorkerReady.value}")
@@ -210,7 +210,7 @@ class TemControls(QGroupBox):
             globals.fitterWorkerReady.value = False
 
     def getFitParams(self):
-        self.fitter.check_output_queue()
+        self.fitter.fetch_result()
         logging.debug(f"2.Fitter is Ready? {globals.fitterWorkerReady.value}")
         if not globals.fitterWorkerReady.value:
             self.fitter.updateParams(self.parent.imageItem, self.parent.roi)  
