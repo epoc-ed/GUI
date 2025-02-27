@@ -362,6 +362,7 @@ class Hdf5MetadataUpdater:
                     rotations_angles=rotations_angles,
                     jf_threshold=message["jf_threshold"],
                     jf_gui_tag=message["jf_gui_tag"],
+                    commit_hash=message["commit_hash"],
                 )
                 self.addusermask_to_hdf(filename)
                 self.socket.send_string("Metadata/Maskdata added successfully") # self.socket.send_string("Metadata added successfully")
@@ -433,7 +434,7 @@ class Hdf5MetadataUpdater:
         except OSError as e:
             logging.error(f"Failed to update maskdata in {filename}: {e}")
         
-    def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold, jf_gui_tag, pixel=0.075):
+    def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold, jf_gui_tag, commit_hash, pixel=0.075):
         detector_framerate = 2000 # Hz for Jungfrau
         ht = 200  # keV  # <- HT3
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
@@ -461,6 +462,7 @@ class Hdf5MetadataUpdater:
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_count_time', data = data_shape[0], dtype='uint64')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_period', data = data_shape[0], dtype='uint64') = frame_count_time in SINGLA
                     create_or_update_dataset('entry/instrument/detector/detectorSpecific/software_version_gui', data = 'JF_GUI/' + jf_gui_tag)
+                    create_or_update_dataset('entry/instrument/detector/detectorSpecific/gui_commit_hash', data = commit_hash)
                     create_or_update_dataset('entry/instrument/detector/count_threshold_in_keV', data = jf_threshold, dtype='uint64')
                     # already implemented with the identical names in JFJ
                     # create_or_update_dataset('entry/instrument/detector/saturation_value', data = np.iinfo('int32').max, dtype='uint32')

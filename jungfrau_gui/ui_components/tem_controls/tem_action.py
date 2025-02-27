@@ -35,6 +35,7 @@ class TEMAction(QObject):
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
+        self.last_mag_mode = None
 
         self.temConnector = None
         self.timer_tem_connexion = QTimer()
@@ -50,8 +51,8 @@ class TEMAction(QObject):
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
-        self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
-        self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
+        # self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
+        # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
         self.tem_tasks.btnGaussianFit.clicked.connect(self.tem_controls.toggle_gaussianFit_beam)
@@ -103,9 +104,10 @@ class TEMAction(QObject):
             i.setEnabled(enables)
         for i in self.tem_stagectrl.mag_modes.buttons():
             i.setEnabled(enables)
-        self.tem_tasks.gettem_button.setEnabled(enables)
-        self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
-        self.tem_tasks.centering_button.setEnabled(enables)
+        # self.tem_tasks.gettem_button.setEnabled(enables)
+        # self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
+        # self.tem_tasks.centering_button.setEnabled(enables)
+        self.tem_tasks.centering_checkbox.setEnabled(enables)
         self.tem_tasks.btnGaussianFit.setEnabled(enables)
         self.tem_tasks.beamAutofocus.setEnabled(enables) # Not functional yet
         self.tem_tasks.rotation_button.setEnabled(enables)
@@ -184,25 +186,28 @@ class TEMAction(QObject):
         if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
         
         # Update Magnification radio button in GUI to refelct status of TEM
-        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
+        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
+        # Only do something if the mode *changed*
+        if Mag_idx != self.last_mag_mode:
+            if Mag_idx in [0, 1, 2]:
+                if not self.parent.autoContrastBtn.started:
+                    self.parent.autoContrastBtn.clicked.emit()
+                self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
+                magnification = self.control.tem_status["eos.GetMagValue"][2]
+                self.tem_detector.input_magnification.setText(magnification)
+                self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
+            elif Mag_idx == 4:
+                if self.parent.autoContrastBtn.started:
+                    self.parent.resetContrastBtn.clicked.emit()
+                self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
+                detector_distance = self.control.tem_status["eos.GetMagValue"][2]
+                self.tem_detector.input_det_distance.setText(detector_distance)
+                self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
+            else:
+                logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
 
-        if Mag_idx in [0, 1, 2]:
-            if not self.parent.autoContrastBtn.started:
-                self.parent.autoContrastBtn.clicked.emit()
-            self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
-            magnification = self.control.tem_status["eos.GetMagValue"][2]
-            self.tem_detector.input_magnification.setText(magnification)
-            self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
-        elif Mag_idx == 4:
-            if self.parent.autoContrastBtn.started:
-                self.parent.resetContrastBtn.clicked.emit()
-            self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
-            detector_distance = self.control.tem_status["eos.GetMagValue"][2]
-            self.tem_detector.input_det_distance.setText(detector_distance)
-            self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
-        else:
-            logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
-        
+            self.last_mag_mode = Mag_idx
+
         # Update rotation_speed radio button in GUI to refelct status of TEM
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
         logging.debug(f"Rotation speed index: {rotation_speed_index}")
@@ -305,16 +310,17 @@ class TEMAction(QObject):
             # Interrupt rotation but end task gracefully
             self.control.interruptRotation = True
             
-    def toggle_centering(self):
-        if not self.tem_tasks.centering_button.started:
-            self.tem_tasks.centering_button.setText("Deactivate centering")
-            self.tem_tasks.centering_button.started = True
-        else:
-            self.tem_tasks.centering_button.setText("Click-on-Centering")
-            self.tem_tasks.centering_button.started = False
+    # def toggle_centering(self):
+    #     if not self.tem_tasks.centering_button.started:
+    #         self.tem_tasks.centering_button.setText("Deactivate centering")
+    #         self.tem_tasks.centering_button.started = True
+    #     else:
+    #         self.tem_tasks.centering_button.setText("Click-on-Centering")
+    #         self.tem_tasks.centering_button.started = False
             
     def imageMouseClickEvent(self, event):
-        if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_button.started:
+        # if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_button.started:
+        if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_checkbox.isChecked():       
             logging.debug('Centering is not ready.')
             return
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
