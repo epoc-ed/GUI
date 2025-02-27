@@ -261,7 +261,7 @@ class ApplicationWindow(QMainWindow):
             self.prev_low_thresh = low_thresh
             self.prev_high_thresh = high_thresh
 
-    def should_update_levels(self, new_low, new_high, tolerance=0.25, abs_wiggle_low = 10):
+    def should_update_levels(self, new_low, new_high, tolerance=0.25, abs_wiggle_low = 100):
         """
         Returns True if the new thresholds differ enough from the old ones
         to warrant updating the histogram.
