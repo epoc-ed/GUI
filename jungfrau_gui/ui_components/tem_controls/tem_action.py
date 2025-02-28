@@ -209,7 +209,7 @@ class TEMAction(QObject):
             self.last_mag_mode = Mag_idx
 
         # Update rotation_speed radio button in GUI to refelct status of TEM
-        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
+        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"] # = self.control.client.Getf1OverRateTxNum()
         logging.debug(f"Rotation speed index: {rotation_speed_index}")
         if rotation_speed_index in [0,1,2,3]: self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         
