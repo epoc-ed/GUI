@@ -82,21 +82,28 @@ def _fitGaussian(input_queue, output_queue):
 
 def _fitGaussian(input_queue, output_queue):
     while True:
-        task = input_queue.get()  # Blocking call, waits for new data
-           
-        if task is None: # None is used as a signal to stop the process
-            print("/!\/!\/!\ Stopping Fitting Process!" )
+        # task = input_queue.get()  
+        try:
+            task = input_queue.get() # Blocking call, waits for new data
+        except Exception as e:
+            logging.error("Error retrieving task from input queue: %s", e)
             break
-            
-        logging.debug("Ongoing Fitting.......")
-        image_data, roiPos, roiSize = task
-
-        roi_coord = create_roi_coord_tuple(roiPos, roiSize)
-        logging.info(datetime.now().strftime(" START FITTING @ %H:%M:%S.%f")[:-3])
-        fit_result = fit_2d_gaussian_roi_NaN_fast(image_data, roi_coord, function = super_gaussian2d_rotated)
-        logging.info(datetime.now().strftime(" END FITTING @ %H:%M:%S.%f")[:-3])
-        output_queue.put(fit_result.best_values)
-        logging.warning(f"*** Output Queue is Empty? : {output_queue.empty()} ***")
+           
+        if task is None:  # Sentinel for termination.
+            logging.info("Termination signal received. Exiting _fitGaussian loop.")
+            break
+        
+        try:
+            logging.debug("Ongoing Fitting.......")
+            image_data, roiPos, roiSize = task
+            roi_coord = create_roi_coord_tuple(roiPos, roiSize)
+            logging.info(datetime.now().strftime(" START FITTING @ %H:%M:%S.%f")[:-3])
+            fit_result = fit_2d_gaussian_roi_NaN_fast(image_data, roi_coord, function=super_gaussian2d_rotated)
+            logging.info(datetime.now().strftime(" END FITTING @ %H:%M:%S.%f")[:-3])
+            output_queue.put(fit_result.best_values)
+            logging.warning("Task processed. Is output queue empty? %s", output_queue.empty())
+        except Exception as e:
+            logging.error("Error during the fitting process: %s", e)
 
 class GaussianFitterMP(QObject):
     finished = Signal(object)
@@ -144,7 +151,7 @@ class GaussianFitterMP(QObject):
             return self.output_queue.get(timeout=2.0)
         except Empty:
             return None
-
+    '''
     def stop(self):
         logging.debug("Stopping Gaussian Fitting Process")
         if self.fitting_process is not None:
@@ -158,3 +165,47 @@ class GaussianFitterMP(QObject):
         self.input_queue.cancel_join_thread()
         self.output_queue.cancel_join_thread()
         logging.info("Gaussian Fitting Process Stopped")
+    '''
+
+    def stop(self):
+        logging.debug("Stopping Gaussian Fitting Process")
+        if self.fitting_process is not None:
+            try:
+                # Signal termination
+                self.input_queue.put(None)  # Send sentinel value to signal the process to exit
+            except Exception as e:
+                logging.error("Error sending termination signal: %s", e)
+
+            # Wait for the process to finish with a timeout.
+            self.fitting_process.join(timeout=5)
+            if self.fitting_process.is_alive():
+                logging.warning("Fitting process did not terminate gracefully. Forcing termination.")
+                self.fitting_process.terminate()
+                self.fitting_process.join()
+
+            self.fitting_process = None
+
+        # Optionally, drain any remaining tasks in the queues:
+        def drain_queue(q):
+            while not q.empty():
+                try:
+                    q.get_nowait()
+                except Exception:
+                    break
+
+        drain_queue(self.input_queue)
+        drain_queue(self.output_queue)
+
+        try:
+            logging.info("Closing queues and joining ")
+            self.input_queue.close()
+            self.output_queue.close()
+            self.input_queue.cancel_join_thread()
+            self.output_queue.cancel_join_thread()
+        except Exception as e:
+            logging.error("Error cleaning up queues: %s", e)
+
+        logging.info("Gaussian Fitting Process Stopped")
+
+    def __str__(self) -> str:
+        return "GaussianFitterMP"

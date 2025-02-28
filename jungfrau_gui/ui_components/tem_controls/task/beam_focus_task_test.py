@@ -99,6 +99,11 @@ class BeamFitTask(Task):
     
     def sweep_il1_linear(self, lower, upper, step, wait_time_s=WAIT_TIME_S):
         for il1_value in range(lower, upper, step):
+            # Check if the beam fitter process is still alive.
+            if not self.beam_fitter.fitting_process.is_alive():
+                logging.error("GaussianFitterMP process has terminated unexpectedly. Aborting sweep.")
+                return False
+
             if not self.control.sweepingWorkerReady:
                 logging.warning("Interrupting sweep due to sweepingWorkerReady=False")
                 return False
