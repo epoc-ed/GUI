@@ -18,11 +18,17 @@ import time
 
 from jungfrau_gui import globals
 
+class CenterArrowItem(pg.ArrowItem):
+    def paint(self, p, *args):
+        p.translate(-self.boundingRect().center())
+        pg.ArrowItem.paint(self, p, *args)
+
 class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
     trigger_additem = Signal(str, str)
+    trigger_updateitem = Signal(dict)
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
@@ -32,6 +38,7 @@ class TEMAction(QObject):
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
+        self.xtallist = self.file_operations.tem_xtalinfo.xtallist
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
@@ -89,6 +96,9 @@ class TEMAction(QObject):
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
         self.plot_listedposition()
+        self.trigger_updateitem.connect(self.update_plotitem)
+        ## for debug
+        # self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.update_plotitem())
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
@@ -394,14 +404,52 @@ class TEMAction(QObject):
             logging.error(f"Error: {e}")
             return
         new_id = self.tem_stagectrl.position_list.count() - 4
-        self.tem_stagectrl.position_list.addItems([f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"])
-        self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color))
+        text = f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"
+        marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
         label = pg.TextItem(str(new_id), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
+        self.tem_stagectrl.position_list.addItem(text)
+        self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
+        self.xtallist.append({"gui_id": new_id, "gui_text": text, "gui_marker": marker,
+                              "gui_label": label, "position": position})
         logging.info(f"{new_id}: {position} is added to the list")
 
+    @Slot(dict)
+    # def update_plotitem(self, info_d):
+    def update_plotitem(self):
+        info_d=self.xtallist[0] #### dummy
+        if info_d["gui_id"] in [d.get('gui_id') for d in self.xtallist]:
+            self.tem_stagectrl.position_list.removeItem(info_d["gui_text"])
+            self.tem_stagectrl.gridarea.removeItem(info_d["gui_marker"])
+            self.tem_stagectrl.gridarea.removeItem(info_d["gui_label"])
+        elif info_d["gui_id"] is None:
+            info_d["gui_id"] = self.tem_stagectrl.position_list.count() - 4
+
+        # updated widget info
+        position = info_d["position"]
+        color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
+        color = color_map.map(info_d["spots"][0]/info_d["spots"][1], mode='qcolor')
+        text = f"{info_d["dataid"]}:" + " ".join(map(str, info_d["lattice"])) + ", updated"
+        label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
+        label.setFont(QFont('Arial', 8))
+        label.setPos(position[0]*1e-3, position[1]*1e-3)
+        marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
+        # represent orientation with cell-a axis, usually shortest
+        angle = np.degrees(np.arctan2(info_d["cell axes"][1], info_d["cell axes"][0])) + 180
+        length = np.linalg.norm(info_d["cell axes"][:2]) / np.linalg.norm(info_d["cell axes"][:3])
+        arrow = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=20*length, tailLen=20*length, tailWidth=4*length, brush=color)
+        # add updated items
+        self.tem_stagectrl.position_list.addItem(text)
+        self.tem_stagectrl.gridarea.addItem(marker)
+        self.tem_stagectrl.gridarea.addItem(arrow)
+        self.tem_stagectrl.gridarea.addItem(label)
+        
+        logging.info(f"Item {info_d["gui_id"]} is updated")
+        logging.debug(self.xtallist)
+    
     def plot_listedposition(self, color='gray'):
         xy_list = [self.tem_stagectrl.position_list.itemText(i).split()[1:-2] for i in range(self.tem_stagectrl.position_list.count())]
         xy_list = np.array(xy_list).T
