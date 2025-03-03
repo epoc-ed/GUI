@@ -417,11 +417,12 @@ class TEMAction(QObject):
         logging.info(f"{new_id}: {position} is added to the list")
 
     @Slot(dict)
-    # def update_plotitem(self, info_d):
-    def update_plotitem(self):
-        info_d=self.xtallist[0] #### dummy
+    def update_plotitem(self, info_d):
+        if not "gui_id" in info_d:
+            for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
+                info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
         if info_d["gui_id"] in [d.get('gui_id') for d in self.xtallist]:
-            self.tem_stagectrl.position_list.removeItem(info_d["gui_text"])
+            self.tem_stagectrl.position_list.removeItem(info_d["gui_id"] + 4)
             self.tem_stagectrl.gridarea.removeItem(info_d["gui_marker"])
             self.tem_stagectrl.gridarea.removeItem(info_d["gui_label"])
         elif info_d["gui_id"] is None:
@@ -429,16 +430,18 @@ class TEMAction(QObject):
 
         # updated widget info
         position = info_d["position"]
+        spots = np.array(info_d["spots"], dtype=float)
+        axes = np.array(info_d["cell axes"], dtype=float)
         color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
-        color = color_map.map(info_d["spots"][0]/info_d["spots"][1], mode='qcolor')
+        color = color_map.map(spots[0]/spots[1], mode='qcolor')
         text = f"{info_d["dataid"]}:" + " ".join(map(str, info_d["lattice"])) + ", updated"
         label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
         marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
         # represent orientation with cell-a axis, usually shortest
-        angle = np.degrees(np.arctan2(info_d["cell axes"][1], info_d["cell axes"][0])) + 180
-        length = np.linalg.norm(info_d["cell axes"][:2]) / np.linalg.norm(info_d["cell axes"][:3])
+        angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
+        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])        
         arrow = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
                              headLen=20*length, tailLen=20*length, tailWidth=4*length, brush=color)
         # add updated items
