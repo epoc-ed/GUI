@@ -23,6 +23,7 @@ class TEMAction(QObject):
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
     trigger_additem = Signal(str, str)
+    trigger_getbeamintensity = Signal()
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
@@ -63,6 +64,8 @@ class TEMAction(QObject):
             self.tem_stagectrl.screen_button.clicked.connect(self.toggle_screen)
         except AttributeError:
             pass
+        if globals.dev:
+            self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
         
         self.control.updated.connect(self.on_tem_update)
         
@@ -89,6 +92,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
         self.plot_listedposition()
+        # self.trigger_getbeamintensity.connect(self.update_ecount)
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
@@ -121,6 +125,8 @@ class TEMAction(QObject):
         self.tem_stagectrl.position_list.setEnabled(enables)
         self.tem_stagectrl.go_button.setEnabled(enables)
         self.tem_stagectrl.addpos_button.setEnabled(enables)
+        if globals.dev:
+            self.tem_detector.calc_e_incoming_button.setEnabled(enables)
 
     def reset_rotation_button(self):
         self.tem_tasks.rotation_button.setText("Rotation")
@@ -413,3 +419,36 @@ class TEMAction(QObject):
         position = self.control.tem_status["stage.GetPos"]
         self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
         self.tem_stagectrl.gridarea.addItem(self.marker)
+
+    def update_ecount(self, ht=200, pixel=0.075, threshold=500, bins_set=20):
+        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
+        if Mag_idx == 4:
+            logging.warning("Brightness should be calculated in imaging mode")
+            return
+        frame = self.parent.timer.interval()
+        image = self.parent.imageItem.image
+        data_flat = image.flatten()
+        image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
+        low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
+        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > threshold))]
+        logging.info(f"No. of significant pixel for calculation: {len(data_sampled)} in {frame} frames")
+        if len(data_sampled) < 1e4:
+            self.tem_detector.e_incoming_display.setText(f'N/A')
+            logging.warning('Number of sampling pixels is less than 1% (<1e4 pixels)!')
+            return
+        try:
+            hist, bins = np.histogram(data_sampled, density=True, bins=bins_set)
+            delta = (bins[1]-bins[0])/2
+            xr = np.linspace(np.min(bins[1:])+delta,np.max(bins[1:])-delta,len(bins[1:])-1)
+            approximate_average_count = xr[np.argmax(hist[1:])]
+            logging.info(f'Approximate average: {approximate_average_count:.1f} count per pixel')
+            e_per_A2 = approximate_average_count / ht * frame / ((pixel*1e7)**2) # per sec
+            self.control.beam_intensity["pa_per_cm2"] = 1/6.241*e_per_A2*1e10 # per sec
+            magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
+            magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
+            self.control.beam_intensity["e_per_A2_sample"] = e_per_A2 * magnification**2
+            self.tem_detector.e_incoming_display.setText(f'{self.control.beam_intensity["pa_per_cm2"]:.2f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.2f} e/A2/s')
+            logging.info(f'{self.control.beam_intensity["pa_per_cm2"]:.2f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.2f} e/A2/s')
+        except ValueError as e:
+            self.tem_detector.e_incoming_display.setText(f'N/A')
+            logging.warning(e)
