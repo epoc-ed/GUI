@@ -47,3 +47,50 @@ if os.path.isfile('.git'):
         tag, branch, commit  = 'no-tagged-version', 'noname-branch', 'no-commit-hash'
 else:
     tag, branch, commit  = 'no-tagged-version', 'noname-branch', 'no-commit-hash'
+
+'''
+import os
+
+def in_git_repo():
+    """
+    Returns True if the current directory is inside a Git repository.
+    Otherwise, returns False.
+    """
+    try:
+        # We redirect stderr and stdout to DEVNULL so Git doesn't print error messages:
+        with open(os.devnull, 'wb') as devnull:
+            subprocess.check_call(
+                ['git', 'rev-parse', '--is-inside-work-tree'],
+                stdout=devnull, stderr=devnull
+            )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+# Default fallback values
+tag, branch, commit = 'no-tagged-version', 'noname-branch', 'no-commit-hash'
+
+if in_git_repo():
+    try:
+        tag_output = subprocess.check_output(
+            ['git', 'describe', '--tags'],
+            stderr=subprocess.DEVNULL
+        ).strip().decode('utf-8')
+        tag = tag_output.split('-')[0] if tag_output else tag
+
+        branch_output = subprocess.check_output(
+            ['git', 'branch', '--show-current'],
+            stderr=subprocess.DEVNULL
+        ).strip().decode('utf-8')
+        branch = branch_output if branch_output else branch
+
+        commit_output = subprocess.check_output(
+            ['git', 'rev-parse', branch],
+            stderr=subprocess.DEVNULL
+        ).strip().decode('utf-8')
+        commit = commit_output if commit_output else commit
+
+    except subprocess.CalledProcessError:
+        # Fall back to defaults if Git calls fail for any reason
+        pass
+'''
