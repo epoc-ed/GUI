@@ -12,17 +12,24 @@ from .task.task_manager import *
 from epoc import ConfigurationClient, auth_token, redis_host
 
 from .connectivity_inspector import TEM_Connector
+from ..file_operations.processresult_updater import ProcessedDataReceiver
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 import time
 
 from jungfrau_gui import globals
 
+class CenterArrowItem(pg.ArrowItem):
+    def paint(self, p, *args):
+        p.translate(-self.boundingRect().center())
+        pg.ArrowItem.paint(self, p, *args)
+
 class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
     trigger_additem = Signal(str, str)
+    trigger_updateitem = Signal(dict)
     trigger_processed_receiver = Signal()
     def __init__(self, parent, grandparent):
         super().__init__()
@@ -30,11 +37,11 @@ class TEMAction(QObject):
         self.tem_controls = parent
         self.visualization_panel = self.parent.visualization_panel
         self.file_operations = self.parent.file_operations
-        self.process_receiver = self.parent.process_receiver
         self.dataReceiverReady = True
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
+        self.xtallist = self.file_operations.tem_xtalinfo.xtallist
         self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
@@ -93,6 +100,9 @@ class TEMAction(QObject):
         self.trigger_additem.connect(self.add_listedposition)
         self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
+        self.trigger_updateitem.connect(self.update_plotitem)
+        ## for debug
+        # self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.update_plotitem())
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
@@ -213,7 +223,7 @@ class TEMAction(QObject):
             self.last_mag_mode = Mag_idx
 
         # Update rotation_speed radio button in GUI to refelct status of TEM
-        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
+        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"] # = self.control.client.Getf1OverRateTxNum()
         logging.debug(f"Rotation speed index: {rotation_speed_index}")
         if rotation_speed_index in [0,1,2,3]: self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         
@@ -398,14 +408,55 @@ class TEMAction(QObject):
             logging.error(f"Error: {e}")
             return
         new_id = self.tem_stagectrl.position_list.count() - 4
-        self.tem_stagectrl.position_list.addItems([f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"])
-        self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color))
+        text = f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"
+        marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
         label = pg.TextItem(str(new_id), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
+        self.tem_stagectrl.position_list.addItem(text)
+        self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
+        self.xtallist.append({"gui_id": new_id, "gui_text": text, "gui_marker": marker,
+                              "gui_label": label, "position": position})
         logging.info(f"{new_id}: {position} is added to the list")
 
+    @Slot(dict)
+    def update_plotitem(self, info_d):
+        if not "gui_id" in info_d:
+            for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
+                info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
+        if info_d["gui_id"] in [d.get('gui_id') for d in self.xtallist]:
+            self.tem_stagectrl.position_list.removeItem(info_d["gui_id"] + 4)
+            self.tem_stagectrl.gridarea.removeItem(info_d["gui_marker"])
+            self.tem_stagectrl.gridarea.removeItem(info_d["gui_label"])
+        elif info_d["gui_id"] is None:
+            info_d["gui_id"] = self.tem_stagectrl.position_list.count() - 4
+
+        # updated widget info
+        position = info_d["position"]
+        spots = np.array(info_d["spots"], dtype=float)
+        axes = np.array(info_d["cell axes"], dtype=float)
+        color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
+        color = color_map.map(spots[0]/spots[1], mode='qcolor')
+        text = f"{info_d["dataid"]}:" + " ".join(map(str, info_d["lattice"])) + ", updated"
+        label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
+        label.setFont(QFont('Arial', 8))
+        label.setPos(position[0]*1e-3, position[1]*1e-3)
+        marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
+        # represent orientation with cell-a axis, usually shortest
+        angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
+        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])        
+        arrow = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=20*length, tailLen=20*length, tailWidth=4*length, brush=color)
+        # add updated items
+        self.tem_stagectrl.position_list.addItem(text)
+        self.tem_stagectrl.gridarea.addItem(marker)
+        self.tem_stagectrl.gridarea.addItem(arrow)
+        self.tem_stagectrl.gridarea.addItem(label)
+        
+        logging.info(f"Item {info_d["gui_id"]} is updated")
+        logging.debug(self.xtallist)
+    
     def plot_listedposition(self, color='gray'):
         xy_list = [self.tem_stagectrl.position_list.itemText(i).split()[1:-2] for i in range(self.tem_stagectrl.position_list.count())]
         xy_list = np.array(xy_list).T
@@ -421,6 +472,7 @@ class TEMAction(QObject):
     @Slot()
     def inquire_processed_data(self):
         if self.dataReceiverReady:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether")            
             self.datareceiver_thread = QThread()
             self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
             thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
@@ -433,4 +485,6 @@ class TEMAction(QObject):
 
     def getdataReceiverReady(self):
         thread_manager.terminate_thread(self.datareceiver_thread)
-        self.dataReceiverReady = False
+        thread_manager.remove_worker_thread_pair(self.parent.threadWorkerPairs, self.datareceiver_thread)
+        thread_manager.reset_worker_and_thread(self.process_receiver, self.datareceiver_thread)
+        self.dataReceiverReady = True

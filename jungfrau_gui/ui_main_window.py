@@ -14,7 +14,6 @@ from .ui_components.tem_controls.tem_controls import TemControls
 from .ui_components.file_operations.file_operations import FileOperations
 from .ui_components.utils import create_gaussian
 from .ui_components.toggle_button import ToggleButton
-from .ui_components.file_operations.processresult_updater import ProcessedDataReceiver
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
@@ -188,7 +187,6 @@ class ApplicationWindow(QMainWindow):
         self.timer_contrast = QTimer(self)
         self.timer_contrast.timeout.connect(self.applyAutoContrast)
 
-        self.process_receiver = ProcessedDataReceiver(self, host = "noether")
         self.tem_controls = TemControls(self)
         
         self.timer_fit = QTimer()
