@@ -152,9 +152,17 @@ class TEMStageCtrl(QGroupBox):
         self.go_button.setEnabled(False)
         # self.goxyz_button = QPushButton("Go XYZ", self)
         self.hbox_gotopos.addWidget(gotopos_label, 1)
-        self.hbox_gotopos.addWidget(self.position_list, 7)
-        self.hbox_gotopos.addWidget(self.addpos_button, 1)
-        self.hbox_gotopos.addWidget(self.go_button, 1)
+        if globals.dev:
+            self.mapsnapshot_button = QPushButton("Snapshot", self)
+            self.mapsnapshot_button.setEnabled(False)
+            self.hbox_gotopos.addWidget(self.position_list, 6)
+            self.hbox_gotopos.addWidget(self.addpos_button, 1)
+            self.hbox_gotopos.addWidget(self.go_button, 1)
+            self.hbox_gotopos.addWidget(self.mapsnapshot_button, 1)            
+        else:
+            self.hbox_gotopos.addWidget(self.position_list, 7)
+            self.hbox_gotopos.addWidget(self.addpos_button, 1)
+            self.hbox_gotopos.addWidget(self.go_button, 1)
         stage_ctrl_section.addLayout(self.hbox_gotopos)
 
         # 1) Create a container widget to hold the plot
