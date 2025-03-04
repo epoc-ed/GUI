@@ -12,7 +12,7 @@ from PySide6.QtCore import QCoreApplication
 from . import globals
 from .ui_components import palette
 from .zmq_receiver import ZmqReceiver
-from .ui_main_window import ApplicationWindow 
+from .ui_main_window import ApplicationWindow, get_git_info
 
 from pathlib import Path
 from epoc import ConfigurationClient, auth_token, redis_host
@@ -88,8 +88,22 @@ def main():
     parser.add_argument('-l', '--log', default='INFO', help='Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument("-f", "--logfile", action="store_true", help="File-output of logging")
     parser.add_argument("-e", "--dev", action="store_true", help="Activate developing function")
+    parser.add_argument("-v", "--version", action="store_true", help="Detailed version description")
 
     args = parser.parse_args()
+
+    print(f"{get_git_info()}: Jungfrau for electron diffraction")
+
+    if args.version:
+        print('''
+            **Detailed information of authors, years, project name, Github URL, license, contact address, etc.**
+            GUI for Electron Diffraction with JUNGFRAU (2024-)
+            https://github.com/epoc-ed/GUI
+            EPOC Project (2024-)
+            https://github.com/epoc-ed
+            https://epoc-ed.github.io/manual/index.html
+        ''')
+        return
 
     # Initialize logger
     logger = logging.getLogger()
