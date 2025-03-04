@@ -13,7 +13,7 @@ import argparse
 # from epoc import ConfigurationClient, auth_token, redis_host
 
 VERSION = "for JF_GUI/v2025.02.27 or later"
-V_DATE = "2025.03.03"
+V_DATE = "2025.03.04"
 
 class DIALSparams:
     def __init__(self, datapath, workdir, beamcenter=[515, 532]):
@@ -364,7 +364,7 @@ class Hdf5MetadataUpdater:
         while True:
             try:
                 message_raw = self.socket.recv_string()
-                if 'Results being inquired...' in message_raw:
+                if args.feedback and 'Results being inquired...' in message_raw:
                     print(message_raw)
                     if self.results is None:
                         self.socket.send_string("In processing...")
@@ -418,9 +418,13 @@ class Hdf5MetadataUpdater:
     
                         dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
                         logging.info(f'Subdirname: {os.path.dirname(filename)}/XDS/{dataid}')
+
+                        process_dir = args.path_process
+                        if process_dir == '.' or not os.access(process_dir, os.W_OK):
+                            process_dir = os.path.dirname(filename)
                         xds_thread = threading.Thread(target=self.run_xds, 
                                                       args=(filename, 
-                                            os.path.dirname(filename) + '/XDS/' + dataid,
+                                            process_dir + '/XDS/' + dataid,
                                             '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
                                             '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
                                             beamcenter_refined, args.quiet, ), daemon=True)
@@ -583,9 +587,7 @@ class Hdf5MetadataUpdater:
             # "correct": None,
             "lattice": [1,1,1,90,90,90],
             "spots": [0, 1],
-            "cell a-axis": [1,0,0],
-            "cell b-axis": [0,1,0],
-            "cell c-axis": [0,0,1],
+            "cell axes": [1,0,0, 0,1,0, 0,0,1],
             # "space group": 1, # from correct
             # "resolution": 999,
             # "completeness": 0,
@@ -609,14 +611,13 @@ class Hdf5MetadataUpdater:
             results_idx = myxds.idxread(filepath=root + "/IDXREF.LP")
             results["lattice"] = results_idx["cell"]
             results["spots"] = results_idx["spots"]
-            results["cell a-axis"] = results_idx["cell a-axis"]
-            results["cell b-axis"] = results_idx["cell b-axis"]
-            results["cell c-axis"] = results_idx["cell c-axis"]
+            results["cell axes"] = results_idx["cell a-axis"] + results_idx["cell b-axis"] + results_idx["cell c-axis"]            
         else:
             logging.info('Indexing failed.')
             results["idxref"] = "Failed"
-        with open(os.path.dirname(root) + 'process_result.json', 'a') as f:
-            json.dump(results, f, indent=2)
+        if args.json:
+            with open(os.path.dirname(root) + 'process_result.json', 'a') as f:
+                json.dump(results, f, indent=2)
         self.results = results
         logging.info(self.results) ## debug
         # self.socket.send_string(json.dumps(results))
@@ -653,14 +654,15 @@ class Hdf5MetadataUpdater:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("-b", "--feedback", action="store_true", help="send post-process results to GUI")
     parser.add_argument("-c", "--center_mask", type=int, default=10, help="centre mask radius [px] in XDS.INP (10). deactivate with 0.")
-    parser.add_argument("-m", "--hotpixel_mask", type=str, default='670,670,257,314', help="hot-pixel mask area with another layer (670,670,257,314). deactivate with '.'")
-    parser.add_argument("-q", "--quiet", action="store_true", help="suppress outputs of external programs")
+    parser.add_argument("-d", "--path_process", type=str, default='.', help="root directory path for data-processing (.). file-writing permission is necessary.")
     parser.add_argument("-j", "--json", action="store_true", help="write a summary of postprocess as a JSON file (process_result.json)")
+    parser.add_argument("-m", "--hotpixel_mask", type=str, default='670,670,257,314', help="hot-pixel mask area, by adding another mask-layer (670,670,257,314). deactivate with '.'")
+    parser.add_argument("-q", "--quiet", action="store_true", help="suppress outputs of external programs")
     parser.add_argument("-v", "--version", action="store_true", help="display version information")
-    # parser.add_argument("-b", "--feedback", action="store_true", help="send post-process results to GUI")
-    # parser.add_argument("-p", "--path_process", type=str, default='.', help="root directory path for data-processing (.). file-writing permission is necessary.")
     # parser.add_argument("-f", "--formula", type=str, default='C2H5NO2', help="chemical formula for ab-initio phasing with shelxt/d")
+    # parser.add_argument("-p", "--process", type=str, default='x', help="enable post-processing. 'x' for XDS, 'd' for dials, 'b' for both, and 'n' for disabling)
 
     args = parser.parse_args()
 
@@ -691,6 +693,9 @@ if __name__ == "__main__":
     # Add the handler to the logger
     logger.addHandler(console_handler)
 
+    if not os.access(args.path_process, os.W_OK): # and args.process != 'n':
+        logging.warning("No file permission. Data-directory will be used for processing instead.")
+    
     server = Hdf5MetadataUpdater()
     server_thread = threading.Thread(target=server.run, daemon=True)
     server_thread.start()

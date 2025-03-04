@@ -88,15 +88,6 @@ class ControlWorker(QObject):
         self.triggerdelay_ms = 500
         self.previous_tx_abs = 0
 
-        """ 
-        if os.name == 'nt': # test on Win-Win
-            self.host = "131.130.27.31"
-        else: # practice on Linux-Win
-            self.host = "172.17.41.22"
-        self.port = 12345
-        # self.__timeout = timeout
-        # self.__buffer = buffer
-        """
     @Slot()
     def _init(self):
         threading.current_thread().setName("ControlThread")
@@ -223,13 +214,6 @@ class ControlWorker(QObject):
                                 "You need to stop the current task before starting a new one.")
                 # self.stop_task()
                 return           
-        ###
-        # if os.name == 'nt': # test on Win-Win
-        #     while True:
-        #         self.send_to_tem('#more')
-        #         time.sleep(0.12)
-        #         if self.tem_status['eos.GetFunctionMode'][0] != -1: break
-        ###
         if self.tem_status['eos.GetFunctionMode'][1] != 4:
             logging.warning('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
@@ -437,56 +421,6 @@ class ControlWorker(QObject):
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
 
-    """ 
-    @Slot()
-    def start_adjustZ(self):
-        if self.task.running:
-            logging.warning('task already running')
-            return
-        ###
-        if os.name == 'nt': # test on Win-Win
-            while True:
-                #########################
-                define #more 
-                #########################
-                self.send_to_tem('#more')
-                time.sleep(0.12)
-                if self.tem_status['eos.GetFunctionMode'][0] != -1: break
-        ###
-        # if self.tem_status['eos.GetFunctionMode'][1] != 0:
-        #     print('Switches ' + str(self.tem_status['eos.GetFunctionMode'][0]) + ' to MAG mode')
-        #     self.task.tem_command("eos", "SelectFunctionMode", [0])
-        #         ## self.client.SelectFunctionMode(0)  
-        # if self.tem_status['eos.GetMagValue'][0] <= 200: # 1
-        #     print('Changes magnifitation ' + str(self.tem_status['eos.GetMagValue'][2]) + ' to x20k')
-        #     self.task.tem_command("eos", "SetSelector", [20])
-        #     ##self.client.SetSelector(20) 
-        #stop##
-        if os.name == 'nt': # test on Win-Win
-            while True:
-                self.send_to_tem('#more')
-                time.sleep(0.12)
-                if int(self.tem_status['eos.GetMagValue'][0]) == 20000: break
-        ###
-        task = AdjustZ(self)
-        self.start_task(task) 
-        """
-    
-    """ 
-    @Slot()
-    def interactive(self):
-        if self.task.running:
-            self.stop()
-        x = input('Input a command sending to TEM. q: quit\n')
-        while True:
-            if x == 'q':
-                break
-            elif x != '':
-                #########################
-                self.send_to_tem(x)
-                #########################
-            x = input() """
-    
     def update_rotation_info(self, reset=False):
         if reset:
             self.rotation_status = {"start_angle": 0, "end_angle": 0,

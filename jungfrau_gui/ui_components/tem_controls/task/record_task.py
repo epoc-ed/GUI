@@ -13,7 +13,6 @@ from epoc import ConfigurationClient, auth_token, redis_host
 from ..toolbox.tool import send_with_retries
 
 from ....metadata_uploader.metadata_update_client import MetadataNotifier
-from ....ui_components.file_operations.processresult_updater import ProcessedDataReceiver
 
 from .... import globals
 
@@ -36,7 +35,6 @@ class RecordTask(Task):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.metadata_notifier = MetadataNotifier(host = "noether")
         # self.standard_h5_recording = standard_h5_recording
-        self.process_receiver = ProcessedDataReceiver(host = "noether")
 
         self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)
 
@@ -245,7 +243,6 @@ class RecordTask(Task):
                                         delay=0.1) 
                     
                     self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
-                    self.process_receiver.launch_receiver_signal.emit()
                     # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')
                 except Exception as e:
                     logging.error(f"Metadata Update Error: {e}")
@@ -255,6 +252,7 @@ class RecordTask(Task):
                 self.reset_rotation_signal.emit()
                 
             self.tem_action.trigger_additem.emit('green', 'recorded')
+            self.tem_action.trigger_processed_receiver.emit()
             time.sleep(0.5)
             print("------REACHED END OF TASK----------")
 

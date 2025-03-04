@@ -23,12 +23,15 @@ class TEMAction(QObject):
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
     trigger_additem = Signal(str, str)
+    trigger_processed_receiver = Signal()
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
         self.tem_controls = parent
         self.visualization_panel = self.parent.visualization_panel
         self.file_operations = self.parent.file_operations
+        self.process_receiver = self.parent.process_receiver
+        self.dataReceiverReady = True
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
@@ -88,6 +91,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
+        self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
 
     def set_configuration(self):
@@ -413,3 +417,20 @@ class TEMAction(QObject):
         position = self.control.tem_status["stage.GetPos"]
         self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
         self.tem_stagectrl.gridarea.addItem(self.marker)
+
+    @Slot()
+    def inquire_processed_data(self):
+        if self.dataReceiverReady:
+            self.datareceiver_thread = QThread()
+            self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
+            thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
+            self.datareceiver_thread.start()
+            self.dataReceiverReady = False
+            self.process_receiver.finished.connect(self.getdataReceiverReady)
+            logging.info("Starting processed-data inquiring")
+        else:
+            logging.warning("Previous inquiry continues runnng")
+
+    def getdataReceiverReady(self):
+        thread_manager.terminate_thread(self.datareceiver_thread)
+        self.dataReceiverReady = False
