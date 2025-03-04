@@ -49,8 +49,6 @@ else:
     tag, branch, commit  = 'no-tagged-version', 'noname-branch', 'no-commit-hash'
 
 '''
-import os
-
 def in_git_repo():
     """
     Returns True if the current directory is inside a Git repository.
