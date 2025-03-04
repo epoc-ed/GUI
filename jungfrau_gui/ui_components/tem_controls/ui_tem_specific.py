@@ -22,7 +22,6 @@ class TEMDetector(QGroupBox):
     def initUI(self):
         detector_section = QVBoxLayout()
         
-        self.hbox_mag = QVBoxLayout()
         self.hbox_mag = QHBoxLayout()
         magn_label = QLabel("Magnification:", self)
         dist_label = QLabel("Distance:", self)
@@ -41,6 +40,17 @@ class TEMDetector(QGroupBox):
         self.hbox_mag.addWidget(self.scale_checkbox, 1)
 
         detector_section.addLayout(self.hbox_mag)
+
+        if globals.dev:
+            self.hbox_e_incoming = QHBoxLayout()
+            self.calc_e_incoming_button = QPushButton("Calc Brightness on Detector/Sample", self)
+            self.e_incoming_display = QLineEdit(self)
+            self.e_incoming_display.setReadOnly(True)
+            self.calc_e_incoming_button.setEnabled(False)
+            self.hbox_e_incoming.addWidget(self.calc_e_incoming_button, 1)
+            self.hbox_e_incoming.addWidget(self.e_incoming_display, 2)
+            detector_section.addLayout(self.hbox_e_incoming)
+        
         self.setLayout(detector_section)
 
 class TEMStageCtrl(QGroupBox):
