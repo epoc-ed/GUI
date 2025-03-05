@@ -64,7 +64,7 @@ class ProcessedDataReceiver(QObject):
                 else:
                     result = json.loads(result_json)
                     logging.info("Succeeded in receiving processed data request.")
-                    logging.info("Lattice parameters: " + " ".join(map(str, result["lattice"]))
+                    logging.info("Lattice parameters: " + " ".join(map(str, result["lattice"])))
                     self.parent.tem_controls.tem_action.trigger_updateitem.emit(result)
                     # self.parent.file_operations.add_results_in_table.emit(result)
                     break
