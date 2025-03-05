@@ -87,7 +87,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--stream', type=str, default="tcp://noether:5501", help="zmq stream") # default="tcp://localhost:4545"
     parser.add_argument("-d", "--dtype", help="Data type", type = np.dtype, default=np.float32)
-    parser.add_argument("-t", "--tem", action="store_true", help="Activate tem-control functions")
+    parser.add_argument("-p", "--playmode", action="store_true", help="Activates simplified GUI")
     parser.add_argument("-th", "--temhost", default=cfg.temserver, help="Choose host for tem-gui communication")
     parser.add_argument('-l', '--log', default='INFO', help='Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument("-f", "--logfile", action="store_true", help="File-output of logging")
@@ -141,7 +141,7 @@ def main():
     globals.stream = args.stream 
     globals.dtype = args.dtype
     globals.acc_image = np.zeros((globals.nrow,globals.ncol), dtype = args.dtype)
-    globals.tem_mode = args.tem
+    globals.tem_mode = not args.playmode
     globals.tem_host = args.temhost
     globals.dev = args.dev
     
