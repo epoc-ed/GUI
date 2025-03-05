@@ -8,6 +8,7 @@ from simple_tem import TEMClient
 from .... import globals
 from epoc import ConfigurationClient, auth_token, redis_host
 from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
+from .... import globals
 
 '''
 click-on-move
@@ -26,8 +27,12 @@ class CenteringTask(Task):
             if shape['type'] == 'rectangle':
                 self.lowmag_jump = shape['xy'][0]+shape['width']//2, shape['xy'][1]+shape['height']//2
                 break
-        self.thresholds = [0.3, 100, 1, 10] # xy-min, xy-max, z-min, x-max [um]
-
+        # self.thresholds = [0.3, 100, 1, 10] # xy-min, xy-max, z-min, z-max [um]
+        self.thresholds = {
+            'dxy_min': 0.3, 'dxy_max': 100, 
+            'dz_min_mag': 1, 'dz_max_mag': 10, 'dz_min_lmag': 5, 'absz_min': -60, 'absz_max': 20, 
+        }
+    
     def rot2d(self, vector, theta):# anti-clockwise
         theta_r = np.radians(theta)
         rotmatrix = np.array([[np.cos(theta_r), -np.sin(theta_r)],
@@ -53,6 +58,8 @@ class CenteringTask(Task):
             logging.warning('Stage tilts! Reset tilting or Adjust Z manually. ')
             return
         magnification = self.control.tem_status["eos.GetMagValue"]
+        position = self.control.tem_status["stage.GetPos"]
+        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0]
         try:
             movexy = self.translationvector(px_array, magnification) # in um
         except ZeroDivisionError:
@@ -61,12 +68,12 @@ class CenteringTask(Task):
         
         # == INSERT A ROUTINE HERE TO AVOID OVER-SHIFTING ==
         
-        if np.abs(movexy[0]) > self.thresholds[1] or np.abs(movexy[1]) > self.thresholds[1]:
+        if np.abs(movexy[0]) > self.thresholds['dxy_max'] or np.abs(movexy[1]) > self.thresholds['dxy_max']:
             logging.info(f'Vector too large: {movexy[0]}, {movexy[1]}')
             return
         
         if tilt_X_abs < 5:
-            if np.abs(movexy[0]) < self.thresholds[0] and np.abs(movexy[1]) < self.thresholds[0]:
+            if np.abs(movexy[0]) < self.thresholds['dxy_min'] and np.abs(movexy[1]) < self.thresholds['dxy_min']:
                 logging.info(f'Vector already small enough (< {self.thresholds[0]} um): {movexy[0]}, {movexy[1]}')
                 return
             logging.info(f'Move X: {movexy[0]},  Y: {movexy[1]} with MAG: {magnification[2]}')
@@ -80,15 +87,25 @@ class CenteringTask(Task):
                 self.control.previous_tx_abs = 0
             else:
                 logging.info('Continue Z-adjustment.')
-            movez  = np.round(movexy[1] / (np.sin(np.deg2rad(tilt_X_abs)) - np.sin(np.deg2rad(self.control.previous_tx_abs))), 3) # in um
+            movez  = -1*np.round(movexy[1] / (np.sin(np.deg2rad(tilt_X_abs)) - np.sin(np.deg2rad(self.control.previous_tx_abs))), 3) # in um
             self.control.previous_tx_abs = tilt_X_abs
-            if np.abs(movez) < self.thresholds[2] or np.abs(movez) > self.thresholds[3]:
-                logging.info(f'Too small or too large Z-Vector: {movez}')
-                return
-            logging.info(f'Move Z: {movez} with MAG: {magnification[2]}')
-            logging.warning(f'Move Z is not activated yet!!')
-            # self.client.SetZRel(movez*-1e3)
-        
+            if globals.dev:
+                if Mag_idx == 0: # Mag
+                    if np.abs(movez) < self.thresholds['dz_min_mag'] or np.abs(movez) > self.thresholds['dz_max_mag']:
+                        logging.info(f'Too small or too large Z-Vector: {movez}')
+                        return
+                elif int(magnification[0]) == 1200: # LowMag, not 1200x
+                    if np.abs(movez) < self.thresholds['dz_min_lmag'] or position[2]/1e3 + movez < self.thresholds['absz_min'] or position[2]/1e3 + movez > self.thresholds['absz_max']:
+                        logging.info(f'Too small or too large Z-Vector: {movez}')
+                        return
+                else:
+                    logging.info(f'Move Z is currently not supported in this magnification: {magnification[2]}')
+                    return
+                logging.info(f'Move Z: {movez} with MAG: {magnification[2]}')
+                self.client.SetZRel(movez*1e3)
+            else:
+                logging.warning(f'Move Z is currently only supported in developer mode (-e).')
+
         # Wait until the stage is done moving 
         # (Is this useful?) -> Fast/Async movement  
         # while self.client.is_moving():
