@@ -1,8 +1,10 @@
 import pyqtgraph as pg
+import copy
+import random
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QTransform
 
 from .toolbox.tool import *
 from .toolbox import config as cfg_jf
@@ -51,9 +53,14 @@ class TEMAction(QObject):
         
         # Initialization
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        for shape in self.cfg.overlays:
+            if shape['type'] == 'rectangle':
+                self.lowmag_jump = shape['xy'][0]+shape['width']//2, shape['xy'][1]+shape['height']//2
+                break
 
         self.scale = None
         self.marker = None
+        self.snapshot_image = None
         self.cfg.beam_center = [1, 1] # Flag for non-updated metadata
         self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
         
@@ -73,6 +80,7 @@ class TEMAction(QObject):
             pass
         if globals.dev:
             self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
+            self.tem_stagectrl.mapsnapshot_button.clicked.connect(lambda: self.take_snaphot())
         
         self.control.updated.connect(self.on_tem_update)
         
@@ -137,6 +145,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.addpos_button.setEnabled(enables)
         if globals.dev:
             self.tem_detector.calc_e_incoming_button.setEnabled(enables)
+            self.tem_stagectrl.mapsnapshot_button.setEnabled(enables)
 
     def reset_rotation_button(self):
         self.tem_tasks.rotation_button.setText("Rotation")
@@ -239,7 +248,8 @@ class TEMAction(QObject):
 
         logging.debug("GUI updated with lastest TEM Status")
 
-    def drawscale_overlay(self, xo=0, yo=0, l_draw=1, pixel=0.075):
+    def drawscale_overlay(self, xo=0, yo=0, l_draw=1):
+        pixel=cfg_jf.others.pixelsize
         if self.scale != None:
             self.parent.plot.removeItem(self.scale)
         if self.tem_detector.scale_checkbox.isChecked():
@@ -471,7 +481,8 @@ class TEMAction(QObject):
         self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
         self.tem_stagectrl.gridarea.addItem(self.marker)
 
-    def update_ecount(self, ht=200, pixel=0.075, threshold=500, bins_set=20):
+    def update_ecount(self, ht=200, threshold=500, bins_set=20):
+        pixel=cfg_jf.others.pixelsize
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
             logging.warning("Brightness should be calculated in imaging mode")
@@ -503,3 +514,35 @@ class TEMAction(QObject):
         except ValueError as e:
             self.tem_detector.e_incoming_display.setText(f'N/A')
             logging.warning(e)
+
+    def take_snaphot(self):
+        if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
+            logging.warning(f'Snaphot does not support Diff-mode at the moment!')
+            return
+        if self.snapshot_image is not None:
+            self.tem_stagectrl.gridarea.removeItem(self.snapshot_image)
+        magnification = self.control.tem_status["eos.GetMagValue"] ## with unit
+        calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
+        position = self.control.client.GetStagePosition()
+
+        image = copy.copy(self.parent.imageItem.image)
+
+        image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
+        low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
+        self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh)*0+1000*random.random())
+        # self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh))
+        
+        tr = QTransform()
+        tr.scale(cfg_jf.others.pixelsize*1e3/calibrated_mag, cfg_jf.others.pixelsize*1e3/calibrated_mag)
+        if int(magnification[0]) >= 1500 : # Mag
+            tr.rotate(180+cfg_jf.others.rotation_axis_theta)
+            tr.translate(-image.shape[0]/2, -image.shape[1]/2)
+        else:
+            tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
+            tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
+        self.snapshot_image.setTransform(tr)
+        self.tem_stagectrl.gridarea.addItem(self.snapshot_image)
+        self.snapshot_image.setPos(position[0]*1e-3, position[1]*1e-3)
+        self.snapshot_image.setZValue(-2)
+        # self.snapshot_image.mouseClickEvent = self.subimageMouseClickEvent
+        logging.info(f'Snapshot was updated.')
