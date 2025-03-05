@@ -436,7 +436,11 @@ class Hdf5MetadataUpdater:
         
     def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold, jf_gui_tag, commit_hash, pixel=0.075):
         detector_framerate = 2000 # Hz for Jungfrau
-        ht = 200  # keV  # <- HT3
+        try:
+            ht = tem_status['ht.GetHtValue'] / 1000  # keV  # <- HT3
+        except ValueError as e:
+            logging.warning(f"ValueError while reading HT value: {e}")
+            ht = 200
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
         stage_rates = [10.0, 2.0, 1.0, 0.5]
         if rotations_angles is not None:
@@ -456,7 +460,7 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/detector/beam_center_y', data = beamcenter[1], dtype='int') # <- FITTING
                     create_or_update_dataset('entry/instrument/detector/detector_distance', data = detector_distance, dtype='uint64') # <- LUT
                     create_or_update_dataset('entry/instrument/detector/framerate', data = detector_framerate, dtype='uint64')
-                    # create_or_update_dataset('entry/instrument/detector/virtual_pixel_correction_applied', data = 200, dtype='float') # =GAIN?
+                    # create_or_update_dataset('entry/instrument/detector/virtual_pixel_correction_applied', data = ht, dtype='float') # =GAIN?
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/data_collection_date_time', data = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime())) <- sent with tem_update_times
                     create_or_update_dataset('entry/instrument/detector/detectorSpecific/element', data = 'Si')
                     # create_or_update_dataset('entry/instrument/detector/detectorSpecific/frame_count_time', data = data_shape[0], dtype='uint64')
@@ -479,6 +483,7 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/optics/info_acquisition_date_time', data = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
                     create_or_update_dataset('entry/instrument/optics/microscope_name', data = 'JEOL JEM2100Plus')
                     create_or_update_dataset('entry/instrument/optics/accelerationVoltage', data = ht, dtype='float')
+                    create_or_update_dataset('entry/instrument/optics/accelerationVoltage_readout', data = tem_status['ht.GetHtValue_readout'], dtype='uint16')
                     create_or_update_dataset('entry/instrument/optics/wavelength', data = wavelength, dtype='float')
                     create_or_update_dataset('entry/instrument/optics/magnification', data = tem_status['eos.GetMagValue_MAG'][0], dtype='uint16')
                     create_or_update_dataset('entry/instrument/optics/distance_nominal', data = tem_status['eos.GetMagValue_DIFF'][0], dtype='uint16')
