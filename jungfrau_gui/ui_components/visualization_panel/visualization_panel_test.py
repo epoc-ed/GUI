@@ -108,7 +108,7 @@ class VisualizationPanel(QGroupBox):
             """
         )
         self.stream_view_button.setMaximumHeight(50)
-        self.stream_view_button.clicked.connect(self.toggle_viewStream)
+        self.stream_view_button.clicked.connect(self.combined_toggle)
 
         view_contrast_group = QVBoxLayout()
         view_contrast_label = QLabel("Streaming")
@@ -143,23 +143,21 @@ class VisualizationPanel(QGroupBox):
         jfjoch_control_label.setFont(font_big)
         jfjoch_control_group.addWidget(jfjoch_control_label)
 
-        self.connectTojfjoch = ToggleButton('Connection Status to Jungfraujoch', self)
-        self.connectTojfjoch.setMaximumHeight(50)
-        self.connectTojfjoch.setEnabled(False)
-        self.connectTojfjoch.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-        self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client)
+        # self.connectTojfjoch = ToggleButton('Connect to Jungfraujoch', self)
+        # self.connectTojfjoch.setMaximumHeight(50)
+        # self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client)
         
         self.check_jfj_timer = QTimer()
         self.check_jfj_timer.timeout.connect(self.run_check_jfj_ready_in_thread)
         self.jfj_broker_is_ready = False
 
-        grid_connection_jfjoch = QGridLayout()
-        grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
+        # grid_connection_jfjoch = QGridLayout()
+        # grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
 
-        spacer1 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
-        grid_connection_jfjoch.addItem(spacer1)
+        # spacer1 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
+        # grid_connection_jfjoch.addItem(spacer1)
 
-        jfjoch_control_group.addLayout(grid_connection_jfjoch)
+        # jfjoch_control_group.addLayout(grid_connection_jfjoch)
 
         grid_streaming_jfjoch = QGridLayout()
 
@@ -168,9 +166,8 @@ class VisualizationPanel(QGroupBox):
 
         grid_streaming_jfjoch.addWidget(grid_stream_label)
 
-        self.live_stream_button = ToggleButton('Live stream status', self)
-        self.live_stream_button.setEnabled(False)
-        self.live_stream_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+        self.live_stream_button = ToggleButton('Live Stream', self)
+        self.live_stream_button.setDisabled(True)
         self.live_stream_button.clicked.connect(self.toggle_LiveStream)
 
         self.live_stream_timer = QTimer()
@@ -271,6 +268,95 @@ class VisualizationPanel(QGroupBox):
         section_visual.addStretch()
         self.setLayout(section_visual)
 
+    def combined_toggle(self):
+        """Combined toggle: starts/stops stream reading and JFJ connection."""
+        if not self.stream_view_button.started:
+            # === STARTING BRANCH ===
+            try:
+                # Start the reader thread for decoding the ZMQ stream.
+                self.thread_read = QThread()
+                self.streamReader = Reader(self.parent.receiver)
+                self.parent.threadWorkerPairs.append((self.thread_read, self.streamReader))
+                self.initializeWorker(self.thread_read, self.streamReader)
+                self.thread_read.start()
+                self.readerWorkerReady = True
+                logging.info("Starting reading process")
+
+                # Update UI to reflect streaming start.
+                self.stream_view_button.setText("Stop")
+                self.parent.plot.setTitle("View of the Stream")
+                self.parent.timer.setInterval(self.update_interval.value())
+                self.parent.timer.start()
+            except Exception as e:
+                logging.error(f"Error starting stream: {e}")
+                self.stream_view_button.setStyleSheet("background-color: red;")
+                return
+
+            # Attempt to establish the connection to Jungfraujoch.
+            conn_success = self.connect_and_start_jfjoch_client()  # Should return True/False.
+            if conn_success:
+                self.stream_view_button.started = True
+                self.stream_view_button.setStyleSheet("background-color: green;")
+            else:
+                # If connection fails, clean up the stream.
+                self.stream_view_button.setStyleSheet("background-color: red;")
+                self.parent.timer.stop()
+                self.parent.stopWorker(self.thread_read, self.streamReader)
+                self.stream_view_button.setText("View Stream")
+                self.parent.plot.setTitle("Stream stopped at the current Frame")
+                self.stream_view_button.started = False
+
+        else:
+            # === STOPPING BRANCH ===
+            try:
+                # Stop the periodic timer that restarts the live stream.
+                self.parent.timer.stop()
+                # Stop and clean up the worker thread.
+                self.parent.stopWorker(self.thread_read, self.streamReader)
+                if self.thread_read is not None:
+                    logging.info("** Read-thread forced to sleep **")
+                    time.sleep(0.1)
+                if self.parent.autoContrastBtn.started:
+                    self.parent.toggle_autoContrast()
+                # Disconnect from Jungfraujoch.
+                self.disconnect_jfjoch_client()  # Ensure this method cleans up the connection.
+                
+                # Update UI to reflect stoppage.
+                self.stream_view_button.setText("View Stream")
+                self.parent.plot.setTitle("Stream stopped at the current Frame")
+                self.stream_view_button.started = False
+                self.stream_view_button.setStyleSheet("background-color: green;")
+            except Exception as e:
+                logging.error(f"Error stopping stream: {e}")
+                self.stream_view_button.setStyleSheet("background-color: red;")
+
+    def connect_and_start_jfjoch_client(self):
+        """Establish connection to Jungfraujoch; return True if successful, False otherwise."""
+        try:
+            # Create an instance of the API wrapper if not already connected.
+            self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
+            logging.info("Created a Jungfraujoch client for communication...")
+            self.run_check_jfj_ready_in_thread()  # Start checking the connection status.
+            self.check_jfj_timer.start(5000)
+            return True
+        except (TimeoutError, ConnectionError, ValueError) as e:
+            logging.error(f"Connection failed: {e}")
+            return False
+        
+    def disconnect_jfjoch_client(self):
+        """Disconnect from the Jungfraujoch client."""
+        try:
+            self.check_jfj_timer.stop()
+            if self.jfjoch_client:
+                self.send_command_to_jfjoch("cancel")
+                self.jfjoch_client = None
+            self.enable_jfjoch_controls(False)
+            self.checked_jfj_task_running = False
+            return True
+        except Exception as e:
+            logging.error(f"Error while disconnecting: {e}")
+            return False
+
     """ ***************************************************** """
     """ Methods for the Jungfraujoch receiver (FPGA Solution) """
     """ ***************************************************** """
@@ -283,16 +369,20 @@ class VisualizationPanel(QGroupBox):
             if result is not True:
                 logging.warning("Exiting toggle_LiveStream due to failed 'live' command.")
                 return  # Exit early if the "live" command failed
-            self.live_stream_button.setStyleSheet('background-color: green; color: white;')
-            self.live_stream_button.setText("Live stream of frames is ON")
+            
+            self.live_stream_button.setText("Stop")
             self.parent.plot.setTitle("View of the stream from the Jungfraujoch broker")
             self.live_stream_button.started = True
+
             self.live_stream_timer.start(3540000) # restart live stream after 59 min
+
         else:
+
             self.live_stream_timer.stop()
+
+            # self.send_command_to_jfjoch("cancel")
             logging.info(f"Stopping the stream...") 
-            self.live_stream_button.setStyleSheet('background-color: red; color: white;')
-            self.live_stream_button.setText("Live stream has been stopped...")
+            self.live_stream_button.setText("Live Stream")
             self.parent.plot.setTitle("Stream stopped")
             self.jfjoch_client.cancel()
             self.live_stream_button.started = False
@@ -326,7 +416,7 @@ class VisualizationPanel(QGroupBox):
         if not self.jfj_is_collecting:
             self.startCollection.setEnabled(enables)
         self.stop_jfj_measurement.setEnabled(enables)
-        # self.live_stream_button.setEnabled(enables)
+        self.live_stream_button.setEnabled(enables)
         self.wait_option.setEnabled(enables) 
         self.thresholdBox.setEnabled(enables)
         self.recordPedestalBtn.setEnabled(enables)
@@ -352,16 +442,16 @@ class VisualizationPanel(QGroupBox):
             self.update_gui_with_JFJ_OFF()
 
     def update_gui_with_JFJ_ON(self):
-        self.connectTojfjoch.setStyleSheet('background-color: green; color: white;')
-        self.connectTojfjoch.setText("Communication OK")
+        self.stream_view_button.setStyleSheet('background-color: green; color: white;')
+        self.stream_view_button.setText("JFJ Communication OK")
         self.enable_jfjoch_controls(True)
         if self.jfjoch_client.status().state == "Idle": # So that the [Live Stream] button reflects the actual operating state
             if self.live_stream_button.started: # When the stream ends, the button has to reflect that
                     self.toggle_LiveStream() # toggle OFF
 
     def update_gui_with_JFJ_OFF(self):
-        self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
-        self.connectTojfjoch.setText("Connection Failed")
+        self.stream_view_button.setStyleSheet('background-color: red; color: white;')
+        self.stream_view_button.setText("JFJ Connection Failed")
         self.enable_jfjoch_controls(False)
         logging.warning("The JFJ broker current state is in {Inactive, Error}... State needs to be 'Idle' for communication ot work")
 
@@ -376,75 +466,75 @@ class VisualizationPanel(QGroupBox):
 
         logging.debug("Check finished")
 
-    def connect_and_start_jfjoch_client(self):
-        if self.connectTojfjoch.started == False:
-                if self.stream_view_button.started:
-                    try:
-                        self.connectTojfjoch.started = True
+    # def connect_and_start_jfjoch_client(self):
+    #     if self.connectTojfjoch.started == False:
+    #             if self.stream_view_button.started:
+    #                 try:
+    #                     self.connectTojfjoch.started = True
 
-                        # Create an instance of the API wrapper
-                        self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
-                        logging.info("Created a Jungfraujoch client for communication...")
+    #                     # Create an instance of the API wrapper
+    #                     self.jfjoch_client = JungfraujochWrapper(self.cfg.jfjoch_host)
+    #                     logging.info("Created a Jungfraujoch client for communication...")
 
-                        # Trigger immediately for the first time
-                        self.run_check_jfj_ready_in_thread()
+    #                     # Trigger immediately for the first time
+    #                     self.run_check_jfj_ready_in_thread()
 
-                        # Then check the JFJ state of operation every 5 seconds
-                        self.check_jfj_timer.start(5000)
+    #                     # Then check the JFJ state of operation every 5 seconds
+    #                     self.check_jfj_timer.start(5000)
 
-                        # Start the stream automatically if communication is successful
-                        self.live_stream_button.clicked.emit()
-                    except TimeoutError as e:
-                        logging.error(f"Connection attempt timed out: {e}")
-                        self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
-                        self.connectTojfjoch.setText("Connection Timed Out")
-                        return
-                    except ConnectionError as e:
-                        logging.error(f"Connection failed: {e}")
-                        self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
-                        self.connectTojfjoch.setText("Connection Failed")
-                        return
-                    except ValueError as e:
-                        logging.error(f"Unexpected server response: {e}")
-                        self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
-                        self.connectTojfjoch.setText("Connection Failed")
-                        return
-                else:
-                    logging.warning(
-                        f"Cannot create a Jungfraujoch client unless GUI starts "
-                         "to receive and correctly decode streamed ZMQ messages from the Jungfraujoch Broker...\n"
-                         "Click on the [View Stream] button in the [Visualization Panel] to enable proper decoding of frames."
-                    )
+    #                     self.live_stream_button.clicked.emit()
 
-                    # Show a popup message box to notify the user of the error
-                    error_msg = QMessageBox()
-                    error_msg.setIcon(QMessageBox.Warning)
-                    error_msg.setWindowTitle("Streamed frames are not being properly decoded")
-                    error_msg.setText(
-                        "To allow instantiation of Jungfraujoch client, please click on the [View Stream] button in the [Visualization Panel]"
-                    )
-                    error_msg.setStandardButtons(QMessageBox.Ok)
-                    error_msg.exec()
+    #                 except TimeoutError as e:
+    #                     logging.error(f"Connection attempt timed out: {e}")
+    #                     self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
+    #                     self.connectTojfjoch.setText("Connection Timed Out")
+    #                     return
+    #                 except ConnectionError as e:
+    #                     logging.error(f"Connection failed: {e}")
+    #                     self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
+    #                     self.connectTojfjoch.setText("Connection Failed")
+    #                     return
+    #                 except ValueError as e:
+    #                     logging.error(f"Unexpected server response: {e}")
+    #                     self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
+    #                     self.connectTojfjoch.setText("Connection Failed")
+    #                     return
+    #             else:
+    #                 logging.warning(
+    #                     f"Cannot create a Jungfraujoch client unless GUI starts "
+    #                      "to receive and correctly decode streamed ZMQ messages from the Jungfraujoch Broker...\n"
+    #                      "Click on the [View Stream] button in the [Visualization Panel] to enable proper decoding of frames."
+    #                 )
+
+    #                 # Show a popup message box to notify the user of the error
+    #                 error_msg = QMessageBox()
+    #                 error_msg.setIcon(QMessageBox.Warning)
+    #                 error_msg.setWindowTitle("Streamed frames are not being properly decoded")
+    #                 error_msg.setText(
+    #                     "To allow instantiation of Jungfraujoch client, please click on the [View Stream] button in the [Visualization Panel]"
+    #                 )
+    #                 error_msg.setStandardButtons(QMessageBox.Ok)
+    #                 error_msg.exec()
                     
-                    return 
-        else:
-            self.check_jfj_timer.stop()
-            self.thread_pool.waitForDone()  # Wait for all tasks to finish
-            self.connectTojfjoch.started = False
-            self.connectTojfjoch.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-            self.connectTojfjoch.setText('Connection Status to Jungfraujoch')
-            self.send_command_to_jfjoch("cancel") # For now, the easiest way to keep up with the JFJ state
+    #                 return 
+    #     else:
+    #         self.check_jfj_timer.stop()
+    #         self.thread_pool.waitForDone()  # Wait for all tasks to finish
+    #         self.connectTojfjoch.started = False
+    #         self.connectTojfjoch.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+    #         self.connectTojfjoch.setText('Connect to Jungfraujoch')
+    #         self.send_command_to_jfjoch("cancel") # For now, the easiest way to keep up with the JFJ state
             
-            """ 
-            The following forces the user to have the GUI continuously check the JFJ operating state.
-            If the button [Connect to Jungfraujoch] is OFFed, controls are disabled as a percaution,
-            since the JFJ state is unknown to GUI at that point.
-            """ 
-            self.jfjoch_client = None # Reset the wrapper to None
-            self.enable_jfjoch_controls(False) # Need to disable controls as the wrapper is None
+    #         """ 
+    #         The following forces the user to have the GUI continuously check the JFJ operating state.
+    #         If the button [Connect to Jungfraujoch] is OFFed, controls are disabled as a percaution,
+    #         since the JFJ state is unknown to GUI at that point.
+    #         """ 
+    #         self.jfjoch_client = None # Reset the wrapper to None
+    #         self.enable_jfjoch_controls(False) # Need to disable controls as the wrapper is None
 
-            # Reset the flag if a task is still running
-            self.checked_jfj_task_running = False
+    #         # Reset the flag if a task is still running
+    #         self.checked_jfj_task_running = False
 
     def send_command_to_jfjoch(self, command):
         try:
@@ -583,7 +673,7 @@ class VisualizationPanel(QGroupBox):
                     self.toggle_LiveStream() # toggle OFF
                 else:
                     logging.info(f"Cancel request forwarded to JFJ...") 
-                    if self.jfjoch_client is not None: self.jfjoch_client.cancel()  
+                    self.jfjoch_client.cancel()  
 
         except Exception as e:
             logging.error(f"GUI caught relayed error: {e}")
@@ -656,42 +746,42 @@ class VisualizationPanel(QGroupBox):
         # Apply the modified LUT to the ImageItem
         self.parent.imageItem.setLookupTable(lut)
 
-    def toggle_viewStream(self):
-        if not self.stream_view_button.started:
-            self.thread_read = QThread()
-            self.streamReader = Reader(self.parent.receiver)
-            self.parent.threadWorkerPairs.append((self.thread_read, self.streamReader))                              
-            self.initializeWorker(self.thread_read, self.streamReader) # Initialize the worker thread and fitter
-            self.thread_read.start()
-            self.readerWorkerReady = True # Flag to indicate worker is ready
-            logging.info("Starting reading process")
-            # Adjust button display according to ongoing state of process
-            self.stream_view_button.setText("Stop")
-            self.parent.plot.setTitle("View of the Stream")
-            self.parent.timer.setInterval(self.update_interval.value())
-            self.stream_view_button.started = True
-            logging.info(f"Timer interval: {self.parent.timer.interval()}")
-            # Start timer and enable file operation buttons
-            self.parent.timer.start()
-            if not self.connectTojfjoch.started: 
-                self.connect_and_start_jfjoch_client()
+    # def toggle_viewStream(self):
+    #     if not self.stream_view_button.started:
+    #         self.thread_read = QThread()
+    #         self.streamReader = Reader(self.parent.receiver)
+    #         self.parent.threadWorkerPairs.append((self.thread_read, self.streamReader))                              
+    #         self.initializeWorker(self.thread_read, self.streamReader) # Initialize the worker thread and fitter
+    #         self.thread_read.start()
+    #         self.readerWorkerReady = True # Flag to indicate worker is ready
+    #         logging.info("Starting reading process")
+    #         # Adjust button display according to ongoing state of process
+    #         self.stream_view_button.setText("Stop")
+    #         self.parent.plot.setTitle("View of the Stream")
+    #         self.parent.timer.setInterval(self.update_interval.value())
+    #         self.stream_view_button.started = True
+    #         logging.info(f"Timer interval: {self.parent.timer.interval()}")
+    #         # Start timer and enable file operation buttons
+    #         self.parent.timer.start()
+    #         if not self.connectTojfjoch.started: 
+    #             self.connect_and_start_jfjoch_client()
 
-        else:
-            if self.connectTojfjoch.started: 
-                self.connect_and_start_jfjoch_client()
+    #     else:
+    #         if self.connectTojfjoch.started: 
+    #             self.connect_and_start_jfjoch_client()
 
-            self.stream_view_button.setText("View Stream")
-            self.parent.plot.setTitle("Stream stopped at the current Frame")
-            self.stream_view_button.started = False
-            self.parent.timer.stop()
-            # Properly stop and cleanup worker and thread  
-            self.parent.stopWorker(self.thread_read, self.streamReader)
-            # Wait for thread to actually stop
-            if self.thread_read is not None:
-                logging.info("** Read-thread forced to sleep **")
-                time.sleep(0.1) 
-            if self.parent.autoContrastBtn.started:
-                self.parent.toggle_autoContrast()
+    #         self.stream_view_button.setText("View Stream")
+    #         self.parent.plot.setTitle("Stream stopped at the current Frame")
+    #         self.stream_view_button.started = False
+    #         self.parent.timer.stop()
+    #         # Properly stop and cleanup worker and thread  
+    #         self.parent.stopWorker(self.thread_read, self.streamReader)
+    #         # Wait for thread to actually stop
+    #         if self.thread_read is not None:
+    #             logging.info("** Read-thread forced to sleep **")
+    #             time.sleep(0.1) 
+    #         if self.parent.autoContrastBtn.started:
+    #             self.parent.toggle_autoContrast()
 
     def initializeWorker(self, thread, worker):
         thread_manager.move_worker_to_thread(thread, worker)

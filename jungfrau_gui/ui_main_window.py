@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget,
 from PySide6.QtCore import Qt, QObject, QEvent, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence
 from .ui_components.visualization_panel.visualization_panel import VisualizationPanel
+# from .ui_components.visualization_panel.visualization_panel_test import VisualizationPanel
 from .ui_components.tem_controls.tem_controls import TemControls
 from .ui_components.file_operations.file_operations import FileOperations
 from .ui_components.utils import create_gaussian
@@ -379,4 +380,10 @@ class ApplicationWindow(QMainWindow):
 
         logging.info("Exiting app!") 
         self.app.quit()
-        
+    
+    def closeEvent(self, event):
+        # if self.visualization_panel.live_stream_timer.isActive():
+        #     logging.info("Stopping the Live Stream timer...")
+        # self.visualization_panel.live_stream_timer.stop()  # Stop the timer on close
+        self.exit_button.clicked.emit()
+        # event.accept()
