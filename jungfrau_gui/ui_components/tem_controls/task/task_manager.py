@@ -81,8 +81,8 @@ class ControlWorker(QObject):
         self.trigger_tem_update.connect(self.update_tem_status)
         
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
-                           "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": [0, 'X', 'X0k'],
-                           "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k'], "defl.GetBeamBlank": 0,}
+                           "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": globals.mag_value_img,
+                           "eos.GetMagValue_MAG": globals.mag_value_img, "eos.GetMagValue_DIFF": globals.mag_value_diff, "defl.GetBeamBlank": 0,}
         
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
@@ -263,13 +263,9 @@ class ControlWorker(QObject):
             logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
             if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
                 self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
-                # self.cfg.mag_value_img = self.tem_status['eos.GetMagValue']
-                globals.mag_value_img = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_MAG'] = self.tem_update_times['eos.GetMagValue']
             elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
                 self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
-                # self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue']
-                globals.mag_value_diff = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
             
             # Update blanking button with live status at TEM

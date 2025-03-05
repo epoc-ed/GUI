@@ -203,22 +203,24 @@ class TEMAction(QObject):
         
         # Update Magnification radio button in GUI to refelct status of TEM
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
+        if Mag_idx in [0, 1, 2]:
+            magnification = self.control.tem_status["eos.GetMagValue"][2]
+            self.tem_detector.input_magnification.setText(magnification)
+            self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
+        elif Mag_idx == 4:            
+            detector_distance = self.control.tem_status["eos.GetMagValue"][2]
+            self.tem_detector.input_det_distance.setText(detector_distance)
+            self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
         # Only do something if the mode *changed*
         if Mag_idx != self.last_mag_mode:
             if Mag_idx in [0, 1, 2]:
                 if not self.parent.autoContrastBtn.started:
                     self.parent.autoContrastBtn.clicked.emit()
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
-                magnification = self.control.tem_status["eos.GetMagValue"][2]
-                self.tem_detector.input_magnification.setText(magnification)
-                self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
             elif Mag_idx == 4:
                 if self.parent.autoContrastBtn.started:
                     self.parent.resetContrastBtn.clicked.emit()
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
-                detector_distance = self.control.tem_status["eos.GetMagValue"][2]
-                self.tem_detector.input_det_distance.setText(detector_distance)
-                self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
             else:
                 logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
 
