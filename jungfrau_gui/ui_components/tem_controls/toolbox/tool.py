@@ -182,6 +182,7 @@ def d2radius_in_px(d=1, camlen=660, ht=200, pixel=0.075):  # d in Angstroms, cam
     radius = camlen * np.tan(np.arcsin(wavelength / 2 / d) * 2) / pixel
     return radius
 
+"""
 class TEMTools(QObject):
     trigger_addinfo_to_hdf5 = Signal()
     def __init__(self, tem_action):
@@ -280,6 +281,7 @@ class TEMTools(QObject):
             
         except OSError:
             print(f'Failed to update information in {filename}!!!')
+"""
 
     # def get_corrected_detector_distance(self, distance, with_unit=True):
     #     for entry in self.config["distances"]:
