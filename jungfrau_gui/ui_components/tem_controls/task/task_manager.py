@@ -87,6 +87,7 @@ class ControlWorker(QObject):
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
         self.previous_tx_abs = 0
+        self.beam_intensity = {"pa_per_cm2": 0, "e_per_A2_sample": 0}
 
     @Slot()
     def _init(self):

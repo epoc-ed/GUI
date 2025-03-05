@@ -122,7 +122,7 @@ class VisualizationPanel(QGroupBox):
         section_visual.addLayout(view_contrast_group)
         # section_visual.addWidget(create_horizontal_line_with_margin())
 
-        time_interval = QLabel("Acquisition Interval (ms):", self)
+        time_interval = QLabel("Display Interval (ms):", self)
         self.update_interval = QSpinBox(self)
         self.update_interval.setMaximum(5000)
         self.update_interval.setSuffix(' ms')
@@ -261,8 +261,6 @@ class VisualizationPanel(QGroupBox):
             tem_detector_layout.addWidget(self.tem_detector)
 
             section_visual.addLayout(tem_detector_layout)
-        else: 
-            pass
         
         section_visual.addStretch()
         self.setLayout(section_visual)

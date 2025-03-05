@@ -33,7 +33,7 @@ class RecordTask(Task):
         logging.info("RecordTask initialized")
         self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.metadata_notifier = MetadataNotifier(host = "noether")
+        self.metadata_notifier = MetadataNotifier(host = "noether", port = 3463, verbose = False)
         # self.standard_h5_recording = standard_h5_recording
 
         self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)

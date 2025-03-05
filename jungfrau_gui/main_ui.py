@@ -12,10 +12,12 @@ from PySide6.QtCore import QCoreApplication
 from . import globals
 from .ui_components import palette
 from .zmq_receiver import ZmqReceiver
-from .ui_main_window import ApplicationWindow, get_git_info
+from .ui_main_window import ApplicationWindow, get_gui_info
 
 from pathlib import Path
 from epoc import ConfigurationClient, auth_token, redis_host
+
+import os
 
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
@@ -75,6 +77,8 @@ class CustomFormatter(logging.Formatter):
         return f"{level_color}{formatted_message}{self.RESET}"
 
 def main():
+    os.environ["QT_LOGGING_RULES"] = "qt.core.qobject.connect=false"
+
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     
@@ -83,7 +87,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--stream', type=str, default="tcp://noether:5501", help="zmq stream") # default="tcp://localhost:4545"
     parser.add_argument("-d", "--dtype", help="Data type", type = np.dtype, default=np.float32)
-    parser.add_argument("-t", "--tem", action="store_true", help="Activate tem-control functions")
+    parser.add_argument("-p", "--playmode", action="store_true", help="Activates simplified GUI")
     parser.add_argument("-th", "--temhost", default=cfg.temserver, help="Choose host for tem-gui communication")
     parser.add_argument('-l', '--log', default='INFO', help='Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument("-f", "--logfile", action="store_true", help="File-output of logging")
@@ -91,19 +95,6 @@ def main():
     parser.add_argument("-v", "--version", action="store_true", help="Detailed version description")
 
     args = parser.parse_args()
-
-    print(f"{get_git_info()}: Jungfrau for electron diffraction")
-
-    if args.version:
-        print('''
-            **Detailed information of authors, years, project name, Github URL, license, contact address, etc.**
-            GUI for Electron Diffraction with JUNGFRAU (2024-)
-            https://github.com/epoc-ed/GUI
-            EPOC Project (2024-)
-            https://github.com/epoc-ed
-            https://epoc-ed.github.io/manual/index.html
-        ''')
-        return
 
     # Initialize logger
     logger = logging.getLogger()
@@ -131,7 +122,7 @@ def main():
         launch_script_path = Path(sys.argv[0]).resolve().parent
         log_file_path = launch_script_path / f'JFGUI{time.strftime("_%Y%m%d-%H%M%S.log", time.localtime())}'
 
-        print(f"** Writing log to: {log_file_path} **")  # Debugging line to verify file creation
+        logging.info(f"Writing console loggings to: {log_file_path}")  # Debugging line to verify file creation
         
         file_handler = logging.FileHandler(log_file_path.as_posix())
         file_handler.setLevel(log_level)
@@ -150,11 +141,21 @@ def main():
     globals.stream = args.stream 
     globals.dtype = args.dtype
     globals.acc_image = np.zeros((globals.nrow,globals.ncol), dtype = args.dtype)
-    globals.tem_mode = args.tem
+    globals.tem_mode = not args.playmode
     globals.tem_host = args.temhost
     globals.dev = args.dev
     
-    logging.info(f"Tag of GUI: {globals.tag}")
+    logging.info(f"{get_gui_info()}")
+
+    if args.version:
+        logging.info('''
+            **Detailed information of authors, years, project name, Github URL, license, contact address, etc.**
+            Graphical User Interface for Electron Diffraction with JUNGFRAU (2024-)
+            https://github.com/epoc-ed/GUI
+            EPOC Project (2024-)
+            https://github.com/epoc-ed
+            https://epoc-ed.github.io/manual/index.html
+        ''')
 
     Rcv = ZmqReceiver(endpoint=args.stream, dtype=args.dtype) 
 
