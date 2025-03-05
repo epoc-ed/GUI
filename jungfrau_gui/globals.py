@@ -3,7 +3,51 @@ import numpy as np
 import multiprocessing as mp
 from epoc import ConfigurationClient
 import subprocess
-import os
+
+def get_git_info():
+    defaults = ('no-tagged-version', 'noname-branch', 'no-commit-hash')
+    
+    try:
+        # 1. Check if Git is installed
+        subprocess.run(
+            ['git', '--version'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True
+        )
+        
+        # 2. Check if in Git repo (silently)
+        result = subprocess.run(
+            ['git', 'rev-parse', '--is-inside-work-tree'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,  # Silence fatal errors
+            check=False  # Don't raise exception on failure
+        )
+        
+        if result.returncode != 0:
+            return defaults  # Not a Git repo
+        
+        # 3. Get version info
+        tag = subprocess.check_output(
+            ['git', 'describe', '--tags', '--abbrev=0'],
+            stderr=subprocess.DEVNULL  # Silence warnings
+        ).strip().decode('utf-8')
+        
+        branch = subprocess.check_output(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            stderr=subprocess.DEVNULL
+        ).strip().decode('utf-8')
+        
+        commit = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'],
+            stderr=subprocess.DEVNULL
+        ).strip().decode('utf-8')
+        
+        return tag, branch, commit
+    
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Git not installed or command failed
+        return defaults
 
 cfg = ConfigurationClient()
 stream = "tcp://localhost:4545"
@@ -38,57 +82,4 @@ stream_dt = np.float32
 mag_value_img = [1, 'X', 'X1']
 mag_value_diff = [1, 'mm', '1cm']
 
-if os.path.isfile('.git'):
-    try:
-        tag = subprocess.check_output(['git', 'describe', '--tags']).strip().decode('utf-8').split('-')[0]
-        branch = subprocess.check_output(['git', 'branch', '--show-current']).strip().decode('utf-8').split()[-1]
-        commit = subprocess.check_output(["git", "rev-parse", branch]).strip().decode("utf-8")
-    except subprocess.CalledProcessError: # for developers' local testing
-        tag, branch, commit  = 'no-tagged-version', 'noname-branch', 'no-commit-hash'
-else:
-    tag, branch, commit  = 'no-tagged-version', 'noname-branch', 'no-commit-hash'
-
-'''
-def in_git_repo():
-    """
-    Returns True if the current directory is inside a Git repository.
-    Otherwise, returns False.
-    """
-    try:
-        # We redirect stderr and stdout to DEVNULL so Git doesn't print error messages:
-        with open(os.devnull, 'wb') as devnull:
-            subprocess.check_call(
-                ['git', 'rev-parse', '--is-inside-work-tree'],
-                stdout=devnull, stderr=devnull
-            )
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
-# Default fallback values
-tag, branch, commit = 'no-tagged-version', 'noname-branch', 'no-commit-hash'
-
-if in_git_repo():
-    try:
-        tag_output = subprocess.check_output(
-            ['git', 'describe', '--tags'],
-            stderr=subprocess.DEVNULL
-        ).strip().decode('utf-8')
-        tag = tag_output.split('-')[0] if tag_output else tag
-
-        branch_output = subprocess.check_output(
-            ['git', 'branch', '--show-current'],
-            stderr=subprocess.DEVNULL
-        ).strip().decode('utf-8')
-        branch = branch_output if branch_output else branch
-
-        commit_output = subprocess.check_output(
-            ['git', 'rev-parse', branch],
-            stderr=subprocess.DEVNULL
-        ).strip().decode('utf-8')
-        commit = commit_output if commit_output else commit
-
-    except subprocess.CalledProcessError:
-        # Fall back to defaults if Git calls fail for any reason
-        pass
-'''
+tag, branch, commit  = get_git_info()

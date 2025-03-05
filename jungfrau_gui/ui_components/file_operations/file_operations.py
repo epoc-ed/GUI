@@ -90,7 +90,7 @@ class FileOperations(QGroupBox):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_update_h5_index_box.connect(self.update_index_box)
         self.initUI()
-        self.metadata_notifier = MetadataNotifier(host = "noether")
+        self.metadata_notifier = MetadataNotifier(host = "noether", port = 3463, verbose = False)
         
 
     def initUI(self):
