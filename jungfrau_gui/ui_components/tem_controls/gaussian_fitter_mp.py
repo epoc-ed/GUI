@@ -8,7 +8,7 @@ from line_profiler import LineProfiler
 from .toolbox.fit_beam_intensity import fit_2d_gaussian_roi_fast, gaussian2d_rotated, super_gaussian2d_rotated, fit_2d_gaussian_roi_NaN_fast
 from datetime import datetime
 
-import globals
+# import globals
 
 from queue import Empty  # or multiprocessing.queues.Empty
 

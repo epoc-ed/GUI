@@ -36,6 +36,8 @@ class BeamFitTask(Task):
 
     def run(self, init_IL1=IL1_0, init_stigm=ILs_0):
         try:
+            autofocus_start = time.perf_counter()
+
             # ------------------------
             # Interrupting TEM Polling
             # ------------------------
@@ -63,7 +65,8 @@ class BeamFitTask(Task):
             # Start IL1 Sweeping (ROUGH)
             # --------------------------
             logging.info("################ Start IL1 rough-sweeping ################")
-            completed = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 550, 50)
+            # completed = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 550, 50)
+            completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
             if not completed:
                 logging.warning("ROUGH Sweep interrupted! Exiting BeamFitTask::run() method...")
                 return  # Exit the run method if the sweep was interrupted
@@ -79,8 +82,12 @@ class BeamFitTask(Task):
             self.client.SetILFocus(il1_guess1)
 
             self.lens_parameters["il1"] = il1_guess1
-            self.lens_parameters["ils"] = self.client.GetILs() # ??? Double checking if ILs changed without explicitly changing it 
+            """ self.lens_parameters["ils"] = self.client.GetILs() # ??? Double checking if ILs changed without explicitly changing it  """
             
+            autofocus_end = time.perf_counter()
+            autofocus_time = autofocus_end - autofocus_start
+            logging.warning(f" ###### ROUGH SWEEP took {autofocus_time:.6f} seconds")
+
         except Exception as e:
             logging.error(f"Unexpected error during beam focusing: {e}")
         finally:
@@ -109,11 +116,13 @@ class BeamFitTask(Task):
                 return False
 
             # Set IL1 to current position
-            logging.warning(f"{datetime.now().strftime('%H:%M:%S.%f')[:-3]} BEGIN SetILFocus({il1_value}")
+            iter_start = time.perf_counter()
             self.client.SetILFocus(il1_value)
-            logging.warning(f"{datetime.now().strftime('%H:%M:%S.%f')[:-3]} END SetILFocus({il1_value}")
+            iter_end = time.perf_counter()
+            iter_time = iter_end - iter_start
+            logging.warning(f"SetILFocus({il1_value}) took {iter_time:.6f} seconds")
 
-            self.lens_parameters["ils"] = self.client.GetILs() # ??? Double checking if ILs changed without explicitly changing it
+            """ self.lens_parameters["ils"] = self.client.GetILs() # ??? Double checking if ILs changed without explicitly changing it """
 
             # (Optional) small wait for hardware to stabilize
             time.sleep(wait_time_s)

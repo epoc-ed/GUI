@@ -127,7 +127,7 @@ class TemControls(QGroupBox):
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
             # self.tem_action.control.fit_complete.connect(self.updateFitParams)
-            self.tem_action.control.fit_complete.connect(lambda fit_result_best_values: self.updateFitParams(fit_result_best_values, draw=False))
+            # self.tem_action.control.fit_complete.connect(lambda fit_result_best_values: self.updateFitParams(fit_result_best_values, draw=False))
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
         else: 
@@ -310,7 +310,7 @@ class TemControls(QGroupBox):
 
     @Slot()
     def updateFitParams(self, fit_result_best_values, draw = True):
-        logging.info(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
+        logging.debug(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
         yo = float(fit_result_best_values['yo'])        
@@ -378,7 +378,7 @@ class TemControls(QGroupBox):
         self.sigma_y_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.sigma_y_fit)
 
-        logging.info(datetime.now().strftime(" END UPDATING GUI @ %H:%M:%S.%f")[:-3])
+        logging.debug(datetime.now().strftime(" END UPDATING GUI @ %H:%M:%S.%f")[:-3])
 
     def removeAxes(self):
         logging.info("Removing gaussian fitting ellipse and axis!")

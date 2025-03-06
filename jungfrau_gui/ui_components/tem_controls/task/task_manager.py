@@ -142,7 +142,7 @@ class ControlWorker(QObject):
         
         if isinstance(self.task, BeamFitTask):
             #self.stop_and_clean_fitter()
-            self.stop_and_clean_fitter_mp()
+            # self.stop_and_clean_fitter_mp()
             logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
             self.remove_ellipse.emit()
 
@@ -175,12 +175,12 @@ class ControlWorker(QObject):
         logging.debug("Control is starting a Task...")
         self.last_task = self.task
         self.task = task
-        if isinstance(self.task, BeamFitTask):
-            self.beam_fitter = GaussianFitterMP()
-            # Optional ###############
-            self.task.newBestResult.connect(on_new_best_result_in_main_thread)
-            # ########################
-            self.sweepingWorkerReady = True
+        # if isinstance(self.task, BeamFitTask):
+            # self.beam_fitter = GaussianFitterMP()
+            # # Optional ###############
+            # self.task.newBestResult.connect(on_new_best_result_in_main_thread)
+            # # ########################
+            # self.sweepingWorkerReady = True
 
         # Create a new QThread for each task to avoid reuse issues
         self.task_thread = QThread()  
@@ -281,7 +281,16 @@ class ControlWorker(QObject):
             self.tem_action.tem_controls.toggle_gaussianFit_beam()
         time.sleep(0.05)
 
+        self.beam_fitter = GaussianFitterMP()
+
         task = BeamFitTask(self)
+        
+        # Optional ###############
+        task.newBestResult.connect(on_new_best_result_in_main_thread)
+        # ########################
+        
+        self.sweepingWorkerReady = True
+
         self.start_task(task)
 
     def set_sweeper_to_off_state(self):
