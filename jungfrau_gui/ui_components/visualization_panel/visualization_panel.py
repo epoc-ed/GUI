@@ -416,7 +416,8 @@ class VisualizationPanel(QGroupBox):
                         self.check_jfj_timer.start(5000)
 
                         # Start the stream automatically if communication is successful
-                        self.live_stream_button.clicked.emit()
+                        # self.live_stream_button.clicked.emit()
+                        self.toggle_LiveStream()
                     except TimeoutError as e:
                         logging.error(f"Connection attempt timed out: {e}")
                         self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
