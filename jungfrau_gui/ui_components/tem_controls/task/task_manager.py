@@ -200,7 +200,8 @@ class ControlWorker(QObject):
         # Stop the Gaussian Fitting if running
         if self.tem_action.tem_tasks.btnGaussianFit.started:
             self.tem_action.tem_controls.toggle_gaussianFit_beam()
-        time.sleep(0.1)
+            time.sleep(0.1)
+            self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI
             filename_suffix = self.cfg.data_dir / 'RotEDlog_test'

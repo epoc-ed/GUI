@@ -277,6 +277,7 @@ class RecordTask(Task):
             self.client.SetBeamBlank(1)
             time.sleep(0.01)
             self.reset_rotation_signal.emit()
+            self.setup_back_btnGaussianFit_connection_in_main_thread()
         
         # self.make_xds_file(master_filepath,
         #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
@@ -288,6 +289,14 @@ class RecordTask(Task):
     #         self.control.tem_status['stage.GetPos'][3],
     #         self.control.tem_update_times['stage.GetPos'][1])
     #     )
+
+    def setup_back_btnGaussianFit_connection_in_main_thread(self):
+        QMetaObject.invokeMethod(
+            self.tem_action.tem_tasks.btnGaussianFit,  # The object whose method will be called
+            "clicked.connect",         # The method name as a string
+            Qt.QueuedConnection,       # Ensures it runs in the main thread
+            self.tem_action.tem_controls.toggle_gaussianFit_beam  # The slot to connect
+        )
 
     def make_xds_file(self, master_filepath, xds_filepath, xds_template_filepath):
         master_file = h5py.File(master_filepath, 'r')
