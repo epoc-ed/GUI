@@ -36,7 +36,7 @@ class TemControls(QGroupBox):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         
         self.gaussian_user_forced_off = False
-        
+
         font_small = QFont("Arial", 10)
         font_small.setBold(True)
 
@@ -288,7 +288,7 @@ class TemControls(QGroupBox):
         if not self.tem_tasks.btnGaussianFit.started:
             # Fitter was stopped, ignore any last-minute signals
             return
-        logging.info(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
+        logging.debug(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
         yo = float(fit_result_best_values['yo'])        
@@ -355,7 +355,7 @@ class TemControls(QGroupBox):
         self.sigma_y_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.sigma_y_fit)
 
-        logging.info(datetime.now().strftime(" END UPDATING GUI @ %H:%M:%S.%f")[:-3])
+        logging.debug(datetime.now().strftime(" END UPDATING GUI @ %H:%M:%S.%f")[:-3])
 
     def removeAxes(self):
         logging.info("Removing gaussian fitting ellipse and axis!")

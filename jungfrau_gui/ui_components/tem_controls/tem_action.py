@@ -106,7 +106,7 @@ class TEMAction(QObject):
 
     @Slot()
     def reconnectGaussianFit(self):
-        self.tem_tasks.btnGaussianFit.clicked.connect(lambda: self.toggle_gaussianFit_beam(by_user=True))
+        self.tem_tasks.btnGaussianFit.clicked.connect(lambda: self.tem_controls.toggle_gaussianFit_beam(by_user=True))
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
