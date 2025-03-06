@@ -104,6 +104,10 @@ class TEMAction(QObject):
         ## for debug
         # self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.update_plotitem())
 
+    @Slot()
+    def reconnectGaussianFit(self):
+        self.tem_tasks.btnGaussianFit.clicked.connect(self.tem_controls.toggle_gaussianFit_beam)
+
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
 

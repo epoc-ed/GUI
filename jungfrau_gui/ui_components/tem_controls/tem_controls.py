@@ -275,6 +275,9 @@ class TemControls(QGroupBox):
 
     @Slot()
     def updateFitParams(self, fit_result_best_values):
+        if not self.tem_tasks.btnGaussianFit.started:
+            # Fitter was stopped, ignore any last-minute signals
+            return
         logging.info(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
