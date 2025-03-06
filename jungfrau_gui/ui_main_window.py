@@ -352,6 +352,7 @@ class ApplicationWindow(QMainWindow):
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if reply == QMessageBox.No:
+                    event.ignore()  # Prevents the window from closing
                     return
 
         # Dealing with ongoing operation of the GUI after premature 'Exit' request
@@ -375,7 +376,8 @@ class ApplicationWindow(QMainWindow):
                 for thread, worker in running_threadWorkerPairs:
                     logging.warning(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker) 
-            else: 
+            else:
+                event.ignore()  # Prevents the window from closing
                 return
 
         if globals.tem_mode:
