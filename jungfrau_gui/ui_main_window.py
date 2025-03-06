@@ -337,6 +337,10 @@ class ApplicationWindow(QMainWindow):
         thread_manager.reset_worker_and_thread(worker, thread)
 
     def do_exit(self):
+        """Slot connected to your Exit button."""
+        self.close()
+
+    def closeEvent(self, event):
         # Prevent closing the GUI while JFJ is not Idle
         # TODO Add flexibily as a function of the nature of the ongoing JFJ operation
         if self.visualization_panel.jfjoch_client:
@@ -380,10 +384,4 @@ class ApplicationWindow(QMainWindow):
 
         logging.info("Exiting app!") 
         self.app.quit()
-    
-    def closeEvent(self, event):
-        # if self.visualization_panel.live_stream_timer.isActive():
-        #     logging.info("Stopping the Live Stream timer...")
-        # self.visualization_panel.live_stream_timer.stop()  # Stop the timer on close
-        self.exit_button.clicked.emit()
-        # event.accept()
+        event.accept()
