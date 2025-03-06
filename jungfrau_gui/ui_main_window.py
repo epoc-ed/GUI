@@ -153,13 +153,13 @@ class ApplicationWindow(QMainWindow):
         self.contrast_1_Btn = QPushButton("0 - 100")
         self.contrast_2_Btn = QPushButton("0 - 1000")
         self.contrast_3_Btn = QPushButton("0 - 1e5")
-        self.contrast_4_Btn = QPushButton("0 - 1e9")
+        self.contrast_4_Btn = QPushButton("0 - 1e7")
 
         self.contrast_0_Btn.clicked.connect(lambda checked: self.set_contrast(-50, 50))
         self.contrast_1_Btn.clicked.connect(lambda checked: self.set_contrast(0, 100))
         self.contrast_2_Btn.clicked.connect(lambda checked: self.set_contrast(0, 1000))
         self.contrast_3_Btn.clicked.connect(lambda checked: self.set_contrast(0, 100000))
-        self.contrast_4_Btn.clicked.connect(lambda checked: self.set_contrast(0, 1000000000))
+        self.contrast_4_Btn.clicked.connect(lambda checked: self.set_contrast(0, 10000000))
 
         contrast_group.addWidget(self.autoContrastBtn, 0, 0,  1, 4)
         contrast_group.addWidget(self.resetContrastBtn, 0, 4, 1, 4)
