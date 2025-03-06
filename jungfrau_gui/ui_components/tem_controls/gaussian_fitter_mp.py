@@ -53,32 +53,6 @@ def fit_2d_gaussian_roi(im, roi_coords):
     fit_result.best_values['yo'] +=  roi_start_row
 
     return fit_result
-'''
-def _fitGaussian(input_queue, output_queue):
-    while True:
-        if globals.fitterWorkerReady.value:
-            if input_queue.empty():
-                logging.debug("Input Queue Empty !" )
-                continue
-
-            task = input_queue.get()  # Blocking call, waits for new data
-            
-            if task is None: # None is used as a signal to stop the process
-                print("/!\/!\/!\ Stopping Fitting Process!" )
-                break
-            
-            logging.debug("Ongoing Fitting.......")
-            image_data, roiPos, roiSize = task
-
-            roi_coord = create_roi_coord_tuple(roiPos, roiSize)
-            logging.info(datetime.now().strftime(" START FITTING @ %H:%M:%S.%f")[:-3])
-            fit_result = fit_2d_gaussian_roi_NaN_fast(image_data, roi_coord, function = super_gaussian2d_rotated)
-            logging.info(datetime.now().strftime(" END FITTING @ %H:%M:%S.%f")[:-3])
-            output_queue.put(fit_result.best_values)
-            logging.warning(f"*** Output Queue is Empty? : {output_queue.empty()} ***")
-            globals.fitterWorkerReady.value = False
-
-'''
 
 def _fitGaussian(input_queue, output_queue):
     while True:
@@ -126,46 +100,13 @@ class GaussianFitterMP(QObject):
         roiSize = (roi.size().x(), roi.size().y())
         self.input_queue.put((image, roiPos, roiSize))
         logging.info(datetime.now().strftime(" UPDATED FITTER @ %H:%M:%S.%f")[:-3])
-    
-    '''
-    def updateParams(self, imageItem, roi):
-        logging.debug("Updating parameters in the processing Queue...")
-        image_data = imageItem.image.copy()  # Assuming image data can be accessed and is pickleable
-        roiPos = (roi.pos().x(), roi.pos().y())
-        roiSize = (roi.size().x(), roi.size().y())
-        self.input_queue.put((image_data, roiPos, roiSize))
-        globals.fitterWorkerReady.value = True
-        logging.info(datetime.now().strftime(" UPDATED FITTER @ %H:%M:%S.%f")[:-3])
-        logging.info(f"3.Fitter should be ready! Is it? --> {globals.fitterWorkerReady.value}")
-
-    def fetch_result(self):
-        logging.debug("--------------Checking---------------")
-        if not self.output_queue.empty():
-            logging.debug("+++++++++++ Output queue not empty +++++++++++++++")
-            return self.output_queue.get(timeout=2.0)
-        return None
-    '''
 
     def fetch_result(self):
         try:
             return self.output_queue.get(timeout=2.0)
         except Empty:
+            logging.info(datetime.now().strftime(" FETCH RESULT is None @ %H:%M:%S.%f")[:-3])
             return None
-    '''
-    def stop(self):
-        logging.debug("Stopping Gaussian Fitting Process")
-        if self.fitting_process is not None:
-            self.input_queue.put(None)  # Send sentinel value to signal the process to exit
-            # self.fitting_process.terminate() # Does not allow graceful break of while loop in _fitGaussian
-            self.fitting_process.join()  # Wait for the process to finish
-            self.fitting_process = None
-        logging.info("Closing queues and joining ")
-        self.input_queue.close()
-        self.output_queue.close()
-        self.input_queue.cancel_join_thread()
-        self.output_queue.cancel_join_thread()
-        logging.info("Gaussian Fitting Process Stopped")
-    '''
 
     def stop(self):
         logging.debug("Stopping Gaussian Fitting Process")

@@ -78,7 +78,7 @@ class BeamFitTask(Task):
             # Once task finished, move lens to optimal position 
             for il1_value in range(init_IL1 - 500, il1_guess1+100, 50): 
                 self.client.SetILFocus(il1_value)
-            time.sleep(WAIT_TIME_S)
+            """time.sleep(WAIT_TIME_S)"""
             self.client.SetILFocus(il1_guess1)
 
             self.lens_parameters["il1"] = il1_guess1
@@ -131,16 +131,11 @@ class BeamFitTask(Task):
             self.lens_parameters["il1"] = il1_value
 
             # Now request a fit. We'll pass the current image & ROI.
-            '''image_item = self.tem_action.parent.imageItem
-            roi = self.tem_action.parent.roi
-            self.beam_fitter.updateParams(image_item, roi)'''
-
             image_data = self.tem_action.parent.imageItem.image.copy()
             roi = self.tem_action.parent.roi
             self.beam_fitter.updateParams(image_data, roi)
 
             # Wait for the result (blocking in this thread only!)
-            '''fit_result = self._wait_for_fit_result(timeout=2.0)'''
             fit_result = self.beam_fitter.fetch_result()
             if fit_result is None:
                 logging.warning("No fit result arrived in time; continuing anyway.")
@@ -149,20 +144,7 @@ class BeamFitTask(Task):
             # Process the result
             self.process_fit_results(fit_result)
 
-            # Possibly no need for another 1-second sleep here
-            # because we've already waited for the fit to complete.
-
         return True
-    '''
-    def _wait_for_fit_result(self, timeout=2.0, poll_interval=0.05):
-        start = time.time()
-        while (time.time() - start) < timeout:
-            result = self.beam_fitter.fetch_result()
-            if result is not None:
-                return result
-            time.sleep(poll_interval)
-        return None
-    '''
 
     def process_fit_results(self, fit_values):
         """
@@ -189,9 +171,8 @@ class BeamFitTask(Task):
         # Track best
         if self.best_result is None or fom < self.best_result["fom"]:
             self.best_result = result_dict
-            # ###### Optionally notify the main GUI thread ####
+            # Debugging: notify the main GUI thread 
             self.newBestResult.emit(result_dict)
-            # #################################################
         
         logging.info(datetime.now().strftime(" Fit Results Processed @ %H:%M:%S.%f")[:-3])
 
