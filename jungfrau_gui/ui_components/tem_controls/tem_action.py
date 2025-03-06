@@ -208,7 +208,7 @@ class TEMAction(QObject):
             if Mag_idx in [0, 1, 2]:
                 if not self.parent.autoContrastBtn.started:
                     self.parent.autoContrastBtn.clicked.emit()
-                if not self.tem_tasks.btnGaussianFit.started:
+                if self.tem_tasks.btnGaussianFit.started:
                     self.tem_controls.toggle_gaussianFit_beam()
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
                 magnification = self.control.tem_status["eos.GetMagValue"][2]
