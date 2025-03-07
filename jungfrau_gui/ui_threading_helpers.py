@@ -54,6 +54,5 @@ def reset_worker_and_thread(worker, task_thread):
     if task_thread:
         task_thread.deleteLater()  # Schedule the thread for deletion
 
-    worker = None
-    task_thread = None
-    logging.info("Task and thread reset to None.")
+    logging.info(f"Task {worker.task_name} and its thread were reset to None.")
+    return None, None

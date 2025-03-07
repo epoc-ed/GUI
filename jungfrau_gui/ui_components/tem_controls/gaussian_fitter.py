@@ -35,7 +35,7 @@ class GaussianFitter(QObject):
         roi_start_col = int(np.floor(roiPos.x()))
         roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
         # fit_result = fit_2d_gaussian_roi(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col, function = super_gaussian2d_rotated)
-        fit_result = fit_2d_gaussian_roi_NaN(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col)
+        fit_result = fit_2d_gaussian_roi_NaN(im, roi_start_row, roi_end_row, roi_start_col, roi_end_col, function = super_gaussian2d_rotated)
         self.finished.emit(fit_result.best_values)
 
     def __str__(self) -> str:

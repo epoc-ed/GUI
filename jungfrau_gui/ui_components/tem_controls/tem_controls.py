@@ -243,6 +243,7 @@ class TemControls(QGroupBox):
             if self.plotDialog != None:
                 self.plotDialog.close()
             self.parent.stopWorker(self.thread_fit, self.fitter)
+            self.fitter, self.thread_fit = thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
             self.removeAxes()
 
     def toggle_gaussianFit_beam(self):
@@ -269,6 +270,7 @@ class TemControls(QGroupBox):
             if self.plotDialog != None:
                 self.plotDialog.close()
             self.parent.stopWorker(self.thread_fit, self.fitter)
+            self.fitter, self.thread_fit = thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
             self.removeAxes()
 
     @Slot()

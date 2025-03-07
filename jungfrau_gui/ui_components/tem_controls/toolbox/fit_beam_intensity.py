@@ -71,6 +71,11 @@ def super_gaussian2d_rotated(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta, n
 # roi_end_row = 355
 # roi_start_col = 412
 # roi_end_col = 611
+
+def is_finite(array, sentinel = np.iinfo(np.int32).max):
+    """Returns check of validity: exclude any infinite values or specified sentinel"""
+    return np.isfinite(array) & (array != sentinel)
+
 def fit_2d_gaussian_roi_NaN_fast(im, roi_coords, function = gaussian2d_rotated):
     
     roi_start_row, roi_end_row, roi_start_col, roi_end_col = roi_coords
@@ -103,8 +108,8 @@ def fit_2d_gaussian_roi_NaN(im, roi_start_row, roi_end_row, roi_start_col, roi_e
     x_flat_roi_clean = x_flat_roi[valid_mask]
     y_flat_roi_clean = y_flat_roi[valid_mask]
 
-    # Optionally also exclude infinities, just in case
-    valid_mask_inf = np.isfinite(z_flat_roi_clean)
+    # Also exclude infinities (including the case max(int32))
+    valid_mask_inf = is_finite(z_flat_roi_clean)
     z_flat_roi_clean = z_flat_roi_clean[valid_mask_inf]
     x_flat_roi_clean = x_flat_roi_clean[valid_mask_inf]
     y_flat_roi_clean = y_flat_roi_clean[valid_mask_inf]

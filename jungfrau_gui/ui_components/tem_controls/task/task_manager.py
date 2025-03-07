@@ -26,7 +26,7 @@ import jungfrau_gui.ui_threading_helpers as thread_manager
 
 from .... import globals
 
-from ..gaussian_fitter_autofocus import GaussianFitter
+# from ..gaussian_fitter_autofocus import GaussianFitter
 from ..gaussian_fitter_mp import GaussianFitterMP
 import copy
 
@@ -143,6 +143,7 @@ class ControlWorker(QObject):
         if isinstance(self.task, BeamFitTask):
             #self.stop_and_clean_fitter()
             # self.stop_and_clean_fitter_mp()
+            self.beam_fitter = None   # So we don't accidentally reuse it.
             logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
             self.remove_ellipse.emit()
 
@@ -150,7 +151,8 @@ class ControlWorker(QObject):
         thread_manager.disconnect_worker_signals(self.task)
         thread_manager.terminate_thread(self.task_thread)
         thread_manager.remove_worker_thread_pair(self.tem_action.parent.threadWorkerPairs, self.task_thread)
-        thread_manager.reset_worker_and_thread(self.task, self.task_thread)
+        self.task, self.task_thread = thread_manager.reset_worker_and_thread(self.task, self.task_thread)
+        logging.critical(f"Is Task actually reset to None ? -> {self.task is None}")
 
     def handle_task_cleanup(self):
         if self.task is not None: # TODO This does not seem to be enough 
@@ -571,6 +573,7 @@ class ControlWorker(QObject):
                 logging.info("Stopping the - \033[1mSweeping\033[0m\033[34m - task!")
                 #self.trigger_stop_autofocus.emit()
                 self.reset_autofocus_button()
+                # self.send_to_tem("#more", asynchronous=False)
             
             elif isinstance(self.task, RecordTask):
                 logging.info("Stopping the - \033[1mRecord\033[0m\033[34m - task!")

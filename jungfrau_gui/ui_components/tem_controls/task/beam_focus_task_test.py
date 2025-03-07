@@ -10,9 +10,9 @@ from datetime import datetime
 
 from simple_tem import TEMClient
 
-IL1_0 = 21902 #40345 40736
-ILs_0 = [33040, 32688] #[32856, 32856]
-WAIT_TIME_S = 0.5 # TODO: optimize value
+IL1_0 = 21780 #40345 40736
+ILs_0 = [32920, 32776] #[32856, 32856]
+WAIT_TIME_S = 0.1 # TODO: optimize value
 
 class BeamFitTask(Task):
     # Signal to notify the main thread that a new best result arrived
@@ -120,13 +120,13 @@ class BeamFitTask(Task):
             self.client.SetILFocus(il1_value)
             iter_end = time.perf_counter()
             iter_time = iter_end - iter_start
-            logging.warning(f"SetILFocus({il1_value}) took {iter_time:.6f} seconds")
+            logging.critical(f"SetILFocus({il1_value}) took {iter_time:.6f} seconds")
 
             """ self.lens_parameters["ils"] = self.client.GetILs() # ??? Double checking if ILs changed without explicitly changing it """
 
             # (Optional) small wait for hardware to stabilize
             time.sleep(wait_time_s)
-
+            """ logging.error(datetime.now().strftime(" AFTER SLEEP @ %H:%M:%S.%f")[:-3]) """
             # Update lens_parameters so we know what was used
             self.lens_parameters["il1"] = il1_value
 
@@ -134,6 +134,9 @@ class BeamFitTask(Task):
             image_data = self.tem_action.parent.imageItem.image.copy()
             roi = self.tem_action.parent.roi
             self.beam_fitter.updateParams(image_data, roi)
+            """ print("-> Fitter updated with new capture") """
+
+            time.sleep(3*wait_time_s)
 
             # Wait for the result (blocking in this thread only!)
             fit_result = self.beam_fitter.fetch_result()
@@ -182,4 +185,4 @@ class BeamFitTask(Task):
         """
         if self.beam_fitter is not None:
             self.beam_fitter.stop()   # This calls input_queue.put(None), .join(), etc.
-            self.beam_fitter = None   # So we don't accidentally reuse it.
+            # self.beam_fitter = None   # So we don't accidentally reuse it.

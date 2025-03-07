@@ -144,6 +144,7 @@ class TEMAction(QObject):
             self.tem_tasks.connecttem_button.started = False
             self.timer_tem_connexion.stop()
             self.parent.stopWorker(self.connect_thread, self.temConnector)
+            self.temConnector, self.connect_thread = thread_manager.reset_worker_and_thread(self.temConnector, self.connect_thread)
 
     def initializeWorker(self, thread, worker):
         thread_manager.move_worker_to_thread(thread, worker)
@@ -344,7 +345,7 @@ class TEMAction(QObject):
     def toggle_beamAutofocus(self):
         if not self.tem_tasks.beamAutofocus.started:
             self.control.init.emit()
-            self.control.send_to_tem("#more")
+            # self.control.send_to_tem("#more")
             self.control.actionFit_Beam.emit()
             self.tem_tasks.beamAutofocus.setText("Stop Autofocus")
             self.tem_tasks.beamAutofocus.started = True

@@ -106,7 +106,8 @@ class ApplicationWindow(QMainWindow):
 
         # ROI setup
         # self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
-        self.roi = pg.RectROI([globals.ncol//2+1-75, globals.nrow//2+1-50], [150, 100], pen=(9,6))
+        # self.roi = pg.RectROI([globals.ncol//2+1-75, globals.nrow//2+1-50], [150, 100], pen=(9,6))
+        self.roi = pg.RectROI([globals.ncol//2+1-40, globals.nrow//4+1-50], [150, 100], pen=(9,6))
         self.plot.addItem(self.roi)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
@@ -328,12 +329,13 @@ class ApplicationWindow(QMainWindow):
 
     def stopWorker(self, thread, worker):
         if globals.tem_mode:
-            logging.debug(f"Control has - \033[1m{self.tem_controls.tem_action.control.task.task_name}\033[0m\033[34m - task alive!")
-            thread_manager.handle_tem_task_cleanup(self.tem_controls.tem_action.control)
+            if self.tem_controls.tem_action.control.task is not None:
+                logging.critical(f"Control has - \033[1m{self.tem_controls.tem_action.control.task.task_name}\033[0m\033[34m - task alive!")
+                thread_manager.handle_tem_task_cleanup(self.tem_controls.tem_action.control)
         thread_manager.disconnect_worker_signals(worker)
         thread_manager.terminate_thread(thread)
         thread_manager.remove_worker_thread_pair(self.threadWorkerPairs, thread)
-        thread_manager.reset_worker_and_thread(worker, thread)
+        # thread_manager.reset_worker_and_thread(worker, thread)
 
     def do_exit(self):
         # Prevent closing the GUI while JFJ is not Idle
@@ -367,6 +369,9 @@ class ApplicationWindow(QMainWindow):
                 #         self.file_operations.frameAccumulator.accumulate_process.join()
                 # if self.tem_controls.fitter is not None:
                 #     self.tem_controls.fitter.stop()
+                if self.tem_controls.tem_action.control.beam_fitter is not None:
+                    # if self.tem_controls.tem_action.control.beam_fitter.fitting_process.is_alive():
+                    self.tem_controls.tem_action.control.beam_fitter.stop()
                 for thread, worker in running_threadWorkerPairs:
                     logging.warning(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker) 

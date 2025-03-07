@@ -672,6 +672,7 @@ class VisualizationPanel(QGroupBox):
             self.parent.timer.stop()
             # Properly stop and cleanup worker and thread  
             self.parent.stopWorker(self.thread_read, self.streamReader)
+            self.streamReader, self.thread_read = thread_manager.reset_worker_and_thread(self.streamReader, self.thread_read)
             # Wait for thread to actually stop
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")
