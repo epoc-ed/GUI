@@ -350,12 +350,14 @@ class Hdf5MetadataUpdater:
                 message_json = self.socket.recv_string()
                 message = json.loads(message_json)
                 filename = self.root_data_directory + message["filename"]
-                beamcenter = np.array(message["beamcenter"], dtype=int)
+                beam_property = message["beam_property"]
+                # beamcenter = np.array(message["beamcenter"], dtype=int)
                 rotations_angles=message["rotations_angles"]
                 self.addinfo_to_hdf(
                     filename=filename,
                     tem_status=message["tem_status"],
-                    beamcenter=beamcenter,
+                    # beamcenter=beamcenter,
+                    beam_property = beam_property, 
                     detector_distance=message["detector_distance"],
                     aperture_size_cl=message["aperture_size_cl"],
                     aperture_size_sa=message["aperture_size_sa"],
@@ -366,49 +368,50 @@ class Hdf5MetadataUpdater:
                 )
                 self.addusermask_to_hdf(filename)
                 self.socket.send_string("Metadata/Maskdata added successfully") # self.socket.send_string("Metadata added successfully")
-                
-                if rotations_angles is not None:
-                    with h5py.File(filename, 'r') as f:
-                        if beamcenter[0]*beamcenter[1] != 1:
-                            beamcenter_refined = beamcenter
-                        else:
-                            middle_index = f["entry/data/data_000001"].shape[0] // 2
-                            img = f['entry/data/data_000001'][middle_index] 
-                            beamcenter_pre = getcenter(img,
-                                                       center=(515, 532),
-                                                       area=100,
-                                                       bin_factor=4,
-                                                       return_all_maxima=False)
-                            
-                            beamcenter_refined = getcenter(img,
-                                                           center=beamcenter_pre,
-                                                           area=20,
-                                                           bin_factor=1,
-                                                           return_all_maxima=False)
-                            
-                            logging.info(f"Refined beam center: X = {beamcenter_refined[0]:d}; Y = {beamcenter_refined[1]:d}")
-                    # self.socket.send_string(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
-
-                    dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
-                    logging.info(f'Subdirname: {os.path.dirname(filename)}/XDS/{dataid}')
-                    xds_thread = threading.Thread(target=self.run_xds, 
-                                                  args=(filename, 
-                                        os.path.dirname(filename) + '/XDS/' + dataid,
-                                        '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
-                                        '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
-                                        beamcenter_refined, ), daemon=True)
-                    xds_thread.start()
-                    # dials_thread = threading.Thread(target=self.run_dials, 
-                    #                                 args=(filename, 
-                    #                     os.path.dirname(filename) + '/DIALS/' + dataid,
-                    #                     beamcenter_refined, ), daemon=True)
-                    # dials_thread.start()
             except zmq.ZMQError as e:
                 logging.error(f"Error while receiving request: {e}")
                 # self.socket.send_string("Error updating metadata")
             except Exception as e:
                 logging.error(f"Error while receiving/processing request: {e}", exc_info=True)
-            #     break
+                break
+
+            beamcenter = np.array(beam_property["beamcenter"], dtype=int)
+            if rotations_angles is not None:
+                with h5py.File(filename, 'r') as f:
+                    if beamcenter[0]*beamcenter[1] != 1:
+                        beamcenter_refined = beamcenter
+                    else:
+                        middle_index = f["entry/data/data_000001"].shape[0] // 2
+                        img = f['entry/data/data_000001'][middle_index] 
+                        beamcenter_pre = getcenter(img,
+                                                   center=(515, 532),
+                                                   area=100,
+                                                   bin_factor=4,
+                                                   return_all_maxima=False)
+
+                        beamcenter_refined = getcenter(img,
+                                                       center=beamcenter_pre,
+                                                       area=20,
+                                                       bin_factor=1,
+                                                       return_all_maxima=False)
+
+                        logging.info(f"Refined beam center: X = {beamcenter_refined[0]:d}; Y = {beamcenter_refined[1]:d}")
+                # self.socket.send_string(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
+
+                dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
+                logging.info(f'Subdirname: {os.path.dirname(filename)}/XDS/{dataid}')
+                xds_thread = threading.Thread(target=self.run_xds, 
+                                              args=(filename, 
+                                    os.path.dirname(filename) + '/XDS/' + dataid,
+                                    '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
+                                    '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
+                                    beamcenter_refined, ), daemon=True)
+                xds_thread.start()
+                # dials_thread = threading.Thread(target=self.run_dials, 
+                #                                 args=(filename, 
+                #                     os.path.dirname(filename) + '/DIALS/' + dataid,
+                #                     beamcenter_refined, ), daemon=True)
+                # dials_thread.start()
     
     def stop(self):
         self.running = False
@@ -434,11 +437,12 @@ class Hdf5MetadataUpdater:
         except OSError as e:
             logging.error(f"Failed to update maskdata in {filename}: {e}")
         
-    def addinfo_to_hdf(self, filename, tem_status, beamcenter, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold, jf_gui_tag, commit_hash, pixel=0.075):
+    def addinfo_to_hdf(self, filename, tem_status, beam_property, detector_distance, aperture_size_cl, aperture_size_sa, rotations_angles, jf_threshold, jf_gui_tag, commit_hash, pixel=0.075):
         detector_framerate = 2000 # Hz for Jungfrau
         ht = 200  # keV  # <- HT3
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
         stage_rates = [10.0, 2.0, 1.0, 0.5]
+        beamcenter = np.array(beam_property["beamcenter"], dtype=int)
         if rotations_angles is not None:
             del_rotations_angles = np.diff(np.array(rotations_angles, dtype='float').T)
             rotation_mean, rotation_std = np.mean(del_rotations_angles[1] / del_rotations_angles[0]), np.std(del_rotations_angles[1] / del_rotations_angles[0])
@@ -495,7 +499,10 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/optics/il_stigm_y', data = tem_status['defl.GetILs'][1], dtype='uint32')
                     create_or_update_dataset('entry/instrument/optics/pl_align_x', data = tem_status['defl.GetPLA'][0], dtype='uint32')
                     create_or_update_dataset('entry/instrument/optics/pl_align_y', data = tem_status['defl.GetPLA'][1], dtype='uint32')
-                    
+                    create_or_update_dataset('entry/instrument/optics/beam_width_sigmax', data = beam_property['sigma_width'][0], dtype='float')
+                    create_or_update_dataset('entry/instrument/optics/beam_width_sigmay', data = beam_property['sigma_width'][1], dtype='float')
+                    create_or_update_dataset('entry/instrument/optics/beam_illumination_pa_per_cm2_detector', data = beam_property['illumination']['pa_per_cm2'], dtype='float')
+                    create_or_update_dataset('entry/instrument/optics/beam_illumination_e_per_A2_sample', data = beam_property['illumination']['e_per_A2_sample'], dtype='float')
                     # ED-specific, stage
                     create_or_update_dataset('entry/instrument/stage/stage_x', data = tem_status['stage.GetPos'][0]/1e3, dtype='float')
                     create_or_update_dataset('entry/instrument/stage/stage_y', data = tem_status['stage.GetPos'][1]/1e3, dtype='float')

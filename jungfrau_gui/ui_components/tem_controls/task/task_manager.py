@@ -88,6 +88,7 @@ class ControlWorker(QObject):
         self.triggerdelay_ms = 500
         self.previous_tx_abs = 0
         self.beam_intensity = {"pa_per_cm2": 0, "e_per_A2_sample": 0}
+        self.beam_sigmaxy = [-1, -1]
 
         """ 
         if os.name == 'nt': # test on Win-Win
@@ -200,6 +201,8 @@ class ControlWorker(QObject):
         # Stop the Gaussian Fitting if running
         if self.tem_action.tem_tasks.btnGaussianFit.started:
             self.tem_action.tem_controls.toggle_gaussianFit_beam()
+        self.beam_sigmaxy = [self.tem_action.tem_controls.sigma_x_spBx.value(), 
+                             self.tem_action.tem_controls.sigma_y_spBx.value()]
         time.sleep(0.1)
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI
