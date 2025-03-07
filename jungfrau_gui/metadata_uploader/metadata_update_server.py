@@ -373,7 +373,7 @@ class Hdf5MetadataUpdater:
                 # self.socket.send_string("Error updating metadata")
             except Exception as e:
                 logging.error(f"Error while receiving/processing request: {e}", exc_info=True)
-                break
+                # break
 
             beamcenter = np.array(beam_property["beamcenter"], dtype=int)
             if rotations_angles is not None:
