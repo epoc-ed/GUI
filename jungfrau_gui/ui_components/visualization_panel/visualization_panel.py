@@ -261,8 +261,6 @@ class VisualizationPanel(QGroupBox):
             tem_detector_layout.addWidget(self.tem_detector)
 
             section_visual.addLayout(tem_detector_layout)
-        else: 
-            pass
         
         section_visual.addStretch()
         self.setLayout(section_visual)

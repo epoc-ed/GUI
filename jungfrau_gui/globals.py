@@ -51,7 +51,7 @@ def get_git_info():
 
 cfg = ConfigurationClient()
 stream = "tcp://localhost:4545"
-tem_mode = False
+tem_mode = True
 # jfj = False
 
 tem_host = cfg.temserver
