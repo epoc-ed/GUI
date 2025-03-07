@@ -487,8 +487,12 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/optics/alpha_angle', data = tem_status['eos.GetAlpha']+1, dtype='uint16')
                     create_or_update_dataset('entry/instrument/optics/CL_ID', data = tem_status['apt.GetSize(1)'], dtype='uint16')
                     create_or_update_dataset('entry/instrument/optics/CL_size', data = f'{aperture_size_cl} um') # <- LUT
+                    create_or_update_dataset('entry/instrument/optics/CL_position_x', data = tem_status['apt.GetPosition_CL'][0], dtype='uint16')
+                    create_or_update_dataset('entry/instrument/optics/CL_position_y', data = tem_status['apt.GetPosition_CL'][1], dtype='uint16')
                     create_or_update_dataset('entry/instrument/optics/SA_ID', data = tem_status['apt.GetSize(4)'], dtype='uint16')
                     create_or_update_dataset('entry/instrument/optics/SA_size', data = f'{aperture_size_sa} um') # <- LUT
+                    create_or_update_dataset('entry/instrument/optics/SA_position_x', data = tem_status['apt.GetPosition_SA'][0], dtype='uint16')
+                    create_or_update_dataset('entry/instrument/optics/SA_position_y', data = tem_status['apt.GetPosition_SA'][1], dtype='uint16')
                     create_or_update_dataset('entry/instrument/optics/brightness', data = tem_status['lens.GetCL3'], dtype='uint32')
                     create_or_update_dataset('entry/instrument/optics/diff_focus', data = tem_status['lens.GetIL1'], dtype='uint32')
                     create_or_update_dataset('entry/instrument/optics/il_stigm_x', data = tem_status['defl.GetILs'][0], dtype='uint32')
