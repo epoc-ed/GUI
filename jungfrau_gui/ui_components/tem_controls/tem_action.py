@@ -43,7 +43,7 @@ class TEMAction(QObject):
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
         self.xtallist = self.file_operations.tem_xtalinfo.xtallist
-        self.temtools = TEMTools(self)
+        # self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
         self.last_mag_mode = None
@@ -148,6 +148,7 @@ class TEMAction(QObject):
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
+            self.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1000)
             self.control.init.emit()
             self.connect_thread = QThread()
             self.temConnector = TEM_Connector()
@@ -250,7 +251,7 @@ class TEMAction(QObject):
             if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
                 detector_distance = self.control.tem_status["eos.GetMagValue"][2] ## with unit
                 detector_distance = cfg_jf.lookup(cfg_jf.lut.distance, detector_distance, 'displayed', 'calibrated')
-                radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance)
+                radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=self.control.tem_status["ht.GetHtValue"]/1000)
                 self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
             else:
                 magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
@@ -495,7 +496,8 @@ class TEMAction(QObject):
         thread_manager.reset_worker_and_thread(self.process_receiver, self.datareceiver_thread)
         self.dataReceiverReady = True
 
-    def update_ecount(self, ht=200, pixel=0.075, threshold=500, bins_set=20):
+    def update_ecount(self, pixel=0.075, threshold=500, bins_set=20):
+        ht = self.control.tem_status["ht.GetHtValue"]/1000
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
             logging.warning("Brightness should be calculated in imaging mode")

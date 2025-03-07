@@ -453,7 +453,7 @@ class VisualizationPanel(QGroupBox):
                                             beam_y_pxl = self.cfg.beam_center[1],
                                             # detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated'), #100
                                             detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated'), #100
-                                            incident_energy_ke_v = 200,
+                                            incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
                                             wait = self.wait_option.isChecked())
                     logging.warning("Live stream started successfully.")
                     
@@ -493,7 +493,7 @@ class VisualizationPanel(QGroupBox):
                                             beam_y_pxl = self.cfg.beam_center[1],
                                             # detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated'), #100
                                             detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated'), #100
-                                            incident_energy_ke_v = 200,
+                                            incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
                                             wait = self.wait_option.isChecked())
                     self.jfj_is_collecting = True
                     # Create and start the wait_until_idle thread for asynchronous monitoring
