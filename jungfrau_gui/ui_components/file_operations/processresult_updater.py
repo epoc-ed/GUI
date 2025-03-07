@@ -72,6 +72,10 @@ class ProcessedDataReceiver(QObject):
                 logging.error(f"Failed to receive processed data request: {e}")
                 time.sleep(update_interval_ms/1000)
                 self.trial -= 1
+            finally:
+                # ensure the socket is closed no matter what
+                socket.close()
+                context.destroy()                
         self.finished.emit()
 
 if __name__ == "__main__":
