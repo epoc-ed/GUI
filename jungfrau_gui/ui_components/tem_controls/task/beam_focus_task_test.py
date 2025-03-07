@@ -10,7 +10,7 @@ from datetime import datetime
 
 from simple_tem import TEMClient
 
-IL1_0 = 21780 #40345 40736
+IL1_0 = 21730 #40345 40736
 ILs_0 = [32920, 32776] #[32856, 32856]
 WAIT_TIME_S = 0.1 # TODO: optimize value
 
@@ -26,6 +26,7 @@ class AutoFocusTask(Task):
         self.tem_action = self.control.tem_action
         self.is_first_AutoFocus = True        
         self.client = TEMClient(globals.tem_host, 3535)
+        # TODO Creates a freeze (May be update earlier?)
         self.lens_parameters = {
                                 "il1": self.client.GetIL1(), # an integer
                                 "ils": self.client.GetILs(), # two integers for stigmation
@@ -45,7 +46,7 @@ class AutoFocusTask(Task):
                 QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
 
             while self.tem_action.tem_tasks.connecttem_button.started:
-                time.sleep(0.1)
+                time.sleep(0.01)
 
             logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection!")
 
@@ -65,8 +66,13 @@ class AutoFocusTask(Task):
             # Start IL1 Sweeping (ROUGH)
             # --------------------------
             logging.info("################ Start IL1 rough-sweeping ################")
-            # completed = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 550, 50)
-            completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
+
+            # Option A: Go and come back
+            # completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
+            
+            # Option B: Shoot straight
+            completed = self.sweep_il1_linear(init_IL1, init_IL1 + 105, 5)
+
             if not completed:
                 logging.warning("ROUGH Sweep interrupted! Exiting AutoFocusTask::run() method...")
                 return  # Exit the run method if the sweep was interrupted
@@ -75,14 +81,18 @@ class AutoFocusTask(Task):
             il1_guess1 = self.best_result["il1_value"]
             logging.warning(f"{datetime.now()}, ROUGH IL1 OPTIMAL VALUE IS {il1_guess1}")
             
-            # Once task finished, move lens to optimal position 
-            for il1_value in range(init_IL1 - 500, il1_guess1+100, 50): 
+            # Once task finished, move lens to optimal position
+
+            # Option A: Go and come back
+            # for il1_value in range(init_IL1 - 50, il1_guess1 + 10, 5): 
+                # self.client.SetILFocus(il1_value)
+            # self.client.SetILFocus(il1_guess1)
+
+            # Option B: Shoot straight
+            for il1_value in range(init_IL1, il1_guess1+5, 5): 
                 self.client.SetILFocus(il1_value)
-            """time.sleep(WAIT_TIME_S)"""
-            self.client.SetILFocus(il1_guess1)
 
             self.lens_parameters["il1"] = il1_guess1
-            """ self.lens_parameters["ils"] = self.client.GetILs() # ??? Double checking if ILs changed without explicitly changing it  """
             
             autofocus_end = time.perf_counter()
             autofocus_time = autofocus_end - autofocus_start
@@ -124,19 +134,33 @@ class AutoFocusTask(Task):
 
             """ self.lens_parameters["ils"] = self.client.GetILs() # ??? Double checking if ILs changed without explicitly changing it """
 
-            # (Optional) small wait for hardware to stabilize
+            # (Optional?) small wait for hardware to stabilize
             time.sleep(wait_time_s)
-            """ logging.error(datetime.now().strftime(" AFTER SLEEP @ %H:%M:%S.%f")[:-3]) """
+
             # Update lens_parameters so we know what was used
             self.lens_parameters["il1"] = il1_value
 
+            """ 
+            # Option 1
             # Now request a fit. We'll pass the current image & ROI.
             image_data = self.tem_action.parent.imageItem.image.copy()
             roi = self.tem_action.parent.roi
-            self.beam_fitter.updateParams(image_data, roi)
-            """ print("-> Fitter updated with new capture") """
+            self.beam_fitter.updateParams(image_data, roi) 
 
             time.sleep(3*wait_time_s)
+            """
+
+            # Prepare ROI data as a serializable dictionary.
+            # Option 2
+            roi = self.tem_action.parent.roi
+            roi_data = {
+                "pos": [roi.pos().x(), roi.pos().y()],
+                "size": [roi.size().x(), roi.size().y()]
+            }
+            # Trigger capture & fitting in the worker process.
+            self.beam_fitter.trigger_capture(roi_data)
+
+            # time.sleep(wait_time_s)
 
             # Wait for the result (blocking in this thread only!)
             fit_result = self.beam_fitter.fetch_result()

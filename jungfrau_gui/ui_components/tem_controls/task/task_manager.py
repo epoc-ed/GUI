@@ -154,6 +154,9 @@ class ControlWorker(QObject):
         self.task, self.task_thread = thread_manager.reset_worker_and_thread(self.task, self.task_thread)
         logging.critical(f"Is Task actually reset to None ? -> {self.task is None}")
 
+        # Ask for a full update after the end and clean up of the task
+        self.send_to_tem("#more", asynchronous=True)
+
     def handle_task_cleanup(self):
         if self.task is not None: # TODO This does not seem to be enough 
             # to prevent entering again after call from ui_main_window [handle_tem_task_cleanup]
@@ -571,9 +574,7 @@ class ControlWorker(QObject):
         if self.task:
             if isinstance(self.task, AutoFocusTask):
                 logging.info("Stopping the - \033[1mAutoFocus\033[0m\033[34m - task!")
-                #self.trigger_stop_autofocus.emit()
                 self.reset_autofocus_button()
-                self.send_to_tem("#more", asynchronous=False)
             
             elif isinstance(self.task, RecordTask):
                 logging.info("Stopping the - \033[1mRecord\033[0m\033[34m - task!")

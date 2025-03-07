@@ -4,6 +4,10 @@ import multiprocessing as mp
 from lmfit import Model, Parameters
 from PySide6.QtCore import QObject, Signal
 from line_profiler import LineProfiler
+import zmq
+import cbor2
+from ...decoder import tag_hook
+from ... import globals
 
 from .toolbox.fit_beam_intensity import gaussian2d_rotated, super_gaussian2d_rotated, fit_2d_gaussian_roi_NaN_fast
 from datetime import datetime
@@ -23,37 +27,8 @@ def create_roi_coord_tuple(roiPos, roiSize):
 
     return (roi_start_row, roi_end_row, roi_start_col, roi_end_col)
 
-# # @profile
-# def fit_2d_gaussian_roi(im, roi_coords):
-    
-#     roi_start_row, roi_end_row, roi_start_col, roi_end_col = roi_coords
-#     im_roi = im[roi_start_row:roi_end_row, roi_start_col:roi_end_col]
-
-#     n_columns_roi, n_rows_roi = im_roi.shape[1], im_roi.shape[0]
-#     diag_roi = np.sqrt(n_columns_roi*n_columns_roi+n_rows_roi*n_rows_roi)
-    
-#     x_roi, y_roi = np.meshgrid(np.arange(n_columns_roi), np.arange(n_rows_roi))
-#     z_flat_roi = im_roi.ravel()
-#     x_flat_roi = x_roi.ravel()
-#     y_flat_roi = y_roi.ravel()
-
-#     # Create model and parameters for ROI fitting
-#     model_roi = Model(gaussian2d_rotated, independent_vars=['x','y'], nan_policy='omit')
-#     params_roi = Parameters()
-#     params_roi.add('amplitude', value=np.max(im), min=1, max=10*np.max(im))
-#     params_roi.add('xo', value=n_columns_roi//2, min=0, max=n_columns_roi)
-#     params_roi.add('yo', value=n_rows_roi//2, min=0,max=n_rows_roi)
-#     params_roi.add('sigma_x', value=n_columns_roi//4, min=1, max=diag_roi//2)  # Adjusted for likely ROI size
-#     params_roi.add('sigma_y', value=n_rows_roi//4, min=1, max=diag_roi//2)    # Adjusted for likely ROI size
-#     params_roi.add('theta', value=0, min=-np.pi/2, max=np.pi/2)
-
-#     result_roi = model_roi.fit(z_flat_roi, x=x_flat_roi, y=y_flat_roi, params=params_roi)
-#     fit_result = result_roi
-#     fit_result.best_values['xo'] +=  roi_start_col
-#     fit_result.best_values['yo'] +=  roi_start_row
-
-#     return fit_result
-
+""" 
+# Option A
 def _fitGaussian(input_queue, output_queue):
     while True:
         # task = input_queue.get()  
@@ -78,6 +53,87 @@ def _fitGaussian(input_queue, output_queue):
             logging.info("Task processed. Is output queue empty? %s", output_queue.empty())
         except Exception as e:
             logging.error("Error during the fitting process: %s", e)
+"""
+
+# Option B
+def _capture_and_fit_worker(input_queue, output_queue, zmq_endpoint, timeout_ms, hwm, image_size, dt):
+    """
+    Worker process that waits for a "CAPTURE_AND_FIT" command,
+    then reads a frame from a ZeroMQ camera stream and performs the fit.
+    """
+    logging.info("Asynchronous Gaussian Fitting process starting...")
+    # Set up the ZeroMQ context and subscriber socket.
+    context = zmq.Context()
+    socket = context.socket(zmq.SUB)
+    socket.setsockopt(zmq.RCVTIMEO, timeout_ms)
+    socket.setsockopt(zmq.RCVHWM, hwm)
+    socket.setsockopt(zmq.RCVBUF, hwm * image_size[0] * image_size[1] * np.dtype(dt).itemsize)
+    socket.connect(zmq_endpoint)
+    logging.info(f"Worker connected to ZMQ endpoint: {zmq_endpoint}")
+    socket.setsockopt(zmq.SUBSCRIBE, b"")
+
+    while True:
+        try:
+            command = input_queue.get()  # Blocking call for a new command.
+        except Exception as e:
+            logging.error("Worker: error retrieving command: %s", e)
+            break
+
+        if command is None:
+            logging.info("Worker: termination signal received. Exiting loop.")
+            break
+
+        if isinstance(command, dict) and command.get("cmd") == "CAPTURE_AND_FIT":
+            # Expect ROI parameters as a dictionary: {'pos': [x, y], 'size': [w, h]}
+            roi_data = command.get("roi")
+            if not roi_data:
+                logging.error("Worker: missing ROI data in command.")
+                output_queue.put(None)
+                continue
+            try:
+                # Read a fresh frame from the ZMQ stream.
+                msg = socket.recv()  # Will block up to timeout_ms
+                try:
+                    msg = cbor2.loads(msg, tag_hook=tag_hook)
+                    # Extract the image array.
+                    if msg['type'] == "image":
+                        raw_data = msg['data']['default']
+                        min_int32 = np.iinfo(np.int32).min
+                        max_int32 = np.iinfo(np.int32).max
+                        mask = (raw_data == min_int32) | (raw_data == max_int32)
+                        image = raw_data.astype(dt).reshape(globals.nrow, globals.ncol)
+                        image[mask] = np.nan
+                    else:
+                        output_queue.put(None)
+                        continue
+                except Exception as decode_e:
+                    logging.error("Worker: error decoding frame: %s", decode_e)
+                    output_queue.put(None)
+                    continue
+
+                # Convert ROI parameters to a tuple for fitting.
+                # Here, roi_data is assumed to be a dict: {"pos": [x, y], "size": [w, h]}
+                roiPos = tuple(roi_data["pos"])
+                roiSize = tuple(roi_data["size"])
+                roi_coord = create_roi_coord_tuple(roiPos, roiSize)
+
+                logging.info(datetime.now().strftime("WORKER START FITTING @ %H:%M:%S.%f")[:-3])
+                fit_result = fit_2d_gaussian_roi_NaN_fast(image, roi_coord, function=super_gaussian2d_rotated)
+                logging.info(datetime.now().strftime("WORKER END FITTING @ %H:%M:%S.%f")[:-3])
+                output_queue.put(fit_result.best_values)
+                logging.info("Task processed. Is output queue empty? %s", output_queue.empty())
+            except zmq.error.Again as e:
+                logging.error("Worker: zmq timeout/error: %s", e)
+                output_queue.put(None)
+            except Exception as e:
+                logging.error("Worker: error during capture and fit: %s", e)
+                output_queue.put(None)
+        else:
+            logging.warning("Worker: unknown command received: %s", command)
+    # Cleanup the ZMQ socket and context.
+    socket.close()
+    context.term()
+    logging.info("Worker process terminated.")
 
 class GaussianFitterMP(QObject):
     finished = Signal(object)
@@ -87,19 +143,57 @@ class GaussianFitterMP(QObject):
         self.input_queue = mp.Queue()
         self.output_queue = mp.Queue()
         self.fitting_process = None 
+        # (Option B) ZMQ Parameters 
+        self.zmq_endpoint = globals.stream
+        self.timeout_ms = 10
+        self.hwm = 2
+        self.image_size = (globals.nrow, globals.ncol)
+        self.dt = globals.dtype
 
+    """
+    # Option A
     def start(self):
         logging.info("Starting Gaussian Fitting!")
         if self.fitting_process is None or not self.fitting_process.is_alive():
             self.fitting_process = mp.Process(target=_fitGaussian, args=(self.input_queue, self.output_queue))
             self.fitting_process.start()
-
+ 
     def updateParams(self, image, roi):
         logging.debug("Updating parameters in the processing Queue...")
         roiPos = (roi.pos().x(), roi.pos().y())
         roiSize = (roi.size().x(), roi.size().y())
         self.input_queue.put((image, roiPos, roiSize))
-        logging.info(datetime.now().strftime(" UPDATED FITTER @ %H:%M:%S.%f")[:-3])
+        logging.info(datetime.now().strftime(" UPDATED FITTER @ %H:%M:%S.%f")[:-3]) 
+    """
+
+    # Option B
+    def start(self):
+        logging.info("Starting Gaussian Fitting process (capture & fit)...")
+        if self.fitting_process is None or not self.fitting_process.is_alive():
+            self.fitting_process = mp.Process(
+                target=_capture_and_fit_worker,
+                args=(self.input_queue,
+                      self.output_queue,
+                      self.zmq_endpoint,
+                      self.timeout_ms,
+                      self.hwm,
+                      self.image_size,
+                      self.dt)
+            )
+            self.fitting_process.start()
+
+    def trigger_capture(self, roi):
+        """
+        Instead of passing an image, we simply send a command (with ROI parameters)
+        to trigger a capture and fitting in the worker process.
+        `roi` should be a dict with keys "pos" and "size", e.g.:
+             {"pos": [x, y], "size": [w, h]}
+        """
+        logging.debug("Triggering capture and fit with ROI: %s", roi)
+        self.input_queue.put({"cmd": "CAPTURE_AND_FIT", "roi": roi})
+        logging.info(datetime.now().strftime("TRIGGERED FITTER @ %H:%M:%S.%f")[:-3])
+
+
 
     def fetch_result(self):
         try:
