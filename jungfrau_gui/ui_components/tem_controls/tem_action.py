@@ -66,7 +66,7 @@ class TEMAction(QObject):
         # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
-        self.tem_tasks.btnGaussianFit.clicked.connect(self.tem_controls.toggle_gaussianFit_beam)
+        self.tem_tasks.btnGaussianFit.clicked.connect(lambda: self.tem_controls.toggle_gaussianFit_beam(by_user=True))
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
         self.tem_stagectrl.mag_modes.buttonClicked.connect(self.toggle_mag_modes)
         self.tem_stagectrl.blanking_button.clicked.connect(self.toggle_blank)
@@ -107,6 +107,10 @@ class TEMAction(QObject):
         self.trigger_updateitem.connect(self.update_plotitem)
         ## for debug
         # self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.update_plotitem())
+
+    @Slot()
+    def reconnectGaussianFit(self):
+        self.tem_tasks.btnGaussianFit.clicked.connect(lambda: self.tem_controls.toggle_gaussianFit_beam(by_user=True))
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
@@ -206,13 +210,21 @@ class TEMAction(QObject):
         angle_x = self.control.tem_status["stage.GetPos"][3]
         if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
         
-        # Update Magnification radio button in GUI to refelct status of TEM
+        # 1) Live query on both the current mode and the beam blank state
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
-        # Only do something if the mode *changed*
+        beam_blank_state = self.control.tem_status["defl.GetBeamBlank"] = self.control.client.GetBeamBlank()
+
+        # 2) Only do something if the mode *changed*
         if Mag_idx != self.last_mag_mode:
             if Mag_idx in [0, 1, 2]:
                 if not self.parent.autoContrastBtn.started:
                     self.parent.autoContrastBtn.clicked.emit()
+
+                # In MAG mode, we generally *want* Gaussian Fit OFF
+                # so if it's currently ON, turn it OFF programmatically
+                if self.tem_tasks.btnGaussianFit.started:
+                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+                
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
                 magnification = self.control.tem_status["eos.GetMagValue"][2]
                 self.tem_detector.input_magnification.setText(magnification)
@@ -220,6 +232,12 @@ class TEMAction(QObject):
             elif Mag_idx == 4:
                 if self.parent.autoContrastBtn.started:
                     self.parent.resetContrastBtn.clicked.emit()
+
+                # In DIFF mode, we generally *want* Gaussian Fit ON (unless user forced it off).
+                # So if it's currently OFF and not user-forced-off, turn it on programmatically.
+                if (not self.tem_tasks.btnGaussianFit.started) and (not self.tem_controls.gaussian_user_forced_off):
+                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+                
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
                 detector_distance = self.control.tem_status["eos.GetMagValue"][2]
                 self.tem_detector.input_det_distance.setText(detector_distance)
@@ -228,6 +246,18 @@ class TEMAction(QObject):
                 logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
 
             self.last_mag_mode = Mag_idx
+
+        # 3) Handle beam blank logic on *every* poll (even if mode hasn't changed)
+        if beam_blank_state == 1:
+            # If the beam is blanked, forcibly turn off Gaussian Fit (if it’s currently running)
+            if self.tem_tasks.btnGaussianFit.started:
+                self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+        else:
+            # If the beam is unblanked (0) and we are in DIFF mode (4), 
+            # and not user-forced-off, ensure it's on
+            if Mag_idx == 4 and not self.tem_controls.gaussian_user_forced_off:
+                if not self.tem_tasks.btnGaussianFit.started:
+                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
 
         # Update rotation_speed radio button in GUI to refelct status of TEM
         rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"] # = self.control.client.Getf1OverRateTxNum()

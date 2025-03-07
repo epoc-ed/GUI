@@ -277,6 +277,10 @@ class RecordTask(Task):
                 logfile.close()  # Ensure the logfile is closed in case of any errors
             self.client.SetBeamBlank(1)
             time.sleep(0.01)
+            QMetaObject.invokeMethod(self.tem_action,
+                                    "reconnectGaussianFit",
+                                    Qt.QueuedConnection
+            )
             self.reset_rotation_signal.emit()
         
         # self.make_xds_file(master_filepath,
