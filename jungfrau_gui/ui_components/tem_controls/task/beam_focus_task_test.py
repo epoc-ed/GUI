@@ -14,17 +14,17 @@ IL1_0 = 21780 #40345 40736
 ILs_0 = [32920, 32776] #[32856, 32856]
 WAIT_TIME_S = 0.1 # TODO: optimize value
 
-class BeamFitTask(Task):
+class AutoFocusTask(Task):
     # Signal to notify the main thread that a new best result arrived
     newBestResult = Signal(dict)
 
     def __init__(self, control_worker):
-        super().__init__(control_worker, "BeamFit")
+        super().__init__(control_worker, "AutoFocus")
         self.duration_s = 60 # should be replaced with a practical value
         self.estimateds_duration = self.duration_s + 0.1
         self.control = control_worker
         self.tem_action = self.control.tem_action
-        self.is_first_beamfit = True        
+        self.is_first_AutoFocus = True        
         self.client = TEMClient(globals.tem_host, 3535)
         self.lens_parameters = {
                                 "il1": self.client.GetIL1(), # an integer
@@ -68,7 +68,7 @@ class BeamFitTask(Task):
             # completed = self.sweep_il1_linear(init_IL1 - 500, init_IL1 + 550, 50)
             completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
             if not completed:
-                logging.warning("ROUGH Sweep interrupted! Exiting BeamFitTask::run() method...")
+                logging.warning("ROUGH Sweep interrupted! Exiting AutoFocusTask::run() method...")
                 return  # Exit the run method if the sweep was interrupted
 
             # Determine the rough optimal IL1 value

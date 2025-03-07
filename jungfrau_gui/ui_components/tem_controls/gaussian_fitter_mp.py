@@ -146,7 +146,7 @@ class GaussianFitterMP(QObject):
         except Exception as e:
             logging.error("Error cleaning up queues: %s", e)
 
-        logging.info("Gaussian Fitting Process Stopped")
+        logging.info("Asynchronous Gaussian Fitting Process Stopped")
 
     def __str__(self) -> str:
         return "GaussianFitterMP"

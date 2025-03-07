@@ -2,8 +2,8 @@ import logging
 from PySide6.QtCore import QCoreApplication
 from jungfrau_gui.ui_components.tem_controls.task.record_task import RecordTask
 from jungfrau_gui.ui_components.tem_controls.task.get_teminfo_task import GetInfoTask
-# from jungfrau_gui.ui_components.tem_controls.task.beam_focus_task import BeamFitTask
-from jungfrau_gui.ui_components.tem_controls.task.beam_focus_task_test import BeamFitTask
+# from jungfrau_gui.ui_components.tem_controls.task.beam_focus_task import AutoFocusTask
+from jungfrau_gui.ui_components.tem_controls.task.beam_focus_task_test import AutoFocusTask
 
 def move_worker_to_thread(thread, worker):
     worker.moveToThread(thread)

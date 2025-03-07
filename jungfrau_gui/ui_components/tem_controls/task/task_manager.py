@@ -10,8 +10,8 @@ from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt
 from .task import Task
 from .record_task import RecordTask
 
-# from .beam_focus_task import BeamFitTask
-from .beam_focus_task_test import BeamFitTask
+# from .beam_focus_task import AutoFocusTask
+from .beam_focus_task_test import AutoFocusTask
 
 from .adjustZ_task import AdjustZ
 from .get_teminfo_task import GetInfoTask
@@ -140,7 +140,7 @@ class ControlWorker(QObject):
     def on_task_finished(self):
         logging.info(f"\033[1mFinished Task [{self.task.task_name}] !")
         
-        if isinstance(self.task, BeamFitTask):
+        if isinstance(self.task, AutoFocusTask):
             #self.stop_and_clean_fitter()
             # self.stop_and_clean_fitter_mp()
             self.beam_fitter = None   # So we don't accidentally reuse it.
@@ -161,8 +161,8 @@ class ControlWorker(QObject):
                 logging.info("The \033[1mRecordTask\033[0m\033[34m has ended, performing cleanup...")
             elif isinstance(self.task, GetInfoTask):
                 logging.info("The \033[1mGetInfo\033[0m\033[34m has ended, performing cleanup...")
-            elif isinstance(self.task, BeamFitTask):
-                logging.info("The \033[1mBeamFitTask\033[0m\033[34m has ended, performing cleanup...")
+            elif isinstance(self.task, AutoFocusTask):
+                logging.info("The \033[1mAutoFocusTask\033[0m\033[34m has ended, performing cleanup...")
             
             self.stop_task()
             
@@ -177,7 +177,7 @@ class ControlWorker(QObject):
         logging.debug("Control is starting a Task...")
         self.last_task = self.task
         self.task = task
-        # if isinstance(self.task, BeamFitTask):
+        # if isinstance(self.task, AutoFocusTask):
             # self.beam_fitter = GaussianFitterMP()
             # # Optional ###############
             # self.task.newBestResult.connect(on_new_best_result_in_main_thread)
@@ -285,7 +285,7 @@ class ControlWorker(QObject):
 
         self.beam_fitter = GaussianFitterMP()
 
-        task = BeamFitTask(self)
+        task = AutoFocusTask(self)
         
         # Optional ###############
         task.newBestResult.connect(on_new_best_result_in_main_thread)
@@ -304,9 +304,9 @@ class ControlWorker(QObject):
         """
         lens_params is a dict like: {"il1": int, "ils": [int, int]}
         """
-        if self.task.is_first_beamfit:
+        if self.task.is_first_AutoFocus:
             self.do_fit(lens_params)  # Run do_fit the first time
-            self.task.is_first_beamfit = False  # Set flag to False after the first run
+            self.task.is_first_AutoFocus = False  # Set flag to False after the first run
         else:
             self.getFitParams(lens_params)
 
@@ -569,11 +569,11 @@ class ControlWorker(QObject):
 
     def stop_task(self):
         if self.task:
-            if isinstance(self.task, BeamFitTask):
-                logging.info("Stopping the - \033[1mSweeping\033[0m\033[34m - task!")
+            if isinstance(self.task, AutoFocusTask):
+                logging.info("Stopping the - \033[1mAutoFocus\033[0m\033[34m - task!")
                 #self.trigger_stop_autofocus.emit()
                 self.reset_autofocus_button()
-                # self.send_to_tem("#more", asynchronous=False)
+                self.send_to_tem("#more", asynchronous=False)
             
             elif isinstance(self.task, RecordTask):
                 logging.info("Stopping the - \033[1mRecord\033[0m\033[34m - task!")
