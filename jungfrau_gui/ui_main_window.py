@@ -152,13 +152,13 @@ class ApplicationWindow(QMainWindow):
         self.contrast_1_Btn = QPushButton("0 - 100")
         self.contrast_2_Btn = QPushButton("0 - 1000")
         self.contrast_3_Btn = QPushButton("0 - 1e5")
-        self.contrast_4_Btn = QPushButton("0 - 1e7")
+        self.contrast_4_Btn = QPushButton("0 - 1e9")
 
         self.contrast_0_Btn.clicked.connect(lambda checked: self.set_contrast(-50, 50))
         self.contrast_1_Btn.clicked.connect(lambda checked: self.set_contrast(0, 100))
         self.contrast_2_Btn.clicked.connect(lambda checked: self.set_contrast(0, 1000))
         self.contrast_3_Btn.clicked.connect(lambda checked: self.set_contrast(0, 100000))
-        self.contrast_4_Btn.clicked.connect(lambda checked: self.set_contrast(0, 10000000))
+        self.contrast_4_Btn.clicked.connect(lambda checked: self.set_contrast(0, 1000000000))
 
         contrast_group.addWidget(self.autoContrastBtn, 0, 0,  1, 4)
         contrast_group.addWidget(self.resetContrastBtn, 0, 4, 1, 4)
@@ -336,10 +336,6 @@ class ApplicationWindow(QMainWindow):
         thread_manager.reset_worker_and_thread(worker, thread)
 
     def do_exit(self):
-        """Slot connected to your Exit button."""
-        self.close()
-
-    def closeEvent(self, event):
         # Prevent closing the GUI while JFJ is not Idle
         # TODO Add flexibily as a function of the nature of the ongoing JFJ operation
         if self.visualization_panel.jfjoch_client:
@@ -351,7 +347,6 @@ class ApplicationWindow(QMainWindow):
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if reply == QMessageBox.No:
-                    event.ignore()  # Prevents the window from closing
                     return
 
         # Dealing with ongoing operation of the GUI after premature 'Exit' request
@@ -375,8 +370,7 @@ class ApplicationWindow(QMainWindow):
                 for thread, worker in running_threadWorkerPairs:
                     logging.warning(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker) 
-            else:
-                event.ignore()  # Prevents the window from closing
+            else: 
                 return
 
         if globals.tem_mode:
@@ -385,4 +379,4 @@ class ApplicationWindow(QMainWindow):
 
         logging.info("Exiting app!") 
         self.app.quit()
-        event.accept()
+        

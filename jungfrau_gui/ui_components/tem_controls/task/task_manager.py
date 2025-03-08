@@ -36,6 +36,7 @@ class ControlWorker(QObject):
     
     trigger_tem_update_detailed = Signal(dict)
     trigger_tem_update = Signal(dict)
+    trigger_tem_update_init = Signal(dict)
 
     fit_complete = Signal(dict)
     
@@ -62,6 +63,9 @@ class ControlWorker(QObject):
         self.file_operations = self.tem_action.file_operations
         self.visualization_panel = self.tem_action.visualization_panel
         self.last_task: Task = None
+        self.info_queries = tools.INFO_QUERIES
+        self.more_queries = tools.MORE_QUERIES
+        self.init_queries = tools.INIT_QUERIES
         
         self.setObjectName("control Thread")
         
@@ -79,18 +83,28 @@ class ControlWorker(QObject):
         
         self.trigger_tem_update_detailed.connect(self.update_tem_status_detailed)
         self.trigger_tem_update.connect(self.update_tem_status)
+        self.trigger_tem_update_init.connect(self.update_tem_status_init)
         
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": [0, 'X', 'X0k'],
                            "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k'], "defl.GetBeamBlank": 0,
-                           "ht.GetHtValue": 200000, "ht.GetHtValue_readout": 0,
-                          }
+                           "ht.GetHtValue": 200000, 
+                           "apt.GetKind": 0, "apt.GetPosition_CL": [0, 0], "apt.GetPosition_OL": [0, 0], "apt.GetPosition_SA": [0, 0]}
         
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
         self.previous_tx_abs = 0
         self.beam_intensity = {"pa_per_cm2": 0, "e_per_A2_sample": 0}
 
+        """ 
+        if os.name == 'nt': # test on Win-Win
+            self.host = "131.130.27.31"
+        else: # practice on Linux-Win
+            self.host = "172.17.41.22"
+        self.port = 12345
+        # self.__timeout = timeout
+        # self.__buffer = buffer
+        """
     @Slot()
     def _init(self):
         threading.current_thread().setName("ControlThread")
@@ -192,9 +206,8 @@ class ControlWorker(QObject):
 
         # Stop the Gaussian Fitting if running
         if self.tem_action.tem_tasks.btnGaussianFit.started:
-            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
-            time.sleep(0.1)
-            self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
+            self.tem_action.tem_controls.toggle_gaussianFit_beam()
+        time.sleep(0.1)
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI
             filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
@@ -218,6 +231,13 @@ class ControlWorker(QObject):
                                 "You need to stop the current task before starting a new one.")
                 # self.stop_task()
                 return           
+        ###
+        # if os.name == 'nt': # test on Win-Win
+        #     while True:
+        #         self.send_to_tem('#more')
+        #         time.sleep(0.12)
+        #         if self.tem_status['eos.GetFunctionMode'][0] != -1: break
+        ###
         if self.tem_status['eos.GetFunctionMode'][1] != 4:
             logging.warning('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
@@ -258,6 +278,12 @@ class ControlWorker(QObject):
                 # self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue']
                 globals.mag_value_diff = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
+            if self.tem_status['apt.GetKind'] == 1: #CLA
+                self.tem_status['apt.GetPosition_CL'] = self.tem_status['apt.GetPosition']
+            elif self.tem_status['apt.GetKind'] == 2: #OLA
+                self.tem_status['apt.GetPosition_OL'] = self.tem_status['apt.GetPosition']
+            elif self.tem_status['apt.GetKind'] == 4: #SAA
+                self.tem_status['apt.GetPosition_SA'] = self.tem_status['apt.GetPosition']
             
             # Update blanking button with live status at TEM
             if self.tem_status["defl.GetBeamBlank"] == 0:
@@ -276,7 +302,20 @@ class ControlWorker(QObject):
 
             self.updated.emit()
         except Exception as e:
-            logging.error(f"Error during updating tem_status map: {e}")
+            logging.error(f"Error during updating detailed tem_status map: {e}")
+
+    @Slot(dict)
+    def update_tem_status_init(self, response):
+        logging.debug("Updating ControlWorker map with last TEM Status, only for starting items")
+        try:
+            logging.debug("START of the update loop")
+            for entry in response:
+                self.tem_status[entry] = response[entry]["val"]
+                self.tem_update_times[entry] = (response[entry]["tst_before"], response[entry]["tst_after"])
+            logging.debug("END of update loop")
+            self.updated.emit()
+        except Exception as e:
+            logging.error(f"Error during starting tem_status map: {e}")
 
     @Slot(dict)
     def update_tem_status(self, response):
@@ -322,7 +361,12 @@ class ControlWorker(QObject):
             else:
                 results = self.get_state_detailed()
                 self.trigger_tem_update_detailed.emit(results)
-            
+        elif message == "#init":
+            if asynchronous:
+                threading.Thread(target=lambda: self.trigger_tem_update_init.emit(self.get_state_init())).start()
+            else:
+                results = self.get_state_init()
+                self.trigger_tem_update_init.emit(results)
         else:
             logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
             pass
@@ -330,7 +374,7 @@ class ControlWorker(QObject):
     def get_state(self):
         results = {}
         tic_loop = time.perf_counter()
-        for query in tools.INFO_QUERIES:
+        for query in self.info_queries:
             tic = time.perf_counter()
             logging.debug(" ++++++++++++++++ ")
             logging.debug(f"Command from list {query}")
@@ -346,14 +390,40 @@ class ControlWorker(QObject):
     def get_state_detailed(self):
         results = {}
         tic_loop = time.perf_counter()
-        for query in tools.MORE_QUERIES:
+        del_items = []
+        for query in self.more_queries:
+            result = {}
+            result["tst_before"] = time.time()
+            result["val"] = self.execute_command(tools.full_mapping[query])
+            result["tst_after"] = time.time()
+            results[query] = result
+            if result["val"] is None:
+                del_items.append(query)
+        for query in del_items:
+            self.more_queries.remove(query)
+            logging.warning(f"{query} is removed from list of query")
+        toc_loop = time.perf_counter()
+        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
+        return results
+
+    def get_state_init(self):
+        results = {}
+        tic_loop = time.perf_counter()
+        del_items = []
+        for query in self.init_queries:
             result = {}
             result["tst_before"] = time.time()
             result["val"] = self.execute_command(tools.full_mapping[query])
             result["tst_after"] = time.time()
             results[query] = result   
+            if result["val"] is None:
+                del_items.append(query)
+        for query in del_items:
+            self.init_queries.remove(query)
+            logging.warning(f"{query} is removed from list of query")
+            time.sleep(2) # debug line
         toc_loop = time.perf_counter()
-        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
+        logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
         return results
 
     def execute_command(self, command_str):
@@ -425,6 +495,56 @@ class ControlWorker(QObject):
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
 
+    """ 
+    @Slot()
+    def start_adjustZ(self):
+        if self.task.running:
+            logging.warning('task already running')
+            return
+        ###
+        if os.name == 'nt': # test on Win-Win
+            while True:
+                #########################
+                define #more 
+                #########################
+                self.send_to_tem('#more')
+                time.sleep(0.12)
+                if self.tem_status['eos.GetFunctionMode'][0] != -1: break
+        ###
+        # if self.tem_status['eos.GetFunctionMode'][1] != 0:
+        #     print('Switches ' + str(self.tem_status['eos.GetFunctionMode'][0]) + ' to MAG mode')
+        #     self.task.tem_command("eos", "SelectFunctionMode", [0])
+        #         ## self.client.SelectFunctionMode(0)  
+        # if self.tem_status['eos.GetMagValue'][0] <= 200: # 1
+        #     print('Changes magnifitation ' + str(self.tem_status['eos.GetMagValue'][2]) + ' to x20k')
+        #     self.task.tem_command("eos", "SetSelector", [20])
+        #     ##self.client.SetSelector(20) 
+        #stop##
+        if os.name == 'nt': # test on Win-Win
+            while True:
+                self.send_to_tem('#more')
+                time.sleep(0.12)
+                if int(self.tem_status['eos.GetMagValue'][0]) == 20000: break
+        ###
+        task = AdjustZ(self)
+        self.start_task(task) 
+        """
+    
+    """ 
+    @Slot()
+    def interactive(self):
+        if self.task.running:
+            self.stop()
+        x = input('Input a command sending to TEM. q: quit\n')
+        while True:
+            if x == 'q':
+                break
+            elif x != '':
+                #########################
+                self.send_to_tem(x)
+                #########################
+            x = input() """
+    
     def update_rotation_info(self, reset=False):
         if reset:
             self.rotation_status = {"start_angle": 0, "end_angle": 0,
