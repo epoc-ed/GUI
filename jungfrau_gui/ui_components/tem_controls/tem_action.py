@@ -199,6 +199,7 @@ class TEMAction(QObject):
 
     def on_tem_update(self):
         logging.debug("Updating GUI with last TEM Status...") 
+        self.parent.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1e3) # keV        
         angle_x = self.control.tem_status["stage.GetPos"][3]
         if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
         

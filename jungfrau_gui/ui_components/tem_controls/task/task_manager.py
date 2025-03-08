@@ -88,6 +88,7 @@ class ControlWorker(QObject):
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": [0, 'X', 'X0k'],
                            "eos.GetMagValue_MAG": [0, 'X', 'X0k'], "eos.GetMagValue_DIFF": [0, 'X', 'X0k'], "defl.GetBeamBlank": 0,
+                           "ht.GetHtValue": 200000, 
                            "apt.GetKind": 0, "apt.GetPosition_CL": [0, 0], "apt.GetPosition_OL": [0, 0], "apt.GetPosition_SA": [0, 0]}
         
         self.tem_update_times = {}
