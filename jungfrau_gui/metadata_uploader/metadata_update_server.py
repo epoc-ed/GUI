@@ -396,6 +396,9 @@ class Hdf5MetadataUpdater:
                         self.socket.send_string("Metadata/Maskdata added successfully")
                     else:
                         self.socket.send_string("Metadata added successfully")
+
+                    beamcenter = np.array(beam_property["beamcenter"], dtype=int)
+                    
                     if rotations_angles is not None:
                         with h5py.File(filename, 'r') as f:
                             if beamcenter[0]*beamcenter[1] != 1:
@@ -445,43 +448,43 @@ class Hdf5MetadataUpdater:
                 logging.error(f"Error while receiving/processing request: {e}", exc_info=True)
                 # break
 
-            beamcenter = np.array(beam_property["beamcenter"], dtype=int)
-            if rotations_angles is not None:
-                with h5py.File(filename, 'r') as f:
-                    if beamcenter[0]*beamcenter[1] != 1:
-                        beamcenter_refined = beamcenter
-                    else:
-                        middle_index = f["entry/data/data_000001"].shape[0] // 2
-                        img = f['entry/data/data_000001'][middle_index] 
-                        beamcenter_pre = getcenter(img,
-                                                   center=(515, 532),
-                                                   area=100,
-                                                   bin_factor=4,
-                                                   return_all_maxima=False)
+            # beamcenter = np.array(beam_property["beamcenter"], dtype=int)
+            # if rotations_angles is not None:
+            #     with h5py.File(filename, 'r') as f:
+            #         if beamcenter[0]*beamcenter[1] != 1:
+            #             beamcenter_refined = beamcenter
+            #         else:
+            #             middle_index = f["entry/data/data_000001"].shape[0] // 2
+            #             img = f['entry/data/data_000001'][middle_index] 
+            #             beamcenter_pre = getcenter(img,
+            #                                        center=(515, 532),
+            #                                        area=100,
+            #                                        bin_factor=4,
+            #                                        return_all_maxima=False)
 
-                        beamcenter_refined = getcenter(img,
-                                                       center=beamcenter_pre,
-                                                       area=20,
-                                                       bin_factor=1,
-                                                       return_all_maxima=False)
+            #             beamcenter_refined = getcenter(img,
+            #                                            center=beamcenter_pre,
+            #                                            area=20,
+            #                                            bin_factor=1,
+            #                                            return_all_maxima=False)
 
-                        logging.info(f"Refined beam center: X = {beamcenter_refined[0]:d}; Y = {beamcenter_refined[1]:d}")
-                # self.socket.send_string(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
+            #             logging.info(f"Refined beam center: X = {beamcenter_refined[0]:d}; Y = {beamcenter_refined[1]:d}")
+            #     # self.socket.send_string(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
 
-                dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
-                logging.info(f'Subdirname: {os.path.dirname(filename)}/XDS/{dataid}')
-                xds_thread = threading.Thread(target=self.run_xds, 
-                                              args=(filename, 
-                                    os.path.dirname(filename) + '/XDS/' + dataid,
-                                    '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
-                                    '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
-                                    beamcenter_refined, ), daemon=True)
-                xds_thread.start()
-                # dials_thread = threading.Thread(target=self.run_dials, 
-                #                                 args=(filename, 
-                #                     os.path.dirname(filename) + '/DIALS/' + dataid,
-                #                     beamcenter_refined, ), daemon=True)
-                # dials_thread.start()
+            #     dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
+            #     logging.info(f'Subdirname: {os.path.dirname(filename)}/XDS/{dataid}')
+            #     xds_thread = threading.Thread(target=self.run_xds, 
+            #                                   args=(filename, 
+            #                         os.path.dirname(filename) + '/XDS/' + dataid,
+            #                         '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
+            #                         '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
+            #                         beamcenter_refined, ), daemon=True)
+            #     xds_thread.start()
+            #     # dials_thread = threading.Thread(target=self.run_dials, 
+            #     #                                 args=(filename, 
+            #     #                     os.path.dirname(filename) + '/DIALS/' + dataid,
+            #     #                     beamcenter_refined, ), daemon=True)
+            #     # dials_thread.start()
     
     def stop(self):
         self.running = False
