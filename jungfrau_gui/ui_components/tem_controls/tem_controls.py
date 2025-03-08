@@ -35,8 +35,6 @@ class TemControls(QGroupBox):
 
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         
-        self.gaussian_user_forced_off = False
-
         font_small = QFont("Arial", 10)
         font_small.setBold(True)
 
@@ -212,7 +210,7 @@ class TemControls(QGroupBox):
             self.parent.stopWorker(self.thread_fit, self.fitter)
             self.removeAxes()
 
-    def toggle_gaussianFit_beam(self, by_user=False):
+    def toggle_gaussianFit_beam(self):
         if not self.tem_tasks.btnGaussianFit.started:
             self.thread_fit = QThread()
             self.fitter = GaussianFitter()
@@ -228,10 +226,6 @@ class TemControls(QGroupBox):
                 self.showPlotDialog()   
             # Timer started
             self.parent.timer_fit.start(10)
-
-            # If user specifically turned it ON, clear any "forced off" override
-            if by_user:
-                self.gaussian_user_forced_off = False
         else:
             self.tem_tasks.btnGaussianFit.setText("Gaussian Fit")
             self.tem_tasks.btnGaussianFit.started = False
@@ -241,10 +235,6 @@ class TemControls(QGroupBox):
                 self.plotDialog.close()
             self.parent.stopWorker(self.thread_fit, self.fitter)
             self.removeAxes()
-
-            # If user specifically turned it OFF, set user_forced_off = True
-            if by_user:
-                self.gaussian_user_forced_off = True
 
     @Slot()
     def disableGaussianFitButton(self):
@@ -285,10 +275,7 @@ class TemControls(QGroupBox):
 
     @Slot()
     def updateFitParams(self, fit_result_best_values):
-        if not self.tem_tasks.btnGaussianFit.started:
-            # Fitter was stopped, ignore any last-minute signals
-            return
-        logging.debug(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
+        logging.info(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
         yo = float(fit_result_best_values['yo'])        
@@ -355,7 +342,7 @@ class TemControls(QGroupBox):
         self.sigma_y_fit.setTransform(rotationTransform)
         self.parent.plot.addItem(self.sigma_y_fit)
 
-        logging.debug(datetime.now().strftime(" END UPDATING GUI @ %H:%M:%S.%f")[:-3])
+        logging.info(datetime.now().strftime(" END UPDATING GUI @ %H:%M:%S.%f")[:-3])
 
     def removeAxes(self):
         logging.info("Removing gaussian fitting ellipse and axis!")
