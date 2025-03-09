@@ -1,5 +1,5 @@
 import pyqtgraph as pg
-import copy
+import numpy as np
 import random
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
@@ -79,8 +79,8 @@ class TEMAction(QObject):
         except AttributeError:
             pass
         if globals.dev:
-            self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
-            self.tem_stagectrl.mapsnapshot_button.clicked.connect(lambda: self.take_snaphot())
+            self.tem_detector.calc_e_incoming_button.clicked.connect(self.update_ecount)
+            self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snaphot)
         
         self.control.updated.connect(self.on_tem_update)
         
@@ -525,7 +525,7 @@ class TEMAction(QObject):
         calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
         position = self.control.client.GetStagePosition()
 
-        image = copy.copy(self.parent.imageItem.image)
+        image = np.copy(self.parent.imageItem.image)
 
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
         low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
