@@ -64,7 +64,9 @@ def _capture_and_fit_worker(input_queue, output_queue, zmq_endpoint, timeout_ms,
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     socket.setsockopt(zmq.RCVTIMEO, timeout_ms)
-    socket.setsockopt(zmq.RCVHWM, hwm)
+    # Next two options ensures to only deliver the most recent message avoiding any stale frames
+    socket.setsockopt(zmq.RCVHWM, hwm) # hwm = 1 -> This limits the buffer to just one message
+    socket.setsockopt(zmq.CONFLATE, 1) # value = 1 -> This option tells ZMQ to only deliver the most recent message and discard older ones
     socket.setsockopt(zmq.RCVBUF, hwm * image_size[0] * image_size[1] * np.dtype(dt).itemsize)
     socket.connect(zmq_endpoint)
     logging.info(f"Worker connected to ZMQ endpoint: {zmq_endpoint}")
@@ -120,7 +122,7 @@ def _capture_and_fit_worker(input_queue, output_queue, zmq_endpoint, timeout_ms,
                 fit_result = fit_2d_gaussian_roi_NaN_fast(image, roi_coord, function=super_gaussian2d_rotated)
                 logging.info(datetime.now().strftime("WORKER END FITTING @ %H:%M:%S.%f")[:-3])
                 output_queue.put(fit_result.best_values)
-                logging.info("Task processed. Is output queue empty? %s", output_queue.empty())
+                logging.info(datetime.now().strftime(f"Task processed. Output queue empty? {output_queue.empty()} @ %H:%M:%S.%f")[:-3])
             except zmq.error.Again as e:
                 logging.error("Worker: zmq timeout/error: %s", e)
                 output_queue.put(None)
@@ -144,11 +146,12 @@ class GaussianFitterMP(QObject):
         self.fitting_process = None 
         # (Option B) ZMQ Parameters 
         self.zmq_endpoint = globals.stream
-        self.timeout_ms = 10
-        self.hwm = 2
+        self.timeout_ms = 100
+        self.hwm = 1 #2
         self.image_size = (globals.nrow, globals.ncol)
         self.dt = globals.dtype
 
+    """
     # Option A
     def start(self):
         logging.info("Starting Gaussian Fitting!")
@@ -190,7 +193,6 @@ class GaussianFitterMP(QObject):
         logging.debug("Triggering capture and fit with ROI: %s", roi)
         self.input_queue.put({"cmd": "CAPTURE_AND_FIT", "roi": roi})
         logging.info(datetime.now().strftime("TRIGGERED FITTER @ %H:%M:%S.%f")[:-3])
-    """
 
     def fetch_result(self):
         try:

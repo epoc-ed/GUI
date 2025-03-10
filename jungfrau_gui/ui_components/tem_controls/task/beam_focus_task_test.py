@@ -98,7 +98,7 @@ class AutoFocusTask(Task):
             autofocus_time = autofocus_end - autofocus_start
             logging.warning(f" ###### ROUGH SWEEP took {autofocus_time:.6f} seconds")
 
-            print(self.results)
+            # print(self.results)
 
         except Exception as e:
             logging.error(f"Unexpected error during beam focusing: {e}")
@@ -129,8 +129,9 @@ class AutoFocusTask(Task):
 
             # Set IL1 to current position
             iter_start = time.perf_counter()
-            logging.info(datetime.now().strftime(" NEW SWEEP @ %H:%M:%S.%f")[:-3])
+            logging.info(datetime.now().strftime(" BEGIN SWEEP @ %H:%M:%S.%f")[:-3])
             self.client.SetILFocus(il1_value)
+            logging.info(datetime.now().strftime(" END SWEEP @ %H:%M:%S.%f")[:-3])
             iter_end = time.perf_counter()
             iter_time = iter_end - iter_start
             logging.critical(f"SetILFocus({il1_value}) took {iter_time:.6f} seconds")
@@ -142,7 +143,7 @@ class AutoFocusTask(Task):
 
             # Update lens_parameters so we know what was used
             self.lens_parameters["il1"] = il1_value
-
+            """
             # Option 1
             # Now request a fit. We'll pass the current image & ROI.
             image_data = self.tem_action.parent.imageItem.image.copy()
@@ -151,9 +152,9 @@ class AutoFocusTask(Task):
             self.beam_fitter.updateParams(image_data, roi) 
 
             time.sleep(3*wait_time_s)
+            """
 
             # Prepare ROI data as a serializable dictionary.
-            """
             # Option 2
             roi = self.tem_action.parent.roi
             roi_data = {
@@ -162,9 +163,6 @@ class AutoFocusTask(Task):
             }
             # Trigger capture & fitting in the worker process.
             self.beam_fitter.trigger_capture(roi_data)
-             """
-
-            # time.sleep(wait_time_s)
 
             # Wait for the result (blocking in this thread only!)
             fit_result = self.beam_fitter.fetch_result()
@@ -209,6 +207,7 @@ class AutoFocusTask(Task):
             self.newBestResult.emit(result_dict)
         
         logging.info(datetime.now().strftime(" FIT RESULTS PROCESSED @ %H:%M:%S.%f")[:-3])
+        print("=============================================================================")
 
     def cleanup(self):
         """
