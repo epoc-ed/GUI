@@ -27,7 +27,6 @@ def create_roi_coord_tuple(roiPos, roiSize):
 
     return (roi_start_row, roi_end_row, roi_start_col, roi_end_col)
 
-""" 
 # Option A
 def _fitGaussian(input_queue, output_queue):
     while True:
@@ -53,7 +52,6 @@ def _fitGaussian(input_queue, output_queue):
             logging.info("Task processed. Is output queue empty? %s", output_queue.empty())
         except Exception as e:
             logging.error("Error during the fitting process: %s", e)
-"""
 
 # Option B
 def _capture_and_fit_worker(input_queue, output_queue, zmq_endpoint, timeout_ms, hwm, image_size, dt):
@@ -103,6 +101,7 @@ def _capture_and_fit_worker(input_queue, output_queue, zmq_endpoint, timeout_ms,
                         mask = (raw_data == min_int32) | (raw_data == max_int32)
                         image = raw_data.astype(dt).reshape(globals.nrow, globals.ncol)
                         image[mask] = np.nan
+                        logging.info(datetime.now().strftime("FRAME CAPTURED AND MASKED @ %H:%M:%S.%f")[:-3])
                     else:
                         output_queue.put(None)
                         continue
@@ -150,7 +149,6 @@ class GaussianFitterMP(QObject):
         self.image_size = (globals.nrow, globals.ncol)
         self.dt = globals.dtype
 
-    """
     # Option A
     def start(self):
         logging.info("Starting Gaussian Fitting!")
@@ -183,17 +181,16 @@ class GaussianFitterMP(QObject):
             self.fitting_process.start()
 
     def trigger_capture(self, roi):
-        """
+        '''
         Instead of passing an image, we simply send a command (with ROI parameters)
         to trigger a capture and fitting in the worker process.
         `roi` should be a dict with keys "pos" and "size", e.g.:
              {"pos": [x, y], "size": [w, h]}
-        """
+        '''
         logging.debug("Triggering capture and fit with ROI: %s", roi)
         self.input_queue.put({"cmd": "CAPTURE_AND_FIT", "roi": roi})
         logging.info(datetime.now().strftime("TRIGGERED FITTER @ %H:%M:%S.%f")[:-3])
-
-
+    """
 
     def fetch_result(self):
         try:

@@ -10,7 +10,7 @@ from datetime import datetime
 
 from simple_tem import TEMClient
 
-IL1_0 = 21730 #40345 40736
+IL1_0 = 21780 #40345 40736
 ILs_0 = [32920, 32776] #[32856, 32856]
 WAIT_TIME_S = 0.1 # TODO: optimize value
 
@@ -68,10 +68,10 @@ class AutoFocusTask(Task):
             logging.info("################ Start IL1 rough-sweeping ################")
 
             # Option A: Go and come back
-            # completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
+            completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
             
             # Option B: Shoot straight
-            completed = self.sweep_il1_linear(init_IL1, init_IL1 + 105, 5)
+            # completed = self.sweep_il1_linear(init_IL1, init_IL1 + 105, 5)
 
             if not completed:
                 logging.warning("ROUGH Sweep interrupted! Exiting AutoFocusTask::run() method...")
@@ -84,19 +84,21 @@ class AutoFocusTask(Task):
             # Once task finished, move lens to optimal position
 
             # Option A: Go and come back
-            # for il1_value in range(init_IL1 - 50, il1_guess1 + 10, 5): 
-                # self.client.SetILFocus(il1_value)
-            # self.client.SetILFocus(il1_guess1)
+            for il1_value in range(init_IL1 - 50, il1_guess1 + 10, 5): 
+                self.client.SetILFocus(il1_value)
+            self.client.SetILFocus(il1_guess1)
 
             # Option B: Shoot straight
-            for il1_value in range(init_IL1, il1_guess1+5, 5): 
-                self.client.SetILFocus(il1_value)
+            # for il1_value in range(init_IL1, il1_guess1+5, 5): 
+            #     self.client.SetILFocus(il1_value)
 
             self.lens_parameters["il1"] = il1_guess1
             
             autofocus_end = time.perf_counter()
             autofocus_time = autofocus_end - autofocus_start
             logging.warning(f" ###### ROUGH SWEEP took {autofocus_time:.6f} seconds")
+
+            print(self.results)
 
         except Exception as e:
             logging.error(f"Unexpected error during beam focusing: {e}")
@@ -127,6 +129,7 @@ class AutoFocusTask(Task):
 
             # Set IL1 to current position
             iter_start = time.perf_counter()
+            logging.info(datetime.now().strftime(" NEW SWEEP @ %H:%M:%S.%f")[:-3])
             self.client.SetILFocus(il1_value)
             iter_end = time.perf_counter()
             iter_time = iter_end - iter_start
@@ -140,17 +143,17 @@ class AutoFocusTask(Task):
             # Update lens_parameters so we know what was used
             self.lens_parameters["il1"] = il1_value
 
-            """ 
             # Option 1
             # Now request a fit. We'll pass the current image & ROI.
             image_data = self.tem_action.parent.imageItem.image.copy()
             roi = self.tem_action.parent.roi
+            logging.info(datetime.now().strftime(" UPDATED PARAMS FOR FITTER @ %H:%M:%S.%f")[:-3])
             self.beam_fitter.updateParams(image_data, roi) 
 
             time.sleep(3*wait_time_s)
-            """
 
             # Prepare ROI data as a serializable dictionary.
+            """
             # Option 2
             roi = self.tem_action.parent.roi
             roi_data = {
@@ -159,6 +162,7 @@ class AutoFocusTask(Task):
             }
             # Trigger capture & fitting in the worker process.
             self.beam_fitter.trigger_capture(roi_data)
+             """
 
             # time.sleep(wait_time_s)
 
@@ -167,6 +171,9 @@ class AutoFocusTask(Task):
             if fit_result is None:
                 logging.warning("No fit result arrived in time; continuing anyway.")
                 continue
+
+            # Draw fitting result on ui for last captured frame
+            """ self.control.draw_ellipses_on_ui.emit(fit_result) """
 
             # Process the result
             self.process_fit_results(fit_result)
@@ -201,7 +208,7 @@ class AutoFocusTask(Task):
             # Debugging: notify the main GUI thread 
             self.newBestResult.emit(result_dict)
         
-        logging.info(datetime.now().strftime(" Fit Results Processed @ %H:%M:%S.%f")[:-3])
+        logging.info(datetime.now().strftime(" FIT RESULTS PROCESSED @ %H:%M:%S.%f")[:-3])
 
     def cleanup(self):
         """

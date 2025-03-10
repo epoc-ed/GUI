@@ -68,6 +68,8 @@ class ControlWorker(QObject):
     # fit_complete = Signal(dict, object)
     # request_fit = Signal(object)
     # cleanup_fitter = Signal()
+
+    draw_ellipses_on_ui = Signal(dict)
     
     trigger_stop_autofocus = Signal()
     remove_ellipse = Signal()
@@ -104,6 +106,7 @@ class ControlWorker(QObject):
         self.trigger_centering.connect(self.centering)
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
+        self.beam_fitter = None
         self.actionFit_Beam.connect(self.start_beam_fit)
         # self.request_fit.connect(self.handle_request_fit) 
         # self.trigger_stop_autofocus.connect(self.set_sweeper_to_off_state)
