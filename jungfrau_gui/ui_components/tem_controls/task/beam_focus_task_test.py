@@ -62,43 +62,64 @@ class AutoFocusTask(Task):
             # ----------------------
             self.beam_fitter.start()
 
-            # --------------------------
-            # Start IL1 Sweeping (ROUGH)
-            # --------------------------
-            logging.info("################ Start IL1 rough-sweeping ################")
+            """ ----------------
+            # Start IL1 Sweeping 
+            ---------------- """
+            # logging.info("################ Start IL1 rough-sweeping ################")
 
-            # Option A: Go and come back
-            completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
+            # # Option A: Go and come back
+            # completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
             
-            # Option B: Shoot straight
-            # completed = self.sweep_il1_linear(init_IL1, init_IL1 + 105, 5)
+            # # Option B: Shoot straight
+            # # completed = self.sweep_il1_linear(init_IL1, init_IL1 + 105, 5)
 
+            # if not completed:
+            #     logging.warning("ROUGH Sweep interrupted! Exiting AutoFocusTask::run() method...")
+            #     return  # Exit the run method if the sweep was interrupted
+
+            # # Determine the rough optimal IL1 value
+            # il1_guess1 = self.best_result["il1_value"]
+            # logging.warning(f"{datetime.now()}, ROUGH IL1 OPTIMAL VALUE IS {il1_guess1}")
+            
+            # # Once task finished, move lens to optimal position
+
+            # # Option A: Go and come back
+            # for il1_value in range(init_IL1 - 50, il1_guess1 + 10, 5): 
+            #     self.client.SetILFocus(il1_value)
+            # self.client.SetILFocus(il1_guess1)
+
+            # # Option B: Shoot straight
+            # # for il1_value in range(init_IL1, il1_guess1+5, 5): 
+            # #     self.client.SetILFocus(il1_value)
+
+            # self.lens_parameters["il1"] = il1_guess1
+
+            """ ----------------
+            # Start ILs Sweeping 
+            ---------------- """
+
+            logging.info("################ Start ILs rough-sweeping ################")
+            completed = self.sweep_stig_linear(init_stigm=init_stigm, deviation=500, step=100)
             if not completed:
-                logging.warning("ROUGH Sweep interrupted! Exiting AutoFocusTask::run() method...")
+                logging.warning("STIG Sweep interrupted! Exiting AutoFocusTask::run() method...")
                 return  # Exit the run method if the sweep was interrupted
 
-            # Determine the rough optimal IL1 value
-            il1_guess1 = self.best_result["il1_value"]
-            logging.warning(f"{datetime.now()}, ROUGH IL1 OPTIMAL VALUE IS {il1_guess1}")
-            
-            # Once task finished, move lens to optimal position
+            # Determine the rough optimal ILs value
+            ils_guess1 = self.best_result["ils_value"]
+            logging.warning(f"{datetime.now()}, ROUGH ILs OPTIMAL VALUE IS {ils_guess1}")
 
-            # Option A: Go and come back
-            for il1_value in range(init_IL1 - 50, il1_guess1 + 10, 5): 
-                self.client.SetILFocus(il1_value)
-            self.client.SetILFocus(il1_guess1)
+            # Once task finished, move lens to optimal position 
+            for ils_x_value in range(ILs_0[0] - 500, ils_guess1[0] + 600, 100): 
+                for ils_y_value in range(ILs_0[1] - 500, ils_guess1[1] + 600, 50): 
+                    self.client.SetILs(ils_x_value, ils_y_value)
+            self.client.SetILs(*ils_guess1)
+            time.sleep(1)
 
-            # Option B: Shoot straight
-            # for il1_value in range(init_IL1, il1_guess1+5, 5): 
-            #     self.client.SetILFocus(il1_value)
-
-            self.lens_parameters["il1"] = il1_guess1
+            self.lens_parameters["ils"] = ils_guess1
             
             autofocus_end = time.perf_counter()
             autofocus_time = autofocus_end - autofocus_start
             logging.warning(f" ###### ROUGH SWEEP took {autofocus_time:.6f} seconds")
-
-            # print(self.results)
 
         except Exception as e:
             logging.error(f"Unexpected error during beam focusing: {e}")
@@ -136,13 +157,12 @@ class AutoFocusTask(Task):
             iter_time = iter_end - iter_start
             logging.critical(f"SetILFocus({il1_value}) took {iter_time:.6f} seconds")
 
-            """ self.lens_parameters["ils"] = self.client.GetILs() # ??? Double checking if ILs changed without explicitly changing it """
-
             # (Optional?) small wait for hardware to stabilize
             time.sleep(wait_time_s)
 
             # Update lens_parameters so we know what was used
             self.lens_parameters["il1"] = il1_value
+
             """
             # Option 1
             # Now request a fit. We'll pass the current image & ROI.
@@ -154,7 +174,12 @@ class AutoFocusTask(Task):
             time.sleep(3*wait_time_s)
             """
 
-            # Prepare ROI data as a serializable dictionary.
+            # Optional - capture the success status for logging
+            fit_success = self.request_fit_and_process_result()
+            if not fit_success:
+                logging.warning(f"Failed to get a valid fit for IL1={il1_value}")
+
+            """ # Prepare ROI data as a serializable dictionary.
             # Option 2
             roi = self.tem_action.parent.roi
             roi_data = {
@@ -171,11 +196,113 @@ class AutoFocusTask(Task):
                 continue
 
             # Draw fitting result on ui for last captured frame
-            """ self.control.draw_ellipses_on_ui.emit(fit_result) """
+            ''' self.control.draw_ellipses_on_ui.emit(fit_result) '''
 
             # Process the result
-            self.process_fit_results(fit_result)
+            self.process_fit_results(fit_result) """
 
+        return True
+    
+    def sweep_stig_linear(self, init_stigm, deviation, step, wait_time_s=WAIT_TIME_S):
+        for ils_x in range(init_stigm[0] - deviation, init_stigm[0] + deviation + step, step):
+            if not self.beam_fitter.fitting_process.is_alive():
+                logging.error("GaussianFitterMP process has terminated unexpectedly. Aborting sweep.")
+                return False
+
+            if not self.control.sweepingWorkerReady:
+                logging.warning(f"Interrupting Task - {self.control.task.task_name} - during STIG X Sweeping")
+                return False
+
+            for ils_y in range(init_stigm[1] - deviation, init_stigm[1] + deviation + step, step):
+                # Check if the beam fitter process is still alive.
+                if not self.beam_fitter.fitting_process.is_alive():
+                    logging.error("GaussianFitterMP process has terminated unexpectedly. Aborting sweep.")
+                    return False
+                
+                if not self.control.sweepingWorkerReady:
+                    logging.warning(f"Interrupting Task - {self.control.task.task_name} - during STIG Y Sweeping")
+                    return False
+                
+                # Set ILs lens to the current position
+                # Set IL1 to current position
+                iter_start = time.perf_counter()
+                logging.info(datetime.now().strftime(" BEGIN STIG SWEEP @ %H:%M:%S.%f")[:-3])
+                self.client.SetILs(ils_x, ils_y)
+                logging.info(datetime.now().strftime(" END STIG SWEEP @ %H:%M:%S.%f")[:-3])
+                iter_end = time.perf_counter()
+                iter_time = iter_end - iter_start
+                logging.critical(f"SetILs({ils_x}, {ils_y}) took {iter_time:.6f} seconds")
+
+                # Wait for the system to stabilize after setting ILs
+                time.sleep(wait_time_s)
+
+                # Update dictionnary
+                self.lens_parameters["ils"] = [ils_x, ils_y]
+
+                # Request fit and process results - skip to next iteration if it fails
+                fit_success = self.request_fit_and_process_result()
+                if not fit_success:
+                    logging.warning(f"Failed to get a valid fit for ILs=[{ils_x}, {ils_y}]")
+
+                """ # Prepare ROI data as a serializable dictionary.
+                # Option 2
+                roi = self.tem_action.parent.roi
+                roi_data = {
+                    "pos": [roi.pos().x(), roi.pos().y()],
+                    "size": [roi.size().x(), roi.size().y()]
+                }
+                # Trigger capture & fitting in the worker process.
+                self.beam_fitter.trigger_capture(roi_data)
+
+                # Wait for the result (blocking in this thread only!)
+                fit_result = self.beam_fitter.fetch_result()
+                if fit_result is None:
+                    logging.warning("No fit result arrived in time; continuing anyway.")
+                    continue
+
+                # Draw fitting result on ui for last captured frame
+                ''' self.control.draw_ellipses_on_ui.emit(fit_result) '''
+
+                # Process the result
+                self.process_fit_results(fit_result) """
+
+        return True
+
+    def request_fit_and_process_result(self, roi=None):
+        """
+        Request a beam fit and process the results.
+        
+        Args:
+            roi: Optional ROI override. If None, uses the current ROI from the UI.
+            
+        Returns:
+            bool: True if the fit was successful, False otherwise
+        """
+        if roi is None:
+            roi = self.tem_action.parent.roi
+            roi_data = {
+                "pos": [roi.pos().x(), roi.pos().y()],
+                "size": [roi.size().x(), roi.size().y()]
+            }
+        else:
+            roi_data = roi
+            
+        # Trigger capture & fitting in the worker process
+        self.beam_fitter.trigger_capture(roi_data)
+        
+        # Wait for the result (blocking in this thread only!)
+        fit_result = self.beam_fitter.fetch_result()
+        
+        if fit_result is None:
+            logging.warning("No fit result arrived in time; skipping this iteration.")
+            return False
+        
+        # Process the result
+        self.process_fit_results(fit_result)
+        
+        # Optionally draw fitting result on UI (uncomment if needed)
+        # self.control.draw_ellipses_on_ui.emit(fit_result)
+        
         return True
 
     def process_fit_results(self, fit_values):
