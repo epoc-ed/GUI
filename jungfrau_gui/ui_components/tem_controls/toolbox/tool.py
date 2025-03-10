@@ -10,7 +10,7 @@ from epoc import ConfigurationClient, auth_token, redis_host
 import zmq
 from .... import globals
 
-def create_full_mapping(info_queries, more_queries, info_queries_client, more_queries_client):
+def create_full_mapping(info_queries, more_queries, init_queries, info_queries_client, more_queries_client, init_queries_client):
     """
     Creates a mapping between two sets of queries and their corresponding client-side equivalents.
 
@@ -20,10 +20,14 @@ def create_full_mapping(info_queries, more_queries, info_queries_client, more_qu
         List of primary queries.
     more_queries : list
         List of additional queries.
+    init_queries_client : list
+        List of queries at starting.
     info_queries_client : list
         Client-side equivalents of primary queries.
     more_queries_client : list
         Client-side equivalents of additional queries.
+    init_queries_client : list
+        Client-side equivalents of queries at starting.
 
     Returns:
     -------
@@ -39,6 +43,10 @@ def create_full_mapping(info_queries, more_queries, info_queries_client, more_qu
     # Mapping for MORE_QUERIES to MORE_QUERIES_CLIENT
     for more_query, client_query in zip(more_queries, more_queries_client):
         mapping[more_query] = client_query
+
+    # Mapping for INIT_QUERIES to INIT_QUERIES_CLIENT
+    for init_query, client_query in zip(init_queries, init_queries_client):
+        mapping[init_query] = client_query
 
     return mapping
 
@@ -60,6 +68,8 @@ MORE_QUERIES = [
     "stage.Getf1OverRateTxNum",
     "apt.GetSize(1)", 
     "apt.GetSize(4)",  # 1=CL, 4=SA
+    "apt.GetKind",
+    "apt.GetPosition",
     "eos.GetSpotSize", 
     "eos.GetAlpha", 
     "lens.GetCL3", 
@@ -71,6 +81,10 @@ MORE_QUERIES = [
     "defl.GetPLA", 
     "defl.GetBeamBlank",
     "stage.GetMovementValueMeasurementMethod"  # 0=encoder/1=potentio
+]
+
+INIT_QUERIES = [
+    "ht.GetHtValue",
 ]
 
 INFO_QUERIES_CLIENT = [
@@ -88,8 +102,10 @@ MORE_QUERIES_CLIENT = [
     "GetMagValue()", 
     "GetFunctionMode()",
     "Getf1OverRateTxNum()",
-    "GetAperatureSize(1)", 
-    "GetAperatureSize(4)",  # 1=CL, 4=SA
+    "_send_message(GetApertureSize_CL)", # "GetApertureSize(1)", "GetApertureSize(4)", 
+    "_send_message(GetApertureSize_SA)",  # 1=CL, 4=SA
+    "_send_message(GetApertureKind)", # "GetApertureKind", 
+    "_send_message(GetAperturePosition)", # "GetAperturePosition", 
     "GetSpotSize()", 
     "GetAlpha()", 
     "GetCL3()", 
@@ -103,6 +119,10 @@ MORE_QUERIES_CLIENT = [
     "GetMovementValueMeasurementMethod()"  # 0=encoder/1=potentio
 ]
 
+INIT_QUERIES_CLIENT = [
+    "_send_message(GetHtValue)", # "ht.GetHtValue", 
+]
+
 # Map of Magnification status and correspondent radio button i.e. {Mag_idx : button_idx}
 mag_indices = {
     0:0, # 0=MAG     is equivalent to check button 0
@@ -112,7 +132,7 @@ mag_indices = {
 }
 
 # Creating the full mapping
-full_mapping = create_full_mapping(INFO_QUERIES, MORE_QUERIES, INFO_QUERIES_CLIENT, MORE_QUERIES_CLIENT)
+full_mapping = create_full_mapping(INFO_QUERIES, MORE_QUERIES, INIT_QUERIES, INFO_QUERIES_CLIENT, MORE_QUERIES_CLIENT, INIT_QUERIES_CLIENT)
 
 def send_with_retries(client_method, *args, retries=3, delay=0.1, **kwargs):
     """
