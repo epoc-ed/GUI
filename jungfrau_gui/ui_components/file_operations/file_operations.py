@@ -30,6 +30,21 @@ font_big.setBold(True)
 class XtalInfo(QGroupBox):
     def __init__(self):
         super().__init__() # "DataProcessing"
+        self.xtallist = [
+            {
+                "gui_id": 999,
+                "gui_text": None,
+                "gui_marker": None,
+                "gui_label": None,
+                "dataid": "999_9999", # 000_HHMM
+                "filepath": None,
+                "processor": None,
+                "position": [0, 0, 0, 0, 0], #x,y,z,tx,ty
+                "lattice": [10, 10, 10, 90, 90, 90],
+                "spots": [5, 10],
+                "cell axes": [1,0,0, 0,1,0, 0,0,1],
+            }
+        ]
         self.initUI()
 
     def initUI(self):
@@ -75,7 +90,7 @@ class FileOperations(QGroupBox):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_update_h5_index_box.connect(self.update_index_box)
         self.initUI()
-        self.metadata_notifier = MetadataNotifier(host = "noether")
+        self.metadata_notifier = MetadataNotifier(host = "noether", port = 3463, verbose = False)
         
 
     def initUI(self):

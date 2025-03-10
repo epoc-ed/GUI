@@ -22,15 +22,12 @@ class TEMDetector(QGroupBox):
     def initUI(self):
         detector_section = QVBoxLayout()
         
-        self.hbox_mag = QVBoxLayout()
         self.hbox_mag = QHBoxLayout()
         magn_label = QLabel("Magnification:", self)
         dist_label = QLabel("Distance:", self)
         self.input_magnification = QLineEdit(self)
-        self.input_magnification.setText(globals.mag_value_img[2])
         self.input_magnification.setReadOnly(True)
         self.input_det_distance = QLineEdit(self)
-        self.input_det_distance.setText(globals.mag_value_diff[2])
         self.input_det_distance.setReadOnly(True)
         self.scale_checkbox = QCheckBox("scale", self)
         self.scale_checkbox.setChecked(False)
@@ -41,6 +38,17 @@ class TEMDetector(QGroupBox):
         self.hbox_mag.addWidget(self.scale_checkbox, 1)
 
         detector_section.addLayout(self.hbox_mag)
+
+        if globals.dev:
+            self.hbox_e_incoming = QHBoxLayout()
+            self.calc_e_incoming_button = QPushButton("Calc Brightness on Detector/Sample", self)
+            self.e_incoming_display = QLineEdit(self)
+            self.e_incoming_display.setReadOnly(True)
+            self.calc_e_incoming_button.setEnabled(False)
+            self.hbox_e_incoming.addWidget(self.calc_e_incoming_button, 1)
+            self.hbox_e_incoming.addWidget(self.e_incoming_display, 2)
+            detector_section.addLayout(self.hbox_e_incoming)
+        
         self.setLayout(detector_section)
 
 class TEMStageCtrl(QGroupBox):

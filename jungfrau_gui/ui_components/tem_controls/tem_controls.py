@@ -35,6 +35,8 @@ class TemControls(QGroupBox):
 
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         
+        self.gaussian_user_forced_off = False
+
         font_small = QFont("Arial", 10)
         font_small.setBold(True)
 
@@ -70,15 +72,15 @@ class TemControls(QGroupBox):
         self.beam_center_x = QSpinBox()
         self.beam_center_x.setValue(1)
         self.beam_center_x.setMaximum(globals.ncol)
-        # self.beam_center_x.setReadOnly(True)
-        self.beam_center_x.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_x))
+        self.beam_center_x.setReadOnly(True)
+        # self.beam_center_x.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_x))
         self.beam_center_x.editingFinished.connect(self.update_beam_center_x)
         
         self.beam_center_y = QSpinBox()
         self.beam_center_y.setValue(1)
         self.beam_center_y.setMaximum(globals.nrow)
-        # self.beam_center_y.setReadOnly(True)
-        self.beam_center_y.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_y))
+        self.beam_center_y.setReadOnly(True)
+        # self.beam_center_y.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_y))
         self.beam_center_y.editingFinished.connect(self.update_beam_center_y)
         
         self.label_gauss_height = QLabel()
@@ -247,7 +249,7 @@ class TemControls(QGroupBox):
             self.fitter, self.thread_fit = thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
             self.removeAxes()
 
-    def toggle_gaussianFit_beam(self):
+    def toggle_gaussianFit_beam(self, by_user=False):
         if not self.tem_tasks.btnGaussianFit.started:
             self.thread_fit = QThread()
             self.fitter = GaussianFitter()
@@ -263,6 +265,10 @@ class TemControls(QGroupBox):
                 self.showPlotDialog()   
             # Timer started
             self.parent.timer_fit.start(10)
+
+            # If user specifically turned it ON, clear any "forced off" override
+            if by_user:
+                self.gaussian_user_forced_off = False
         else:
             self.tem_tasks.btnGaussianFit.setText("Gaussian Fit")
             self.tem_tasks.btnGaussianFit.started = False
@@ -273,6 +279,10 @@ class TemControls(QGroupBox):
             self.parent.stopWorker(self.thread_fit, self.fitter)
             self.fitter, self.thread_fit = thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
             self.removeAxes()
+
+            # If user specifically turned it OFF, set user_forced_off = True
+            if by_user:
+                self.gaussian_user_forced_off = True
 
     @Slot()
     def disableGaussianFitButton(self):
@@ -313,6 +323,9 @@ class TemControls(QGroupBox):
 
     @Slot()
     def updateFitParams(self, fit_result_best_values, draw = True):
+        if not self.tem_tasks.btnGaussianFit.started:
+            # Fitter was stopped, ignore any last-minute signals
+            return
         logging.debug(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])

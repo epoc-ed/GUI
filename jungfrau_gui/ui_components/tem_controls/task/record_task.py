@@ -33,7 +33,7 @@ class RecordTask(Task):
         logging.info("RecordTask initialized")
         self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.metadata_notifier = MetadataNotifier(host = "noether")
+        self.metadata_notifier = MetadataNotifier(host = "noether", port = 3463, verbose = False)
         # self.standard_h5_recording = standard_h5_recording
 
         self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)
@@ -245,13 +245,14 @@ class RecordTask(Task):
                     self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
                     # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')
                 except Exception as e:
-                        logging.error(f"Metadata Update Error: {e}")
-                        self.file_operations.update_xtalinfo_signal.emit('Metadata error', 'XDS')
+                    logging.error(f"Metadata Update Error: {e}")
+                    self.file_operations.update_xtalinfo_signal.emit('Metadata error', 'XDS')
 
             if self.writer is None:
                 self.reset_rotation_signal.emit()
                 
             self.tem_action.trigger_additem.emit('green', 'recorded')
+            self.tem_action.trigger_processed_receiver.emit()
             time.sleep(0.5)
             print("------REACHED END OF TASK----------")
 
@@ -276,6 +277,10 @@ class RecordTask(Task):
                 logfile.close()  # Ensure the logfile is closed in case of any errors
             self.client.SetBeamBlank(1)
             time.sleep(0.01)
+            QMetaObject.invokeMethod(self.tem_action,
+                                    "reconnectGaussianFit",
+                                    Qt.QueuedConnection
+            )
             self.reset_rotation_signal.emit()
         
         # self.make_xds_file(master_filepath,

@@ -29,20 +29,20 @@ from PySide6.QtGui import QFont
 font_big = QFont("Arial", 11)
 font_big.setBold(True)
 
-def get_git_info():
+def get_gui_info():
     # Load version from installed package resources
     try:
         version = resources.read_text('jungfrau_gui', 'version.txt').strip()
-        return f"Viewer {version}"
+        return f"Jungfrau GUI {version}"
     except FileNotFoundError as e:
         logging.debug(f"File not found: {e}")
         pass  # Fall back to Git if the file is not found
     
     try:
         # Fall back to git if version.txt is not available
-        return f"Viewer {globals.tag}/{globals.branch}"
+        return f"Jungfrau GUI {globals.tag}/{globals.branch}"
     except Exception as e:
-        return "Viewer x.x.x"
+        return "Jungfrau GUI x.x.x"
 
 class EventFilter(QObject):
     def __init__(self, histogram, parent=None):
@@ -65,7 +65,7 @@ class ApplicationWindow(QMainWindow):
         self.app = app
         self.receiver = receiver
         self.threadWorkerPairs = []
-        self.version = get_git_info()
+        self.version = get_gui_info()
         self.initUI()
 
     def initUI(self):
@@ -147,19 +147,19 @@ class ApplicationWindow(QMainWindow):
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
         self.autoContrastBtn.clicked.connect(self.toggle_autoContrast)
         self.resetContrastBtn = QPushButton("Reset Contrast")
-        self.resetContrastBtn.clicked.connect(lambda: self.set_contrast(self.cfg.viewer_cmin, self.cfg.viewer_cmax))
+        self.resetContrastBtn.clicked.connect(lambda checked: self.set_contrast(self.cfg.viewer_cmin, self.cfg.viewer_cmax))
 
         self.contrast_0_Btn = QPushButton("-50 - 50")
         self.contrast_1_Btn = QPushButton("0 - 100")
-        self.contrast_2_Btn = QPushButton("0 - 500")
-        self.contrast_3_Btn = QPushButton("0 - 1000")
-        self.contrast_4_Btn = QPushButton("0 - 1e5")
+        self.contrast_2_Btn = QPushButton("0 - 1000")
+        self.contrast_3_Btn = QPushButton("0 - 1e5")
+        self.contrast_4_Btn = QPushButton("0 - 1e7")
 
-        self.contrast_0_Btn.clicked.connect(lambda: self.set_contrast(-50, 50))
-        self.contrast_1_Btn.clicked.connect(lambda: self.set_contrast(0, 100))
-        self.contrast_2_Btn.clicked.connect(lambda: self.set_contrast(0, 500))
-        self.contrast_3_Btn.clicked.connect(lambda: self.set_contrast(0, 1000))
-        self.contrast_4_Btn.clicked.connect(lambda: self.set_contrast(0, 100000))
+        self.contrast_0_Btn.clicked.connect(lambda checked: self.set_contrast(-50, 50))
+        self.contrast_1_Btn.clicked.connect(lambda checked: self.set_contrast(0, 100))
+        self.contrast_2_Btn.clicked.connect(lambda checked: self.set_contrast(0, 1000))
+        self.contrast_3_Btn.clicked.connect(lambda checked: self.set_contrast(0, 100000))
+        self.contrast_4_Btn.clicked.connect(lambda checked: self.set_contrast(0, 10000000))
 
         contrast_group.addWidget(self.autoContrastBtn, 0, 0,  1, 4)
         contrast_group.addWidget(self.resetContrastBtn, 0, 4, 1, 4)
@@ -338,6 +338,10 @@ class ApplicationWindow(QMainWindow):
         # thread_manager.reset_worker_and_thread(worker, thread)
 
     def do_exit(self):
+        """Slot connected to your Exit button."""
+        self.close()
+
+    def closeEvent(self, event):
         # Prevent closing the GUI while JFJ is not Idle
         # TODO Add flexibily as a function of the nature of the ongoing JFJ operation
         if self.visualization_panel.jfjoch_client:
@@ -349,6 +353,7 @@ class ApplicationWindow(QMainWindow):
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if reply == QMessageBox.No:
+                    event.ignore()  # Prevents the window from closing
                     return
 
         # Dealing with ongoing operation of the GUI after premature 'Exit' request
@@ -375,7 +380,8 @@ class ApplicationWindow(QMainWindow):
                 for thread, worker in running_threadWorkerPairs:
                     logging.warning(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker) 
-            else: 
+            else:
+                event.ignore()  # Prevents the window from closing
                 return
 
         if globals.tem_mode:
@@ -384,4 +390,4 @@ class ApplicationWindow(QMainWindow):
 
         logging.info("Exiting app!") 
         self.app.quit()
-        
+        event.accept()

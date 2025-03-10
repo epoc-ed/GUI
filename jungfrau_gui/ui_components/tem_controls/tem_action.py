@@ -12,27 +12,38 @@ from .task.task_manager import *
 from epoc import ConfigurationClient, auth_token, redis_host
 
 from .connectivity_inspector import TEM_Connector
+from ..file_operations.processresult_updater import ProcessedDataReceiver
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 import time
 
 from jungfrau_gui import globals
 
+class CenterArrowItem(pg.ArrowItem):
+    def paint(self, p, *args):
+        p.translate(-self.boundingRect().center())
+        pg.ArrowItem.paint(self, p, *args)
+
 class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
     trigger_additem = Signal(str, str)
+    trigger_getbeamintensity = Signal()
+    trigger_updateitem = Signal(dict)
+    trigger_processed_receiver = Signal()
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
         self.tem_controls = parent
         self.visualization_panel = self.parent.visualization_panel
         self.file_operations = self.parent.file_operations
+        self.dataReceiverReady = True
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
-        self.temtools = TEMTools(self)
+        self.xtallist = self.file_operations.tem_xtalinfo.xtallist
+        # self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
         self.last_mag_mode = None
@@ -55,7 +66,7 @@ class TEMAction(QObject):
         # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
         self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
-        self.tem_tasks.btnGaussianFit.clicked.connect(self.tem_controls.toggle_gaussianFit_beam)
+        self.tem_tasks.btnGaussianFit.clicked.connect(lambda: self.tem_controls.toggle_gaussianFit_beam(by_user=True))
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
         self.tem_stagectrl.mag_modes.buttonClicked.connect(self.toggle_mag_modes)
         self.tem_stagectrl.blanking_button.clicked.connect(self.toggle_blank)
@@ -63,6 +74,8 @@ class TEMAction(QObject):
             self.tem_stagectrl.screen_button.clicked.connect(self.toggle_screen)
         except AttributeError:
             pass
+        if globals.dev:
+            self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
         
         self.control.updated.connect(self.on_tem_update)
         
@@ -88,7 +101,16 @@ class TEMAction(QObject):
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
+        self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
+        # self.trigger_getbeamintensity.connect(self.update_ecount)
+        self.trigger_updateitem.connect(self.update_plotitem)
+        ## for debug
+        # self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.update_plotitem())
+
+    @Slot()
+    def reconnectGaussianFit(self):
+        self.tem_tasks.btnGaussianFit.clicked.connect(lambda: self.tem_controls.toggle_gaussianFit_beam(by_user=True))
 
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
@@ -121,6 +143,8 @@ class TEMAction(QObject):
         self.tem_stagectrl.position_list.setEnabled(enables)
         self.tem_stagectrl.go_button.setEnabled(enables)
         self.tem_stagectrl.addpos_button.setEnabled(enables)
+        if globals.dev:
+            self.tem_detector.calc_e_incoming_button.setEnabled(enables)
 
     def reset_rotation_button(self):
         self.tem_tasks.rotation_button.setText("Rotation")
@@ -128,6 +152,7 @@ class TEMAction(QObject):
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
+            self.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1000)
             self.control.init.emit()
             self.connect_thread = QThread()
             self.temConnector = TEM_Connector()
@@ -186,31 +211,61 @@ class TEMAction(QObject):
         angle_x = self.control.tem_status["stage.GetPos"][3]
         if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
         
-        # Update Magnification radio button in GUI to refelct status of TEM
+        # 1) Live query on both the current mode and the beam blank state
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
-        # Only do something if the mode *changed*
+
+        if Mag_idx in [0, 1, 2]:
+            magnification = self.control.tem_status["eos.GetMagValue"][2]
+            self.tem_detector.input_magnification.setText(magnification)
+            self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
+        elif Mag_idx == 4:            
+            detector_distance = self.control.tem_status["eos.GetMagValue"][2]
+            self.tem_detector.input_det_distance.setText(detector_distance)
+            self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
+            
+        beam_blank_state = self.control.tem_status["defl.GetBeamBlank"] = self.control.client.GetBeamBlank()
+
+        # 2) Only do something if the mode *changed*
         if Mag_idx != self.last_mag_mode:
             if Mag_idx in [0, 1, 2]:
                 if not self.parent.autoContrastBtn.started:
                     self.parent.autoContrastBtn.clicked.emit()
+
+                # In MAG mode, we generally *want* Gaussian Fit OFF
+                # so if it's currently ON, turn it OFF programmatically
+                if self.tem_tasks.btnGaussianFit.started:
+                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+                
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
-                magnification = self.control.tem_status["eos.GetMagValue"][2]
-                self.tem_detector.input_magnification.setText(magnification)
-                self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
             elif Mag_idx == 4:
                 if self.parent.autoContrastBtn.started:
                     self.parent.resetContrastBtn.clicked.emit()
+
+                # In DIFF mode, we generally *want* Gaussian Fit ON (unless user forced it off).
+                # So if it's currently OFF and not user-forced-off, turn it on programmatically.
+                if (not self.tem_tasks.btnGaussianFit.started) and (not self.tem_controls.gaussian_user_forced_off):
+                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+                
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
-                detector_distance = self.control.tem_status["eos.GetMagValue"][2]
-                self.tem_detector.input_det_distance.setText(detector_distance)
-                self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
             else:
                 logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
 
             self.last_mag_mode = Mag_idx
 
+        # 3) Handle beam blank logic on *every* poll (even if mode hasn't changed)
+        if beam_blank_state == 1:
+            # If the beam is blanked, forcibly turn off Gaussian Fit (if it’s currently running)
+            if self.tem_tasks.btnGaussianFit.started:
+                self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+        else:
+            # If the beam is unblanked (0) and we are in DIFF mode (4), 
+            # and not user-forced-off, ensure it's on
+            if Mag_idx == 4 and not self.tem_controls.gaussian_user_forced_off:
+                if not self.tem_tasks.btnGaussianFit.started:
+                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+
         # Update rotation_speed radio button in GUI to refelct status of TEM
-        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"]
+        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"] # = self.control.client.Getf1OverRateTxNum()
         logging.debug(f"Rotation speed index: {rotation_speed_index}")
         if rotation_speed_index in [0,1,2,3]: self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         
@@ -231,7 +286,7 @@ class TEMAction(QObject):
             if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
                 detector_distance = self.control.tem_status["eos.GetMagValue"][2] ## with unit
                 detector_distance = cfg_jf.lookup(cfg_jf.lut.distance, detector_distance, 'displayed', 'calibrated')
-                radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance)
+                radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=self.control.tem_status["ht.GetHtValue"]/1000)
                 self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
             else:
                 magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
@@ -383,14 +438,55 @@ class TEMAction(QObject):
             logging.error(f"Error: {e}")
             return
         new_id = self.tem_stagectrl.position_list.count() - 4
-        self.tem_stagectrl.position_list.addItems([f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"])
-        self.tem_stagectrl.gridarea.addItem(pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color))
+        text = f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"
+        marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
         label = pg.TextItem(str(new_id), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
+        self.tem_stagectrl.position_list.addItem(text)
+        self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
+        self.xtallist.append({"gui_id": new_id, "gui_text": text, "gui_marker": marker,
+                              "gui_label": label, "position": position})
         logging.info(f"{new_id}: {position} is added to the list")
 
+    @Slot(dict)
+    def update_plotitem(self, info_d):
+        if not "gui_id" in info_d:
+            for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
+                info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
+        if info_d["gui_id"] in [d.get('gui_id') for d in self.xtallist]:
+            self.tem_stagectrl.position_list.removeItem(info_d["gui_id"] + 4)
+            self.tem_stagectrl.gridarea.removeItem(info_d["gui_marker"])
+            self.tem_stagectrl.gridarea.removeItem(info_d["gui_label"])
+        elif info_d["gui_id"] is None:
+            info_d["gui_id"] = self.tem_stagectrl.position_list.count() - 4
+
+        # updated widget info
+        position = info_d["position"]
+        spots = np.array(info_d["spots"], dtype=float)
+        axes = np.array(info_d["cell axes"], dtype=float)
+        color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
+        color = color_map.map(spots[0]/spots[1], mode='qcolor')
+        text = f"{info_d["dataid"]}:" + " ".join(map(str, info_d["lattice"])) + ", updated"
+        label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
+        label.setFont(QFont('Arial', 8))
+        label.setPos(position[0]*1e-3, position[1]*1e-3)
+        marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
+        # represent orientation with cell-a axis, usually shortest
+        angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
+        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])        
+        arrow = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=20*length, tailLen=20*length, tailWidth=4*length, brush=color)
+        # add updated items
+        self.tem_stagectrl.position_list.addItem(text)
+        self.tem_stagectrl.gridarea.addItem(marker)
+        self.tem_stagectrl.gridarea.addItem(arrow)
+        self.tem_stagectrl.gridarea.addItem(label)
+        
+        logging.info(f"Item {info_d["gui_id"]} is updated")
+        logging.debug(self.xtallist)
+    
     def plot_listedposition(self, color='gray'):
         xy_list = [self.tem_stagectrl.position_list.itemText(i).split()[1:-2] for i in range(self.tem_stagectrl.position_list.count())]
         xy_list = np.array(xy_list).T
@@ -402,3 +498,57 @@ class TEMAction(QObject):
         position = self.control.tem_status["stage.GetPos"]
         self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
         self.tem_stagectrl.gridarea.addItem(self.marker)
+
+    @Slot()
+    def inquire_processed_data(self):
+        if self.dataReceiverReady:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether")            
+            self.datareceiver_thread = QThread()
+            self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
+            thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
+            self.datareceiver_thread.start()
+            self.dataReceiverReady = False
+            self.process_receiver.finished.connect(self.getdataReceiverReady)
+            logging.info("Starting processed-data inquiring")
+        else:
+            logging.warning("Previous inquiry continues runnng")
+
+    def getdataReceiverReady(self):
+        thread_manager.terminate_thread(self.datareceiver_thread)
+        thread_manager.remove_worker_thread_pair(self.parent.threadWorkerPairs, self.datareceiver_thread)
+        thread_manager.reset_worker_and_thread(self.process_receiver, self.datareceiver_thread)
+        self.dataReceiverReady = True
+
+    def update_ecount(self, pixel=0.075, threshold=500, bins_set=20):
+        ht = self.control.tem_status["ht.GetHtValue"]/1000
+        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
+        if Mag_idx == 4:
+            logging.warning("Brightness should be calculated in imaging mode")
+            return
+        frame = self.parent.timer.interval()
+        image = self.parent.imageItem.image
+        data_flat = image.flatten()
+        image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
+        low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
+        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > threshold))]
+        logging.info(f"No. of significant pixel for calculation: {len(data_sampled)} in {frame} frames")
+        if len(data_sampled) < 1e4:
+            self.tem_detector.e_incoming_display.setText(f'N/A')
+            logging.warning('Number of sampling pixels is less than 1% (<1e4 pixels)!')
+            return
+        try:
+            hist, bins = np.histogram(data_sampled, density=True, bins=bins_set)
+            delta = (bins[1]-bins[0])/2
+            xr = np.linspace(np.min(bins[1:])+delta,np.max(bins[1:])-delta,len(bins[1:])-1)
+            approximate_average_count = xr[np.argmax(hist[1:])]
+            logging.info(f'Approximate average: {approximate_average_count:.1f} count per pixel')
+            e_per_A2 = approximate_average_count / ht * frame / ((pixel*1e7)**2) # per sec
+            self.control.beam_intensity["pa_per_cm2"] = 1/6.241*e_per_A2*1e10 # per sec
+            magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
+            magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
+            self.control.beam_intensity["e_per_A2_sample"] = e_per_A2 * magnification**2
+            self.tem_detector.e_incoming_display.setText(f'{self.control.beam_intensity["pa_per_cm2"]:.2f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.2f} e/A2/s')
+            logging.info(f'{self.control.beam_intensity["pa_per_cm2"]:.2f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.2f} e/A2/s')
+        except ValueError as e:
+            self.tem_detector.e_incoming_display.setText(f'N/A')
+            logging.warning(e)
