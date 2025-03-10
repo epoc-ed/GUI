@@ -126,6 +126,7 @@ class TemControls(QGroupBox):
             self.parent.imageItem.mouseClickEvent = self.tem_action.imageMouseClickEvent
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
+            self.tem_action.control.draw_ellipses_on_ui.connect(self.updateFitParams)
             # self.tem_action.control.fit_complete.connect(self.updateFitParams)
             # self.tem_action.control.fit_complete.connect(lambda fit_result_best_values: self.updateFitParams(fit_result_best_values, draw=False))
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)

@@ -103,6 +103,7 @@ def _capture_and_fit_worker(input_queue, output_queue, zmq_endpoint, timeout_ms,
                         mask = (raw_data == min_int32) | (raw_data == max_int32)
                         image = raw_data.astype(dt).reshape(globals.nrow, globals.ncol)
                         image[mask] = np.nan
+                        logging.info(datetime.now().strftime("FRAME CAPTURED AND MASKED @ %H:%M:%S.%f")[:-3])
                     else:
                         output_queue.put(None)
                         continue

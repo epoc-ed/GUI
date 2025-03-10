@@ -10,7 +10,7 @@ from datetime import datetime
 
 from simple_tem import TEMClient
 
-IL1_0 = 21730 #40345 40736
+IL1_0 = 21780 #40345 40736
 ILs_0 = [32920, 32776] #[32856, 32856]
 WAIT_TIME_S = 0.1 # TODO: optimize value
 
@@ -26,16 +26,20 @@ class AutoFocusTask(Task):
         self.tem_action = self.control.tem_action
         self.is_first_AutoFocus = True        
         self.client = TEMClient(globals.tem_host, 3535)
-        # TODO Creates a freeze (May be update earlier?)
+        # Start from a known value
+        self.il_deviation = 50
+        # TODO Creates a freeze
+        self.client.SetILFocus(IL1_0 - self.il_deviation), # an integer
+        self.client.SetILs([x - self.il_deviation for x in ILs_0])
         self.lens_parameters = {
-                                "il1": self.client.GetIL1(), # an integer
-                                "ils": self.client.GetILs(), # two integers for stigmation
+                                "il1": IL1_0 - self.il_deviation, # an integer
+                                "ils": [x - self.il_deviation for x in ILs_0], # two integers for stigmation
         }
         self.beam_fitter = self.control.beam_fitter
         self.results = []
         self.best_result = None
 
-    def run(self, init_IL1=IL1_0, init_stigm=ILs_0):
+    def run(self):
         try:
             autofocus_start = time.perf_counter()
 
@@ -68,10 +72,10 @@ class AutoFocusTask(Task):
             logging.info("################ Start IL1 rough-sweeping ################")
 
             # Option A: Go and come back
-            # completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
+            # completed = self.sweep_il1_linear(IL1_0 - self.il_deviation, IL1_0 + 2*self.il_deviation + 5, 5)
             
             # Option B: Shoot straight
-            completed = self.sweep_il1_linear(init_IL1, init_IL1 + 105, 5)
+            completed = self.sweep_il1_linear(IL1_0 - self.il_deviation, IL1_0 + 2*self.il_deviation + 5, 5)
 
             if not completed:
                 logging.warning("ROUGH Sweep interrupted! Exiting AutoFocusTask::run() method...")
@@ -84,12 +88,12 @@ class AutoFocusTask(Task):
             # Once task finished, move lens to optimal position
 
             # Option A: Go and come back
-            # for il1_value in range(init_IL1 - 50, il1_guess1 + 10, 5): 
+            # for il1_value in range(IL1_0 - self.il_deviation, il1_guess1 + 10, 5): 
                 # self.client.SetILFocus(il1_value)
             # self.client.SetILFocus(il1_guess1)
 
             # Option B: Shoot straight
-            for il1_value in range(init_IL1, il1_guess1+5, 5): 
+            for il1_value in range(IL1_0 - self.il_deviation, il1_guess1+5, 5): 
                 self.client.SetILFocus(il1_value)
 
             self.lens_parameters["il1"] = il1_guess1
@@ -159,6 +163,7 @@ class AutoFocusTask(Task):
             }
             # Trigger capture & fitting in the worker process.
             self.beam_fitter.trigger_capture(roi_data)
+            logging.info(datetime.now().strftime("TRIGGERED CAPTURE @ %H:%M:%S.%f")[:-3])
 
             # time.sleep(wait_time_s)
 
@@ -167,6 +172,9 @@ class AutoFocusTask(Task):
             if fit_result is None:
                 logging.warning("No fit result arrived in time; continuing anyway.")
                 continue
+
+            # Draw fitting result on ui for last captured frame
+            self.control.draw_ellipses_on_ui.emit(fit_result)
 
             # Process the result
             self.process_fit_results(fit_result)
@@ -201,7 +209,7 @@ class AutoFocusTask(Task):
             # Debugging: notify the main GUI thread 
             self.newBestResult.emit(result_dict)
         
-        logging.info(datetime.now().strftime(" Fit Results Processed @ %H:%M:%S.%f")[:-3])
+        logging.info(datetime.now().strftime(" FIT RESULTS POCESSED @ %H:%M:%S.%f")[:-3])
 
     def cleanup(self):
         """
