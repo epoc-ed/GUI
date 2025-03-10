@@ -68,8 +68,6 @@ class ControlWorker(QObject):
     # fit_complete = Signal(dict, object)
     # request_fit = Signal(object)
     # cleanup_fitter = Signal()
-
-    draw_ellipses_on_ui = Signal(dict)
     
     trigger_stop_autofocus = Signal()
     remove_ellipse = Signal()
