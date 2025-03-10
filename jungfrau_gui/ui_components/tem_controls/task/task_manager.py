@@ -95,6 +95,7 @@ class ControlWorker(QObject):
         self.triggerdelay_ms = 500
         self.previous_tx_abs = 0
         self.beam_intensity = {"pa_per_cm2": 0, "e_per_A2_sample": 0}
+        self.beam_sigmaxy = [-1, -1]
 
     @Slot()
     def _init(self):
@@ -200,6 +201,10 @@ class ControlWorker(QObject):
             self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
             time.sleep(0.1)
             self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
+            
+        self.beam_sigmaxy = [self.tem_action.tem_controls.sigma_x_spBx.value(), 
+                             self.tem_action.tem_controls.sigma_y_spBx.value()]            
+            
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI
             filename_suffix = self.cfg.data_dir / 'RotEDlog_test'
