@@ -1,6 +1,6 @@
 import pyqtgraph as pg
 import numpy as np
-import random
+#import random
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
@@ -588,8 +588,8 @@ class TEMAction(QObject):
 
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
         low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
-        self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh)*0+1000*random.random())
-        # self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh))
+#        self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh)*0+1000*random.random())
+        self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh))
         
         tr = QTransform()
         tr.scale(cfg_jf.others.pixelsize*1e3/calibrated_mag, cfg_jf.others.pixelsize*1e3/calibrated_mag)
