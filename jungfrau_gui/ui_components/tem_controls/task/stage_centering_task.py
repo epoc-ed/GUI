@@ -77,9 +77,11 @@ class CenteringTask(Task):
                 logging.info(f'Vector already small enough (< {self.thresholds[0]} um): {movexy[0]}, {movexy[1]}')
                 return
             logging.info(f'Move X: {movexy[0]},  Y: {movexy[1]} with MAG: {magnification[2]}')
-            self.client.SetXRel(movexy[0]*-1e3)
+            # self.client.SetXRel(movexy[0]*-1e3)
+            self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, movexy[0]*-1e3, cfg_jf.others.backlash[0])            
             time.sleep(0.5)
-            self.client.SetYRel(movexy[1]*-1e3)
+            # self.client.SetYRel(movexy[1]*-1e3)
+            self.control.trigger_movewithbacklash.emit((np.sign(movexy[1]) > 0)+2, movexy[1]*-1e3, cfg_jf.others.backlash[1])
             time.sleep(0.5)
         else:
             if tilt_X_abs < 11:
