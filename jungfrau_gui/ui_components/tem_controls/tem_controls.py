@@ -133,12 +133,12 @@ class TemControls(QGroupBox):
             test_fitting_label = QLabel("Test Gaussian Fitting")
             test_fitting_label.setFont(font_big)
 
-            self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
-            self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
+            self.btnGaussianFitTest = ToggleButton("Beam Gaussian Fit", self)
+            self.btnGaussianFitTest.clicked.connect(self.toggle_gaussianFit)
 
             BeamFocus_layout = QVBoxLayout()
             BeamFocus_layout.addWidget(test_fitting_label)
-            BeamFocus_layout.addWidget(self.btnBeamFocus)
+            BeamFocus_layout.addWidget(self.btnGaussianFitTest)
             BeamFocus_layout.addWidget(self.checkbox)
             gauss_H_layout = QHBoxLayout()
             gauss_H_layout.addWidget(self.label_gauss_height)  
@@ -188,7 +188,7 @@ class TemControls(QGroupBox):
         """Toggle the Gaussian fitting process using the provided button and texts.
         
         # Args
-        btn: The button controlling the fit (e.g. self.btnBeamFocus or self.tem_tasks.btnGaussianFit).
+        btn: The button controlling the fit (e.g. self.btnGaussianFitTest or self.tem_tasks.btnGaussianFit).
         off_text: The text to display when stopping the fit.
         on_text: The text to display when starting the fit.
         by_user (bool): Whether the user explicitly triggered the toggle.
@@ -231,74 +231,12 @@ class TemControls(QGroupBox):
     def toggle_gaussianFit(self):
         """Toggle fitting using the beam focus button."""
         # When not running, text becomes "Stop Fitting"; when stopping, revert to "Beam Gaussian Fit"
-        self._toggle_gaussian_fit(self.btnBeamFocus, off_text="Beam Gaussian Fit", on_text="Stop Fitting")
+        self._toggle_gaussian_fit(self.btnGaussianFitTest, off_text="Beam Gaussian Fit", on_text="Stop Fitting")
 
     def toggle_gaussianFit_beam(self, by_user=False):
         """Toggle fitting using the tem_tasks button, with an optional user override."""
         # When not running, text becomes "Stop Fitting"; when stopping, revert to "Gaussian Fit"
         self._toggle_gaussian_fit(self.tem_tasks.btnGaussianFit, off_text="Gaussian Fit", on_text="Stop Fitting", by_user=by_user)
-
-    # def toggle_gaussianFit(self):
-    #     if not self.btnBeamFocus.started:
-    #         self.thread_fit = QThread()
-    #         self.fitter = GaussianFitter()
-    #         self.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
-    #         self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
-    #         self.thread_fit.start()
-    #         self.fitterWorkerReady = True # Flag to indicate worker is ready
-    #         logging.info("Starting fitting process")
-    #         self.btnBeamFocus.setText("Stop Fitting")
-    #         self.btnBeamFocus.started = True
-    #         # Pop-up Window
-    #         if self.checkbox.isChecked():
-    #             self.showPlotDialog()   
-    #         # Timer started
-    #         self.parent.timer_fit.start(10)
-    #     else:
-    #         self.btnBeamFocus.setText("Beam Gaussian Fit")
-    #         self.btnBeamFocus.started = False
-    #         self.parent.timer_fit.stop()  
-    #         # Close Pop-up Window
-    #         if self.plotDialog != None:
-    #             self.plotDialog.close()
-    #         self.parent.stopWorker(self.thread_fit, self.fitter)
-    #         self.fitter, self.thread_fit = thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
-    #         self.removeAxes()
-
-    # def toggle_gaussianFit_beam(self, by_user=False):
-    #     if not self.tem_tasks.btnGaussianFit.started:
-    #         self.thread_fit = QThread()
-    #         self.fitter = GaussianFitter()
-    #         self.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
-    #         self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
-    #         self.thread_fit.start()
-    #         self.fitterWorkerReady = True # Flag to indicate worker is ready
-    #         logging.info("Starting fitting process")
-    #         self.tem_tasks.btnGaussianFit.setText("Stop Fitting")
-    #         self.tem_tasks.btnGaussianFit.started = True
-    #         # Pop-up Window
-    #         if self.checkbox.isChecked():
-    #             self.showPlotDialog()   
-    #         # Timer started
-    #         self.parent.timer_fit.start(10)
-
-    #         # If user specifically turned it ON, clear any "forced off" override
-    #         if by_user:
-    #             self.gaussian_user_forced_off = False
-    #     else:
-    #         self.tem_tasks.btnGaussianFit.setText("Gaussian Fit")
-    #         self.tem_tasks.btnGaussianFit.started = False
-    #         self.parent.timer_fit.stop()  
-    #         # Close Pop-up Window
-    #         if self.plotDialog != None:
-    #             self.plotDialog.close()
-    #         self.parent.stopWorker(self.thread_fit, self.fitter)
-    #         self.fitter, self.thread_fit = thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
-    #         self.removeAxes()
-
-    #         # If user specifically turned it OFF, set user_forced_off = True
-    #         if by_user:
-    #             self.gaussian_user_forced_off = True
 
     @Slot()
     def disableGaussianFitButton(self):
@@ -338,9 +276,14 @@ class TemControls(QGroupBox):
 
     @Slot()
     def updateFitParams(self, fit_result_best_values, draw = True):
-        if not self.tem_tasks.btnGaussianFit.started:
-            # Fitter was stopped, ignore any last-minute signals
-            return
+        if globals.tem_mode:
+            if not self.tem_tasks.btnGaussianFit.started:
+                # Fitter was stopped, ignore any last-minute signals
+                return
+        else:
+            if not self.btnGaussianFitTest.started:
+                # Same for playmode
+                return
         logging.debug(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])

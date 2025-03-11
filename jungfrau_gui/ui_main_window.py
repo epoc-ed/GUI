@@ -338,7 +338,7 @@ class ApplicationWindow(QMainWindow):
         # thread_manager.reset_worker_and_thread(worker, thread)
 
     def do_exit(self):
-        """Slot connected to your Exit button."""
+        """Slot connected to the Exit button."""
         self.close()
 
     def closeEvent(self, event):
@@ -365,9 +365,9 @@ class ApplicationWindow(QMainWindow):
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 globals.exit_flag.value = True
-                if self.tem_controls.tem_action.control.beam_fitter is not None:
-                    # if self.tem_controls.tem_action.control.beam_fitter.fitting_process.is_alive():
-                    self.tem_controls.tem_action.control.beam_fitter.stop()
+                if globals.tem_mode:
+                    if self.tem_controls.tem_action.control.beam_fitter is not None:
+                        self.tem_controls.tem_action.control.beam_fitter.stop()
                 for thread, worker in running_threadWorkerPairs:
                     logging.warning(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
                     self.stopWorker(thread, worker) 

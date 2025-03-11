@@ -12,7 +12,7 @@ from simple_tem import TEMClient
 
 IL1_0 = 21780 #21902 #40345 40736
 ILs_0 = [32920, 32776] #[33040, 32688] #[32856, 32856]
-WAIT_TIME_S = 0.1 # TODO: optimize value
+WAIT_TIME_S = 0.25 # TODO: optimize value
 
 class AutoFocusTask(Task):
     # Signal to notify the main thread that a new best result arrived
@@ -65,57 +65,64 @@ class AutoFocusTask(Task):
             """ ----------------
             # Start IL1 Sweeping 
             ---------------- """
-            # logging.info("################ Start IL1 rough-sweeping ################")
+            logging.info("################ Start IL1 rough-sweeping ################")
 
-            # # Option A: Go and come back
-            # completed = self.sweep_il1_linear(init_IL1 - 50, init_IL1 + 55, 5)
+            # Option A: Go and come back
+            completed = self.sweep_il1_linear(init_IL1 - 75, init_IL1 + 80, 5)
+
+            if not completed:
+                logging.warning("ROUGH Sweep interrupted! Exiting AutoFocusTask::run() method...")
+                return  # Exit the run method if the sweep was interrupted
+
+            # Determine the rough optimal IL1 value
+            il1_guess1 = self.best_result["il1_value"]
+            logging.warning(f"{datetime.now()}, ROUGH IL1 OPTIMAL VALUE IS {il1_guess1}")
             
-            # # Option B: Shoot straight
-            # # completed = self.sweep_il1_linear(init_IL1, init_IL1 + 105, 5)
+            # Once task finished, move lens to optimal position
+            # 1. Go (with strategic overshoot) 
+            # 2. Come back to the aimed solution
+            """ 
+            # A / Retrace the whole path
+            for il1_value in range(init_IL1 - 50, il1_guess1 + 20, 10): 
+                self.client.SetILFocus(il1_value)
+            self.client.SetILFocus(il1_guess1) 
+            """
+            # B / Simplified re-traced path
+            # b.1. Go to a value well below the target
+            self.client.SetILFocus(il1_guess1 - 50)
+            time.sleep(WAIT_TIME_S)  # Allow stabilization
 
-            # if not completed:
-            #     logging.warning("ROUGH Sweep interrupted! Exiting AutoFocusTask::run() method...")
-            #     return  # Exit the run method if the sweep was interrupted
+            # b.2. Overshoot by a fixed amount
+            self.client.SetILFocus(il1_guess1 + 10)
+            time.sleep(WAIT_TIME_S)  # Allow stabilization
 
-            # # Determine the rough optimal IL1 value
-            # il1_guess1 = self.best_result["il1_value"]
-            # logging.warning(f"{datetime.now()}, ROUGH IL1 OPTIMAL VALUE IS {il1_guess1}")
-            
-            # # Once task finished, move lens to optimal position
+            # b.3. Approach the final value
+            self.client.SetILFocus(il1_guess1)
+            time.sleep(WAIT_TIME_S)  # Allow final stabilization
 
-            # # Option A: Go and come back
-            # for il1_value in range(init_IL1 - 50, il1_guess1 + 10, 5): 
-            #     self.client.SetILFocus(il1_value)
-            # self.client.SetILFocus(il1_guess1)
-
-            # # Option B: Shoot straight
-            # # for il1_value in range(init_IL1, il1_guess1+5, 5): 
-            # #     self.client.SetILFocus(il1_value)
-
-            # self.lens_parameters["il1"] = il1_guess1
+            self.lens_parameters["il1"] = il1_guess1
 
             """ ----------------
             # Start ILs Sweeping 
             ---------------- """
+            # logging.info("################ Start ILs rough-sweeping ################")
+            # completed = self.sweep_stig_linear(init_stigm=init_stigm, deviation=500, step=100)
+            # if not completed:
+            #     logging.warning("STIG Sweep interrupted! Exiting AutoFocusTask::run() method...")
+            #     return  # Exit the run method if the sweep was interrupted
 
-            logging.info("################ Start ILs rough-sweeping ################")
-            completed = self.sweep_stig_linear(init_stigm=init_stigm, deviation=500, step=100)
-            if not completed:
-                logging.warning("STIG Sweep interrupted! Exiting AutoFocusTask::run() method...")
-                return  # Exit the run method if the sweep was interrupted
+            # # Determine the rough optimal ILs value
+            # ils_guess1 = self.best_result["ils_value"]
+            # logging.warning(f"{datetime.now()}, ROUGH ILs OPTIMAL VALUE IS {ils_guess1}")
 
-            # Determine the rough optimal ILs value
-            ils_guess1 = self.best_result["ils_value"]
-            logging.warning(f"{datetime.now()}, ROUGH ILs OPTIMAL VALUE IS {ils_guess1}")
+            # # Once task finished, move lens to optimal position 
+            # for ils_x_value in range(ILs_0[0] - 500, ils_guess1[0] + 600, 100): 
+            #     for ils_y_value in range(ILs_0[1] - 500, ils_guess1[1] + 600, 50): 
+            #         self.client.SetILs(ils_x_value, ils_y_value)
+            # self.client.SetILs(*ils_guess1)
+            # time.sleep(1)
 
-            # Once task finished, move lens to optimal position 
-            for ils_x_value in range(ILs_0[0] - 500, ils_guess1[0] + 600, 100): 
-                for ils_y_value in range(ILs_0[1] - 500, ils_guess1[1] + 600, 50): 
-                    self.client.SetILs(ils_x_value, ils_y_value)
-            self.client.SetILs(*ils_guess1)
-            time.sleep(1)
-
-            self.lens_parameters["ils"] = ils_guess1
+            # self.lens_parameters["ils"] = ils_guess1
             
             autofocus_end = time.perf_counter()
             autofocus_time = autofocus_end - autofocus_start
@@ -167,9 +174,9 @@ class AutoFocusTask(Task):
 
             # Set IL1 to current position
             iter_start = time.perf_counter()
-            logging.info(datetime.now().strftime(" BEGIN SWEEP @ %H:%M:%S.%f")[:-3])
+            logging.info(datetime.now().strftime(" BEGIN IL1 SWEEP @ %H:%M:%S.%f")[:-3])
             self.client.SetILFocus(il1_value)
-            logging.info(datetime.now().strftime(" END SWEEP @ %H:%M:%S.%f")[:-3])
+            logging.info(datetime.now().strftime(" END IL1 SWEEP @ %H:%M:%S.%f")[:-3])
             iter_end = time.perf_counter()
             iter_time = iter_end - iter_start
             logging.critical(f"SetILFocus({il1_value}) took {iter_time:.6f} seconds")
