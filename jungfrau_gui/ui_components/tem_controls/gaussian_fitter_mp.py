@@ -1,7 +1,6 @@
 import logging
 import numpy as np
 import multiprocessing as mp
-from lmfit import Model, Parameters
 from PySide6.QtCore import QObject, Signal
 from line_profiler import LineProfiler
 import zmq
@@ -17,9 +16,6 @@ from datetime import datetime
 from queue import Empty  # or multiprocessing.queues.Empty
 
 def create_roi_coord_tuple(roiPos, roiSize):
-    # roiPos = roi.pos()
-    # roiSize = roi.size()
-
     roi_start_row = int(np.floor(roiPos[1]))                # roi_start_row = int(np.floor(roiPos.y()))
     roi_end_row = int(np.ceil(roiPos[1] + roiSize[1]))      # roi_end_row = int(np.ceil(roiPos.y() + roiSize.y()))
     roi_start_col = int(np.floor(roiPos[0]))                # roi_start_col = int(np.floor(roiPos.x()))

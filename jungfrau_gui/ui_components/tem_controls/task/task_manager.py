@@ -10,8 +10,7 @@ from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt
 from .task import Task
 from .record_task import RecordTask
 
-# from .beam_focus_task import AutoFocusTask
-from .beam_focus_task_test import AutoFocusTask
+from .beam_focus_task import AutoFocusTask
 
 from .adjustZ_task import AdjustZ
 from .get_teminfo_task import GetInfoTask
@@ -26,23 +25,7 @@ import jungfrau_gui.ui_threading_helpers as thread_manager
 
 from .... import globals
 
-# from ..gaussian_fitter_autofocus import GaussianFitter
 from ..gaussian_fitter_mp import GaussianFitterMP
-import copy
-
-'''
-def create_roi_coord_tuple(roi):
-    roiPos = roi.pos()
-    roiSize = roi.size()
-
-    roi_start_row = int(np.floor(roiPos.y()))
-    roi_end_row = int(np.ceil(roiPos.y() + roiSize.y()))
-    roi_start_col = int(np.floor(roiPos.x()))
-    roi_end_col = int(np.ceil(roiPos.x() + roiSize.x()))
-    roi_coords = (roi_start_row, roi_end_row, roi_start_col, roi_end_col)
-
-    return roi_coords
-'''
 
 def on_new_best_result_in_main_thread(result_dict):
     # This runs in the main thread. We can safely update GUI elements, logs, etc.
@@ -63,12 +46,6 @@ class ControlWorker(QObject):
     trigger_tem_update_detailed = Signal(dict)
     trigger_tem_update = Signal(dict)
 
-    # fit_complete = Signal(dict, int)
-    # request_fit = Signal(int)
-    # fit_complete = Signal(dict, object)
-    # request_fit = Signal(object)
-    # cleanup_fitter = Signal()
-
     draw_ellipses_on_ui = Signal(dict)
     
     trigger_stop_autofocus = Signal()
@@ -76,7 +53,6 @@ class ControlWorker(QObject):
 
     trigger_record = Signal()
     trigger_shutdown = Signal()
-    # trigger_interactive = Signal()
     trigger_getteminfo = Signal(str)
     trigger_centering = Signal(bool, str)
 
@@ -101,16 +77,12 @@ class ControlWorker(QObject):
         self.send.connect(self.send_to_tem)
         self.trigger_record.connect(self.start_record)
         self.trigger_shutdown.connect(self.shutdown)
-        # self.trigger_interactive.connect(self.interactive)
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.beam_fitter = None
         self.actionFit_Beam.connect(self.start_beam_fit)
-        # self.request_fit.connect(self.handle_request_fit) 
-        # self.trigger_stop_autofocus.connect(self.set_sweeper_to_off_state)
-        # self.cleanup_fitter.connect(self.stop_and_clean_fitter)
         
         self.trigger_tem_update_detailed.connect(self.update_tem_status_detailed)
         self.trigger_tem_update.connect(self.update_tem_status)
@@ -137,8 +109,6 @@ class ControlWorker(QObject):
         logging.info(f"\033[1mFinished Task [{self.task.task_name}] !")
         
         if isinstance(self.task, AutoFocusTask):
-            #self.stop_and_clean_fitter()
-            # self.stop_and_clean_fitter_mp()
             self.beam_fitter = None   # So we don't accidentally reuse it.
             logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
             self.remove_ellipse.emit()
@@ -176,20 +146,10 @@ class ControlWorker(QObject):
         logging.debug("Control is starting a Task...")
         self.last_task = self.task
         self.task = task
-        # if isinstance(self.task, AutoFocusTask):
-            # self.beam_fitter = GaussianFitterMP()
-            # # Optional ###############
-            # self.task.newBestResult.connect(on_new_best_result_in_main_thread)
-            # # ########################
-            # self.sweepingWorkerReady = True
-
         # Create a new QThread for each task to avoid reuse issues
         self.task_thread = QThread()  
-
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
-
         self.task.finished.connect(self.on_task_finished)
-
         self.task.moveToThread(self.task_thread)
         self.task_thread.started.connect(self.task.start.emit)
         self.task_thread.start()
@@ -259,8 +219,6 @@ class ControlWorker(QObject):
 
         self.start_task(task)
 
-# vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-
     @Slot()
     def start_beam_fit(self):
         logging.info("Start AutoFocus")
@@ -287,9 +245,8 @@ class ControlWorker(QObject):
 
         task = AutoFocusTask(self)
         
-        # Optional ###############
+        # Optional
         task.newBestResult.connect(on_new_best_result_in_main_thread)
-        # ########################
         
         self.sweepingWorkerReady = True
 
@@ -298,114 +255,6 @@ class ControlWorker(QObject):
     def set_sweeper_to_off_state(self):
         logging.info("####### ######## Sweeping worker ready? --> FALSE")
         self.sweepingWorkerReady = False
-
-    '''
-    def handle_request_fit(self, lens_params):
-        """
-        lens_params is a dict like: {"il1": int, "ils": [int, int]}
-        """
-        if self.task.is_first_AutoFocus:
-            self.do_fit(lens_params)  # Run do_fit the first time
-            self.task.is_first_AutoFocus = False  # Set flag to False after the first run
-        else:
-            self.getFitParams(lens_params)
-
-    def do_fit(self, lens_params):
-        if self.task is not None:
-            im_data = self.tem_action.parent.imageItem.image
-            roi_coords = create_roi_coord_tuple(self.tem_action.parent.roi)
-
-            im_data_copy = copy.deepcopy(im_data)
-            roi_coords_copy = copy.deepcopy(roi_coords)
-
-            self.thread_fit = QThread()
-            # self.fitter = GaussianFitter(imageItem=im, roi=roi, il1_value = il1_value)
-            self.fitter = GaussianFitter(image=im_data_copy,
-                                         roi_coords=roi_coords_copy,
-                                         lens_params= lens_params)
-            self.tem_action.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
-            self.initializeFitter(self.thread_fit, self.fitter, lens_params) # Initialize the worker thread and fitter
-            self.fitterWorkerReady = True # Flag to indicate worker is ready
-            self.thread_fit.start()
-            logging.info("Starting fitting process")
-        else:
-            logging.warning("Fitting worker has been deleted ! ")
-
-    def initializeFitter(self, thread, worker, lens_params):
-        thread_manager.move_worker_to_thread(thread, worker)
-        worker.finished.connect(self.emit_fit_complete_signal)
-        worker.finished.connect(self.getFitterReady)
-
-    def emit_fit_complete_signal(self, im, fit_result_best_values, lens_params):
-        self.fit_complete.emit(fit_result_best_values, lens_params)
-        self.process_fit_results(im, fit_result_best_values, lens_params)
-
-    def getFitterReady(self):
-        self.fitterWorkerReady = True
-
-    def updateWorkerParams(self, im_data, roi_coords, lens_params):
-        if self.thread_fit.isRunning():
-            self.fitter.updateParamsSignal.emit(im_data, roi_coords, lens_params)  
-
-    def getFitParams(self, lens_params):
-        if self.fitterWorkerReady:
-            self.fitterWorkerReady = False
-
-            im_data_copy = copy.deepcopy(self.tem_action.parent.imageItem.image)
-            roi_coords = create_roi_coord_tuple(self.tem_action.parent.roi)
-            roi_coords_copy = copy.deepcopy(roi_coords)
-
-            self.updateWorkerParams(im_data_copy, roi_coords_copy, lens_params)
-            time.sleep(0.01) # ensure update goes through before fitting starts 
-            QMetaObject.invokeMethod(self.fitter, "run", Qt.QueuedConnection)
-
-    def process_fit_results(self, im, fit_result, lens_params):
-        # Extract necessary fit parameters
-        sigma_x = float(fit_result["sigma_x"])
-        sigma_y = float(fit_result["sigma_y"])
-        
-        # Compute metrics
-        area = sigma_x * sigma_y
-        aspect_ratio = max(sigma_x, sigma_y) / min(sigma_x, sigma_y)
-        
-        # Simple combined figure of merit
-        fom = area * aspect_ratio #TODO: Optimize FOM
-        
-        # Initialize self.task.results if not present
-        if not hasattr(self.task, "results"):
-            self.task.results = []
-        
-        # Store all results
-        self.task.results.append({
-            "il1_value": lens_params["il1"],
-            "ils_value": lens_params["ils"],
-            "im": im,
-            "sigma_x": sigma_x,
-            "sigma_y": sigma_y,
-            "area": area,
-            "aspect_ratio": aspect_ratio,
-            "fom": fom
-        })
-        
-        # Optionally keep track of the best so far
-        # If we haven't picked a best yet, or if this one is better
-        if not hasattr(self.task, "best_result"):
-            self.task.best_result = self.task.results[-1]
-        else:
-            if fom < self.task.best_result["fom"]:
-                self.task.best_result = self.task.results[-1]
-        
-        logging.info(dt.now().strftime(" PROCESSED @ %H:%M:%S.%f")[:-3])
-
-    def stop_and_clean_fitter(self):
-        logging.info(f"Quitting GaussianFitting Thread")
-        thread_manager.disconnect_worker_signals(self.fitter)
-        thread_manager.terminate_thread(self.thread_fit)
-        thread_manager.remove_worker_thread_pair(self.tem_action.parent.threadWorkerPairs, self.thread_fit)
-        thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
-    '''
-
-# AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
     @Slot(dict)
     def update_tem_status_detailed(self, response):

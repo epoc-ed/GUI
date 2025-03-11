@@ -365,15 +365,6 @@ class ApplicationWindow(QMainWindow):
                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 globals.exit_flag.value = True
-                """ if self.file_operations.streamWriter is not None:
-                    if self.file_operations.streamWriter.write_process.is_alive():
-                        self.file_operations.streamWriter.stop() """
-                # if self.file_operations.frameAccumulator is not None:
-                #     if self.file_operations.frameAccumulator.accumulate_process.is_alive():
-                #         self.file_operations.frameAccumulator.accumulate_process.terminate()
-                #         self.file_operations.frameAccumulator.accumulate_process.join()
-                # if self.tem_controls.fitter is not None:
-                #     self.tem_controls.fitter.stop()
                 if self.tem_controls.tem_action.control.beam_fitter is not None:
                     # if self.tem_controls.tem_action.control.beam_fitter.fitting_process.is_alive():
                     self.tem_controls.tem_action.control.beam_fitter.stop()

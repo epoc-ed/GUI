@@ -94,9 +94,7 @@ class VisualizationPanel(QGroupBox):
         # Set the initial theme
         self.current_theme = 'viridis'
         self.change_theme(self.current_theme)
-        
-        #self.change_theme('viridis')
-        
+                
         section_visual.addLayout(colors_group)
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
@@ -123,7 +121,6 @@ class VisualizationPanel(QGroupBox):
  
         view_contrast_group.addLayout(grid_1)
         section_visual.addLayout(view_contrast_group)
-        # section_visual.addWidget(create_horizontal_line_with_margin())
 
         time_interval = QLabel("Display Interval (ms):", self)
         self.update_interval = QSpinBox(self)
@@ -137,10 +134,7 @@ class VisualizationPanel(QGroupBox):
         section_visual.addLayout(time_interval_layout)
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
-        # if globals.jfj:
-
         jfjoch_control_group = QVBoxLayout()
-        # jfjoch_control_group.addWidget(create_horizontal_line_with_margin(15))
 
         jfjoch_control_label = QLabel("Jungfraujoch Control Panel")
         jfjoch_control_label.setFont(font_big)
@@ -160,20 +154,11 @@ class VisualizationPanel(QGroupBox):
         self.check_jfj_timer.timeout.connect(self.run_check_jfj_ready_in_thread)
         self.jfj_broker_is_ready = False
 
-        grid_connection_jfjoch = QVBoxLayout() #QGridLayout()
+        grid_connection_jfjoch = QVBoxLayout()
         # grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
         grid_connection_jfjoch.addLayout(jfjoch_com_status)
 
-
         jfjoch_control_group.addLayout(grid_connection_jfjoch)
-
-        # grid_streaming_jfjoch = QGridLayout()
-        # grid_streaming_jfjoch = QVBoxLayout()
-
-        # grid_stream_label = QLabel("Live streaming")
-        # grid_stream_label.setFont(font_small)
-
-        # grid_streaming_jfjoch.addWidget(grid_stream_label)
         
         live_stream_status = QGridLayout()
         live_stream_status_label = QLabel("Live stream state")
@@ -188,10 +173,6 @@ class VisualizationPanel(QGroupBox):
         self.live_stream_timer.timeout.connect(self.restart_stream)
 
         live_stream_status.addWidget(self.live_stream_button, 0, 3, 1, 5)
-        # grid_streaming_jfjoch.addWidget(self.live_stream_button, 4, 0, 1, 5)   # Stop button spanning all 4 columns at row 3
-        # grid_streaming_jfjoch.addLayout(live_stream_status)
-
-        # jfjoch_control_group.addLayout(grid_streaming_jfjoch)
         jfjoch_control_group.addLayout(live_stream_status)
 
         threshold_box = QGridLayout()
@@ -204,7 +185,6 @@ class VisualizationPanel(QGroupBox):
         self.thresholdBox.setValue(self.cfg.threshold)
         self.thresholdBox.setDisabled(True)
         self.thresholdBox.setSingleStep(10)
-        # self.thresholdBox.setPrefix("Threshold: ")
 
         self.last_threshold_value = self.thresholdBox.value()
         self.thresholdBox.valueChanged.connect(lambda value: (

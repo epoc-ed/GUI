@@ -75,7 +75,7 @@ class TEMAction(QObject):
         except AttributeError:
             pass
         if globals.dev:
-            self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
+            self.tem_detector.calc_e_incoming_button.clicked.connect(self.update_ecount)
         
         self.control.updated.connect(self.on_tem_update)
         
@@ -99,7 +99,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
-        self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
+        self.tem_stagectrl.addpos_button.clicked.connect(self.add_listedposition)
         self.trigger_additem.connect(self.add_listedposition)
         self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
