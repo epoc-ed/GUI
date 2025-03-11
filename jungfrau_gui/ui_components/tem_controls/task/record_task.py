@@ -233,10 +233,15 @@ class RecordTask(Task):
                 time.sleep(0.1)
                 logging.info(" ******************** Adding Info to H5 over Server...")
                 try:
+                    beam_property = {
+                        "beamcenter" : self.cfg.beam_center, 
+                        "sigma_width" : self.control.beam_sigmaxy,
+                        "illumination" : self.control.beam_intensity,
+                    }
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
                                         self.tem_action.visualization_panel.formatted_filename, 
                                         self.control.tem_status, 
-                                        self.cfg.beam_center, 
+                                        beam_property,
                                         self.rotations_angles,
                                         self.cfg.threshold,
                                         retries=3, 
