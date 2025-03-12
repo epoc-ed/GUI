@@ -36,6 +36,7 @@ class ControlWorker(QObject):
     
     trigger_tem_update_detailed = Signal(dict)
     trigger_tem_update = Signal(dict)
+    trigger_tem_update_init = Signal(dict)
 
     fit_complete = Signal(dict)
     
@@ -62,6 +63,9 @@ class ControlWorker(QObject):
         self.file_operations = self.tem_action.file_operations
         self.visualization_panel = self.tem_action.visualization_panel
         self.last_task: Task = None
+        self.info_queries = tools.INFO_QUERIES
+        self.more_queries = tools.MORE_QUERIES
+        self.init_queries = tools.INIT_QUERIES
         
         self.setObjectName("control Thread")
         
@@ -79,11 +83,13 @@ class ControlWorker(QObject):
         
         self.trigger_tem_update_detailed.connect(self.update_tem_status_detailed)
         self.trigger_tem_update.connect(self.update_tem_status)
+        self.trigger_tem_update_init.connect(self.update_tem_status_init)
         
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": globals.mag_value_img,
                            "eos.GetMagValue_MAG": globals.mag_value_img, "eos.GetMagValue_DIFF": globals.mag_value_diff, "defl.GetBeamBlank": 0,
-                           "ht.GetHtValue": 200000, "ht.GetHtValue_readout": 0}
+                           "apt.GetKind": 0, "apt.GetPosition_CL": [0, 0], "apt.GetPosition_OL": [0, 0], "apt.GetPosition_SA": [0, 0],
+                           "ht.GetHtValue": 200000.00, "ht.GetHtValue_readout": 0}
         
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
@@ -262,7 +268,13 @@ class ControlWorker(QObject):
                 # self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue']
                 globals.mag_value_diff = self.tem_status['eos.GetMagValue']
                 self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
-            
+            if self.tem_status['apt.GetKind'] == 1: #CLA
+                self.tem_status['apt.GetPosition_CL'] = self.tem_status['apt.GetPosition']
+            elif self.tem_status['apt.GetKind'] == 2: #OLA
+                self.tem_status['apt.GetPosition_OL'] = self.tem_status['apt.GetPosition']
+            elif self.tem_status['apt.GetKind'] == 4: #SAA
+                self.tem_status['apt.GetPosition_SA'] = self.tem_status['apt.GetPosition']
+
             # Update blanking button with live status at TEM
             if self.tem_status["defl.GetBeamBlank"] == 0:
                 self.tem_action.tem_stagectrl.blanking_button.setText("Blank beam")
@@ -280,7 +292,22 @@ class ControlWorker(QObject):
 
             self.updated.emit()
         except Exception as e:
-            logging.error(f"Error during updating tem_status map: {e}")
+            logging.error(f"Error during updating detailed tem_status map: {e}")
+
+    @Slot(dict)
+    def update_tem_status_init(self, response):
+        logging.debug("Updating ControlWorker map with last TEM Status, only for starting items")
+        try:
+            logging.debug("START of the update loop")
+            for entry in response:
+                self.tem_status[entry] = response[entry]["val"]
+                self.tem_update_times[entry] = (response[entry]["tst_before"], response[entry]["tst_after"])
+            logging.debug("END of update loop")
+            if self.tem_status['ht.GetHtValue'] is not None:
+                self.tem_status['ht.GetHtValue_readout'] = 1
+            self.updated.emit()
+        except Exception as e:
+            logging.error(f"Error during starting tem_status map: {e}")            
 
     @Slot(dict)
     def update_tem_status(self, response):
@@ -326,7 +353,12 @@ class ControlWorker(QObject):
             else:
                 results = self.get_state_detailed()
                 self.trigger_tem_update_detailed.emit(results)
-            
+        elif message == "#init":
+            if asynchronous:
+                threading.Thread(target=lambda: self.trigger_tem_update_init.emit(self.get_state_init())).start()
+            else:
+                results = self.get_state_init()
+                self.trigger_tem_update_init.emit(results)
         else:
             logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
             pass
@@ -334,7 +366,7 @@ class ControlWorker(QObject):
     def get_state(self):
         results = {}
         tic_loop = time.perf_counter()
-        for query in tools.INFO_QUERIES:
+        for query in self.info_queries:
             tic = time.perf_counter()
             logging.debug(" ++++++++++++++++ ")
             logging.debug(f"Command from list {query}")
@@ -350,14 +382,40 @@ class ControlWorker(QObject):
     def get_state_detailed(self):
         results = {}
         tic_loop = time.perf_counter()
-        for query in tools.MORE_QUERIES:
+        del_items = []
+        for query in self.more_queries:
+            result = {}
+            result["tst_before"] = time.time()
+            result["val"] = self.execute_command(tools.full_mapping[query])
+            result["tst_after"] = time.time()
+            results[query] = result
+            if result["val"] is None:
+                del_items.append(query)
+        for query in del_items:
+            self.more_queries.remove(query)
+            logging.warning(f"{query} is removed from list of query")
+        toc_loop = time.perf_counter()
+        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
+        return results
+
+    def get_state_init(self):
+        results = {}
+        tic_loop = time.perf_counter()
+        del_items = []
+        for query in self.init_queries:
             result = {}
             result["tst_before"] = time.time()
             result["val"] = self.execute_command(tools.full_mapping[query])
             result["tst_after"] = time.time()
             results[query] = result   
+            if result["val"] is None:
+                del_items.append(query)
+        for query in del_items:
+            self.init_queries.remove(query)
+            logging.warning(f"{query} is removed from list of query")
+            time.sleep(2) # debug line
         toc_loop = time.perf_counter()
-        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
+        logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
         return results
 
     def execute_command(self, command_str):
