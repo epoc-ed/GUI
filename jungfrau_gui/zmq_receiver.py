@@ -42,25 +42,6 @@ class ZmqReceiver:
                 return result
             return func(self, *args, **kwargs)
         return wrapper
-
-    @log_first_success
-    def get_frame(self):
-        if not globals.exit_flag.value:
-            try:
-                msgs = self.socket.recv_multipart()
-                frame_nr = np.frombuffer(msgs[0], dtype=np.int64)[0]
-                image = np.frombuffer(msgs[1], dtype=self.dt).reshape(globals.nrow, globals.ncol)
-                return image, frame_nr
-            except zmq.error.Again:
-                # Modified by Erik: Silently retry on timeout
-                # This only means that there is no new frame ready yet
-                # add back reconnect if we see issues
-                # logging.warning("Timeout or no messages received, attempting to reconnect...")
-                # self.reconnect()
-                return None, None
-            except Exception as e:
-                logging.error(f"An unexpected error occurred: {e}")
-                return None, None
             
     @log_first_success
     def get_frame_jfj(self):
@@ -120,8 +101,6 @@ class ZmqReceiver:
 
 if __name__ == "__main__":
     receiver = ZmqReceiver("tcp://noether:5501")
- #   while not globals.exit_flag.value:
- #       time.sleep(0.1)
     frame, frame_nr = receiver.get_frame_jfj()
     if frame is not None:
         print("Frame received:", frame_nr)

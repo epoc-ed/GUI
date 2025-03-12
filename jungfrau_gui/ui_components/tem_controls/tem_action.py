@@ -112,7 +112,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
-        self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
+        self.tem_stagectrl.addpos_button.clicked.connect(self.add_listedposition)
         self.trigger_additem.connect(self.add_listedposition)
         self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
@@ -144,7 +144,7 @@ class TEMAction(QObject):
         # self.tem_tasks.centering_button.setEnabled(enables)
         self.tem_tasks.centering_checkbox.setEnabled(enables)
         self.tem_tasks.btnGaussianFit.setEnabled(enables)
-        self.tem_tasks.beamAutofocus.setEnabled(False) # Not functional yet
+        self.tem_tasks.beamAutofocus.setEnabled(enables)
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)
@@ -166,7 +166,10 @@ class TEMAction(QObject):
 
     def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
-            self.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1000)
+            try:
+                self.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1e3)
+            except TypeError:
+                pass
             self.control.init.emit()
             self.connect_thread = QThread()
             self.temConnector = TEM_Connector()
@@ -177,12 +180,14 @@ class TEMAction(QObject):
             logging.info("Starting tem-connecting process")
             self.tem_tasks.connecttem_button.started = True
             self.timer_tem_connexion.start(self.tem_tasks.polling_frequency.value()) # 0.5 seconds between pings
+            self.control.send_to_tem("#init", asynchronous=False)
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")
             self.tem_tasks.connecttem_button.started = False
             self.timer_tem_connexion.stop()
             self.parent.stopWorker(self.connect_thread, self.temConnector)
+            self.temConnector, self.connect_thread = thread_manager.reset_worker_and_thread(self.temConnector, self.connect_thread)
 
     def initializeWorker(self, thread, worker):
         thread_manager.move_worker_to_thread(thread, worker)
@@ -220,7 +225,11 @@ class TEMAction(QObject):
             self.control.trigger_getteminfo.emit('N')
 
     def on_tem_update(self):
-        logging.debug("Updating GUI with last TEM Status...") 
+        logging.debug("Updating GUI with last TEM Status...")
+        try:
+            self.parent.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1e3) # keV 
+        except TypeError:
+            pass
         angle_x = self.control.tem_status["stage.GetPos"][3]
         if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
         
@@ -293,14 +302,15 @@ class TEMAction(QObject):
         logging.debug("GUI updated with lastest TEM Status")
 
     def drawscale_overlay(self, xo=0, yo=0, l_draw=1):
-        pixel=cfg_jf.others.pixelsize
+        pixel = cfg_jf.others.pixelsize
+        ht = self.parent.tem_controls.voltage_spBx.value()
         if self.scale != None:
             self.parent.plot.removeItem(self.scale)
         if self.tem_detector.scale_checkbox.isChecked():
             if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
                 detector_distance = self.control.tem_status["eos.GetMagValue"][2] ## with unit
                 detector_distance = cfg_jf.lookup(cfg_jf.lut.distance, detector_distance, 'displayed', 'calibrated')
-                radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=self.control.tem_status["ht.GetHtValue"]/1000)
+                radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=ht)
                 self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
             else:
                 magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
@@ -414,7 +424,7 @@ class TEMAction(QObject):
     def toggle_beamAutofocus(self):
         if not self.tem_tasks.beamAutofocus.started:
             self.control.init.emit()
-            self.control.send_to_tem("#more")
+            # self.control.send_to_tem("#more")
             self.control.actionFit_Beam.emit()
             self.tem_tasks.beamAutofocus.setText("Stop Autofocus")
             self.tem_tasks.beamAutofocus.started = True
@@ -422,20 +432,8 @@ class TEMAction(QObject):
             if self.tem_tasks.popup_checkbox.isChecked():
                 self.tem_tasks.parent.showPlotDialog()
         else:
-            """ 
-            To correct/adapt the interruption case
-            as in the 'toggle_rotation' above 
-            """
-            logging.warning(f"Interrupting Task - {self.control.task.task_name} -")
-            self.control.task.finished.disconnect()
-
-            self.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
-            self.tem_tasks.beamAutofocus.started = False
-            # Close Pop-up Window
-            if self.tem_tasks.parent.plotDialog != None:
-                self.tem_tasks.parent.plotDialog.close_window()
-            self.control.actionFit_Beam.emit()
-            # self.control.stop_task()
+            # Interrupt autofocus but end task gracefully
+            self.control.set_sweeper_to_off_state()
 
     def go_listedposition(self):
         try:
@@ -545,8 +543,9 @@ class TEMAction(QObject):
         thread_manager.reset_worker_and_thread(self.process_receiver, self.datareceiver_thread)
         self.dataReceiverReady = True
 
-    def update_ecount(self, pixel=0.075, threshold=500, bins_set=20):
-        ht = self.control.tem_status["ht.GetHtValue"]/1000
+    def update_ecount(self, threshold=500, bins_set=20):
+        ht = self.parent.tem_controls.voltage_spBx.value()
+        pixel = cfg_jf.others.pixelsize
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
             logging.warning("Brightness should be calculated in imaging mode")

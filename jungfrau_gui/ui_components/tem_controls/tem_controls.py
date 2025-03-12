@@ -73,14 +73,12 @@ class TemControls(QGroupBox):
         self.beam_center_x.setValue(1)
         self.beam_center_x.setMaximum(globals.ncol)
         self.beam_center_x.setReadOnly(True)
-        # self.beam_center_x.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_x))
         self.beam_center_x.editingFinished.connect(self.update_beam_center_x)
         
         self.beam_center_y = QSpinBox()
         self.beam_center_y.setValue(1)
         self.beam_center_y.setMaximum(globals.nrow)
         self.beam_center_y.setReadOnly(True)
-        # self.beam_center_y.valueChanged.connect(lambda value: self.spin_box_modified(self.beam_center_y))
         self.beam_center_y.editingFinished.connect(self.update_beam_center_y)
         
         self.label_gauss_height = QLabel()
@@ -128,19 +126,19 @@ class TemControls(QGroupBox):
             self.parent.imageItem.mouseClickEvent = self.tem_action.imageMouseClickEvent
             self.tem_action.enabling(False)
             self.tem_action.set_configuration()
-            self.tem_action.control.fit_complete.connect(self.updateFitParams)
+            self.tem_action.control.draw_ellipses_on_ui.connect(self.updateFitParams)
             self.tem_action.control.remove_ellipse.connect(self.removeAxes)
             tem_section.addWidget(self.tem_stagectrl)
         else: 
             test_fitting_label = QLabel("Test Gaussian Fitting")
             test_fitting_label.setFont(font_big)
 
-            self.btnBeamFocus = ToggleButton("Beam Gaussian Fit", self)
-            self.btnBeamFocus.clicked.connect(self.toggle_gaussianFit)
+            self.btnGaussianFitTest = ToggleButton("Beam Gaussian Fit", self)
+            self.btnGaussianFitTest.clicked.connect(self.toggle_gaussianFit)
 
             BeamFocus_layout = QVBoxLayout()
             BeamFocus_layout.addWidget(test_fitting_label)
-            BeamFocus_layout.addWidget(self.btnBeamFocus)
+            BeamFocus_layout.addWidget(self.btnGaussianFitTest)
             BeamFocus_layout.addWidget(self.checkbox)
             gauss_H_layout = QHBoxLayout()
             gauss_H_layout.addWidget(self.label_gauss_height)  
@@ -182,69 +180,63 @@ class TemControls(QGroupBox):
     def reset_style(self, field):
         text_color = self.palette.color(QPalette.Text).name()
         field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
-
+    
     """ ***************************************** """
     """ Threading Version of the gaussian fitting """
     """ ***************************************** """
-    def toggle_gaussianFit(self):
-        if not self.btnBeamFocus.started:
-            self.thread_fit = QThread()
-            self.fitter = GaussianFitter()
-            self.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
-            self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
-            self.thread_fit.start()
-            self.fitterWorkerReady = True # Flag to indicate worker is ready
-            logging.info("Starting fitting process")
-            self.btnBeamFocus.setText("Stop Fitting")
-            self.btnBeamFocus.started = True
-            # Pop-up Window
-            if self.checkbox.isChecked():
-                self.showPlotDialog()   
-            # Timer started
-            self.parent.timer_fit.start(10)
+    def _toggle_gaussian_fit(self, btn, off_text, on_text, by_user=False):
+        """Toggle the Gaussian fitting process using the provided button and texts.
+        
+        # Args
+        btn: The button controlling the fit (e.g. self.btnGaussianFitTest or self.tem_tasks.btnGaussianFit).
+        off_text: The text to display when stopping the fit.
+        on_text: The text to display when starting the fit.
+        by_user (bool): Whether the user explicitly triggered the toggle.
+        """
+        if not btn.started:
+            self._start_gaussian_fit(btn, on_text, by_user)
         else:
-            self.btnBeamFocus.setText("Beam Gaussian Fit")
-            self.btnBeamFocus.started = False
-            self.parent.timer_fit.stop()  
-            # Close Pop-up Window
-            if self.plotDialog != None:
-                self.plotDialog.close()
-            self.parent.stopWorker(self.thread_fit, self.fitter)
-            self.removeAxes()
+            self._stop_gaussian_fit(btn, off_text, by_user)
+
+    def _start_gaussian_fit(self, btn, on_text, by_user=False):
+        """Starts the Gaussian fitting process."""
+        self.thread_fit = QThread()
+        self.fitter = GaussianFitter()
+        self.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))
+        self.initializeWorker(self.thread_fit, self.fitter)  # Initialize worker and fitter
+        self.thread_fit.start()
+        self.fitterWorkerReady = True
+        logging.info("Starting fitting process")
+        btn.setText(on_text)
+        btn.started = True
+        if self.checkbox.isChecked():
+            self.showPlotDialog()
+        self.parent.timer_fit.start(10)
+        if by_user:
+            self.gaussian_user_forced_off = False
+
+    def _stop_gaussian_fit(self, btn, off_text, by_user=False):
+        """Stops the Gaussian fitting process."""
+        btn.setText(off_text)
+        btn.started = False
+        self.parent.timer_fit.stop()
+        if self.plotDialog is not None:
+            self.plotDialog.close()
+        self.parent.stopWorker(self.thread_fit, self.fitter)
+        self.fitter, self.thread_fit = thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
+        self.removeAxes()
+        if by_user:
+            self.gaussian_user_forced_off = True
+
+    def toggle_gaussianFit(self):
+        """Toggle fitting using the beam focus button."""
+        # When not running, text becomes "Stop Fitting"; when stopping, revert to "Beam Gaussian Fit"
+        self._toggle_gaussian_fit(self.btnGaussianFitTest, off_text="Beam Gaussian Fit", on_text="Stop Fitting")
 
     def toggle_gaussianFit_beam(self, by_user=False):
-        if not self.tem_tasks.btnGaussianFit.started:
-            self.thread_fit = QThread()
-            self.fitter = GaussianFitter()
-            self.parent.threadWorkerPairs.append((self.thread_fit, self.fitter))                              
-            self.initializeWorker(self.thread_fit, self.fitter) # Initialize the worker thread and fitter
-            self.thread_fit.start()
-            self.fitterWorkerReady = True # Flag to indicate worker is ready
-            logging.info("Starting fitting process")
-            self.tem_tasks.btnGaussianFit.setText("Stop Fitting")
-            self.tem_tasks.btnGaussianFit.started = True
-            # Pop-up Window
-            if self.checkbox.isChecked():
-                self.showPlotDialog()   
-            # Timer started
-            self.parent.timer_fit.start(10)
-
-            # If user specifically turned it ON, clear any "forced off" override
-            if by_user:
-                self.gaussian_user_forced_off = False
-        else:
-            self.tem_tasks.btnGaussianFit.setText("Gaussian Fit")
-            self.tem_tasks.btnGaussianFit.started = False
-            self.parent.timer_fit.stop()  
-            # Close Pop-up Window
-            if self.plotDialog != None:
-                self.plotDialog.close()
-            self.parent.stopWorker(self.thread_fit, self.fitter)
-            self.removeAxes()
-
-            # If user specifically turned it OFF, set user_forced_off = True
-            if by_user:
-                self.gaussian_user_forced_off = True
+        """Toggle fitting using the tem_tasks button, with an optional user override."""
+        # When not running, text becomes "Stop Fitting"; when stopping, revert to "Gaussian Fit"
+        self._toggle_gaussian_fit(self.tem_tasks.btnGaussianFit, off_text="Gaussian Fit", on_text="Stop Fitting", by_user=by_user)
 
     @Slot()
     def disableGaussianFitButton(self):
@@ -254,7 +246,6 @@ class TemControls(QGroupBox):
         thread_manager.move_worker_to_thread(thread, worker)
         worker.finished.connect(self.updateFitParams)
         worker.finished.connect(self.getFitterReady)
-
 
     def getFitterReady(self):
         self.fitterWorkerReady = True
@@ -284,10 +275,15 @@ class TemControls(QGroupBox):
         self.plotDialog.show() 
 
     @Slot()
-    def updateFitParams(self, fit_result_best_values):
-        if not self.tem_tasks.btnGaussianFit.started:
-            # Fitter was stopped, ignore any last-minute signals
-            return
+    def updateFitParams(self, fit_result_best_values, draw = True):
+        if globals.tem_mode:
+            if not self.tem_tasks.btnGaussianFit.started:
+                # Fitter was stopped, ignore any last-minute signals
+                return
+        else:
+            if not self.btnGaussianFitTest.started:
+                # Same for playmode
+                return
         logging.debug(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
@@ -308,7 +304,8 @@ class TemControls(QGroupBox):
         if self.plotDialog != None:
             self.plotDialog.updatePlot(amplitude, sigma_x, sigma_y)
         # Draw the fitting line at the FWHM of the 2d-gaussian
-        self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
+        if draw:
+            self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 
     def drawFittingEllipse(self, xo, yo, sigma_x, sigma_y, theta_deg):
         # p = 0.5 is equivalent to using the Full Width at Half Maximum (FWHM)
@@ -334,11 +331,13 @@ class TemControls(QGroupBox):
         # First, translate the coordinate system to the center of the ellipse,
         # then rotate around this point and finally translate back to origin.
         """ rotationTransform = QTransform().translate(xo, yo).rotate(theta_deg).translate(-xo, -yo) """
-        rotationTransform = QTransform().translate(xo, yo).rotate(-1*theta_deg).translate(-xo, -yo)
         # Create the symmetry (vertical flip) transform
         """ symmetryTransform = QTransform().translate(xo, yo).scale(1, -1).translate(-xo, -yo) """
         # Combine the rotation and symmetry transforms
         """ combinedTransform = rotationTransform * symmetryTransform  """
+
+        # All in one
+        rotationTransform = QTransform().translate(xo, yo).rotate(-1*theta_deg).translate(-xo, -yo)
 
         self.ellipse_fit.setPen(pg.mkPen('b', width=3))
         """ self.ellipse_fit.setTransform(combinedTransform) """

@@ -18,6 +18,7 @@ from pathlib import Path
 from epoc import ConfigurationClient, auth_token, redis_host
 
 import os
+import datetime
 
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
@@ -66,6 +67,12 @@ class CustomFormatter(logging.Formatter):
         logging.CRITICAL: f"{RED}{BOLD}",
     }
 
+    def formatTime(self, record, datefmt=None):
+        # Convert the record's creation time to a datetime object
+        dt = datetime.datetime.fromtimestamp(record.created)
+        # Format the time with microseconds, then truncate to milliseconds (3 digits)
+        return dt.strftime('%H:%M:%S.%f')[:-3]  # Slice to keep first 6 digits (microseconds -> milliseconds)
+
     def format(self, record):
         # Get the appropriate color for the log level
         level_color = self.LOG_COLORS.get(record.levelno, self.RESET)
@@ -110,7 +117,7 @@ def main():
     console_handler = logging.StreamHandler()
 
     # Apply the custom formatter to the handler
-    formatter = CustomFormatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
+    formatter = CustomFormatter('%(asctime)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(formatter)
 
     # Add the handler to the logger
