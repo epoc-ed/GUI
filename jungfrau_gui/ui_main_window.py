@@ -330,7 +330,7 @@ class ApplicationWindow(QMainWindow):
     def stopWorker(self, thread, worker):
         if globals.tem_mode:
             if self.tem_controls.tem_action.control.task is not None:
-                logging.critical(f"Control has - \033[1m{self.tem_controls.tem_action.control.task.task_name}\033[0m\033[34m - task alive!")
+                logging.info(f"Control has - \033[1m{self.tem_controls.tem_action.control.task.task_name}\033[0m\033[34m - task alive!")
                 thread_manager.handle_tem_task_cleanup(self.tem_controls.tem_action.control)
         thread_manager.disconnect_worker_signals(worker)
         thread_manager.terminate_thread(thread)

@@ -125,7 +125,7 @@ class ControlWorker(QObject):
         thread_manager.terminate_thread(self.task_thread)
         thread_manager.remove_worker_thread_pair(self.tem_action.parent.threadWorkerPairs, self.task_thread)
         self.task, self.task_thread = thread_manager.reset_worker_and_thread(self.task, self.task_thread)
-        logging.critical(f"Is Task actually reset to None ? -> {self.task is None}")
+        logging.info(f"Is Task actually reset to None ? -> {self.task is None}")
 
         # Ask for a full update after the end and clean up of the task
         self.send_to_tem("#more", asynchronous=True)

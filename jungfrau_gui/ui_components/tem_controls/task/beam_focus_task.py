@@ -74,12 +74,12 @@ class AutoFocusTask(Task):
 
             if self.rapid_mode:
                 # Use the rapid optimization approach
-                logging.critical(" ############ RAPID MODE ############ ")
+                logging.warning(" ############ RAPID MODE ############ ")
                 results = self.rapid_autofocus(init_IL1, init_stigm, time_budget)
                 print("Results of fast focusing:") 
                 print(results)
             else:
-                logging.critical(" ############ SLOW MODE ############ ")  
+                logging.warning(" ############ SLOW MODE ############ ")  
                 self.slow_focus()
 
         except Exception as e:
