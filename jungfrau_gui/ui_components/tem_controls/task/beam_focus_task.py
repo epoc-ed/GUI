@@ -24,11 +24,11 @@ class AutoFocusTask(Task):
         self.estimateds_duration = self.duration_s + 0.1
         self.control = control_worker
         self.tem_action = self.control.tem_action
-        self.is_first_AutoFocus = True        
         self.client = TEMClient(globals.tem_host, 3535)
-        # Start from a known set (but creates a freeze) 
+        # Start from a known set of lens values (but creates a freeze of ~0.1s) 
         self.client.SetILFocus(IL1_0)
         self.client.SetILs(*ILS_0)
+        time.sleep(WAIT_TIME_S)
         self.lens_parameters = {
                                 "il1": IL1_0, # an integer
                                 "ils": ILS_0, # two integers for stigmation
@@ -46,6 +46,7 @@ class AutoFocusTask(Task):
         # Tracking previous best values for each mode
         self._best_focus = None
         self._best_stigmation = None
+        self._best_combined = None
 
     def run(self, init_IL1=IL1_0, init_stigm=ILS_0, time_budget=15):
         try:
@@ -79,13 +80,12 @@ class AutoFocusTask(Task):
                 print("Results of fast focusing:") 
                 print(results)
             else:
-                logging.warning(" ############ SLOW MODE ############ ")  
-                self.slow_focus()
+                logging.warning(" ############ STANDARD MODE ############ ")  
+                self.standard_focus()
 
         except Exception as e:
             logging.error(f"Unexpected error during beam focusing: {e}")
         finally:
-            '''
             # Restarting TEM polling
             if not self.tem_action.tem_tasks.connecttem_button.started:
                 QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
@@ -94,7 +94,6 @@ class AutoFocusTask(Task):
                 time.sleep(0.1)
 
             logging.warning('Polling of TEM-info restarted.')
-            '''
             # Once done, call your cleanup logic
             self.cleanup()
 
@@ -442,6 +441,7 @@ class AutoFocusTask(Task):
             return {
                 "focus": self._best_focus,
                 "stigmation": self._best_stigmation,
+                "best_combined": self._best_combined,  # Add the best combined result
                 "elapsed_time": total_elapsed_time,
                 "completed_steps": ["focus", "stigmation", "refinement"] if remaining_time >= 2 else ["focus", "stigmation"]
             }
@@ -453,7 +453,7 @@ class AutoFocusTask(Task):
     ##########
     # METHOD B
     ##########
-    def slow_focus(self, init_IL1=IL1_0, init_stigm=ILS_0):      
+    def standard_focus(self, init_IL1=IL1_0, init_stigm=ILS_0):      
             # Start counter
             autofocus_start = time.perf_counter()
 
@@ -562,7 +562,7 @@ class AutoFocusTask(Task):
             autofocus_end = time.perf_counter()
             autofocus_time = autofocus_end - autofocus_start
             
-            logging.warning(f" ###### AUTOFOCUSED COMPLETED in {autofocus_time:.6f} seconds")
+            logging.warning(f"Standard autofocus completed in{autofocus_time:.6f} seconds")
             logging.info(f"Final results: {final_results}")
             
             # Emit final result signal (for UI update)
@@ -599,22 +599,11 @@ class AutoFocusTask(Task):
             iter_time = iter_end - iter_start
             logging.critical(f"SetILFocus({il1_value}) took {iter_time:.6f} seconds")
 
-            # (Optional?) small wait for hardware to stabilize
+            # Small wait for hardware to stabilize
             time.sleep(wait_time_s)
 
             # Update lens_parameters so we know what was used
             self.lens_parameters["il1"] = il1_value
-
-            """
-            # Option 1
-            # Now request a fit. We'll pass the current image & ROI.
-            image_data = self.tem_action.parent.imageItem.image.copy()
-            roi = self.tem_action.parent.roi
-            logging.info(datetime.now().strftime(" UPDATED PARAMS FOR FITTER @ %H:%M:%S.%f")[:-3])
-            self.beam_fitter.updateParams(image_data, roi) 
-
-            time.sleep(3*wait_time_s)
-            """
 
             fit_success = self.request_fit_and_process_result()
             if not fit_success:
@@ -898,6 +887,11 @@ class AutoFocusTask(Task):
                 self.newBestResult.emit(result_dict)
                 logging.info(f"New best stigmation: ILs={result_dict['ils_value']}, ellipticity={ellipticity:.2f}")
         
+        # Always track the best combined metric across all phases
+        if self._best_combined is None or combined_metric < self._best_combined.get("combined_metric", float('inf')):
+            self._best_combined = result_dict
+            logging.info(f"New best combined result: IL1={result_dict['il1_value']}, ILs={result_dict['ils_value']}, metric={combined_metric:.2f}")
+                
         logging.info(f"Processed fit: area={area:.2f}, ellipticity={ellipticity:.2f}")
 
     def cleanup(self):

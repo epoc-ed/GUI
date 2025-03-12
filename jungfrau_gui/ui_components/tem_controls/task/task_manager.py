@@ -117,8 +117,10 @@ class ControlWorker(QObject):
         
         if isinstance(self.task, AutoFocusTask):
             self.beam_fitter = None   # So we don't accidentally reuse it.
-            logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
-            self.remove_ellipse.emit()
+            logging.info(f"Instance of \033[1mGaussianFitterMP\033[0m\033[34m has been reset to None.")
+            # Uncomment below if fitting results are being drawn (drawings are a bit delayed for now...)
+            # logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
+            # self.remove_ellipse.emit()
 
         self.handle_task_cleanup()
         thread_manager.disconnect_worker_signals(self.task)
@@ -249,8 +251,9 @@ class ControlWorker(QObject):
 
         # Stop the Gaussian Fitting if running
         if self.tem_action.tem_tasks.btnGaussianFit.started:
-            self.tem_action.tem_controls.toggle_gaussianFit_beam()
-        time.sleep(0.05)
+            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
+            time.sleep(0.1)
+            # self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
 
         self.beam_fitter = GaussianFitterMP()
 
@@ -439,7 +442,7 @@ class ControlWorker(QObject):
         for query in del_items:
             self.init_queries.remove(query)
             logging.warning(f"{query} is removed from list of query")
-            time.sleep(2) # debug line
+            # time.sleep(2) # debug line
         toc_loop = time.perf_counter()
         logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
         return results

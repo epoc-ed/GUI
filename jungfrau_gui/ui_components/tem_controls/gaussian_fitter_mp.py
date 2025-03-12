@@ -137,6 +137,7 @@ class GaussianFitterMP(QObject):
 
     def __init__(self):
         super(GaussianFitterMP, self).__init__()
+        self.task_name = "GaussianFitterMP"
         self.input_queue = mp.Queue()
         self.output_queue = mp.Queue()
         self.fitting_process = None 

@@ -175,7 +175,7 @@ class TEMAction(QObject):
             logging.info("Starting tem-connecting process")
             self.tem_tasks.connecttem_button.started = True
             self.timer_tem_connexion.start(self.tem_tasks.polling_frequency.value()) # 0.5 seconds between pings
-            self.control.send_to_tem("#init")
+            self.control.send_to_tem("#init", asynchronous=False)
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")
