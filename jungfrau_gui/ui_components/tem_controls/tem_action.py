@@ -139,7 +139,7 @@ class TEMAction(QObject):
         # self.tem_tasks.centering_button.setEnabled(enables)
         self.tem_tasks.centering_checkbox.setEnabled(enables)
         self.tem_tasks.btnGaussianFit.setEnabled(enables)
-        self.tem_tasks.beamAutofocus.setEnabled(enables) # Not functional yet
+        self.tem_tasks.beamAutofocus.setEnabled(enables)
         self.tem_tasks.rotation_button.setEnabled(enables)
         self.tem_tasks.input_start_angle.setEnabled(enables)
         self.tem_tasks.update_end_angle.setEnabled(enables)

@@ -241,6 +241,9 @@ class TEMTasks(QGroupBox):
         self.btnGaussianFit.setEnabled(False)
         self.beamAutofocus = ToggleButton('Autofocus', self)
         self.beamAutofocus.setEnabled(False)
+        self.fast_autofocus_checkbox = QCheckBox("fast", self)
+        self.fast_autofocus_checkbox.setChecked(True)
+
         self.popup_checkbox = self.parent.checkbox
         self.plotDialog = self.parent.plotDialog
 
@@ -304,9 +307,10 @@ class TEMTasks(QGroupBox):
         BEAM_group.addWidget(BEAM_label)
         BEAM_group.addLayout(Voltage_layout)
         BEAM_group.addSpacing(10)
-        layout_Beam_buttons = QHBoxLayout()
-        layout_Beam_buttons.addWidget(self.btnGaussianFit)
-        layout_Beam_buttons.addWidget(self.beamAutofocus)
+        layout_Beam_buttons = QGridLayout()
+        layout_Beam_buttons.addWidget(self.btnGaussianFit           ,0,0,1,4)
+        layout_Beam_buttons.addWidget(self.beamAutofocus            ,0,4,1,4)
+        layout_Beam_buttons.addWidget(self.fast_autofocus_checkbox  ,0,8,1,1)
         BEAM_group.addLayout(layout_Beam_buttons)
         BEAM_group.addWidget(self.popup_checkbox)
         
