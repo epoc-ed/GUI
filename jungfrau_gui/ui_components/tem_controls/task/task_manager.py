@@ -56,6 +56,7 @@ class ControlWorker(QObject):
     trigger_shutdown = Signal()
     trigger_getteminfo = Signal(str)
     trigger_centering = Signal(bool, str)
+    trigger_movewithbacklash = Signal(int, float, float)
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
@@ -83,6 +84,7 @@ class ControlWorker(QObject):
         self.trigger_shutdown.connect(self.shutdown)
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
+        self.trigger_movewithbacklash.connect(self.move_with_backlash)
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.beam_fitter = None
@@ -93,6 +95,7 @@ class ControlWorker(QObject):
         self.trigger_tem_update_init.connect(self.update_tem_status_init)
         
         self.tem_status = {"stage.GetPos": [0.0, 0.0, 0.0, 0.0, 0.0], "stage.Getf1OverRateTxNum": self.cfg.rotation_speed_idx,
+                           "stage.GetPos_diff": [0.0, 0.0, 0.0, 0.0, 0.0], 
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": globals.mag_value_img,
                            "eos.GetMagValue_MAG": globals.mag_value_img, "eos.GetMagValue_DIFF": globals.mag_value_diff, "defl.GetBeamBlank": 0,
                            "apt.GetKind": 0, "apt.GetPosition_CL": [0, 0], "apt.GetPosition_OL": [0, 0], "apt.GetPosition_SA": [0, 0],
@@ -340,6 +343,7 @@ class ControlWorker(QObject):
 
     @Slot(dict)
     def update_tem_status(self, response):
+        self.tem_status["stage.GetPos_prev"] = self.tem_status["stage.GetPos"]
         try:
             for entry in response:
                 self.tem_status[entry] = response[entry]
@@ -361,6 +365,12 @@ class ControlWorker(QObject):
                 self.tem_action.tem_stagectrl.blanking_button.setText("Unblank beam")
                 self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
 
+            position = self.tem_status["stage.GetPos"]
+            position_prev = self.tem_status["stage.GetPos_prev"]
+            diff_pos = np.array(list(map(lambda x, y: x-y, position, position_prev)))
+            threshold = np.array([30, 30, 30, 0.2, 100]) # nm, nm, nm, deg., deg., removes negligible fluctuation
+            update = np.abs(diff_pos) > threshold
+            self.tem_status["stage.GetPos_diff"] = diff_pos * update + self.tem_status["stage.GetPos_diff"] * ~update
             self.updated.emit()
             
         except Exception as e:
@@ -519,3 +529,28 @@ class ControlWorker(QObject):
                                     "nimages": 0,}
         else:
             self.rotation_status["oscillation_per_frame"] = np.abs(self.rotation_status["end_angle"] - self.rotation_status["start_angle"]) / self.rotation_status["nimages"]
+
+    @Slot(int, float, float)
+    def move_with_backlash(self, moverid=0, value=10, backlash=0, scale=1): # +x, -x, +y, -y, +z, -z, +tx, -tx (0-7) 
+        self.send_to_tem("#info")
+        # time.sleep(0.5)
+        # backlash correction
+        if moverid%2 == 0 and np.sign(self.tem_status["stage.GetPos_diff"][moverid//2]) >= 0: backlash = 0
+        elif moverid%2 == 1 and np.sign(self.tem_status["stage.GetPos_diff"][moverid//2]) < 0: backlash = 0
+        
+        logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")
+        
+        match moverid:
+            case 0: threading.Thread(target=self.client.SetXRel, args=(value*scale-backlash,)).start()
+            case 1: threading.Thread(target=self.client.SetXRel, args=(value*scale+backlash,)).start()
+            case 2: threading.Thread(target=self.client.SetYRel, args=(value*scale-backlash,)).start()
+            case 3: threading.Thread(target=self.client.SetYRel, args=(value*scale+backlash,)).start()
+            case 4: threading.Thread(target=self.client.SetZRel, args=(value*scale+backlash,)).start()
+            case 5: threading.Thread(target=self.client.SetZRel, args=(value*scale-backlash,)).start()
+            case 6: threading.Thread(target=self.client.SetTXRel, args=(value*scale+backlash,)).start()
+            case 7: threading.Thread(target=self.client.SetTXRel, args=(value*scale-backlash,)).start()
+            case _:
+                logging.warning(f"Undefined moverid {moverid}")
+                return
+
+        logging.debug(f"xyz1, dxyz1 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")

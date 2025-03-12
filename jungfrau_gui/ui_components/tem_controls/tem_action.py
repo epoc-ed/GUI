@@ -86,22 +86,27 @@ class TEMAction(QObject):
             self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snaphot)
         
         self.control.updated.connect(self.on_tem_update)
-        
+
+        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, cfg_jf.others.backlash[0]))
+        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, cfg_jf.others.backlash[0]))
+        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, cfg_jf.others.backlash[3]))
+        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, cfg_jf.others.backlash[3]))
+
         # Move X positive 10 micrometers
-        self.tem_stagectrl.movex10ump.clicked.connect(
-            lambda: threading.Thread(target=self.control.client.SetXRel, args=(10000,)).start())
+        #self.tem_stagectrl.movex10ump.clicked.connect(
+        #    lambda: threading.Thread(target=self.control.client.SetXRel, args=(10000,)).start())
         
         # Move X negative 10 micrometers
-        self.tem_stagectrl.movex10umn.clicked.connect(
-            lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
+        #self.tem_stagectrl.movex10umn.clicked.connect(
+        #    lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
 
         # Move TX positive 10 degrees
-        self.tem_stagectrl.move10degp.clicked.connect(
-            lambda: threading.Thread(target=self.control.client.SetTXRel, args=(10,)).start())
+        #self.tem_stagectrl.move10degp.clicked.connect(
+        #    lambda: threading.Thread(target=self.control.client.SetTXRel, args=(10,)).start())
 
         # Move TX negative 10 degrees    
-        self.tem_stagectrl.move10degn.clicked.connect(
-            lambda: threading.Thread(target=self.control.client.SetTXRel, args=(-10,)).start())
+        #self.tem_stagectrl.move10degn.clicked.connect(
+        #    lambda: threading.Thread(target=self.control.client.SetTXRel, args=(-10,)).start())
 
         # Set Tilt X Angle to 0 degrees
         self.tem_stagectrl.move0deg.clicked.connect(
