@@ -6,11 +6,7 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QPushButton, QFileDialog, QCheckBox,
                                 QMessageBox, QGridLayout, QRadioButton)
 
-# from .stream_writer import StreamWriter
-from .frame_accumulator_mp import FrameAccumulator
 
-
-from ... import globals
 from ...ui_components.toggle_button import ToggleButton
 from ...ui_components.utils import create_horizontal_line_with_margin
 from ...ui_components.palette import *
@@ -19,10 +15,8 @@ from ...metadata_uploader.metadata_update_client import MetadataNotifier
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
-from pathlib import Path
 import os
 import re
-import time
 
 font_big = QFont("Arial", 11)
 font_big.setBold(True)

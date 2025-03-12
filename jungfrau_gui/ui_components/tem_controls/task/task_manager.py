@@ -1,14 +1,17 @@
 import logging
 import time
 import os
+from datetime import datetime as dt
 import numpy as np
 import threading
 
-from PySide6.QtCore import Signal, Slot, QObject, QThread
+from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt
 
 from .task import Task
 from .record_task import RecordTask
-from .beam_focus_task import BeamFitTask
+
+from .beam_focus_task import AutoFocusTask
+
 from .adjustZ_task import AdjustZ
 from .get_teminfo_task import GetInfoTask
 from .stage_centering_task import CenteringTask
@@ -21,6 +24,12 @@ from epoc import ConfigurationClient, auth_token, redis_host
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
 from .... import globals
+
+from ..gaussian_fitter_mp import GaussianFitterMP
+
+def on_new_best_result_in_main_thread(result_dict):
+    # This runs in the main thread. We can safely update GUI elements, logs, etc.
+    print("New best result =>", result_dict)
 
 class ControlWorker(QObject):
     """
@@ -38,14 +47,13 @@ class ControlWorker(QObject):
     trigger_tem_update = Signal(dict)
     trigger_tem_update_init = Signal(dict)
 
-    fit_complete = Signal(dict)
+    draw_ellipses_on_ui = Signal(dict)
     
     trigger_stop_autofocus = Signal()
     remove_ellipse = Signal()
 
     trigger_record = Signal()
     trigger_shutdown = Signal()
-    # trigger_interactive = Signal()
     trigger_getteminfo = Signal(str)
     trigger_centering = Signal(bool, str)
 
@@ -73,13 +81,12 @@ class ControlWorker(QObject):
         self.send.connect(self.send_to_tem)
         self.trigger_record.connect(self.start_record)
         self.trigger_shutdown.connect(self.shutdown)
-        # self.trigger_interactive.connect(self.interactive)
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
+        self.beam_fitter = None
         self.actionFit_Beam.connect(self.start_beam_fit)
-        self.trigger_stop_autofocus.connect(self.set_worker_not_ready)
         
         self.trigger_tem_update_detailed.connect(self.update_tem_status_detailed)
         self.trigger_tem_update.connect(self.update_tem_status)
@@ -104,48 +111,54 @@ class ControlWorker(QObject):
         self.sweepingWorkerReady = False
         logging.info("Initialized control thread")
 
-
-    def handle_task_cleanup(self):
-        """
-        TODO Improve Implementation of stopping mechanism of the Sweep/Fit task
-
-        For the BeamFitTask, at the spontaneous end of the task, the button would 
-        display the text "Remove axis / pop-up" and so you'd need to click on it again
-        to trigger the 'stop_task()' method [ref. toggle_beamAutofocus() in tem_action.py]
-        """
-        if self.task is not None: # TODO This does not seem to be enough 
-            # to prevent entering again after call from ui_main_window [handle_tem_task_cleanup]
-            if isinstance(self.task, RecordTask):
-                logging.info("RecordTask has been ended, performing cleanup...")
-                self.stop_task()
-            elif isinstance(self.task, GetInfoTask):
-                logging.info("GetInfoTask has been ended, performing cleanup...")
-                self.stop_task()
-        
-
     @Slot()
     def on_task_finished(self):
         logging.info(f"\033[1mFinished Task [{self.task.task_name}] !")
+        
+        if isinstance(self.task, AutoFocusTask):
+            self.beam_fitter = None   # So we don't accidentally reuse it.
+            logging.info(f"Instance of \033[1mGaussianFitterMP\033[0m\033[34m has been reset to None.")
+            # Uncomment below if fitting results are being drawn (drawings are a bit delayed for now...)
+            # logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
+            # self.remove_ellipse.emit()
+
         self.handle_task_cleanup()
         thread_manager.disconnect_worker_signals(self.task)
         thread_manager.terminate_thread(self.task_thread)
         thread_manager.remove_worker_thread_pair(self.tem_action.parent.threadWorkerPairs, self.task_thread)
-        thread_manager.reset_worker_and_thread(self.task, self.task_thread)
+        self.task, self.task_thread = thread_manager.reset_worker_and_thread(self.task, self.task_thread)
+        logging.info(f"Is Task actually reset to None ? -> {self.task is None}")
+
+        # Ask for a full update after the end and clean up of the task
+        self.send_to_tem("#more", asynchronous=True)
+
+    def handle_task_cleanup(self):
+        if self.task is not None: # TODO This does not seem to be enough 
+            # to prevent entering again after call from ui_main_window [handle_tem_task_cleanup]
+            if isinstance(self.task, RecordTask):
+                logging.info("The \033[1mRecordTask\033[0m\033[34m has ended, performing cleanup...")
+            elif isinstance(self.task, GetInfoTask):
+                logging.info("The \033[1mGetInfo\033[0m\033[34m has ended, performing cleanup...")
+            elif isinstance(self.task, AutoFocusTask):
+                logging.info("The \033[1mAutoFocusTask\033[0m\033[34m has ended, performing cleanup...")
+            
+            self.stop_task()
+            
+    def reset_autofocus_button(self):
+        self.tem_action.tem_tasks.beamAutofocus.setText("Start Beam Autofocus")
+        self.tem_action.tem_tasks.beamAutofocus.started = False
+        # Close Pop-up Window
+        if self.tem_action.tem_tasks.parent.plotDialog != None:
+            self.tem_action.tem_tasks.parent.plotDialog.close_window()
 
     def start_task(self, task):
         logging.debug("Control is starting a Task...")
         self.last_task = self.task
         self.task = task
-        if isinstance(self.task, BeamFitTask):
-            self.sweepingWorkerReady = True
-
         # Create a new QThread for each task to avoid reuse issues
         self.task_thread = QThread()  
-
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
-
         self.task.finished.connect(self.on_task_finished)
-
         self.task.moveToThread(self.task_thread)
         self.task_thread.started.connect(self.task.start.emit)
         self.task_thread.start()
@@ -155,8 +168,9 @@ class ControlWorker(QObject):
         logging.info("Start GetInfo")
         if self.task is not None:
             if self.task.running:
-                logging.warning("Stopping the currently running  - \033[38;5;214mGetInfoTask\033[33m - task before starting a new one.")
-                self.stop_task()
+                logging.warning("\033[38;5;214mGetInfoTask\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                # self.stop_task()
                 return
 
         command='TEMstatus'
@@ -228,17 +242,32 @@ class ControlWorker(QObject):
                                 "You need to stop the current task before starting a new one.")
                 # self.stop_task()
                 return           
+
         if self.tem_status['eos.GetFunctionMode'][1] != 4:
             logging.warning('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
             # Switching to Diffraction Mode
             self.client.SelectFunctionMode(4)
 
-        task = BeamFitTask(self)
+        # Stop the Gaussian Fitting if running
+        if self.tem_action.tem_tasks.btnGaussianFit.started:
+            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
+            time.sleep(0.1)
+            # self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
+
+        self.beam_fitter = GaussianFitterMP()
+
+        task = AutoFocusTask(self)
+        
+        # Optional
+        task.newBestResult.connect(on_new_best_result_in_main_thread)
+        
+        self.sweepingWorkerReady = True
+
         self.start_task(task)
 
-    def set_worker_not_ready(self):
-        logging.debug("Sweeping worker ready --> FALSE")
+    def set_sweeper_to_off_state(self):
+        logging.info("####### ######## Sweeping worker ready? --> FALSE")
         self.sweepingWorkerReady = False
 
     @Slot(dict)
@@ -413,7 +442,7 @@ class ControlWorker(QObject):
         for query in del_items:
             self.init_queries.remove(query)
             logging.warning(f"{query} is removed from list of query")
-            time.sleep(2) # debug line
+            # time.sleep(2) # debug line
         toc_loop = time.perf_counter()
         logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
         return results
@@ -455,10 +484,10 @@ class ControlWorker(QObject):
 
     def stop_task(self):
         if self.task:
-            if isinstance(self.task, BeamFitTask):
-                logging.info("Stopping the - \033[1mSweeping\033[0m\033[34m - task!")
-                self.trigger_stop_autofocus.emit()
-
+            if isinstance(self.task, AutoFocusTask):
+                logging.info("Stopping the - \033[1mAutoFocus\033[0m\033[34m - task!")
+                self.reset_autofocus_button()
+            
             elif isinstance(self.task, RecordTask):
                 logging.info("Stopping the - \033[1mRecord\033[0m\033[34m - task!")
                 try:
@@ -469,10 +498,6 @@ class ControlWorker(QObject):
 
             elif isinstance(self.task, GetInfoTask):
                 logging.info("Stopping the - \033[1mGetInfo\033[0m\033[34m - task!")
-
-        if isinstance(self.task, BeamFitTask):
-                logging.info("********** Emitting 'remove_ellipse' signal from -MAIN- Thread **********")
-                self.remove_ellipse.emit() 
 
     @Slot()
     def shutdown(self):

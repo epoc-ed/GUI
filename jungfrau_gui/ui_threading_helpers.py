@@ -1,8 +1,4 @@
 import logging
-from PySide6.QtCore import QCoreApplication
-from jungfrau_gui.ui_components.tem_controls.task.record_task import RecordTask
-from jungfrau_gui.ui_components.tem_controls.task.get_teminfo_task import GetInfoTask
-from jungfrau_gui.ui_components.tem_controls.task.beam_focus_task import BeamFitTask
 
 def move_worker_to_thread(thread, worker):
     worker.moveToThread(thread)
@@ -53,6 +49,5 @@ def reset_worker_and_thread(worker, task_thread):
     if task_thread:
         task_thread.deleteLater()  # Schedule the thread for deletion
 
-    worker = None
-    task_thread = None
-    logging.info("Task and thread reset to None.")
+    logging.info(f"Task {worker.task_name} and its thread were reset to None.")
+    return None, None
