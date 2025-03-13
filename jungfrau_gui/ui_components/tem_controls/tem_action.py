@@ -82,8 +82,8 @@ class TEMAction(QObject):
         except AttributeError:
             pass
         if globals.dev:
-            self.tem_detector.calc_e_incoming_button.clicked.connect(self.update_ecount)
-            self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snaphot)
+            self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
+            self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snapshot)
         
         self.control.updated.connect(self.on_tem_update)
 
@@ -118,8 +118,6 @@ class TEMAction(QObject):
         self.plot_listedposition()
         # self.trigger_getbeamintensity.connect(self.update_ecount)
         self.trigger_updateitem.connect(self.update_plotitem)
-        ## for debug
-        # self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.update_plotitem())
 
     @Slot()
     def reconnectGaussianFit(self):
@@ -579,7 +577,7 @@ class TEMAction(QObject):
             self.tem_detector.e_incoming_display.setText(f'N/A')
             logging.warning(e)
 
-    def take_snaphot(self):
+    def take_snapshot(self):
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             logging.warning(f'Snaphot does not support Diff-mode at the moment!')
             return
