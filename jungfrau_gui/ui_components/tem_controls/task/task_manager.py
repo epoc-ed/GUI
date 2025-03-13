@@ -522,14 +522,6 @@ class ControlWorker(QObject):
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
 
-    def update_rotation_info(self, reset=False):
-        if reset:
-            self.rotation_status = {"start_angle": 0, "end_angle": 0,
-                                    "start_time": 0, "end_time": 0,
-                                    "nimages": 0,}
-        else:
-            self.rotation_status["oscillation_per_frame"] = np.abs(self.rotation_status["end_angle"] - self.rotation_status["start_angle"]) / self.rotation_status["nimages"]
-
     @Slot(int, float, float)
     def move_with_backlash(self, moverid=0, value=10, backlash=0, scale=1): # +x, -x, +y, -y, +z, -z, +tx, -tx (0-7) 
         self.send_to_tem("#info")
