@@ -428,7 +428,7 @@ class ControlWorker(QObject):
             result["val"] = self.execute_command(tools.full_mapping[query])
             result["tst_after"] = time.time()
             results[query] = result
-            if result["val"] is None:
+            if result["val"] is None and query in ["apt.GetKind", "apt.GetPosition"]:
                 del_items.append(query)
         for query in del_items:
             self.more_queries.remove(query)
@@ -521,14 +521,6 @@ class ControlWorker(QObject):
         except Exception as e:
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
-
-    def update_rotation_info(self, reset=False):
-        if reset:
-            self.rotation_status = {"start_angle": 0, "end_angle": 0,
-                                    "start_time": 0, "end_time": 0,
-                                    "nimages": 0,}
-        else:
-            self.rotation_status["oscillation_per_frame"] = np.abs(self.rotation_status["end_angle"] - self.rotation_status["start_angle"]) / self.rotation_status["nimages"]
 
     @Slot(int, float, float)
     def move_with_backlash(self, moverid=0, value=10, backlash=0, scale=1): # +x, -x, +y, -y, +z, -z, +tx, -tx (0-7) 
