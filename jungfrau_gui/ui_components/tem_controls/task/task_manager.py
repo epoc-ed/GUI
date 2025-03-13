@@ -219,8 +219,8 @@ class ControlWorker(QObject):
             time.sleep(0.1)
             self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
             
-        self.beam_sigmaxy = [self.tem_action.tem_controls.sigma_x_spBx.value(), 
-                             self.tem_action.tem_controls.sigma_y_spBx.value()]            
+        self.beam_sigmaxy = [self.tem_action.tem_controls.sigma_x_spBx.value(),
+                             self.tem_action.tem_controls.sigma_y_spBx.value()]
             
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI

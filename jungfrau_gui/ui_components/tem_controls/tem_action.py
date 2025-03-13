@@ -90,7 +90,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, cfg_jf.others.backlash[0]))
         self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, cfg_jf.others.backlash[0]))
         self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, cfg_jf.others.backlash[3]))
-        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, cfg_jf.others.backlash[3]))
+        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, cfg_jf.others.backlash[3]))
 
         # Move X positive 10 micrometers
         #self.tem_stagectrl.movex10ump.clicked.connect(
@@ -232,6 +232,7 @@ class TEMAction(QObject):
             pass
         angle_x = self.control.tem_status["stage.GetPos"][3]
         if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
+        self.control.beam_sigmaxy = [self.tem_controls.sigma_x_spBx.value(), self.tem_controls.sigma_y_spBx.value()]
         
         # 1) Live query on both the current mode and the beam blank state
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
