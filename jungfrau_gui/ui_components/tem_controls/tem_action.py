@@ -23,7 +23,7 @@ from jungfrau_gui import globals
 
 class CenterArrowItem(pg.ArrowItem):
     def paint(self, p, *args):
-        p.translate(-self.boundingRect().center())
+        p.translate(-self.boundingRect().center()*2)
         pg.ArrowItem.paint(self, p, *args)
 
 class TEMAction(QObject):
@@ -502,22 +502,33 @@ class TEMAction(QObject):
         axes = np.array(info_d["cell axes"], dtype=float)
         color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
         color = color_map.map(spots[0]/spots[1], mode='qcolor')
-        text = f"{info_d["dataid"]}:" + " ".join(map(lambda x: f"{x:.1f}", info_d["lattice"])) + ", updated"
+        text = f"{info_d["dataid"]}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
         label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
         marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
         # represent orientation with cell-a axis, usually shortest
         angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
-        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])        
-        arrow = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
-                             headLen=20*length, tailLen=20*length, tailWidth=4*length, brush=color)
+        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])
+        arrow_a = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+        # represent orientation with cell-b axis
+        angle = np.degrees(np.arctan2(axes[4], axes[3])) + 180
+        length = np.linalg.norm(axes[3:5]) / np.linalg.norm(axes[3:6])
+        arrow_b = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+        # represent orientation with cell-c axis
+        angle = np.degrees(np.arctan2(axes[7], axes[6])) + 180
+        length = np.linalg.norm(axes[6:8]) / np.linalg.norm(axes[6:9])
+        arrow_c = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
         # add updated items
+        self.tem_stagectrl.gridarea.addItem(arrow_a)
+        self.tem_stagectrl.gridarea.addItem(arrow_b)
+        self.tem_stagectrl.gridarea.addItem(arrow_c)
         self.tem_stagectrl.position_list.addItem(text)
         self.tem_stagectrl.gridarea.addItem(marker)
-        self.tem_stagectrl.gridarea.addItem(arrow)
         self.tem_stagectrl.gridarea.addItem(label)
-        
         logging.info(f"Item {info_d["gui_id"]} is updated")
         info_d["status"] = 'processed'
         logging.debug(self.xtallist)

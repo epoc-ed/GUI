@@ -85,7 +85,7 @@ class ProcessedDataReceiver(QObject):
                     logging.warning(f'No data found around {search_path}')
                 else:
                     # logging.warning(json.loads(result_json))
-                    for d in json.loads(result_json)[0]:
+                    for d in json.loads(result_json):
                         if 'filename' in d: continue
                         self.parent.tem_controls.tem_action.trigger_updateitem.emit(d)
                     logging.info('Succeeded in loading session-metadata')

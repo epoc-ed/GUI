@@ -163,9 +163,9 @@ class XDSparams:
         
         for dset in master_file["entry/data"]:
             nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"][()]
-            logging.info(f" DATA_RANGE= 300 {nimages_dset}")
-            logging.info(f" BACKGROUND_RANGE= 300 {nimages_dset}")
-            logging.info(f" SPOT_RANGE= 300 {nimages_dset}")
+            logging.info(f" DATA_RANGE= 1 {nimages_dset}")
+            logging.info(f" BACKGROUND_RANGE= 1 {nimages_dset}")
+            logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
             h = master_file['entry/data/data_000001'].shape[2]
             w = master_file['entry/data/data_000001'].shape[1]
             for i in range(1):
@@ -409,13 +409,14 @@ class Hdf5MetadataUpdater:
                             self.socket.send_string("Metadata/Maskdata added successfully")
                         else:
                             self.socket.send_string("Metadata added successfully")
-                        ready_postprocess = True
+                        if rotations_angles is not None:
+                            ready_postprocess = True
                     elif isinstance(message, list) and args.json:
                         process_dir = args.path_process
                         if process_dir == '.' or not os.access(process_dir, os.W_OK):
                             process_dir = os.path.dirname(self.root_data_directory + message[-1]["filename"])
                         with open(process_dir + '/process_result.jsonl', 'a') as f:
-                            f.write(json.dumps(message) + "\n")
+                            [f.write(i + "\n") for i in json.dumps(message)]
                         self.socket.send_string("Position-info added successfully")
                     else:
                         logging.error(f"Received undefined json-data: {message}")
@@ -434,7 +435,7 @@ class Hdf5MetadataUpdater:
             beamcenter = np.array(beam_property["beamcenter"], dtype=int)                        
             # if rotations_angles is not None: # old flag for launching post-process
             with h5py.File(filename, 'r') as f:
-                if beamcenter[0]*beamcenter[1] != 1:
+                if beamcenter[0]*beamcenter[1] != 1 and not args.refinecenter:
                     beamcenter_refined = beamcenter
                 else:
                     middle_index = f["entry/data/data_000001"].shape[0] // 2
@@ -713,9 +714,10 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--path_process", type=str, default='.', help="root directory path for data-processing (.). file-writing permission is necessary.")
     parser.add_argument("-j", "--json", action="store_true", help="write a summary of postprocess as a JSON'L' file (process_result.jsonl)")
     parser.add_argument("-m", "--hotpixel_mask", type=str, default='670,670,257,314', help="hot-pixel mask area, by adding another mask-layer (670,670,257,314). deactivate with '.'")
-    parser.add_argument("-q", "--quiet", action="store_true", help="suppress outputs of external programs")
-    parser.add_argument("-v", "--version", action="store_true", help="display version information")
     parser.add_argument("-o", "--exoscillation", action="store_true", help="use measured oscillation value for postprocess")
+    parser.add_argument("-q", "--quiet", action="store_true", help="suppress outputs of external programs")
+    parser.add_argument("-r", "--refinecenter", action="store_true", help="force post-refine beamcenter position")
+    parser.add_argument("-v", "--version", action="store_true", help="display version information")
     # parser.add_argument("-f", "--formula", type=str, default='C2H5NO2', help="chemical formula for ab-initio phasing with shelxt/d")
     # parser.add_argument("-p", "--process", type=str, default='x', help="enable post-processing. 'x' for XDS, 'd' for dials, 'b' for both, and 'n' for disabling)
 
