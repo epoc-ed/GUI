@@ -84,6 +84,7 @@ class TEMAction(QObject):
         if globals.dev:
             self.tem_detector.calc_e_incoming_button.clicked.connect(self.update_ecount)
             self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snaphot)
+            self.tem_stagectrl.loadsave_button.clicked.connect(self.synchronize_xtallist)
         
         self.control.updated.connect(self.on_tem_update)
         
@@ -107,7 +108,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
-        self.tem_stagectrl.addpos_button.clicked.connect(self.add_listedposition)
+        self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
         self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
@@ -466,11 +467,21 @@ class TEMAction(QObject):
         self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
         self.xtallist.append({"gui_id": new_id, "gui_text": text, "gui_marker": marker,
-                              "gui_label": label, "position": position})
+                              "gui_label": label, "position": position, "status": status})
         logging.info(f"{new_id}: {position} is added to the list")
 
     @Slot(dict)
     def update_plotitem(self, info_d):
+        # read unmeasured data
+        if not 'spots' in info_d:
+            logging.info(f"Item {info_d["gui_id"]} is loaded")
+            position = info_d["position"]
+            marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush='red')
+            self.tem_stagectrl.position_list.addItem(info_d["gui_text"])
+            self.tem_stagectrl.gridarea.addItem(marker)
+            return
+       
+        # read measured/processed data
         if not "gui_id" in info_d:
             for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
                 info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
@@ -487,7 +498,7 @@ class TEMAction(QObject):
         axes = np.array(info_d["cell axes"], dtype=float)
         color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
         color = color_map.map(spots[0]/spots[1], mode='qcolor')
-        text = f"{info_d["dataid"]}:" + " ".join(map(str, info_d["lattice"])) + ", updated"
+        text = f"{info_d["dataid"]}:" + " ".join(map(lambda x: f"{x:.1f}", info_d["lattice"])) + ", updated"
         label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
@@ -504,6 +515,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.gridarea.addItem(label)
         
         logging.info(f"Item {info_d["gui_id"]} is updated")
+        info_d["status"] = 'processed'
         logging.debug(self.xtallist)
     
     def plot_listedposition(self, color='gray'):
@@ -604,3 +616,27 @@ class TEMAction(QObject):
         self.snapshot_image.setZValue(-2)
         # self.snapshot_image.mouseClickEvent = self.subimageMouseClickEvent
         logging.info(f'Snapshot was updated.')
+
+    def synchronize_xtallist(self):
+        if not self.dataReceiverReady:
+            logging.warning("Other inquiry runnng")
+            return
+        # load mode
+        if self.tem_stagectrl.position_list.count() == 5:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=1)
+            logging.info("Start session-metadata loading")
+        # save mode
+        elif len(self.xtallist) != 1:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=2)
+            logging.info("Start session-metadata saving")
+        else:
+            logging.warning("No data available")
+            return
+
+        self.datareceiver_thread = QThread()
+        self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
+        thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
+        self.datareceiver_thread.start()
+        self.dataReceiverReady = False
+        self.process_receiver.finished.connect(self.getdataReceiverReady)
+            
