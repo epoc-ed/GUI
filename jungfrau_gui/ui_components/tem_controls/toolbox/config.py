@@ -3,9 +3,6 @@ import logging
 import pandas as pd #how important is this?
 from importlib.resources import files
 
-
-
-
 f = files('jungfrau_gui').joinpath('ui_components/tem_controls/toolbox/jfgui2_config.json')
 parser = json.loads(f.read_text())
 
@@ -38,3 +35,4 @@ class others:
     rotation_axis_theta = 21.8 # parser['rotation_axis_theta']
     rotation_axis_theta_lm1200x = 52.86 # hopefully be replaced with values for each mag
     pixelsize = 0.075 # parser['pixelsize']
+    backlash = [100, 80, 0, 0] #x, y, z, tx [nm, deg.] undefined for z and tx

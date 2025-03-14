@@ -35,6 +35,11 @@
            "unit": "mm",
            "date_update": "03/12/2024"
          },
+         { "displayed": "20cm",
+           "calibrated": 290.0,
+           "unit": "mm",
+           "date_update": "01/01/1970"
+         },            
          { "displayed": "1cm",
            "calibrated": 1,
            "unit": "mm",
