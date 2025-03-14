@@ -82,15 +82,15 @@ class TEMAction(QObject):
         except AttributeError:
             pass
         if globals.dev:
-            self.tem_detector.calc_e_incoming_button.clicked.connect(self.update_ecount)
-            self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snaphot)
+            self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
+            self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snapshot)
         
         self.control.updated.connect(self.on_tem_update)
 
         self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, cfg_jf.others.backlash[0]))
         self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, cfg_jf.others.backlash[0]))
         self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, cfg_jf.others.backlash[3]))
-        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, cfg_jf.others.backlash[3]))
+        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, cfg_jf.others.backlash[3]))
 
         # Move X positive 10 micrometers
         #self.tem_stagectrl.movex10ump.clicked.connect(
@@ -112,14 +112,12 @@ class TEMAction(QObject):
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
-        self.tem_stagectrl.addpos_button.clicked.connect(self.add_listedposition)
+        self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
         self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
         # self.trigger_getbeamintensity.connect(self.update_ecount)
         self.trigger_updateitem.connect(self.update_plotitem)
-        ## for debug
-        # self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.update_plotitem())
 
     @Slot()
     def reconnectGaussianFit(self):
@@ -232,6 +230,7 @@ class TEMAction(QObject):
             pass
         angle_x = self.control.tem_status["stage.GetPos"][3]
         if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
+        self.control.beam_sigmaxy = [self.tem_controls.sigma_x_spBx.value(), self.tem_controls.sigma_y_spBx.value()]
         
         # 1) Live query on both the current mode and the beam blank state
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
@@ -578,7 +577,7 @@ class TEMAction(QObject):
             self.tem_detector.e_incoming_display.setText(f'N/A')
             logging.warning(e)
 
-    def take_snaphot(self):
+    def take_snapshot(self):
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             logging.warning(f'Snaphot does not support Diff-mode at the moment!')
             return
