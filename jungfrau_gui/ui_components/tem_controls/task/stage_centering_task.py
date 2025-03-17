@@ -40,7 +40,7 @@ class CenteringTask(Task):
         return rotmatrix @ vector
     
     def translationvector(self, pixels, magnification):
-        calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
+        calibrated_mag = cfg_jf.lut().calibrated_magnification(magnification[2])
         if int(magnification[0]) >= 1500 : # Mag
             logging.debug(f'Estimate with rotation')
             tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * cfg_jf.others.pixelsize * 1e3 / calibrated_mag # in um
