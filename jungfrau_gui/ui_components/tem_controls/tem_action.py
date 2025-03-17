@@ -568,6 +568,7 @@ class TEMAction(QObject):
 
     def update_ecount(self, threshold=500, bins_set=20):
         ht = self.parent.tem_controls.voltage_spBx.value()
+        threshold = threshold / 200 * ht
         pixel = cfg_jf.others.pixelsize
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
@@ -620,11 +621,12 @@ class TEMAction(QObject):
         
         tr = QTransform()
         tr.scale(cfg_jf.others.pixelsize*1e3/calibrated_mag, cfg_jf.others.pixelsize*1e3/calibrated_mag)
+        tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
         if int(magnification[0]) >= 1500 : # Mag
-            tr.rotate(180+cfg_jf.others.rotation_axis_theta)
+            # tr.rotate(180+cfg_jf.others.rotation_axis_theta)
             tr.translate(-image.shape[0]/2, -image.shape[1]/2)
         else:
-            tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
+            # tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
         self.snapshot_image.setTransform(tr)
         self.tem_stagectrl.gridarea.addItem(self.snapshot_image)

@@ -50,9 +50,10 @@ class MetadataNotifier:
         socket.setsockopt(zmq.LINGER, 0)
         socket.connect(f"tcp://{self.host}:{self.port}")
 
-        cfg_jf.lut().interpolated_distance(tem_status['eos.GetMagValue_DIFF'][2], tem_status["ht.GetHtValue"]/1e3)
+        detector_distance = cfg_jf.lut().interpolated_distance(tem_status['eos.GetMagValue_DIFF'][2], tem_status["ht.GetHtValue"]/1e3)
         aperture_size_cl = cfg_jf.lut().cl_size(tem_status['apt.GetSize(1)'])
         aperture_size_sa = cfg_jf.lut().sa_size(tem_status['apt.GetSize(1)'])
+        tem_status['rotation_axis'] = cfg_jf.lut().rotaxis_for_ht(tem_status["ht.GetHtValue"])
 
         try:
             message = {
