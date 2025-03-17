@@ -58,6 +58,7 @@ class VisualizationPanel(QGroupBox):
         self.cfg =  ConfigurationClient(redis_host(), token=auth_token())
         self.receiver_client =  None
         self.jfjoch_client = None
+        self.lut = cfg_jf.lut()
 
         # Thread pool for running check tasks in separate threads
         self.thread_pool = QThreadPool()
@@ -465,8 +466,7 @@ class VisualizationPanel(QGroupBox):
                                             th = self.thresholdBox.value(),
                                             beam_x_pxl = self.cfg.beam_center[0],
                                             beam_y_pxl = self.cfg.beam_center[1],
-                                            # detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated'), #100
-                                            detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated'), #100
+                                            detector_distance_mm = self.lut.interpolated_distance(globals.mag_value_diff[2], self.parent.tem_controls.voltage_spBx.value()),
                                             incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
                                             wait = self.wait_option.isChecked())
                     logging.warning("Live stream started successfully.")
@@ -505,8 +505,7 @@ class VisualizationPanel(QGroupBox):
                                             th = self.thresholdBox.value(),
                                             beam_x_pxl = self.cfg.beam_center[0],
                                             beam_y_pxl = self.cfg.beam_center[1],
-                                            # detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated'), #100
-                                            detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated'), #100
+                                            detector_distance_mm = self.lut.interpolated_distance(globals.mag_value_diff[2], self.parent.tem_controls.voltage_spBx.value()),
                                             incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
                                             wait = self.wait_option.isChecked())
                     self.jfj_is_collecting = True

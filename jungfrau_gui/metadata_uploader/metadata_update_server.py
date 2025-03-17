@@ -13,7 +13,7 @@ import argparse
 # from epoc import ConfigurationClient, auth_token, redis_host
 
 VERSION = "for JF_GUI/v2025.02.27 or later"
-V_DATE = "2025.03.12"
+V_DATE = "2025.03.17"
 
 class DIALSparams:
     def __init__(self, datapath, workdir, beamcenter=[515, 532]):
@@ -63,7 +63,7 @@ class XDSparams:
     def __init__(self, xdstempl):
         self.xdstempl = xdstempl
 
-    def update(self, orgx, orgy, templ, d_range, osc_range, dist, jobs='XYCORR INIT COLSPOT IDXREF', starting_angle=0):
+    def update(self, orgx, orgy, templ, d_range, osc_range, dist, jobs='XYCORR INIT COLSPOT IDXREF', starting_angle=0, axis=[0.908490,-0.417907,0.0001], ht=200):
         """
            replace parameters for ORGX/ORGY, TEMPLATE, OSCILLATION_RANGE,
            DATA_RANGE, SPOT_RANGE, BACKGROUND_RANGE, STARTING_ANGLE(?)
@@ -76,10 +76,10 @@ class XDSparams:
                 if "ORGX=" in keyw or "ORGY=" in keyw:
                     self.xdsinp.append(f" ORGX= {orgx:.1f} ORGY= {orgy:.1f}\n")
                     continue
-                # if "ROTATION_AXIS" in keyw:
-                #     axis = np.fromstring(keyw.split("=")[1].strip(), sep=" ")
-                #     axis = np.sign(osc_range) * axis
-                #     keyw = self.replace(keyw, "ROTATION_AXIS=", np.array2string(axis, separator=" ")[1:-1])
+                if "ROTATION_AXIS" in keyw:
+                    # axis = np.fromstring(keyw.split("=")[1].strip(), sep=" ")
+                    axis = np.sign(osc_range) * axis
+                    keyw = self.replace(keyw, "ROTATION_AXIS=", "  ".join(map(lambda x: str(x), axis)))
                 keyw = self.replace(keyw, "OSCILLATION_RANGE=", abs(osc_range))
                 keyw = self.replace(keyw, "DETECTOR_DISTANCE=", dist)
                 keyw = self.replace(keyw, "NAME_TEMPLATE_OF_DATA_FRAMES=", templ + '\n')
@@ -89,6 +89,8 @@ class XDSparams:
                 
                 keyw = self.replace(keyw, "JOB=", jobs)
                 keyw = self.replace(keyw, "STARTING_ANGLE=", f"{starting_angle:.2f}")
+                keyw = self.replace(keyw, "X-RAY_WAVELENGTH=", f"{eV2angstrom(ht * 1e3):.5f}")
+                keyw = self.replace(keyw, "GAIN=", f"{ht:.1f}")
 
                 self.xdsinp.append(keyw + ' ' + rem)
 
@@ -157,15 +159,15 @@ class XDSparams:
             except KeyError:
                 logging.warning(f'Measured tx_speed is missing! Instread, nominal value is referred:  {oscillation_range}')
 
-        logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
-        logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
+        # logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
+        # logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
         detector_distance = master_file['entry/instrument/detector/detector_distance'][()]
         
         for dset in master_file["entry/data"]:
             nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"][()]
-            logging.info(f" DATA_RANGE= 1 {nimages_dset}")
-            logging.info(f" BACKGROUND_RANGE= 1 {nimages_dset}")
-            logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
+            # logging.info(f" DATA_RANGE= 1 {nimages_dset}")
+            # logging.info(f" BACKGROUND_RANGE= 1 {nimages_dset}")
+            # logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
             h = master_file['entry/data/data_000001'].shape[2]
             w = master_file['entry/data/data_000001'].shape[1]
             for i in range(1):
@@ -174,7 +176,11 @@ class XDSparams:
                 org_x, org_y = beamcenter[0], beamcenter[1]
             break
 
-        self.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range, detector_distance, starting_angle=master_file['entry/instrument/stage/stage_tx_start'][()])
+        self.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range, detector_distance, 
+                        starting_angle=master_file['entry/instrument/stage/stage_tx_start'][()],
+                        axis=master_file['entry/instrument/stage/stage_tx_axis'][()], 
+                        ht=master_file['entry/instrument/optics/accelerationVoltage'][()], 
+                   )
         self.xdswrite(filepath=xds_filepath)    
 
 class CustomFormatter(logging.Formatter):
@@ -583,6 +589,7 @@ class Hdf5MetadataUpdater:
                     rotation_speed_idx = tem_status['stage.Getf1OverRateTxNum']
                     create_or_update_dataset('entry/instrument/stage/stage_tx_speed_ID', data = rotation_speed_idx, dtype='float')
                     create_or_update_dataset('entry/instrument/stage/velocity_data_collection', data = stage_rates[rotation_speed_idx], dtype='float') # definition of axis is missing in the tag name 
+                    create_or_update_dataset('entry/instrument/stage/stage_tx_axis', data = tem_status['rotation_axis'], dtype='float')
                     if rotations_angles is not None:
                         create_or_update_dataset('entry/instrument/stage/stage_tx_start', data = rotations_angles[0][1], dtype='float')
                         create_or_update_dataset('entry/instrument/stage/stage_tx_end', data = rotations_angles[-1][1], dtype='float')

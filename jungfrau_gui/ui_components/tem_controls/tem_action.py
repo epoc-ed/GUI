@@ -56,6 +56,7 @@ class TEMAction(QObject):
         
         # Initialization
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.lut = cfg_jf.lut()
         for shape in self.cfg.overlays:
             if shape['type'] == 'rectangle':
                 self.lowmag_jump = shape['xy'][0]+shape['width']//2, shape['xy'][1]+shape['height']//2
@@ -309,12 +310,12 @@ class TEMAction(QObject):
         if self.tem_detector.scale_checkbox.isChecked():
             if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
                 detector_distance = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                detector_distance = cfg_jf.lookup(cfg_jf.lut.distance, detector_distance, 'displayed', 'calibrated')
+                detector_distance = self.lut.interpolated_distance(detector_distance, self.parent.tem_controls.voltage_spBx.value())
                 radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=ht)
                 self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
             else:
                 magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
+                magnification = self.lut.calibrated_magnification(magnification)
                 scale_in_px = l_draw * 1e-3 * magnification / pixel
                 self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
             self.scale.setPen(pg.mkPen('w', width=2))
@@ -567,6 +568,7 @@ class TEMAction(QObject):
 
     def update_ecount(self, threshold=500, bins_set=20):
         ht = self.parent.tem_controls.voltage_spBx.value()
+        threshold = threshold / 200 * ht
         pixel = cfg_jf.others.pixelsize
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
@@ -592,7 +594,7 @@ class TEMAction(QObject):
             e_per_A2 = approximate_average_count / ht * frame / ((pixel*1e7)**2) # per sec
             self.control.beam_intensity["pa_per_cm2"] = 1/6.241*e_per_A2*1e10 # per sec
             magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-            magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
+            magnification = self.lut.calibrated_magnification(magnification)
             self.control.beam_intensity["e_per_A2_sample"] = e_per_A2 * magnification**2
             self.tem_detector.e_incoming_display.setText(f'{self.control.beam_intensity["pa_per_cm2"]:.2f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.2f} e/A2/s')
             logging.info(f'{self.control.beam_intensity["pa_per_cm2"]:.4f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.4f} e/A2/s')
@@ -607,7 +609,7 @@ class TEMAction(QObject):
         if self.snapshot_image is not None:
             self.tem_stagectrl.gridarea.removeItem(self.snapshot_image)
         magnification = self.control.tem_status["eos.GetMagValue"] ## with unit
-        calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
+        calibrated_mag = self.lut.calibrated_magnification(magnification[2])
         position = self.control.client.GetStagePosition()
 
         image = np.copy(self.parent.imageItem.image)
@@ -619,11 +621,12 @@ class TEMAction(QObject):
         
         tr = QTransform()
         tr.scale(cfg_jf.others.pixelsize*1e3/calibrated_mag, cfg_jf.others.pixelsize*1e3/calibrated_mag)
+        tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
         if int(magnification[0]) >= 1500 : # Mag
-            tr.rotate(180+cfg_jf.others.rotation_axis_theta)
+            # tr.rotate(180+cfg_jf.others.rotation_axis_theta)
             tr.translate(-image.shape[0]/2, -image.shape[1]/2)
         else:
-            tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
+            # tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
         self.snapshot_image.setTransform(tr)
         self.tem_stagectrl.gridarea.addItem(self.snapshot_image)
