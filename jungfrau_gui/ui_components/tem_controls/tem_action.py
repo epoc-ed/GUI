@@ -23,7 +23,7 @@ from jungfrau_gui import globals
 
 class CenterArrowItem(pg.ArrowItem):
     def paint(self, p, *args):
-        p.translate(-self.boundingRect().center())
+        p.translate(-self.boundingRect().center()*2)
         pg.ArrowItem.paint(self, p, *args)
 
 class TEMAction(QObject):
@@ -85,6 +85,7 @@ class TEMAction(QObject):
         if globals.dev:
             self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
             self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snapshot)
+            self.tem_stagectrl.loadsave_button.clicked.connect(self.synchronize_xtallist)
         
         self.control.updated.connect(self.on_tem_update)
 
@@ -471,11 +472,21 @@ class TEMAction(QObject):
         self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
         self.xtallist.append({"gui_id": new_id, "gui_text": text, "gui_marker": marker,
-                              "gui_label": label, "position": position})
+                              "gui_label": label, "position": position, "status": status})
         logging.info(f"{new_id}: {position} is added to the list")
 
     @Slot(dict)
     def update_plotitem(self, info_d):
+        # read unmeasured data
+        if not 'spots' in info_d:
+            logging.info(f"Item {info_d["gui_id"]} is loaded")
+            position = info_d["position"]
+            marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush='red')
+            self.tem_stagectrl.position_list.addItem(info_d["gui_text"])
+            self.tem_stagectrl.gridarea.addItem(marker)
+            return
+       
+        # read measured/processed data
         if not "gui_id" in info_d:
             for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
                 info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
@@ -492,23 +503,35 @@ class TEMAction(QObject):
         axes = np.array(info_d["cell axes"], dtype=float)
         color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
         color = color_map.map(spots[0]/spots[1], mode='qcolor')
-        text = f"{info_d["dataid"]}:" + " ".join(map(str, info_d["lattice"])) + ", updated"
+        text = f"{info_d["dataid"]}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
         label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
         marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
         # represent orientation with cell-a axis, usually shortest
         angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
-        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])        
-        arrow = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
-                             headLen=20*length, tailLen=20*length, tailWidth=4*length, brush=color)
+        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])
+        arrow_a = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+        # represent orientation with cell-b axis
+        angle = np.degrees(np.arctan2(axes[4], axes[3])) + 180
+        length = np.linalg.norm(axes[3:5]) / np.linalg.norm(axes[3:6])
+        arrow_b = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+        # represent orientation with cell-c axis
+        angle = np.degrees(np.arctan2(axes[7], axes[6])) + 180
+        length = np.linalg.norm(axes[6:8]) / np.linalg.norm(axes[6:9])
+        arrow_c = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
         # add updated items
+        self.tem_stagectrl.gridarea.addItem(arrow_a)
+        self.tem_stagectrl.gridarea.addItem(arrow_b)
+        self.tem_stagectrl.gridarea.addItem(arrow_c)
         self.tem_stagectrl.position_list.addItem(text)
         self.tem_stagectrl.gridarea.addItem(marker)
-        self.tem_stagectrl.gridarea.addItem(arrow)
         self.tem_stagectrl.gridarea.addItem(label)
-        
         logging.info(f"Item {info_d["gui_id"]} is updated")
+        info_d["status"] = 'processed'
         logging.debug(self.xtallist)
     
     def plot_listedposition(self, color='gray'):
@@ -609,3 +632,26 @@ class TEMAction(QObject):
         self.snapshot_image.setZValue(-2)
         # self.snapshot_image.mouseClickEvent = self.subimageMouseClickEvent
         logging.info(f'Snapshot was updated.')
+
+    def synchronize_xtallist(self):
+        if not self.dataReceiverReady:
+            logging.warning("Other inquiry runnng")
+            return
+        # load mode
+        if self.tem_stagectrl.position_list.count() == 5:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=1)
+            logging.info("Start session-metadata loading")
+        # save mode
+        elif len(self.xtallist) != 1:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=2)
+            logging.info("Start session-metadata saving")
+        else:
+            logging.warning("No data available")
+            return
+
+        self.datareceiver_thread = QThread()
+        self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
+        thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
+        self.datareceiver_thread.start()
+        self.dataReceiverReady = False
+        self.process_receiver.finished.connect(self.getdataReceiverReady)

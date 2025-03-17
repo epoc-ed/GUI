@@ -545,4 +545,6 @@ class ControlWorker(QObject):
                 logging.warning(f"Undefined moverid {moverid}")
                 return
 
+        if moverid < 2:
+            logging.info(f"Moved stage {value*scale/1e3:.1f} um in X-direction")
         logging.debug(f"xyz1, dxyz1 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")
