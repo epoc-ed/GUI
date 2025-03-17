@@ -30,7 +30,7 @@ class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
-    trigger_additem = Signal(str, str)
+    trigger_additem = Signal(str, str, list)
     trigger_getbeamintensity = Signal()
     trigger_updateitem = Signal(dict)
     trigger_processed_receiver = Signal()
@@ -63,7 +63,7 @@ class TEMAction(QObject):
 
         self.scale = None
         self.marker = None
-        self.snapshot_image = None
+        self.snapshot_images = []
         self.cfg.beam_center = [1, 1] # Flag for non-updated metadata
         self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
         
@@ -83,7 +83,7 @@ class TEMAction(QObject):
             pass
         if globals.dev:
             self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
-            self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snapshot)
+            self.tem_stagectrl.mapsnapshot_button.clicked.connect(lambda: self.take_snapshot())
         
         self.control.updated.connect(self.on_tem_update)
 
@@ -405,18 +405,9 @@ class TEMAction(QObject):
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             logging.warning('Centering should not be performed in Diff-MAG mode.')
             return
-        im = self.parent.imageItem.image
         pos = event.pos()
-        i, j = pos.y(), pos.x()
-        i = int(np.clip(i, 0, im.shape[0] - 1))
-        j = int(np.clip(j, 0, im.shape[1] - 1))
-        val = im[i, j]
         ppos = self.parent.imageItem.mapToParent(pos)
         x, y = ppos.x(), ppos.y()
-        # if self.tem_action.tem_tasks.centering_checkbox.isChecked():
-        #     self.plot.removeItem(self.roi)
-        # else:
-        #     self.plot.addItem(self.roi)
         logging.debug(f"{x:0.1f}, {y:0.1f}")
         self.control.trigger_centering.emit(True, f"{x:0.1f}, {y:0.1f}")
             
@@ -435,31 +426,45 @@ class TEMAction(QObject):
             self.control.set_sweeper_to_off_state()
 
     def go_listedposition(self):
-        try:
-            # position = self.control.client.GetStagePosition() # in nm
-            position = send_with_retries(self.control.client.GetStagePosition)
-        except Exception as e:
-            logging.error(f"Error: {e}")
+        # try:
+        #     position = send_with_retries(self.control.client.GetStagePosition)
+        # except Exception as e:
+        #     logging.error(f"Error: {e}")
+        #     return
+        position = self.control.tem_status["stage.GetPos"] # in nm
+        guiid_selected = self.tem_stagectrl.position_list.currentIndex() - 5
+        if guiid_selected < 1:
+            position_aim = np.array((cfg_jf.lut.positions[5+guiid_selected]['xyz']), dtype=float) *1e3
+        else:
+            xtalinfo_selected = next((d for d in self.xtallist if d.get("gui_id") == 2), None)
+            if xtalinfo_selected is None:
+                logging.warning(f"Item ID missing...")
+                return
+            position_aim = xtalinfo_selected['position']
+        dif_pos = [position_aim[0] - position[0], position_aim[1] - position[1]]
+        distance = np.linalg.norm(np.array(dif_pos))
+        if distance > 1e6:
+            logging.warning(f"Vector too large! {distance/1e3:.1f} um")
             return
-        position_aim = np.array(self.tem_stagectrl.position_list.currentText().split()[1:-2], dtype=float) # in um
-        dif_pos = position_aim[0]*1e3 - position[0], position_aim[1]*1e3 - position[1]
         try:
-            self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1]) # lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
-            time.sleep(2) # should be updated with referring stage status!!
+            self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1])
+            # time.sleep(distance/1e5) # assumes speed of movement as > 100 um/s, should be updated with referring stage status!!
+            logging.info(f"Moved from x:{position[0]*1e-3:6.2f} um, y:{position[1]*1e-3:6.2f} um")            
             logging.info(f"Moved by x:{dif_pos[0]*1e-3:6.2f} um, y:{dif_pos[1]*1e-3:6.2f} um")
-            logging.info(f"Aim position was x:{position_aim[0]:3.2f} um, y:{position_aim[1]:3.2f} um")
+            logging.info(f"Aimed position was x:{position_aim[0]*1e-3:3.2f} um, y:{position_aim[1]*1e-3:3.2f} um")
         except RuntimeError:
             logging.warning('To set position, use specific version of tem_server.py!')
             self.tem_stagectrl.go_button.setEnabled(False)
 
-    @Slot(str, str)
-    def add_listedposition(self, color='red', status='new'):
-        try:
-            # position = self.control.client.GetStagePosition()
-            position = send_with_retries(self.control.client.GetStagePosition)
-        except Exception as e:
-            logging.error(f"Error: {e}")
-            return
+    @Slot(str, str, list)
+    def add_listedposition(self, color='red', status='new', position=None):
+        if position is None:
+            try:
+                # position = self.control.client.GetStagePosition()
+                position = send_with_retries(self.control.client.GetStagePosition)
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                return
         new_id = self.tem_stagectrl.position_list.count() - 4
         text = f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"
         marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
@@ -577,34 +582,101 @@ class TEMAction(QObject):
             self.tem_detector.e_incoming_display.setText(f'N/A')
             logging.warning(e)
 
-    def take_snapshot(self):
+    def take_snapshot(self, max_list=10): # 10
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             logging.warning(f'Snaphot does not support Diff-mode at the moment!')
             return
-        if self.snapshot_image is not None:
-            self.tem_stagectrl.gridarea.removeItem(self.snapshot_image)
+        if len(self.snapshot_images) > max_list:
+            self.tem_stagectrl.gridarea.removeItem(self.snapshot_images[0])
+            self.snapshot_images.pop(0)
+            logging.info(f'Oldest snapshot item was removed.')
+            
         magnification = self.control.tem_status["eos.GetMagValue"] ## with unit
         calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
         position = self.control.client.GetStagePosition()
+        beam_blank_state = self.control.client.GetBeamBlank()
 
+        # if beam_blank_state == 1: # limited illumination mode; not ready
+        #     image = np.copy(self.parent.imageItem.image)
+        #     self.control.client.SetBeamBlank(0)
+        #     self.control.tem_status["defl.GetBeamBlank"] = 0
+        #     QTimer.singleShot(500, self.toggle_blank)
+        #     while self.control.tem_status["defl.GetBeamBlank"] == 0:
+        #         image += np.copy(self.parent.imageItem.image)
+        # else:
+        #     image = np.copy(self.parent.imageItem.image)
         image = np.copy(self.parent.imageItem.image)
 
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
         low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
-#        self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh)*0+1000*random.random())
-        self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh))
+
+        # enhanced contrast
+        margin = 0.4
+        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > low_thresh))]
+        uniqs, counts = np.unique(data_sampled//10, return_counts=True)
+        approximate_average_count = uniqs[np.argmax(counts)].max() * 10
+        low_thresh, high_thresh = approximate_average_count*(1-margin), approximate_average_count*(1+margin)
+        logging.info(f"Snapshot displayed in enhanced contrast ({low_thresh}-{high_thresh})")
+        # downsizing
+        snapshot_image = pg.ImageItem(np.clip((np.nan_to_num(image) - low_thresh) / (high_thresh - low_thresh) * 255, 0, 255).astype(np.uint8))
         
         tr = QTransform()
-        tr.scale(cfg_jf.others.pixelsize*1e3/calibrated_mag, cfg_jf.others.pixelsize*1e3/calibrated_mag)
+        scale = cfg_jf.others.pixelsize*1e3/calibrated_mag
+        tr.scale(scale, scale)
         if int(magnification[0]) >= 1500 : # Mag
             tr.rotate(180+cfg_jf.others.rotation_axis_theta)
             tr.translate(-image.shape[0]/2, -image.shape[1]/2)
         else:
             tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
-        self.snapshot_image.setTransform(tr)
-        self.tem_stagectrl.gridarea.addItem(self.snapshot_image)
-        self.snapshot_image.setPos(position[0]*1e-3, position[1]*1e-3)
-        self.snapshot_image.setZValue(-2)
-        # self.snapshot_image.mouseClickEvent = self.subimageMouseClickEvent
-        logging.info(f'Snapshot was updated.')
+        snapshot_image.setTransform(tr)
+        self.tem_stagectrl.gridarea.addItem(snapshot_image)
+        snapshot_image.setPos(position[0]*1e-3, position[1]*1e-3)
+        snapshot_image.setZValue(-2)
+        view = self.tem_stagectrl.gridarea.getViewBox()
+        aspect_ratio = view.size().width()/view.size().height()
+        y_range = position[1]*1e-3 - scale*image.shape[1]/2, position[1]*1e-3 + scale*image.shape[1]/2
+        x_range = position[0]*1e-3 - scale*image.shape[1]/2*aspect_ratio, position[0]*1e-3 + scale*image.shape[1]/2*aspect_ratio
+        view.setRange(xRange=x_range, yRange=y_range)
+        self.snapshot_images.append(snapshot_image)
+        if globals.dev:
+            self.snapshot_images[-1].mouseClickEvent = self.subimageMouseClickEvent
+        # self.add_listedposition(color='red', status='new', position=position)
+        # self.xtallist[-1]["snapshot"] = self.snapshot_image # copy will not work!!
+        # self.xtallist[-1]["magnification"] = calibrated_mag
+        logging.info(f'Snapshots were updated. Nsnapshots: {len(self.snapshot_images)}')
+
+    def subimageMouseClickEvent(self, event):
+        if event.buttons() != Qt.LeftButton:
+            logging.warning('Snapshot is not ready.')
+            return
+        if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_checkbox.isChecked():
+            logging.warning('Centring is not ready.')
+            return
+        if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
+            logging.info('Centring should not be performed in Diff-MAG mode.')
+            return
+        position = self.control.tem_status["stage.GetPos"]
+        if np.abs(position[4]) > 1:
+            logging.info('Click-on-move for tilted-stage is not ready.')
+            return
+        pos = event.pos()
+        ppos = self.snapshot_images[-1].mapToParent(pos)
+        x, y = ppos.x(), ppos.y()
+        logging.debug(f"{x:0.1f}, {y:0.1f}") # identical to the TEM-stage-position in um
+        dx, dy = x*1e3 - position[0], y*1e3 - position[1]
+        if np.abs(dx) > 3e5 or np.abs(dy) > 3e5:
+            logging.info("Large movement (> 300 um) is not yet permitted for safety.")
+            return
+
+        if dx >= 0:
+            self.control.trigger_movewithbacklash.emit(0, dx, cfg_jf.others.backlash[0])
+        else:
+            self.control.trigger_movewithbacklash.emit(1, dx, cfg_jf.others.backlash[0])
+        time.sleep(np.abs(dx)/5e4) # assumes speed of movement as > 50 um/s
+        if dy >= 0:
+            self.control.trigger_movewithbacklash.emit(2, dy, cfg_jf.others.backlash[1])
+        else:
+            self.control.trigger_movewithbacklash.emit(3, dy, cfg_jf.others.backlash[1])
+
+        logging.info(f'Move X: {dx/1e3:.1f} um,  Y: {dy/1e3:.1f} um')
