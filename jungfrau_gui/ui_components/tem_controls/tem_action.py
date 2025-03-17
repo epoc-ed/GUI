@@ -23,7 +23,7 @@ from jungfrau_gui import globals
 
 class CenterArrowItem(pg.ArrowItem):
     def paint(self, p, *args):
-        p.translate(-self.boundingRect().center())
+        p.translate(-self.boundingRect().center()*2)
         pg.ArrowItem.paint(self, p, *args)
 
 class TEMAction(QObject):
@@ -56,6 +56,7 @@ class TEMAction(QObject):
         
         # Initialization
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.lut = cfg_jf.lut()
         for shape in self.cfg.overlays:
             if shape['type'] == 'rectangle':
                 self.lowmag_jump = shape['xy'][0]+shape['width']//2, shape['xy'][1]+shape['height']//2
@@ -84,6 +85,7 @@ class TEMAction(QObject):
         if globals.dev:
             self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
             self.tem_stagectrl.mapsnapshot_button.clicked.connect(lambda: self.take_snapshot())
+            self.tem_stagectrl.loadsave_button.clicked.connect(self.synchronize_xtallist)
         
         self.control.updated.connect(self.on_tem_update)
 
@@ -308,12 +310,12 @@ class TEMAction(QObject):
         if self.tem_detector.scale_checkbox.isChecked():
             if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
                 detector_distance = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                detector_distance = cfg_jf.lookup(cfg_jf.lut.distance, detector_distance, 'displayed', 'calibrated')
+                detector_distance = self.lut.interpolated_distance(detector_distance, self.parent.tem_controls.voltage_spBx.value())
                 radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=ht)
                 self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
             else:
                 magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
+                magnification = self.lut.calibrated_magnification(magnification)
                 scale_in_px = l_draw * 1e-3 * magnification / pixel
                 self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
             self.scale.setPen(pg.mkPen('w', width=2))
@@ -475,11 +477,21 @@ class TEMAction(QObject):
         self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
         self.xtallist.append({"gui_id": new_id, "gui_text": text, "gui_marker": marker,
-                              "gui_label": label, "position": position})
+                              "gui_label": label, "position": position, "status": status})
         logging.info(f"{new_id}: {position} is added to the list")
 
     @Slot(dict)
     def update_plotitem(self, info_d):
+        # read unmeasured data
+        if not 'spots' in info_d:
+            logging.info(f"Item {info_d["gui_id"]} is loaded")
+            position = info_d["position"]
+            marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush='red')
+            self.tem_stagectrl.position_list.addItem(info_d["gui_text"])
+            self.tem_stagectrl.gridarea.addItem(marker)
+            return
+       
+        # read measured/processed data
         if not "gui_id" in info_d:
             for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
                 info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
@@ -496,23 +508,35 @@ class TEMAction(QObject):
         axes = np.array(info_d["cell axes"], dtype=float)
         color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
         color = color_map.map(spots[0]/spots[1], mode='qcolor')
-        text = f"{info_d["dataid"]}:" + " ".join(map(str, info_d["lattice"])) + ", updated"
+        text = f"{info_d["dataid"]}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
         label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
         marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
         # represent orientation with cell-a axis, usually shortest
         angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
-        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])        
-        arrow = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
-                             headLen=20*length, tailLen=20*length, tailWidth=4*length, brush=color)
+        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])
+        arrow_a = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+        # represent orientation with cell-b axis
+        angle = np.degrees(np.arctan2(axes[4], axes[3])) + 180
+        length = np.linalg.norm(axes[3:5]) / np.linalg.norm(axes[3:6])
+        arrow_b = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+        # represent orientation with cell-c axis
+        angle = np.degrees(np.arctan2(axes[7], axes[6])) + 180
+        length = np.linalg.norm(axes[6:8]) / np.linalg.norm(axes[6:9])
+        arrow_c = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
         # add updated items
+        self.tem_stagectrl.gridarea.addItem(arrow_a)
+        self.tem_stagectrl.gridarea.addItem(arrow_b)
+        self.tem_stagectrl.gridarea.addItem(arrow_c)
         self.tem_stagectrl.position_list.addItem(text)
         self.tem_stagectrl.gridarea.addItem(marker)
-        self.tem_stagectrl.gridarea.addItem(arrow)
         self.tem_stagectrl.gridarea.addItem(label)
-        
         logging.info(f"Item {info_d["gui_id"]} is updated")
+        info_d["status"] = 'processed'
         logging.debug(self.xtallist)
     
     def plot_listedposition(self, color='gray'):
@@ -549,6 +573,7 @@ class TEMAction(QObject):
 
     def update_ecount(self, threshold=500, bins_set=20):
         ht = self.parent.tem_controls.voltage_spBx.value()
+        threshold = threshold / 200 * ht
         pixel = cfg_jf.others.pixelsize
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
@@ -574,7 +599,7 @@ class TEMAction(QObject):
             e_per_A2 = approximate_average_count / ht * frame / ((pixel*1e7)**2) # per sec
             self.control.beam_intensity["pa_per_cm2"] = 1/6.241*e_per_A2*1e10 # per sec
             magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-            magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
+            magnification = self.lut.calibrated_magnification(magnification)
             self.control.beam_intensity["e_per_A2_sample"] = e_per_A2 * magnification**2
             self.tem_detector.e_incoming_display.setText(f'{self.control.beam_intensity["pa_per_cm2"]:.2f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.2f} e/A2/s')
             logging.info(f'{self.control.beam_intensity["pa_per_cm2"]:.4f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.4f} e/A2/s')
@@ -582,7 +607,7 @@ class TEMAction(QObject):
             self.tem_detector.e_incoming_display.setText(f'N/A')
             logging.warning(e)
 
-    def take_snapshot(self, max_list=10): # 10
+    def take_snapshot(self, max_list=10):
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             logging.warning(f'Snaphot does not support Diff-mode at the moment!')
             return
@@ -592,7 +617,7 @@ class TEMAction(QObject):
             logging.info(f'Oldest snapshot item was removed.')
             
         magnification = self.control.tem_status["eos.GetMagValue"] ## with unit
-        calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
+        calibrated_mag = self.lut.calibrated_magnification(magnification[2])
         position = self.control.client.GetStagePosition()
         beam_blank_state = self.control.client.GetBeamBlank()
 
@@ -623,11 +648,12 @@ class TEMAction(QObject):
         tr = QTransform()
         scale = cfg_jf.others.pixelsize*1e3/calibrated_mag
         tr.scale(scale, scale)
+        tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
         if int(magnification[0]) >= 1500 : # Mag
-            tr.rotate(180+cfg_jf.others.rotation_axis_theta)
+            # tr.rotate(180+cfg_jf.others.rotation_axis_theta)
             tr.translate(-image.shape[0]/2, -image.shape[1]/2)
         else:
-            tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
+            # tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
         snapshot_image.setTransform(tr)
         self.tem_stagectrl.gridarea.addItem(snapshot_image)
@@ -644,7 +670,7 @@ class TEMAction(QObject):
         # self.add_listedposition(color='red', status='new', position=position)
         # self.xtallist[-1]["snapshot"] = self.snapshot_image # copy will not work!!
         # self.xtallist[-1]["magnification"] = calibrated_mag
-        logging.info(f'Snapshots were updated. Nsnapshots: {len(self.snapshot_images)}')
+        logging.info(f'Snapshots were updated.')
 
     def subimageMouseClickEvent(self, event):
         if event.buttons() != Qt.LeftButton:
@@ -680,3 +706,26 @@ class TEMAction(QObject):
             self.control.trigger_movewithbacklash.emit(3, dy, cfg_jf.others.backlash[1])
 
         logging.info(f'Move X: {dx/1e3:.1f} um,  Y: {dy/1e3:.1f} um')
+
+    def synchronize_xtallist(self):
+        if not self.dataReceiverReady:
+            logging.warning("Other inquiry runnng")
+            return
+        # load mode
+        if self.tem_stagectrl.position_list.count() == 5:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=1)
+            logging.info("Start session-metadata loading")
+        # save mode
+        elif len(self.xtallist) != 1:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=2)
+            logging.info("Start session-metadata saving")
+        else:
+            logging.warning("No data available")
+            return
+
+        self.datareceiver_thread = QThread()
+        self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
+        thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
+        self.datareceiver_thread.start()
+        self.dataReceiverReady = False
+        self.process_receiver.finished.connect(self.getdataReceiverReady)

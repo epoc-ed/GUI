@@ -34,6 +34,7 @@ class XtalInfo(QGroupBox):
                 "filepath": None,
                 "processor": None,
                 "position": [0, 0, 0, 0, 0], #x,y,z,tx,ty
+                "status": "dummy",
                 "lattice": [10, 10, 10, 90, 90, 90],
                 "spots": [5, 10],
                 "cell axes": [1,0,0, 0,1,0, 0,0,1],
