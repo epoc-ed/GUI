@@ -13,7 +13,7 @@ import argparse
 # from epoc import ConfigurationClient, auth_token, redis_host
 
 VERSION = "for JF_GUI/v2025.02.27 or later"
-V_DATE = "2025.03.10"
+V_DATE = "2025.03.12"
 
 class DIALSparams:
     def __init__(self, datapath, workdir, beamcenter=[515, 532]):
@@ -146,7 +146,7 @@ class XDSparams:
         # return results_describe
         return results
     
-    def make_xds_file(self, master_filepath, xds_filepath, beamcenter=[515, 532], osc_measured=True):
+    def make_xds_file(self, master_filepath, xds_filepath, beamcenter=[515, 532], osc_measured=False):
         master_file = h5py.File(master_filepath, 'r')
         template_filepath = master_filepath[:-9] + "??????.h5" # master_filepath.replace('master', '??????')
         frame_time = master_file['entry/instrument/detector/frame_time'][()]
@@ -155,7 +155,7 @@ class XDSparams:
             try:
                 oscillation_range = np.round(frame_time * master_file['entry/instrument/stage/stage_tx_speed_measured'][()], 5)
             except KeyError:
-                logging.warning(f'Measured tx_speed is missing! Nominal value is referred instead {oscillation_range}')
+                logging.warning(f'Measured tx_speed is missing! Instread, nominal value is referred:  {oscillation_range}')
 
         logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
         logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
@@ -163,9 +163,9 @@ class XDSparams:
         
         for dset in master_file["entry/data"]:
             nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"][()]
-            logging.info(f" DATA_RANGE= 300 {nimages_dset}")
-            logging.info(f" BACKGROUND_RANGE= 300 {nimages_dset}")
-            logging.info(f" SPOT_RANGE= 300 {nimages_dset}")
+            logging.info(f" DATA_RANGE= 1 {nimages_dset}")
+            logging.info(f" BACKGROUND_RANGE= 1 {nimages_dset}")
+            logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
             h = master_file['entry/data/data_000001'].shape[2]
             w = master_file['entry/data/data_000001'].shape[1]
             for i in range(1):
@@ -362,6 +362,7 @@ class Hdf5MetadataUpdater:
         logging.info("Server started, waiting for metadata update requests...")
         logging.info(f"Args: {args}")
         while True:
+            ready_postprocess = False
             try:
                 message_raw = self.socket.recv_string()
                 if args.feedback and 'Results being inquired...' in message_raw:
@@ -372,73 +373,54 @@ class Hdf5MetadataUpdater:
                         logging.info("Sending results to GUI...")
                         self.socket.send_string(json.dumps(self.results))
                         self.results = None
+                elif args.feedback and 'Session-metadata being inquired...' in message_raw:
+                    print(message_raw)
+                    search_dir = os.path.dirname(self.root_data_directory + message_raw.split()[-1])
+                    if not os.path.exists(search_dir + '/process_result.jsonl'):
+                        logging.info(f"Previous session-data does not exist in {search_dir}")
+                        self.socket.send_string('Previous session-data not found')
+                    else:
+                        with open(search_dir + '/process_result.jsonl', 'r') as f:
+                            prev_data = [json.loads(line) for line in f]
+                        logging.info("Sending Previous session-data...")
+                        self.socket.send_string(json.dumps(prev_data))
                 else:
                     message = json.loads(message_raw)
-                    filename = self.root_data_directory + message["filename"]
-                    # beamcenter = np.array(message["beamcenter"], dtype=int)
-                    beam_property = message["beam_property"]                    
-                    rotations_angles=message["rotations_angles"]
-                    self.addinfo_to_hdf(
-                        filename=filename,
-                        tem_status=message["tem_status"],
-                        # beamcenter=beamcenter,
-                        beam_property = beam_property,
-                        detector_distance=message["detector_distance"],
-                        aperture_size_cl=message["aperture_size_cl"],
-                        aperture_size_sa=message["aperture_size_sa"],
-                        rotations_angles=rotations_angles,
-                        jf_threshold=message["jf_threshold"],
-                        jf_gui_tag=message["jf_gui_tag"],
-                        commit_hash=message["commit_hash"],
-                    )
-                    if len(args.hotpixel_mask.split(sep=',')) != 4:
-                        self.addusermask_to_hdf(filename)
-                        self.socket.send_string("Metadata/Maskdata added successfully")
-                    else:
-                        self.socket.send_string("Metadata added successfully")
-                        
-                    beamcenter = np.array(beam_property["beamcenter"], dtype=int)                        
-                    
-                    if rotations_angles is not None:
-                        with h5py.File(filename, 'r') as f:
-                            if beamcenter[0]*beamcenter[1] != 1:
-                                beamcenter_refined = beamcenter
-                            else:
-                                middle_index = f["entry/data/data_000001"].shape[0] // 2
-                                img = f['entry/data/data_000001'][middle_index] 
-                                beamcenter_pre = getcenter(img,
-                                                           center=(515, 532),
-                                                           area=100,
-                                                           bin_factor=4,
-                                                           return_all_maxima=False)
-                                
-                                beamcenter_refined = getcenter(img,
-                                                               center=beamcenter_pre,
-                                                               area=20,
-                                                               bin_factor=1,
-                                                               return_all_maxima=False)
-                                
-                                logging.info(f"Refined beam center: X = {beamcenter_refined[0]:d}; Y = {beamcenter_refined[1]:d}")
-                        # self.socket.send_string(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
-    
-                        dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
-                        logging.info(f'Subdirname: {os.path.dirname(filename)}/XDS/{dataid}')
-
+                    if 'tem_status' in message:
+                        filename = self.root_data_directory + message["filename"]
+                        # beamcenter = np.array(message["beamcenter"], dtype=int)
+                        beam_property = message["beam_property"]                    
+                        rotations_angles=message["rotations_angles"]
+                        self.addinfo_to_hdf(
+                            filename=filename,
+                            tem_status=message["tem_status"],
+                            # beamcenter=beamcenter,
+                            beam_property = beam_property,
+                            detector_distance=message["detector_distance"],
+                            aperture_size_cl=message["aperture_size_cl"],
+                            aperture_size_sa=message["aperture_size_sa"],
+                            rotations_angles=rotations_angles,
+                            jf_threshold=message["jf_threshold"],
+                            jf_gui_tag=message["jf_gui_tag"],
+                            commit_hash=message["commit_hash"],
+                        )
+                        if len(args.hotpixel_mask.split(sep=',')) != 4:
+                            self.addusermask_to_hdf(filename)
+                            self.socket.send_string("Metadata/Maskdata added successfully")
+                        else:
+                            self.socket.send_string("Metadata added successfully")
+                        if rotations_angles is not None:
+                            ready_postprocess = True
+                    elif isinstance(message, list) and args.json:
                         process_dir = args.path_process
                         if process_dir == '.' or not os.access(process_dir, os.W_OK):
-                            process_dir = os.path.dirname(filename)
-                        xds_thread = threading.Thread(target=self.run_xds, 
-                                                      args=(filename, 
-                                            process_dir + '/XDS/' + dataid,
-                                            '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
-                                            '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
-                                            beamcenter_refined, args.quiet, ), daemon=True)
-                        xds_thread.start()
-                        # dials_thread = threading.Thread(target=self.run_dials, 
-                        #                                 args=(filename, 
-                        #                     os.path.dirname(filename) + '/DIALS/' + dataid,
-                        #                     beamcenter_refined, args.quiet, ), daemon=True)
-                        # dials_thread.start()
+                            process_dir = os.path.dirname(self.root_data_directory + message[-1]["filename"])
+                        with open(process_dir + '/process_result.jsonl', 'a') as f:
+                            [f.write(i + "\n") for i in json.dumps(message)]
+                        self.socket.send_string("Position-info added successfully")
+                    else:
+                        logging.error(f"Received undefined json-data: {message}")
+                        logging.error(f"Otherwise, Json-writing option ('-j') is missing")
             except zmq.ZMQError as e:
                 logging.error(f"Error while receiving request: {e}")
                 self.error_retry -= 1
@@ -447,6 +429,50 @@ class Hdf5MetadataUpdater:
             except Exception as e:
                 logging.error(f"Error while receiving/processing request: {e}", exc_info=True)
             #     break
+
+            if not ready_postprocess: continue
+
+            beamcenter = np.array(beam_property["beamcenter"], dtype=int)                        
+            # if rotations_angles is not None: # old flag for launching post-process
+            with h5py.File(filename, 'r') as f:
+                if beamcenter[0]*beamcenter[1] != 1 and not args.refinecenter:
+                    beamcenter_refined = beamcenter
+                else:
+                    middle_index = f["entry/data/data_000001"].shape[0] // 2
+                    img = f['entry/data/data_000001'][middle_index] 
+                    beamcenter_pre = getcenter(img,
+                                               center=(515, 532),
+                                               area=100,
+                                               bin_factor=4,
+                                               return_all_maxima=False)
+
+                    beamcenter_refined = getcenter(img,
+                                               center=beamcenter_pre,
+                                               area=20,
+                                               bin_factor=1,
+                                               return_all_maxima=False)
+
+                    logging.info(f"Refined beam center: X = {beamcenter_refined[0]:d}; Y = {beamcenter_refined[1]:d}")
+            # self.socket.send_string(f"Refined beam center: {beamcenter_refined[0]:d} {beamcenter_refined[1]:d}")
+
+            dataid = re.sub(".*/([0-9]{3})_.*_([0-9]{4})_master.h5","\\1-\\2", filename)
+            logging.info(f'Subdirname: {os.path.dirname(filename)}/XDS/{dataid}')
+
+            process_dir = args.path_process
+            if process_dir == '.' or not os.access(process_dir, os.W_OK):
+                process_dir = os.path.dirname(filename)
+            xds_thread = threading.Thread(target=self.run_xds, 
+                                          args=(filename, 
+                                process_dir + '/XDS/' + dataid,
+                                '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
+                                '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
+                                beamcenter_refined, args.quiet, args.exoscillation, ), daemon=True)
+            xds_thread.start()
+            # dials_thread = threading.Thread(target=self.run_dials, 
+            #                                 args=(filename, 
+            #                     os.path.dirname(filename) + '/DIALS/' + dataid,
+            #                     beamcenter_refined, args.quiet, ), daemon=True)
+            # dials_thread.start()
     
     def stop(self):
         self.running = False
@@ -587,13 +613,14 @@ class Hdf5MetadataUpdater:
         except OSError as e:
             logging.error(f"Failed to update information in {filename}: {e}")
 
-    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False):
+    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False, osc_measured=False, pos_output=True, duration_sec=3):
         # self.socket.send_string("Processing with XDS")
         root = working_directory
         myxds = XDSparams(xdstempl=xds_template_filepath)
         myxds.make_xds_file(master_filepath,
                            os.path.join(root, "XDS.INP"), #""INPUT.XDS"), # why not XDS.INP?
-                           beamcenter)
+                           beamcenter,
+                           osc_measured=osc_measured)
         results = {
             "dataid": os.path.basename(root),
             "filepath": master_filepath,
@@ -613,6 +640,13 @@ class Hdf5MetadataUpdater:
             # "completeness": 0,
         }
         
+        if pos_output:
+            master_file = h5py.File(master_filepath, 'r')            
+            results["position"] = [master_file['entry/instrument/stage/stage_x'][()]*1e3, 
+                                   master_file['entry/instrument/stage/stage_y'][()]*1e3,
+                                   master_file['entry/instrument/stage/stage_z'][()]*1e3]
+            results["status"] = "measured"
+        
         if os.path.isfile(root + '/XDS.INP'):
             if suppress:
                 logging.info('Quiet mode:')
@@ -622,7 +656,7 @@ class Hdf5MetadataUpdater:
         else:
             return 'XDS.INP is missing.'
         
-        time.sleep(3)
+        time.sleep(duration_sec)
         results["init"] = "Succeeded" if os.path.isfile(root + "/INIT.LP") else "Failed"
         results["colspot"] = "Succeeded" if os.path.isfile(root + "/COLSPOT.LP") else "Failed"
         if os.path.isfile(root + "/XPARM.XDS"):
@@ -636,8 +670,9 @@ class Hdf5MetadataUpdater:
             logging.info('Indexing failed.')
             results["idxref"] = "Failed"
         if args.json:
-            with open(os.path.dirname(root) + 'process_result.json', 'a') as f:
-                json.dump(results, f, indent=2)
+            with open(os.path.dirname(root)[:-3] + '/process_result.jsonl', 'a') as f: #, encoding="utf-8"
+                f.write(json.dumps(results) + "\n")
+                
         self.results = results
         logging.info(self.results) ## debug
         # self.socket.send_string(json.dumps(results))
@@ -677,9 +712,11 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--feedback", action="store_true", help="send post-process results to GUI")
     parser.add_argument("-c", "--center_mask", type=int, default=10, help="centre mask radius [px] in XDS.INP (10). deactivate with 0.")
     parser.add_argument("-d", "--path_process", type=str, default='.', help="root directory path for data-processing (.). file-writing permission is necessary.")
-    parser.add_argument("-j", "--json", action="store_true", help="write a summary of postprocess as a JSON file (process_result.json)")
+    parser.add_argument("-j", "--json", action="store_true", help="write a summary of postprocess as a JSON'L' file (process_result.jsonl)")
     parser.add_argument("-m", "--hotpixel_mask", type=str, default='670,670,257,314', help="hot-pixel mask area, by adding another mask-layer (670,670,257,314). deactivate with '.'")
+    parser.add_argument("-o", "--exoscillation", action="store_true", help="use measured oscillation value for postprocess")
     parser.add_argument("-q", "--quiet", action="store_true", help="suppress outputs of external programs")
+    parser.add_argument("-r", "--refinecenter", action="store_true", help="force post-refine beamcenter position")
     parser.add_argument("-v", "--version", action="store_true", help="display version information")
     # parser.add_argument("-f", "--formula", type=str, default='C2H5NO2', help="chemical formula for ab-initio phasing with shelxt/d")
     # parser.add_argument("-p", "--process", type=str, default='x', help="enable post-processing. 'x' for XDS, 'd' for dials, 'b' for both, and 'n' for disabling)
