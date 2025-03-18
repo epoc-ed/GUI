@@ -378,10 +378,10 @@
          },
          { "ht_voltage": 100000,
            "magnification": 20000,
-           "axis_xds": [0.99947, -0.032553, 0.0],
+           "axis_xds": [0.999781, -0.0209424, 0.0],
            "overlay_xy": [515, 532],
            "overlay_wh": [5, 5],
-           "date_update": "16/3/2025"
+           "date_update": "18/3/2025"
          },
          { "ht_voltage": 100000,
            "magnification": 1200,
@@ -392,10 +392,10 @@
          },
          { "ht_voltage": 80000,
            "magnification": 20000,
-           "axis_xds": [0.99598, 0.089576, 0.0],
+           "axis_xds": [0.997684, 0.0680153, 0.0],
            "overlay_xy": [515, 532],
            "overlay_wh": [5, 5],
-           "date_update": "16/3/2025"
+           "date_update": "18/3/2025"
          },
          { "ht_voltage": 80000,
            "magnification": 1200,

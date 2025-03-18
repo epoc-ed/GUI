@@ -120,6 +120,7 @@ class TEMAction(QObject):
         self.plot_listedposition()
         # self.trigger_getbeamintensity.connect(self.update_ecount)
         self.trigger_updateitem.connect(self.update_plotitem)
+        self.main_overlays = [None, None] 
 
     @Slot()
     def reconnectGaussianFit(self):
@@ -181,6 +182,10 @@ class TEMAction(QObject):
             self.tem_tasks.connecttem_button.started = True
             self.timer_tem_connexion.start(self.tem_tasks.polling_frequency.value()) # 0.5 seconds between pings
             self.control.send_to_tem("#init", asynchronous=False)
+            if self.main_overlays[0] != None:
+                [self.parent.plot.removeItem(i) for i in self.main_overlays]
+            self.main_overlays = self.lut.overlays_for_ht(self.parent.tem_controls.voltage_spBx.value()*1e3)
+            [self.parent.plot.addItem(i) for i in self.main_overlays]
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")

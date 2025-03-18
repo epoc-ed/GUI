@@ -7,6 +7,9 @@ import numpy as np
 import re
 from scipy.interpolate import griddata
 
+from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
+from PySide6.QtCore import QRectF
+
 f = files('jungfrau_gui').joinpath('ui_components/tem_controls/toolbox/jfgui2_config.json')
 parser = json.loads(f.read_text())
 
@@ -69,6 +72,18 @@ class lut:
         vector = self.rotaxis_for_ht(ht_in_V, magnification)
         return np.rad2deg(np.arctan(vector[1]/vector[0])) * -1
 
+    def overlays_for_ht(self, ht_in_V):
+        x, y = self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'ovelay_xy', index=0)
+        r = self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'ovelay_wh', index=0)[0]
+        item_circle = QGraphicsEllipseItem(QRectF(x-r, y-r, 2*r, 2*r))
+        item_circle.setPen(pg.mkPen('r', width=2))
+
+        x, y = self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'ovelay_xy', index=-1)
+        w, h = self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'ovelay_wh', index=-1)
+        item_rect = QGraphicsRectItem(QRectF(x, y, w, h))
+        item_rect.setPen(pg.mkPen('r', width=2))
+        return item_circle, item_rect
+    
 def pos2textlist():
     textlist = []
     for i in lut.positions:
