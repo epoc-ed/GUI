@@ -284,6 +284,19 @@ class TemControls(QGroupBox):
             if not self.btnGaussianFitTest.started:
                 # Same for playmode
                 return
+            
+        # Add a direct beam blank check to catch state changes that happened
+        # between polling cycles - this prevents stale updates
+        try:
+            if globals.tem_mode:
+                beam_blank_state = self.tem_action.control.client.GetBeamBlank()
+                if beam_blank_state == 1:
+                    # Beam is blanked, don't process this update
+                    logging.warning("Ignoring fit update - beam is blanked")
+                    return
+        except Exception as e:
+            logging.warning(f"Could not check beam state during fit update: {e}")
+            
         logging.debug(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
