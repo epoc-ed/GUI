@@ -479,7 +479,7 @@ class TEMAction(QObject):
     def update_plotitem(self, info_d):
         # read unmeasured data
         if not 'spots' in info_d:
-            logging.info(f"Item {info_d["gui_id"]} is loaded")
+            logging.info(f"Item {info_d['gui_id']} is loaded")
             position = info_d["position"]
             marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush='red')
             self.tem_stagectrl.position_list.addItem(info_d["gui_text"])
@@ -503,7 +503,7 @@ class TEMAction(QObject):
         axes = np.array(info_d["cell axes"], dtype=float)
         color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
         color = color_map.map(spots[0]/spots[1], mode='qcolor')
-        text = f"{info_d["dataid"]}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
+        text = f"{info_d['dataid']}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
         label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
@@ -530,7 +530,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.position_list.addItem(text)
         self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
-        logging.info(f"Item {info_d["gui_id"]} is updated")
+        logging.info(f"Item {info_d['gui_id']} is updated")
         info_d["status"] = 'processed'
         logging.debug(self.xtallist)
     
