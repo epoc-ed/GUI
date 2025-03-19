@@ -63,6 +63,7 @@ class TemControls(QGroupBox):
         self.voltage_spBx.setValue(200)
         self.voltage_spBx.setSuffix(" kV")
         self.voltage_spBx.setReadOnly(True)
+        self.parent.resetContrastBtn.clicked.connect(lambda checked: self.parent.set_contrast(self.cfg.viewer_cmin*self.voltage_spBx.value()/200, self.cfg.viewer_cmax*self.voltage_spBx.value()/200))
 
         self.label_Xo = QLabel()
         self.label_Xo.setText("X_center (px)")
