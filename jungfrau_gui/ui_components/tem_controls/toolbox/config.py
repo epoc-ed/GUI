@@ -11,8 +11,11 @@ import pyqtgraph as pg
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
 from PySide6.QtCore import QRectF
 
+from epoc import ConfigurationClient, auth_token, redis_host
+
 f = files('jungfrau_gui').joinpath('ui_components/tem_controls/toolbox/jfgui2_config.json')
 parser = json.loads(f.read_text())
+cfg = ConfigurationClient(redis_host(), token=auth_token())
 
 class lut:
     distance = parser['distances']
@@ -79,11 +82,16 @@ class lut:
         item_circle = QGraphicsEllipseItem(QRectF(x-r, y-r, 2*r, 2*r))
         item_circle.setPen(pg.mkPen('r', width=2))
 
+        r = cfg.overlays[0]['radius']
+        item_common = QGraphicsEllipseItem(QRectF(x-r, y-r, 2*r, 2*r))
+        item_common.setPen(pg.mkPen('r', width=2))
+        
         x, y = self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'overlay_xy', index=-1)
         w, h = self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'overlay_wh', index=-1)
         item_rect = QGraphicsRectItem(QRectF(x, y, w, h))
         item_rect.setPen(pg.mkPen('r', width=2))
-        return item_circle, item_rect
+
+        return item_circle, item_rect, item_common
     
 def pos2textlist():
     textlist = []

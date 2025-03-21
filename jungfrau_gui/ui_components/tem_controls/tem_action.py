@@ -120,7 +120,7 @@ class TEMAction(QObject):
         self.plot_listedposition()
         # self.trigger_getbeamintensity.connect(self.update_ecount)
         self.trigger_updateitem.connect(self.update_plotitem)
-        self.main_overlays = [None, None] 
+        self.main_overlays = [None, None, None] 
 
     @Slot()
     def reconnectGaussianFit(self):
@@ -672,8 +672,8 @@ class TEMAction(QObject):
         x_range = position[0]*1e-3 - scale*image.shape[1]/2*aspect_ratio, position[0]*1e-3 + scale*image.shape[1]/2*aspect_ratio
         view.setRange(xRange=x_range, yRange=y_range)
         self.snapshot_images.append(snapshot_image)
-        if globals.dev:
-            self.snapshot_images[-1].mouseClickEvent = self.subimageMouseClickEvent
+        # if globals.dev:
+        #     self.snapshot_images[-1].mouseClickEvent = self.subimageMouseClickEvent
         # self.add_listedposition(color='red', status='new', position=position)
         # self.xtallist[-1]["snapshot"] = self.snapshot_image # copy will not work!!
         # self.xtallist[-1]["magnification"] = calibrated_mag
