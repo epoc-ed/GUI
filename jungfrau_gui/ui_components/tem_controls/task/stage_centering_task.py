@@ -78,7 +78,7 @@ class CenteringTask(Task):
             if np.abs(movexy[0]) < self.thresholds['dxy_min'] and np.abs(movexy[1]) < self.thresholds['dxy_min']:
                 logging.info(f'Vector already small enough (< {self.thresholds[0]} um): {movexy[0]}, {movexy[1]}')
                 return
-            logging.info(f'Move X: {movexy[0]},  Y: {movexy[1]} with MAG: {magnification[2]}')
+            logging.info(f'Move X: {movexy[0]} um,  Y: {movexy[1]} um with MAG: {magnification[2]}')
             # self.client.SetXRel(movexy[0]*-1e3)
             self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, movexy[0]*-1e3, cfg_jf.others.backlash[0])            
             time.sleep(0.5)

@@ -256,7 +256,7 @@ class RecordTask(Task):
             if self.writer is None:
                 self.reset_rotation_signal.emit()
                 
-            self.tem_action.trigger_additem.emit('green', 'recorded')
+            self.tem_action.trigger_additem.emit('green', 'recorded', pos)
             self.tem_action.trigger_processed_receiver.emit()
             time.sleep(0.5)
             print("------REACHED END OF TASK----------")

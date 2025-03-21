@@ -173,6 +173,8 @@ class TEMStageCtrl(QGroupBox):
 
         # 2) Create the PlotWidget
         self.grid_plot = pg.PlotWidget()
+        self.grid_plot.getViewBox().invertX(True)
+        self.grid_plot.getViewBox().invertY(True)
         self.plot_layout.addWidget(self.grid_plot)
 
         # 3) Access the plotItem if needed

@@ -422,7 +422,7 @@ class Hdf5MetadataUpdater:
                         if process_dir == '.' or not os.access(process_dir, os.W_OK):
                             process_dir = os.path.dirname(self.root_data_directory + message[-1]["filename"])
                         with open(process_dir + '/process_result.jsonl', 'a') as f:
-                            [f.write(i + "\n") for i in json.dumps(message)]
+                            [f.write(json.dumps(i) + "\n") for i in message]
                         self.socket.send_string("Position-info added successfully")
                     else:
                         logging.error(f"Received undefined json-data: {message}")
