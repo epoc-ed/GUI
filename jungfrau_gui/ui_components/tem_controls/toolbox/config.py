@@ -36,7 +36,7 @@ class lut:
         beam = np.array([int(nominal[:-2])*10, ht_value_kV*1e3])
         interpolated_distance = griddata(self.data_grid[:, :-1], self.data_grid[:, -1], beam, method='linear')
         if np.isnan(interpolated_distance[0]):
-            logging.info('Interporation failed. Calibrated value returns instead.')
+            logging.info('Interpolation failed. Calibrated value returns instead.')
             return self._lookup(self.distance, nominal, 'displayed', 'calibrated')
         else:
             return interpolated_distance[0]

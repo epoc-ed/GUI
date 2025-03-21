@@ -434,13 +434,14 @@ class TEMAction(QObject):
         #     logging.error(f"Error: {e}")
         #     return
         position = self.control.tem_status["stage.GetPos"] # in nm
-        guiid_selected = self.tem_stagectrl.position_list.currentIndex() - 5
-        if guiid_selected < 1:
-            position_aim = np.array((cfg_jf.lut.positions[5+guiid_selected]['xyz']), dtype=float) *1e3
+        selected_item = self.tem_stagectrl.position_list.currentIndex()
+        if selected_item < 5:
+            position_aim = np.array((cfg_jf.lut.positions[selected_item]['xyz']), dtype=float) *1e3
         else:
-            xtalinfo_selected = next((d for d in self.xtallist if d.get("gui_id") == 2), None)
+            xtalinfo_selected = next((d for d in self.xtallist if d.get("gui_id") == selected_item - 4), None)        
             if xtalinfo_selected is None:
-                logging.warning(f"Item ID missing...")
+                logging.warning(f"Item ID {selected_item - 4:3d} is missing...")
+                logging.warning(self.xtallist)
                 return
             position_aim = xtalinfo_selected['position']
         dif_pos = [position_aim[0] - position[0], position_aim[1] - position[1]]
@@ -451,9 +452,9 @@ class TEMAction(QObject):
         try:
             self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1])
             # time.sleep(distance/1e5) # assumes speed of movement as > 100 um/s, should be updated with referring stage status!!
-            logging.info(f"Moved from x:{position[0]*1e-3:6.2f} um, y:{position[1]*1e-3:6.2f} um")            
+            logging.info(f"Moved from x:{position[0]*1e-3:6.2f} um, y:{position[1]*1e-3:6.2f} um") # debug
             logging.info(f"Moved by x:{dif_pos[0]*1e-3:6.2f} um, y:{dif_pos[1]*1e-3:6.2f} um")
-            logging.info(f"Aimed position was x:{position_aim[0]*1e-3:3.2f} um, y:{position_aim[1]*1e-3:3.2f} um")
+            logging.info(f"Aimed position was x:{position_aim[0]*1e-3:3.2f} um, y:{position_aim[1]*1e-3:3.2f} um") # debug
         except RuntimeError:
             logging.warning('To set position, use specific version of tem_server.py!')
             self.tem_stagectrl.go_button.setEnabled(False)
@@ -495,11 +496,11 @@ class TEMAction(QObject):
         if not "gui_id" in info_d:
             for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
                 info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
-        if info_d["gui_id"] in [d.get('gui_id') for d in self.xtallist]:
+        if info_d["gui_id"] in [d.get('gui_id') for d in self.xtallist[1:]]:
             self.tem_stagectrl.position_list.removeItem(info_d["gui_id"] + 4)
             self.tem_stagectrl.gridarea.removeItem(info_d["gui_marker"])
             self.tem_stagectrl.gridarea.removeItem(info_d["gui_label"])
-        elif info_d["gui_id"] is None:
+        elif info_d["gui_id"] is None or info_d["gui_id"] == 999:
             info_d["gui_id"] = self.tem_stagectrl.position_list.count() - 4
 
         # updated widget info
@@ -537,6 +538,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.gridarea.addItem(label)
         logging.info(f"Item {info_d["gui_id"]} is updated")
         info_d["status"] = 'processed'
+        self.xtallist.append(info_d)
         logging.debug(self.xtallist)
     
     def plot_listedposition(self, color='gray'):
@@ -571,9 +573,9 @@ class TEMAction(QObject):
         thread_manager.reset_worker_and_thread(self.process_receiver, self.datareceiver_thread)
         self.dataReceiverReady = True
 
-    def update_ecount(self, threshold=500, bins_set=20):
+    def update_ecount(self, cutoff=400, bins_set=20):
         ht = self.parent.tem_controls.voltage_spBx.value()
-        threshold = threshold / 200 * ht
+        cutoff = cutoff / 200 * ht
         pixel = cfg_jf.others.pixelsize
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
@@ -584,7 +586,7 @@ class TEMAction(QObject):
         data_flat = image.flatten()
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
         low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
-        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > threshold))]
+        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > cutoff))]
         logging.info(f"No. of significant pixel for calculation: {len(data_sampled)} in {frame} frames")
         if len(data_sampled) < 1e4:
             self.tem_detector.e_incoming_display.setText(f'N/A')

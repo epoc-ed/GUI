@@ -337,6 +337,8 @@ class ControlWorker(QObject):
             logging.debug("END of update loop")
             if self.tem_status['ht.GetHtValue'] is not None:
                 self.tem_status['ht.GetHtValue_readout'] = 1
+            else:
+                self.tem_status['ht.GetHtValue'] = 200000.00
             self.updated.emit()
         except Exception as e:
             logging.error(f"Error during starting tem_status map: {e}")            
