@@ -120,8 +120,9 @@ class ApplicationWindow(QMainWindow):
         logging.debug(f"type(data) is {type(data[0,0])}")
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         
-        # Plot overlays         
-        draw_overlay(self.plot)
+        # Plot overlays for dev-mode, overlays are put reading the HT-value from TEM
+        if not globals.dev:
+            draw_overlay(self.plot)
         
         # Mouse hovering
         self.imageItem.hoverEvent = self.imageHoverEvent
@@ -147,7 +148,7 @@ class ApplicationWindow(QMainWindow):
         self.autoContrastBtn.setStyleSheet('background-color: green; color: white;')
         self.autoContrastBtn.clicked.connect(self.toggle_autoContrast)
         self.resetContrastBtn = QPushButton("Reset Contrast")
-        self.resetContrastBtn.clicked.connect(lambda checked: self.set_contrast(self.cfg.viewer_cmin, self.cfg.viewer_cmax))
+        # self.resetContrastBtn.clicked.connect(lambda checked: self.set_contrast(self.cfg.viewer_cmin, self.cfg.viewer_cmax))
 
         self.contrast_0_Btn = QPushButton("-50 - 50")
         self.contrast_1_Btn = QPushButton("0 - 100")
