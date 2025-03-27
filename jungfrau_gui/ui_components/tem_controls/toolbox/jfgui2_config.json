@@ -404,5 +404,6 @@
            "overlay_wh": [60, 60],
            "date_update": "16/3/2025"
          }
-]
+],
+  "optical_axis_center": [533.6, 540.3]
 }

@@ -63,7 +63,7 @@ class XDSparams:
     def __init__(self, xdstempl):
         self.xdstempl = xdstempl
 
-    def update(self, orgx, orgy, templ, d_range, osc_range, dist, jobs='XYCORR INIT COLSPOT IDXREF', starting_angle=0, axis=[0.908490,-0.417907,0.0001], ht=200):
+    def update(self, orgx, orgy, templ, d_range, osc_range, dist, jobs='XYCORR INIT COLSPOT IDXREF', starting_angle=0, axis=[0.908490,-0.417907,0.0001], ht=200, beam_direction=[0,0,1]):
         """
            replace parameters for ORGX/ORGY, TEMPLATE, OSCILLATION_RANGE,
            DATA_RANGE, SPOT_RANGE, BACKGROUND_RANGE, STARTING_ANGLE(?)
@@ -80,6 +80,8 @@ class XDSparams:
                     # axis = np.fromstring(keyw.split("=")[1].strip(), sep=" ")
                     axis = np.sign(osc_range) * axis
                     keyw = self.replace(keyw, "ROTATION_AXIS=", "  ".join(map(lambda x: str(x), axis)))
+                if "INCIDENT_BEAM_DIRECTION" in keyw:
+                    keyw = self.replace(keyw, "INCIDENT_BEAM_DIRECTION=", f"{beam_direction[0]:.5f} {beam_direction[1]:.5f} {beam_direction[2]:.2f}\n")
                 keyw = self.replace(keyw, "OSCILLATION_RANGE=", abs(osc_range))
                 keyw = self.replace(keyw, "DETECTOR_DISTANCE=", dist)
                 keyw = self.replace(keyw, "NAME_TEMPLATE_OF_DATA_FRAMES=", templ + '\n')
@@ -148,7 +150,7 @@ class XDSparams:
         # return results_describe
         return results
     
-    def make_xds_file(self, master_filepath, xds_filepath, beamcenter=[515, 532], osc_measured=False):
+    def make_xds_file(self, master_filepath, xds_filepath, beamcenter=[515, 532], osc_measured=False, calibrate_beam_direction=False):
         master_file = h5py.File(master_filepath, 'r')
         template_filepath = master_filepath[:-9] + "??????.h5" # master_filepath.replace('master', '??????')
         frame_time = master_file['entry/instrument/detector/frame_time'][()]
@@ -170,16 +172,30 @@ class XDSparams:
             # logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
             h = master_file['entry/data/data_000001'].shape[2]
             w = master_file['entry/data/data_000001'].shape[1]
-            for i in range(1):
-                image = master_file['entry/data/data_000001'][i]
-                # logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
-                org_x, org_y = beamcenter[0], beamcenter[1]
+            # for i in range(1):
+            #     image = master_file['entry/data/data_000001'][i]
+            #     logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
             break
+            
+        org_x, org_y = beamcenter[0], beamcenter[1]
+        beam_direction = [0, 0, 1]
+        
+        if calibrate_beam_direction:
+            try:
+                optical_x = master_file['entry/instrument/optics/optical_axis_center_x'][()]
+                optical_y = master_file['entry/instrument/optics/optical_axis_center_y'][()]
+                pixel_x_mm = master_file['entry/instrument/detector/module/slow_pixel_direction'][()]*1e3
+                pixel_y_mm = master_file['entry/instrument/detector/module/fast_pixel_direction'][()]*1e3
+                beam_direction = [pixel_x_mm * (org_x - optical_x), pixel_y_mm * (org_y - optical_y),  detector_distance]
+                org_x, org_y = optical_x, optical_y
+            except KeyError:
+                logging.warning(f'Optical_axis_center_xy is missing! Instread, direct beam position is referred')
 
         self.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range, detector_distance, 
                         starting_angle=master_file['entry/instrument/stage/stage_tx_start'][()],
                         axis=master_file['entry/instrument/stage/stage_tx_axis'][()], 
                         ht=master_file['entry/instrument/optics/accelerationVoltage'][()], 
+                        beam_direction=beam_direction,
                    )
         self.xdswrite(filepath=xds_filepath)    
 
@@ -472,7 +488,7 @@ class Hdf5MetadataUpdater:
                                 process_dir + '/XDS/' + dataid,
                                 '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
                                 '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
-                                beamcenter_refined, args.quiet, args.exoscillation, ), daemon=True)
+                                beamcenter_refined, args.quiet, args.exoscillation, args.opticalcenter, ), daemon=True)
             xds_thread.start()
             # dials_thread = threading.Thread(target=self.run_dials, 
             #                                 args=(filename, 
@@ -575,6 +591,8 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/optics/il_stigm_y', data = tem_status['defl.GetILs'][1], dtype='uint32')
                     create_or_update_dataset('entry/instrument/optics/pl_align_x', data = tem_status['defl.GetPLA'][0], dtype='uint32')
                     create_or_update_dataset('entry/instrument/optics/pl_align_y', data = tem_status['defl.GetPLA'][1], dtype='uint32')
+                    create_or_update_dataset('entry/instrument/optics/optical_axis_center_x', data = tem_status['optical_axis_center'][0], dtype='float')
+                    create_or_update_dataset('entry/instrument/optics/optical_axis_center_y', data = tem_status['optical_axis_center'][1], dtype='float')
 
                     create_or_update_dataset('entry/instrument/optics/beam_width_sigmax', data = beam_property['sigma_width'][0], dtype='float')
                     create_or_update_dataset('entry/instrument/optics/beam_width_sigmay', data = beam_property['sigma_width'][1], dtype='float')
@@ -620,14 +638,15 @@ class Hdf5MetadataUpdater:
         except OSError as e:
             logging.error(f"Failed to update information in {filename}: {e}")
 
-    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False, osc_measured=False, pos_output=True, duration_sec=3):
+    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False, osc_measured=False, calibrate_beam_direction=False, pos_output=True, duration_sec=3):
         # self.socket.send_string("Processing with XDS")
         root = working_directory
         myxds = XDSparams(xdstempl=xds_template_filepath)
         myxds.make_xds_file(master_filepath,
                            os.path.join(root, "XDS.INP"), #""INPUT.XDS"), # why not XDS.INP?
                            beamcenter,
-                           osc_measured=osc_measured)
+                           osc_measured=osc_measured,
+                           calibrate_beam_direction=calibrate_beam_direction)
         results = {
             "dataid": os.path.basename(root),
             "filepath": master_filepath,
@@ -722,6 +741,7 @@ if __name__ == "__main__":
     parser.add_argument("-j", "--json", action="store_true", help="write a summary of postprocess as a JSON'L' file (process_result.jsonl)")
     parser.add_argument("-m", "--hotpixel_mask", type=str, default='670,670,257,314', help="hot-pixel mask area, by adding another mask-layer (670,670,257,314). deactivate with '.'")
     parser.add_argument("-o", "--exoscillation", action="store_true", help="use measured oscillation value for postprocess")
+    parser.add_argument("-p", "--opticalcenter", action="store_true", help="calibtate the beam direction")
     parser.add_argument("-q", "--quiet", action="store_true", help="suppress outputs of external programs")
     parser.add_argument("-r", "--refinecenter", action="store_true", help="force post-refine beamcenter position")
     parser.add_argument("-v", "--version", action="store_true", help="display version information")

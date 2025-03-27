@@ -54,6 +54,7 @@ class MetadataNotifier:
         aperture_size_cl = cfg_jf.lut().cl_size(tem_status['apt.GetSize(1)'])
         aperture_size_sa = cfg_jf.lut().sa_size(tem_status['apt.GetSize(1)'])
         tem_status['rotation_axis'] = cfg_jf.lut().rotaxis_for_ht(tem_status["ht.GetHtValue"])
+        tem_status['optical_axis_center'] = cfg_jf.lut.optical_axis_center
 
         try:
             message = {

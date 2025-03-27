@@ -24,6 +24,7 @@ class lut:
     sa = parser['SA']
     positions = parser['position']
     ht_mag_specific = parser['ht_mag_specific']
+    optical_axis_center = parser['optical_axis_center']
 
     def __init__(self):
         self.array_data = np.array([list(d.values()) for d in self.distance])
