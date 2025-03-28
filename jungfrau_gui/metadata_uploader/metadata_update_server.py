@@ -97,7 +97,7 @@ class XDSparams:
                 self.xdsinp.append(keyw + ' ' + rem)
 
         if margin > 0:
-            self.xdsinp.append(f" UNTRUSTED_ELLIPSE= {orgx-margin:d} {orgx+margin:d} {orgy-margin:d} {orgy+margin:d}\n")                
+            self.xdsinp.append(f" UNTRUSTED_ELLIPSE= {orgx-margin:.0f} {orgx+margin:.0f} {orgy-margin:.0f} {orgy+margin:.0f}\n")
             
     def xdswrite(self, filepath="XDS.INP"):
         "write lines of keywords to XDS.INP in local directory"
