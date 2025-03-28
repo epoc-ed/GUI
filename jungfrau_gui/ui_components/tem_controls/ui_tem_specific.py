@@ -54,11 +54,12 @@ class TEMDetector(QGroupBox):
 class TEMStageCtrl(QGroupBox):
     def __init__(self):
         super().__init__() #"Stage Status / Quick Moves"
-        self.setTitle("X/Y stage plot")  # optional
-        self.setCheckable(True)
-        self.setChecked(True)
-        # Connect QGroupBox toggled signal to a custom slot
-        self.toggled.connect(self.on_collapsed)
+        if not globals.dev:
+            self.setTitle("X/Y stage plot")  # optional
+            self.setCheckable(True)
+            self.setChecked(True)
+            # Connect QGroupBox toggled signal to a custom slot
+            self.toggled.connect(self.on_collapsed)
         self.initUI()
 
     def initUI(self):
@@ -138,6 +139,9 @@ class TEMStageCtrl(QGroupBox):
             self.screen_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             self.screen_button.setEnabled(False)
             self.hbox_extras.addWidget(self.screen_button)
+            self.mapsnapshot_button = QPushButton("Snapshot", self)
+            self.mapsnapshot_button.setEnabled(False)
+            self.hbox_extras.addWidget(self.mapsnapshot_button)
         stage_ctrl_section.addLayout(self.hbox_extras)
         
         self.hbox_gotopos = QHBoxLayout()
@@ -151,12 +155,12 @@ class TEMStageCtrl(QGroupBox):
         # self.goxyz_button = QPushButton("Go XYZ", self)
         self.hbox_gotopos.addWidget(gotopos_label, 1)
         if globals.dev:
-            self.mapsnapshot_button = QPushButton("Snapshot", self)
-            self.mapsnapshot_button.setEnabled(False)
+            self.loadsave_button = QPushButton("Load/Save", self)
+            # self.loadsave_button.setEnabled(False)
             self.hbox_gotopos.addWidget(self.position_list, 6)
             self.hbox_gotopos.addWidget(self.addpos_button, 1)
             self.hbox_gotopos.addWidget(self.go_button, 1)
-            self.hbox_gotopos.addWidget(self.mapsnapshot_button, 1)            
+            self.hbox_gotopos.addWidget(self.loadsave_button, 1)
         else:
             self.hbox_gotopos.addWidget(self.position_list, 7)
             self.hbox_gotopos.addWidget(self.addpos_button, 1)
@@ -169,6 +173,8 @@ class TEMStageCtrl(QGroupBox):
 
         # 2) Create the PlotWidget
         self.grid_plot = pg.PlotWidget()
+        self.grid_plot.getViewBox().invertX(True)
+        self.grid_plot.getViewBox().invertY(True)
         self.plot_layout.addWidget(self.grid_plot)
 
         # 3) Access the plotItem if needed

@@ -23,14 +23,14 @@ from jungfrau_gui import globals
 
 class CenterArrowItem(pg.ArrowItem):
     def paint(self, p, *args):
-        p.translate(-self.boundingRect().center())
+        p.translate(-self.boundingRect().center()*2)
         pg.ArrowItem.paint(self, p, *args)
 
 class TEMAction(QObject):
     """
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
-    trigger_additem = Signal(str, str)
+    trigger_additem = Signal(str, str, list)
     trigger_getbeamintensity = Signal()
     trigger_updateitem = Signal(dict)
     trigger_processed_receiver = Signal()
@@ -56,6 +56,7 @@ class TEMAction(QObject):
         
         # Initialization
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
+        self.lut = cfg_jf.lut()
         for shape in self.cfg.overlays:
             if shape['type'] == 'rectangle':
                 self.lowmag_jump = shape['xy'][0]+shape['width']//2, shape['xy'][1]+shape['height']//2
@@ -63,7 +64,7 @@ class TEMAction(QObject):
 
         self.scale = None
         self.marker = None
-        self.snapshot_image = None
+        self.snapshot_images = []
         self.cfg.beam_center = [1, 1] # Flag for non-updated metadata
         self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
         
@@ -83,7 +84,8 @@ class TEMAction(QObject):
             pass
         if globals.dev:
             self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
-            self.tem_stagectrl.mapsnapshot_button.clicked.connect(self.take_snapshot)
+            self.tem_stagectrl.mapsnapshot_button.clicked.connect(lambda: self.take_snapshot())
+            self.tem_stagectrl.loadsave_button.clicked.connect(self.synchronize_xtallist)
         
         self.control.updated.connect(self.on_tem_update)
 
@@ -118,6 +120,7 @@ class TEMAction(QObject):
         self.plot_listedposition()
         # self.trigger_getbeamintensity.connect(self.update_ecount)
         self.trigger_updateitem.connect(self.update_plotitem)
+        self.main_overlays = [None, None, None] 
 
     @Slot()
     def reconnectGaussianFit(self):
@@ -179,6 +182,10 @@ class TEMAction(QObject):
             self.tem_tasks.connecttem_button.started = True
             self.timer_tem_connexion.start(self.tem_tasks.polling_frequency.value()) # 0.5 seconds between pings
             self.control.send_to_tem("#init", asynchronous=False)
+            if self.main_overlays[0] != None:
+                [self.parent.plot.removeItem(i) for i in self.main_overlays]
+            self.main_overlays = self.lut.overlays_for_ht(self.parent.tem_controls.voltage_spBx.value()*1e3)
+            [self.parent.plot.addItem(i) for i in self.main_overlays]
         else:
             self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             self.tem_tasks.connecttem_button.setText("Check TEM Connection")
@@ -308,12 +315,12 @@ class TEMAction(QObject):
         if self.tem_detector.scale_checkbox.isChecked():
             if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
                 detector_distance = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                detector_distance = cfg_jf.lookup(cfg_jf.lut.distance, detector_distance, 'displayed', 'calibrated')
+                detector_distance = self.lut.interpolated_distance(detector_distance, self.parent.tem_controls.voltage_spBx.value())
                 radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=ht)
                 self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
             else:
                 magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
+                magnification = self.lut.calibrated_magnification(magnification)
                 scale_in_px = l_draw * 1e-3 * magnification / pixel
                 self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
             self.scale.setPen(pg.mkPen('w', width=2))
@@ -405,18 +412,9 @@ class TEMAction(QObject):
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             logging.warning('Centering should not be performed in Diff-MAG mode.')
             return
-        im = self.parent.imageItem.image
         pos = event.pos()
-        i, j = pos.y(), pos.x()
-        i = int(np.clip(i, 0, im.shape[0] - 1))
-        j = int(np.clip(j, 0, im.shape[1] - 1))
-        val = im[i, j]
         ppos = self.parent.imageItem.mapToParent(pos)
         x, y = ppos.x(), ppos.y()
-        # if self.tem_action.tem_tasks.centering_checkbox.isChecked():
-        #     self.plot.removeItem(self.roi)
-        # else:
-        #     self.plot.addItem(self.roi)
         logging.debug(f"{x:0.1f}, {y:0.1f}")
         self.control.trigger_centering.emit(True, f"{x:0.1f}, {y:0.1f}")
             
@@ -435,31 +433,46 @@ class TEMAction(QObject):
             self.control.set_sweeper_to_off_state()
 
     def go_listedposition(self):
-        try:
-            # position = self.control.client.GetStagePosition() # in nm
-            position = send_with_retries(self.control.client.GetStagePosition)
-        except Exception as e:
-            logging.error(f"Error: {e}")
+        # try:
+        #     position = send_with_retries(self.control.client.GetStagePosition)
+        # except Exception as e:
+        #     logging.error(f"Error: {e}")
+        #     return
+        position = self.control.tem_status["stage.GetPos"] # in nm
+        selected_item = self.tem_stagectrl.position_list.currentIndex()
+        if selected_item < 5:
+            position_aim = np.array((cfg_jf.lut.positions[selected_item]['xyz']), dtype=float) *1e3
+        else:
+            xtalinfo_selected = next((d for d in self.xtallist if d.get("gui_id") == selected_item - 4), None)        
+            if xtalinfo_selected is None:
+                logging.warning(f"Item ID {selected_item - 4:3d} is missing...")
+                logging.warning(self.xtallist)
+                return
+            position_aim = xtalinfo_selected['position']
+        dif_pos = [position_aim[0] - position[0], position_aim[1] - position[1]]
+        distance = np.linalg.norm(np.array(dif_pos))
+        if distance > 1e6:
+            logging.warning(f"Vector too large! {distance/1e3:.1f} um")
             return
-        position_aim = np.array(self.tem_stagectrl.position_list.currentText().split()[1:-2], dtype=float) # in um
-        dif_pos = position_aim[0]*1e3 - position[0], position_aim[1]*1e3 - position[1]
         try:
-            self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1]) # lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
-            time.sleep(2) # should be updated with referring stage status!!
+            self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1])
+            # time.sleep(distance/1e5) # assumes speed of movement as > 100 um/s, should be updated with referring stage status!!
+            logging.info(f"Moved from x:{position[0]*1e-3:6.2f} um, y:{position[1]*1e-3:6.2f} um") # debug
             logging.info(f"Moved by x:{dif_pos[0]*1e-3:6.2f} um, y:{dif_pos[1]*1e-3:6.2f} um")
-            logging.info(f"Aim position was x:{position_aim[0]:3.2f} um, y:{position_aim[1]:3.2f} um")
+            logging.info(f"Aimed position was x:{position_aim[0]*1e-3:3.2f} um, y:{position_aim[1]*1e-3:3.2f} um") # debug
         except RuntimeError:
             logging.warning('To set position, use specific version of tem_server.py!')
             self.tem_stagectrl.go_button.setEnabled(False)
 
-    @Slot(str, str)
-    def add_listedposition(self, color='red', status='new'):
-        try:
-            # position = self.control.client.GetStagePosition()
-            position = send_with_retries(self.control.client.GetStagePosition)
-        except Exception as e:
-            logging.error(f"Error: {e}")
-            return
+    @Slot(str, str, list)
+    def add_listedposition(self, color='red', status='new', position=None):
+        if position is None:
+            try:
+                # position = self.control.client.GetStagePosition()
+                position = send_with_retries(self.control.client.GetStagePosition)
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                return
         new_id = self.tem_stagectrl.position_list.count() - 4
         text = f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"
         marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
@@ -470,19 +483,29 @@ class TEMAction(QObject):
         self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
         self.xtallist.append({"gui_id": new_id, "gui_text": text, "gui_marker": marker,
-                              "gui_label": label, "position": position})
+                              "gui_label": label, "position": position, "status": status})
         logging.info(f"{new_id}: {position} is added to the list")
 
     @Slot(dict)
     def update_plotitem(self, info_d):
+        # read unmeasured data
+        if not 'spots' in info_d:
+            logging.info(f"Item {info_d['gui_id']} is loaded")
+            position = info_d["position"]
+            marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush='red')
+            self.tem_stagectrl.position_list.addItem(info_d["gui_text"])
+            self.tem_stagectrl.gridarea.addItem(marker)
+            return
+       
+        # read measured/processed data
         if not "gui_id" in info_d:
             for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
                 info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
-        if info_d["gui_id"] in [d.get('gui_id') for d in self.xtallist]:
+        if info_d["gui_id"] in [d.get('gui_id') for d in self.xtallist[1:]]:
             self.tem_stagectrl.position_list.removeItem(info_d["gui_id"] + 4)
             self.tem_stagectrl.gridarea.removeItem(info_d["gui_marker"])
             self.tem_stagectrl.gridarea.removeItem(info_d["gui_label"])
-        elif info_d["gui_id"] is None:
+        elif info_d["gui_id"] is None or info_d["gui_id"] == 999:
             info_d["gui_id"] = self.tem_stagectrl.position_list.count() - 4
 
         # updated widget info
@@ -491,23 +514,36 @@ class TEMAction(QObject):
         axes = np.array(info_d["cell axes"], dtype=float)
         color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
         color = color_map.map(spots[0]/spots[1], mode='qcolor')
-        text = f"{info_d["dataid"]}:" + " ".join(map(str, info_d["lattice"])) + ", updated"
+        text = f"{info_d['dataid']}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
         label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
         label.setPos(position[0]*1e-3, position[1]*1e-3)
         marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
         # represent orientation with cell-a axis, usually shortest
         angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
-        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])        
-        arrow = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
-                             headLen=20*length, tailLen=20*length, tailWidth=4*length, brush=color)
+        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])
+        arrow_a = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+        # represent orientation with cell-b axis
+        angle = np.degrees(np.arctan2(axes[4], axes[3])) + 180
+        length = np.linalg.norm(axes[3:5]) / np.linalg.norm(axes[3:6])
+        arrow_b = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+        # represent orientation with cell-c axis
+        angle = np.degrees(np.arctan2(axes[7], axes[6])) + 180
+        length = np.linalg.norm(axes[6:8]) / np.linalg.norm(axes[6:9])
+        arrow_c = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
         # add updated items
+        self.tem_stagectrl.gridarea.addItem(arrow_a)
+        self.tem_stagectrl.gridarea.addItem(arrow_b)
+        self.tem_stagectrl.gridarea.addItem(arrow_c)
         self.tem_stagectrl.position_list.addItem(text)
         self.tem_stagectrl.gridarea.addItem(marker)
-        self.tem_stagectrl.gridarea.addItem(arrow)
         self.tem_stagectrl.gridarea.addItem(label)
-        
-        logging.info(f"Item {info_d["gui_id"]} is updated")
+        logging.info(f"Item {info_d['gui_id']} is updated")
+        info_d["status"] = 'processed'
+        self.xtallist.append(info_d)
         logging.debug(self.xtallist)
     
     def plot_listedposition(self, color='gray'):
@@ -542,8 +578,9 @@ class TEMAction(QObject):
         thread_manager.reset_worker_and_thread(self.process_receiver, self.datareceiver_thread)
         self.dataReceiverReady = True
 
-    def update_ecount(self, threshold=500, bins_set=20):
+    def update_ecount(self, cutoff=400, bins_set=20):
         ht = self.parent.tem_controls.voltage_spBx.value()
+        cutoff = cutoff / 200 * ht
         pixel = cfg_jf.others.pixelsize
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
@@ -554,7 +591,7 @@ class TEMAction(QObject):
         data_flat = image.flatten()
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
         low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
-        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > threshold))]
+        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > cutoff))]
         logging.info(f"No. of significant pixel for calculation: {len(data_sampled)} in {frame} frames")
         if len(data_sampled) < 1e4:
             self.tem_detector.e_incoming_display.setText(f'N/A')
@@ -569,7 +606,7 @@ class TEMAction(QObject):
             e_per_A2 = approximate_average_count / ht * frame / ((pixel*1e7)**2) # per sec
             self.control.beam_intensity["pa_per_cm2"] = 1/6.241*e_per_A2*1e10 # per sec
             magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-            magnification = cfg_jf.lookup(cfg_jf.lut.magnification, magnification, 'displayed', 'calibrated')
+            magnification = self.lut.calibrated_magnification(magnification)
             self.control.beam_intensity["e_per_A2_sample"] = e_per_A2 * magnification**2
             self.tem_detector.e_incoming_display.setText(f'{self.control.beam_intensity["pa_per_cm2"]:.2f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.2f} e/A2/s')
             logging.info(f'{self.control.beam_intensity["pa_per_cm2"]:.4f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.4f} e/A2/s')
@@ -577,34 +614,125 @@ class TEMAction(QObject):
             self.tem_detector.e_incoming_display.setText(f'N/A')
             logging.warning(e)
 
-    def take_snapshot(self):
+    def take_snapshot(self, max_list=10):
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             logging.warning(f'Snaphot does not support Diff-mode at the moment!')
             return
-        if self.snapshot_image is not None:
-            self.tem_stagectrl.gridarea.removeItem(self.snapshot_image)
+        if len(self.snapshot_images) > max_list:
+            self.tem_stagectrl.gridarea.removeItem(self.snapshot_images[0])
+            self.snapshot_images.pop(0)
+            logging.info(f'Oldest snapshot item was removed.')
+            
         magnification = self.control.tem_status["eos.GetMagValue"] ## with unit
-        calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
+        calibrated_mag = self.lut.calibrated_magnification(magnification[2])
         position = self.control.client.GetStagePosition()
+        beam_blank_state = self.control.client.GetBeamBlank()
 
+        # if beam_blank_state == 1: # limited illumination mode; not ready
+        #     image = np.copy(self.parent.imageItem.image)
+        #     self.control.client.SetBeamBlank(0)
+        #     self.control.tem_status["defl.GetBeamBlank"] = 0
+        #     QTimer.singleShot(500, self.toggle_blank)
+        #     while self.control.tem_status["defl.GetBeamBlank"] == 0:
+        #         image += np.copy(self.parent.imageItem.image)
+        # else:
+        #     image = np.copy(self.parent.imageItem.image)
         image = np.copy(self.parent.imageItem.image)
 
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
         low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
-#        self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh)*0+1000*random.random())
-        self.snapshot_image = pg.ImageItem(np.clip(image, low_thresh, high_thresh))
+
+        # enhanced contrast
+        margin = 0.4
+        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > low_thresh))]
+        uniqs, counts = np.unique(data_sampled//10, return_counts=True)
+        approximate_average_count = uniqs[np.argmax(counts)].max() * 10
+        low_thresh, high_thresh = approximate_average_count*(1-margin), approximate_average_count*(1+margin)
+        logging.info(f"Snapshot displayed in enhanced contrast ({low_thresh}-{high_thresh})")
+        # downsizing
+        snapshot_image = pg.ImageItem(np.clip((np.nan_to_num(image) - low_thresh) / (high_thresh - low_thresh) * 255, 0, 255).astype(np.uint8))
         
         tr = QTransform()
-        tr.scale(cfg_jf.others.pixelsize*1e3/calibrated_mag, cfg_jf.others.pixelsize*1e3/calibrated_mag)
+        scale = cfg_jf.others.pixelsize*1e3/calibrated_mag
+        tr.scale(scale, scale)
+        tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
         if int(magnification[0]) >= 1500 : # Mag
-            tr.rotate(180+cfg_jf.others.rotation_axis_theta)
+            # tr.rotate(180+cfg_jf.others.rotation_axis_theta)
             tr.translate(-image.shape[0]/2, -image.shape[1]/2)
         else:
-            tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
+            # tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
-        self.snapshot_image.setTransform(tr)
-        self.tem_stagectrl.gridarea.addItem(self.snapshot_image)
-        self.snapshot_image.setPos(position[0]*1e-3, position[1]*1e-3)
-        self.snapshot_image.setZValue(-2)
-        # self.snapshot_image.mouseClickEvent = self.subimageMouseClickEvent
-        logging.info(f'Snapshot was updated.')
+        snapshot_image.setTransform(tr)
+        self.tem_stagectrl.gridarea.addItem(snapshot_image)
+        snapshot_image.setPos(position[0]*1e-3, position[1]*1e-3)
+        snapshot_image.setZValue(-2)
+        view = self.tem_stagectrl.gridarea.getViewBox()
+        aspect_ratio = view.size().width()/view.size().height()
+        y_range = position[1]*1e-3 - scale*image.shape[1]/2, position[1]*1e-3 + scale*image.shape[1]/2
+        x_range = position[0]*1e-3 - scale*image.shape[1]/2*aspect_ratio, position[0]*1e-3 + scale*image.shape[1]/2*aspect_ratio
+        view.setRange(xRange=x_range, yRange=y_range)
+        self.snapshot_images.append(snapshot_image)
+        # if globals.dev:
+        #     self.snapshot_images[-1].mouseClickEvent = self.subimageMouseClickEvent
+        # self.add_listedposition(color='red', status='new', position=position)
+        # self.xtallist[-1]["snapshot"] = self.snapshot_image # copy will not work!!
+        # self.xtallist[-1]["magnification"] = calibrated_mag
+        logging.info(f'Snapshots were updated.')
+
+    def subimageMouseClickEvent(self, event):
+        if event.buttons() != Qt.LeftButton:
+            logging.warning('Snapshot is not ready.')
+            return
+        if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_checkbox.isChecked():
+            logging.warning('Centring is not ready.')
+            return
+        if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
+            logging.info('Centring should not be performed in Diff-MAG mode.')
+            return
+        position = self.control.tem_status["stage.GetPos"]
+        if np.abs(position[4]) > 1:
+            logging.info('Click-on-move for tilted-stage is not ready.')
+            return
+        pos = event.pos()
+        ppos = self.snapshot_images[-1].mapToParent(pos)
+        x, y = ppos.x(), ppos.y()
+        logging.debug(f"{x:0.1f}, {y:0.1f}") # identical to the TEM-stage-position in um
+        dx, dy = x*1e3 - position[0], y*1e3 - position[1]
+        if np.abs(dx) > 3e5 or np.abs(dy) > 3e5:
+            logging.info("Large movement (> 300 um) is not yet permitted for safety.")
+            return
+
+        if dx >= 0:
+            self.control.trigger_movewithbacklash.emit(0, dx, cfg_jf.others.backlash[0])
+        else:
+            self.control.trigger_movewithbacklash.emit(1, dx, cfg_jf.others.backlash[0])
+        time.sleep(np.abs(dx)/5e4) # assumes speed of movement as > 50 um/s
+        if dy >= 0:
+            self.control.trigger_movewithbacklash.emit(2, dy, cfg_jf.others.backlash[1])
+        else:
+            self.control.trigger_movewithbacklash.emit(3, dy, cfg_jf.others.backlash[1])
+
+        logging.info(f'Move X: {dx/1e3:.1f} um,  Y: {dy/1e3:.1f} um')
+
+    def synchronize_xtallist(self):
+        if not self.dataReceiverReady:
+            logging.warning("Other inquiry runnng")
+            return
+        # load mode
+        if self.tem_stagectrl.position_list.count() == 5:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=1)
+            logging.info("Start session-metadata loading")
+        # save mode
+        elif len(self.xtallist) != 1:
+            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=2)
+            logging.info("Start session-metadata saving")
+        else:
+            logging.warning("No data available")
+            return
+
+        self.datareceiver_thread = QThread()
+        self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
+        thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
+        self.datareceiver_thread.start()
+        self.dataReceiverReady = False
+        self.process_receiver.finished.connect(self.getdataReceiverReady)

@@ -40,15 +40,17 @@ class CenteringTask(Task):
         return rotmatrix @ vector
     
     def translationvector(self, pixels, magnification):
-        calibrated_mag = cfg_jf.lookup(cfg_jf.lut.magnification, magnification[2], 'displayed', 'calibrated')
+        calibrated_mag = cfg_jf.lut().calibrated_magnification(magnification[2])
+        rotation_axis = cfg_jf.lut().rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0])
         if int(magnification[0]) >= 1500 : # Mag
             logging.debug(f'Estimate with rotation')
             tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * cfg_jf.others.pixelsize * 1e3 / calibrated_mag # in um
-            tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta) # deg., angle between detector y and rotation axes.
+            # tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta) # deg., angle between detector y and rotation axes.
         else: # Lowmag, targeting to the rectangular overlay
             logging.debug(f'Estimate with rotation at LM')
             tr_vector = (pixels - [self.lowmag_jump[0], self.lowmag_jump[1]]) * cfg_jf.others.pixelsize * 1e3 / calibrated_mag # in um
-            tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta_lm1200x)
+            # tr_vector = self.rot2d(tr_vector, cfg_jf.others.rotation_axis_theta_lm1200x)
+        tr_vector = self.rot2d(tr_vector, rotation_axis)            
         return np.round(tr_vector, 3)
 
     def run(self):
@@ -76,7 +78,7 @@ class CenteringTask(Task):
             if np.abs(movexy[0]) < self.thresholds['dxy_min'] and np.abs(movexy[1]) < self.thresholds['dxy_min']:
                 logging.info(f'Vector already small enough (< {self.thresholds[0]} um): {movexy[0]}, {movexy[1]}')
                 return
-            logging.info(f'Move X: {movexy[0]},  Y: {movexy[1]} with MAG: {magnification[2]}')
+            logging.info(f'Move X: {movexy[0]} um,  Y: {movexy[1]} um with MAG: {magnification[2]}')
             # self.client.SetXRel(movexy[0]*-1e3)
             self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, movexy[0]*-1e3, cfg_jf.others.backlash[0])            
             time.sleep(0.5)
