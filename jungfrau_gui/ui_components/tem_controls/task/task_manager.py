@@ -273,195 +273,6 @@ class ControlWorker(QObject):
         logging.info("####### ######## Sweeping worker ready? --> FALSE")
         self.sweepingWorkerReady = False
 
-    """ @Slot(dict)
-    def update_tem_status_detailed(self, response):
-        '''
-        #*************** 
-        print(f"Display update values")
-        for key, value in response.items():
-            print(f"{key}: {value}")
-        #*************** 
-        ''' 
-        logging.debug("Updating ControlWorker map with last TEM Status")
-        try:
-            logging.debug("START of the update loop")
-            for entry in response:
-                self.tem_status[entry] = response[entry]["val"]
-                self.tem_update_times[entry] = (response[entry]["tst_before"], response[entry]["tst_after"])
-            logging.debug("END of update loop")
-            logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
-            if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
-                self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
-                # self.cfg.mag_value_img = self.tem_status['eos.GetMagValue']
-                globals.mag_value_img = self.tem_status['eos.GetMagValue']
-                self.tem_update_times['eos.GetMagValue_MAG'] = self.tem_update_times['eos.GetMagValue']
-            elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
-                self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
-                # self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue']
-                globals.mag_value_diff = self.tem_status['eos.GetMagValue']
-                self.tem_update_times['eos.GetMagValue_DIFF'] = self.tem_update_times['eos.GetMagValue']
-            if self.tem_status['apt.GetKind'] == 1: #CLA
-                self.tem_status['apt.GetPosition_CL'] = self.tem_status['apt.GetPosition']
-            elif self.tem_status['apt.GetKind'] == 2: #OLA
-                self.tem_status['apt.GetPosition_OL'] = self.tem_status['apt.GetPosition']
-            elif self.tem_status['apt.GetKind'] == 4: #SAA
-                self.tem_status['apt.GetPosition_SA'] = self.tem_status['apt.GetPosition']
-
-            # Update blanking button with live status at TEM
-            if self.tem_status["defl.GetBeamBlank"] == 0:
-                self.tem_action.tem_stagectrl.blanking_button.setText("Blank beam")
-                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-            else:
-                self.tem_action.tem_stagectrl.blanking_button.setText("Unblank beam")
-                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
-
-            logging.debug("TEM Status Dictionnary updated!")
-            
-            # import json
-            # # Save to text file
-            # with open('tem_status.txt', 'w') as file:
-            #     json.dump(self.tem_status, file, indent=4)  # 'indent=4' makes it pretty-printed
-
-            self.updated.emit()
-        except Exception as e:
-            logging.error(f"Error during updating detailed tem_status map: {e}")
-
-    @Slot(dict)
-    def update_tem_status_init(self, response):
-        logging.debug("Updating ControlWorker map with last TEM Status, only for starting items")
-        try:
-            logging.debug("START of the update loop")
-            for entry in response:
-                self.tem_status[entry] = response[entry]["val"]
-                self.tem_update_times[entry] = (response[entry]["tst_before"], response[entry]["tst_after"])
-            logging.debug("END of update loop")
-            if self.tem_status['ht.GetHtValue'] is not None:
-                self.tem_status['ht.GetHtValue_readout'] = 1
-            else:
-                self.tem_status['ht.GetHtValue'] = 200000.00
-            self.updated.emit()
-        except Exception as e:
-            logging.error(f"Error during starting tem_status map: {e}")            
-
-    @Slot(dict)
-    def update_tem_status(self, response):
-        self.tem_status["stage.GetPos_prev"] = self.tem_status["stage.GetPos"]
-        try:
-            for entry in response:
-                self.tem_status[entry] = response[entry]
-            logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']}")
-            if self.tem_status['eos.GetFunctionMode'][0] == 0: #MAG
-                self.tem_status['eos.GetMagValue_MAG'] = self.tem_status['eos.GetMagValue']
-                # self.cfg.mag_value_img = self.tem_status['eos.GetMagValue']
-                globals.mag_value_img = self.tem_status['eos.GetMagValue']
-            elif self.tem_status['eos.GetFunctionMode'][0] == 4: #DIFF
-                self.tem_status['eos.GetMagValue_DIFF'] = self.tem_status['eos.GetMagValue']
-                # self.cfg.mag_value_diff = self.tem_status['eos.GetMagValue']
-                globals.mag_value_diff = self.tem_status['eos.GetMagValue']
-
-            # Update blanking button with live status at TEM
-            if self.tem_status["defl.GetBeamBlank"] == 0:
-                self.tem_action.tem_stagectrl.blanking_button.setText("Blank beam")
-                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-            else:
-                self.tem_action.tem_stagectrl.blanking_button.setText("Unblank beam")
-                self.tem_action.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
-
-            position = self.tem_status["stage.GetPos"]
-            position_prev = self.tem_status["stage.GetPos_prev"]
-            diff_pos = np.array(list(map(lambda x, y: x-y, position, position_prev)))
-            threshold = np.array([30, 30, 30, 0.2, 100]) # nm, nm, nm, deg., deg., removes negligible fluctuation
-            update = np.abs(diff_pos) > threshold
-            self.tem_status["stage.GetPos_diff"] = diff_pos * update + self.tem_status["stage.GetPos_diff"] * ~update
-            self.updated.emit()
-            
-        except Exception as e:
-            logging.error(f"Error during quick updating tem_status map: {e}")
-
-    @Slot(str) 
-    def send_to_tem(self, message, asynchronous = True):
-        logging.debug(f'Sending {message} to TEM...')
-        if message == "#info":
-            if asynchronous:
-                threading.Thread(target=lambda: self.trigger_tem_update.emit(self.get_state())).start()
-            else:
-                results = self.get_state()
-                self.trigger_tem_update.emit(results)
-
-        elif message == "#more":
-            if asynchronous:
-                threading.Thread(target=lambda: self.trigger_tem_update_detailed.emit(self.get_state_detailed())).start()
-            else:
-                results = self.get_state_detailed()
-                self.trigger_tem_update_detailed.emit(results)
-        elif message == "#init":
-            if asynchronous:
-                threading.Thread(target=lambda: self.trigger_tem_update_init.emit(self.get_state_init())).start()
-            else:
-                results = self.get_state_init()
-                self.trigger_tem_update_init.emit(results)
-        else:
-            logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
-            pass
-
-    def get_state(self):
-        results = {}
-        tic_loop = time.perf_counter()
-        for query in self.info_queries:
-            tic = time.perf_counter()
-            logging.debug(" ++++++++++++++++ ")
-            logging.debug(f"Command from list {query}")
-            logging.debug(f"Command as executed {tools.full_mapping[query]}")
-            results[query] = self.execute_command(tools.full_mapping[query])
-            logging.debug(f"results[query] is {results[query]}")
-            toc = time.perf_counter()
-            logging.debug(f"Getting info for {query} took {toc - tic} seconds")
-        toc_loop = time.perf_counter()
-        logging.debug(f"Getting #info took {toc_loop - tic_loop} seconds")
-        return results
-    
-    def get_state_detailed(self):
-        results = {}
-        tic_loop = time.perf_counter()
-        del_items = []
-        for query in self.more_queries:
-            result = {}
-            result["tst_before"] = time.time()
-            result["val"] = self.execute_command(tools.full_mapping[query])
-            result["tst_after"] = time.time()
-            results[query] = result
-            if result["val"] is None and query in ["apt.GetKind", "apt.GetPosition"]:
-                del_items.append(query)
-        for query in del_items:
-            self.more_queries.remove(query)
-            logging.warning(f"{query} is removed from list of query")
-        toc_loop = time.perf_counter()
-        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
-        return results
-
-    def get_state_init(self):
-        results = {}
-        tic_loop = time.perf_counter()
-        del_items = []
-        for query in self.init_queries:
-            result = {}
-            result["tst_before"] = time.time()
-            result["val"] = self.execute_command(tools.full_mapping[query])
-            result["tst_after"] = time.time()
-            results[query] = result   
-            if result["val"] is None:
-                del_items.append(query)
-        for query in del_items:
-            self.init_queries.remove(query)
-            logging.warning(f"{query} is removed from list of query")
-            # time.sleep(2) # debug line
-        toc_loop = time.perf_counter()
-        logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
-        return results """
-    
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
-    """ RE-CODED FOR BETTER PERFORMANCE """
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     @Slot(dict)
     def update_tem_status_detailed(self, response):
         """Update control worker with detailed TEM status."""
@@ -633,11 +444,17 @@ class ControlWorker(QObject):
             logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
 
     def _handle_info_command(self, asynchronous):
-        """Handle '#info' command."""
-        # Get state with batched processing
-        results = self.get_state_batched()
-        # Emit signal with results
-        self.trigger_tem_update.emit(results)
+        """Handle '#info' command in a worker thread."""
+        # If we have a worker, use it
+        if hasattr(self, 'tem_threads') and self.tem_threads.get('update_worker'):
+            # Invoke the worker method
+            QMetaObject.invokeMethod(self.tem_threads['update_worker'], 
+                                    "process_tem_info", 
+                                    Qt.QueuedConnection)
+        else:
+            # Fallback to old method
+            results = self.get_state_batched()
+            self.trigger_tem_update.emit(results)
 
     def _handle_more_command(self, asynchronous):
         """Handle '#more' command."""
@@ -653,116 +470,6 @@ class ControlWorker(QObject):
         # Emit signal with results
         self.trigger_tem_update_init.emit(results)
 
-    """ def get_state(self):
-        '''Get basic TEM state with performance optimizations.'''
-        results = {}
-        tic_loop = time.perf_counter()
-        
-        # Cache mapping dictionary
-        mapping = tools.full_mapping
-        
-        # Use iterator to avoid lookups in loop
-        for query in self.info_queries:
-            tic = time.perf_counter()
-            
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug(" ++++++++++++++++ ")
-                logging.debug(f"Command from list {query}")
-                logging.debug(f"Command as executed {mapping[query]}")
-            
-            # Execute command with mapped value
-            results[query] = self.execute_command(mapping[query])
-            
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug(f"results[query] is {results[query]}")
-                toc = time.perf_counter()
-                logging.debug(f"Getting info for {query} took {toc - tic} seconds")
-        
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            toc_loop = time.perf_counter()
-            logging.debug(f"Getting #info took {toc_loop - tic_loop} seconds")
-        
-        return results
-
-    def get_state_detailed(self):
-        '''Get detailed TEM state with performance optimizations.'''
-        results = {}
-        tic_loop = time.perf_counter()
-        
-        # Cache mapping dictionary
-        mapping = tools.full_mapping
-        
-        # Track items to delete
-        del_items = []
-        
-        # Process all queries
-        for query in self.more_queries:
-            # Create result structure once
-            result = {
-                "tst_before": time.time(),
-                "val": self.execute_command(mapping[query]),
-            }
-            result["tst_after"] = time.time()
-            
-            # Store result
-            results[query] = result
-            
-            # Check for None values in specific queries
-            if result["val"] is None and query in ["apt.GetKind", "apt.GetPosition"]:
-                del_items.append(query)
-        
-        # Remove failed queries from the list
-        if del_items:
-            for query in del_items:
-                self.more_queries.remove(query)
-                logging.warning(f"{query} is removed from list of query")
-        
-        toc_loop = time.perf_counter()
-        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
-        
-        return results
-
-    def get_state_init(self):
-        '''Get initial TEM state with performance optimizations.'''
-        results = {}
-        tic_loop = time.perf_counter()
-        
-        # Cache mapping dictionary
-        mapping = tools.full_mapping
-        
-        # Track items to delete
-        del_items = []
-        
-        # Process all queries
-        for query in self.init_queries:
-            # Create result structure once
-            result = {
-                "tst_before": time.time(),
-                "val": self.execute_command(mapping[query]),
-            }
-            result["tst_after"] = time.time()
-            
-            # Store result
-            results[query] = result
-            
-            # Check for None values
-            if result["val"] is None:
-                del_items.append(query)
-        
-        # Remove failed queries from the list
-        if del_items:
-            for query in del_items:
-                self.init_queries.remove(query)
-                logging.warning(f"{query} is removed from list of query")
-        
-        toc_loop = time.perf_counter()
-        logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
-        
-        return results """
-    
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
-    """ RE-CODED FOR BETTER PERFORMANCE """
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def get_state_batched(self, batch_size=3):
         """Get TEM state in batches to prevent freezes."""
         results = {}
@@ -790,7 +497,7 @@ class ControlWorker(QObject):
                 time.sleep(0.001)  # Minimal sleep to allow event loop to process
 
         toc_loop = time.perf_counter()
-        logging.warning(f"Getting #info took {toc_loop - tic_loop} seconds")
+        logging.debug(f"Getting #info took {toc_loop - tic_loop} seconds")
         
         return results
 
@@ -888,90 +595,58 @@ class ControlWorker(QObject):
 
         return results 
 
-    """ def execute_command(self, command_str):
-        try:
-            # Split the command into method name and arguments
-            parts = command_str.split('(')
-            method_name = parts[0]
-            arguments = parts[1].replace(')', '')
-            # Function to convert string arguments to appropriate types
-            def convert_arg(arg):
-                if arg.lower() in ('true', 'false'):
-                    return arg.lower() == 'true'  # Convert to boolean
-                try:
-                    if '.' in arg:
-                        return float(arg)  # Convert to float
-                    return int(arg)  # Convert to int
-                except ValueError:
-                    return arg  # Return as string if not a number
-            # Check if there are no arguments
-            if arguments:
-                # Split arguments and convert them
-                args = tuple(convert_arg(arg.strip()) for arg in arguments.split(','))
-            else:
-                args = ()
-            # Get the method from the client object
-            method = getattr(self.client, method_name)
-            # Call the method with the arguments
-            result = method(*args)
-            # Return the result or a default value
-            return result if result is not None else "No result returned"
-        except AttributeError:
-            logging.error(f"Error: The method '{method_name}' does not exist.")
-            return None
-        except Exception as e:
-            logging.error(f"Error: {e}")
-            return None """
-
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
-    """ RE-CODED FOR BETTER PERFORMANCE """
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def execute_command(self, command_str):
         """Execute a TEM command with optimized performance."""
         # Early validation
-        if not command_str or '(' not in command_str or not hasattr(self, 'client'):
+        if not command_str or not hasattr(self, 'client'):
             logging.error(f"Invalid command format or missing client: {command_str}")
             return None
             
         try:
-            # Cache frequently used operations
-            method_parts = command_str.split('(', 1)
-            method_name = method_parts[0]
-        
-            # Handle the case where there might not be a closing parenthesis
-            if ')' in method_parts[1]:
-                arguments = method_parts[1].split(')', 1)[0]
-            else:
-                arguments = method_parts[1]
+            # Handle methods with and without parentheses
+            if '(' in command_str:
+                # Cache frequently used operations
+                method_parts = command_str.split('(', 1)
+                method_name = method_parts[0]
             
-            # Prepare arguments (only process if we have arguments)
-            if arguments.strip():
-                # Pre-split arguments
-                arg_list = arguments.split(',')
-                args = []
+                # Handle the case where there might not be a closing parenthesis
+                if ')' in method_parts[1]:
+                    arguments = method_parts[1].split(')', 1)[0]
+                else:
+                    arguments = method_parts[1]
                 
-                # Process each argument once with optimized type conversion
-                for arg in arg_list:
-                    arg = arg.strip()
-                    if arg.lower() == 'true':
-                        args.append(True)
-                    elif arg.lower() == 'false':
-                        args.append(False)
-                    else:
-                        # Try numeric conversion with minimal overhead
-                        try:
-                            if '.' in arg:
-                                args.append(float(arg))
-                            else:
-                                args.append(int(arg))
-                        except ValueError:
-                            args.append(arg)
-                
-                # Convert to tuple once
-                args = tuple(args)
+                # Prepare arguments (only process if we have arguments)
+                if arguments.strip():
+                    # Pre-split arguments
+                    arg_list = arguments.split(',')
+                    args = []
+                    
+                    # Process each argument once with optimized type conversion
+                    for arg in arg_list:
+                        arg = arg.strip()
+                        if arg.lower() == 'true':
+                            args.append(True)
+                        elif arg.lower() == 'false':
+                            args.append(False)
+                        else:
+                            # Try numeric conversion with minimal overhead
+                            try:
+                                if '.' in arg:
+                                    args.append(float(arg))
+                                else:
+                                    args.append(int(arg))
+                            except ValueError:
+                                args.append(arg)
+                    
+                    # Convert to tuple once
+                    args = tuple(args)
+                else:
+                    args = ()
             else:
+                # Method without arguments
+                method_name = command_str
                 args = ()
-            
+
             # Get method reference once (expensive operation)
             try:
                 method = getattr(self.client, method_name)
@@ -987,7 +662,7 @@ class ControlWorker(QObject):
             logging.error(f"Error executing '{command_str}': {str(e)}")
             return None
 
-    def _execute_with_timeout(self, method, args, timeout=10.0):
+    def _execute_with_timeout(self, method, args, timeout=0.5):
         """Execute a method with a timeout to prevent UI freezes."""
         # Create a result container
         result_container = []

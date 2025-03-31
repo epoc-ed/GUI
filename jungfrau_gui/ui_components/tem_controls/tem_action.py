@@ -15,6 +15,7 @@ from epoc import ConfigurationClient, auth_token, redis_host
 
 from .connectivity_inspector import TEM_Connector
 from ..file_operations.processresult_updater import ProcessedDataReceiver
+from .tem_status_updater import TemUpdateWorker
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 import time
@@ -129,9 +130,6 @@ class TEMAction(QObject):
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
 
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
-    """ RE-CODED FOR BETTER PERFORMANCE """
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def enabling(self, enables=True):
         '''Enable or disable TEM-related UI controls efficiently.'''
         # Create groups of controls to enable/disable together
@@ -190,47 +188,11 @@ class TEMAction(QObject):
             self.tem_detector.calc_e_incoming_button.setEnabled(True)
             self.tem_stagectrl.mapsnapshot_button.setEnabled(True)
 
-    """ def enabling(self, enables=True):
-        if self.cfg.beam_center != [1,1]:
-            self.tem_detector.scale_checkbox.setEnabled(enables)
-        for i in self.tem_stagectrl.rb_speeds.buttons():
-            i.setEnabled(enables)
-        if enables:
-            self.toggle_rb_speeds()
-        for i in self.tem_stagectrl.movestages.buttons():
-            i.setEnabled(enables)
-        for i in self.tem_stagectrl.mag_modes.buttons():
-            i.setEnabled(enables)
-        # self.tem_tasks.gettem_button.setEnabled(enables)
-        # self.tem_tasks.gettem_checkbox.setEnabled(False) # Not works correctly
-        # self.tem_tasks.centering_button.setEnabled(enables)
-        self.tem_tasks.centering_checkbox.setEnabled(enables)
-        self.tem_tasks.btnGaussianFit.setEnabled(enables)
-        self.tem_tasks.beamAutofocus.setEnabled(enables)
-        self.tem_tasks.rotation_button.setEnabled(enables)
-        self.tem_tasks.input_start_angle.setEnabled(enables)
-        self.tem_tasks.update_end_angle.setEnabled(enables)
-        self.tem_stagectrl.blanking_button.setEnabled(enables)
-        try:
-            self.tem_stagectrl.screen_button.setEnabled(enables)
-        except AttributeError:
-            pass 
-        self.tem_stagectrl.position_list.setEnabled(enables)
-        self.tem_stagectrl.go_button.setEnabled(enables)
-        self.tem_stagectrl.addpos_button.setEnabled(enables)
-        if globals.dev:
-            self.tem_detector.calc_e_incoming_button.setEnabled(enables)
-            self.tem_stagectrl.mapsnapshot_button.setEnabled(enables) """
-    
-
     def reset_rotation_button(self):
         '''Reset rotation button to initial state.'''
         self.tem_tasks.rotation_button.setText("Rotation")
         self.tem_tasks.rotation_button.started = False
 
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
-    """ RE-CODED FOR BETTER PERFORMANCE """
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def toggle_connectTEM(self):
         """Toggle TEM connection with performance optimizations."""
         if not self.tem_tasks.connecttem_button.started:
@@ -353,14 +315,44 @@ class TEMAction(QObject):
             button.setStyleSheet('background-color: red; color: white;')
             button.setText("Disconnected")
         
-        # Enable/disable controls based on connection
-        # Use delayed execution for enabling to prevent UI freeze
+        # Enable/disable controls 
         QTimer.singleShot(0, lambda: self.enabling(tem_connected))
         
-        # Get TEM info if connected
+        # Get TEM info if connected, but in a separate thread
         if tem_connected:
-            # Make non-blocking with asynchronous=True
-            QTimer.singleShot(0, lambda: self.control.send_to_tem("#info", asynchronous=True))
+            # Ensure we have a worker set up
+            if not hasattr(self, 'tem_threads'):
+                self.setup_tem_update_worker()
+            
+            # Use the worker to process TEM info
+            QMetaObject.invokeMethod(self.update_worker, "process_tem_info", Qt.QueuedConnection)
+
+    def setup_tem_update_worker(self):
+        """Set up a worker thread for TEM updates."""
+        # Create worker and thread
+        self.update_thread = QThread()
+        self.update_worker = TemUpdateWorker(self.control)
+        
+        # Track thread/worker pair
+        self.parent.threadWorkerPairs.append((self.update_thread, self.update_worker))
+
+        # Move worker to thread
+        self.update_worker.moveToThread(self.update_thread)
+        logging.info(f"\033[1m{self.update_worker.task_name}\033[0m\033[34m is Ready!")
+
+        # Connect signals
+        self.update_worker.status_updated.connect(self.control.update_tem_status)
+        self.update_worker.finished.connect(self.on_update_finished)
+        
+        # Start thread
+        self.update_thread.start()
+        
+        # Store reference to keep thread alive
+        self.tem_threads = {'update_thread': self.update_thread, 'update_worker': self.update_worker}
+
+    def on_update_finished(self):
+        """Function that does nothing, just catches the finished signal."""
+        pass
 
     def callGetInfoTask(self):
         """Call get info task with optimizations."""
@@ -373,74 +365,6 @@ class TEMAction(QObject):
         # Trigger info gathering
         self.control.trigger_getteminfo.emit(get_tem_info)
 
-    """ def toggle_connectTEM(self):
-        if not self.tem_tasks.connecttem_button.started:
-            try:
-                self.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1e3)
-            except TypeError:
-                pass
-            self.control.init.emit()
-            self.connect_thread = QThread()
-            self.temConnector = TEM_Connector()
-            self.parent.threadWorkerPairs.append((self.connect_thread, self.temConnector))
-            self.initializeWorker(self.connect_thread, self.temConnector)
-            self.connect_thread.start()
-            self.connectorWorkerReady = True
-            logging.info("Starting tem-connecting process")
-            self.tem_tasks.connecttem_button.started = True
-            self.timer_tem_connexion.start(self.tem_tasks.polling_frequency.value()) # 0.5 seconds between pings
-            self.control.send_to_tem("#init", asynchronous=False)
-            if self.main_overlays[0] != None:
-                [self.parent.plot.removeItem(i) for i in self.main_overlays]
-            self.main_overlays = self.lut.overlays_for_ht(self.parent.tem_controls.voltage_spBx.value()*1e3)
-            [self.parent.plot.addItem(i) for i in self.main_overlays]
-        else:
-            self.tem_tasks.connecttem_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-            self.tem_tasks.connecttem_button.setText("Check TEM Connection")
-            self.tem_tasks.connecttem_button.started = False
-            self.timer_tem_connexion.stop()
-            self.parent.stopWorker(self.connect_thread, self.temConnector)
-            self.temConnector, self.connect_thread = thread_manager.reset_worker_and_thread(self.temConnector, self.connect_thread)
-
-    def initializeWorker(self, thread, worker):
-        thread_manager.move_worker_to_thread(thread, worker)
-        worker.finished.connect(self.updateTemControls)
-        worker.finished.connect(self.getConnectorReady)
-
-    def getConnectorReady(self):
-        self.connectorWorkerReady = True
-
-    def checkTemConnexion(self):
-        if self.connectorWorkerReady:
-            self.connectorWorkerReady = False
-            QMetaObject.invokeMethod(self.temConnector, "run", Qt.QueuedConnection)
-
-    def updateTemControls(self, tem_connected):
-        if tem_connected:
-            self.tem_tasks.connecttem_button.setStyleSheet('background-color: green; color: white;')
-            self.tem_tasks.connecttem_button.setText("Connection OK")
-            # self.control.trigger_getteminfo.emit('N')
-        else:
-            self.tem_tasks.connecttem_button.setStyleSheet('background-color: red; color: white;')
-            self.tem_tasks.connecttem_button.setText("Disconnected")
-        self.enabling(tem_connected) #also disables buttons if tem-gui connection is cut
-        if tem_connected:
-            self.control.send_to_tem("#info")
-        
-    def callGetInfoTask(self):
-        self.control.init.emit()
-        if self.tem_tasks.gettem_checkbox.isChecked():
-            self.control.trigger_getteminfo.emit('Y')
-            # if os.path.isfile(self.formatted_filename):
-            #     logging.info(f'Trying to add TEM information to {self.formatted_filename}')
-            #     self.temtools.addinfo_to_hdf()
-        else:
-            self.control.trigger_getteminfo.emit('N') """
-    
-
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
-    """ RE-CODED FOR BETTER PERFORMANCE """
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def on_tem_update(self):
         logging.debug("Updating GUI with last TEM Status...")
 
@@ -552,87 +476,6 @@ class TEMAction(QObject):
 
         logging.debug("GUI updated with lastest TEM Status")
 
-    """ def on_tem_update(self):
-        logging.debug("Updating GUI with last TEM Status...")
-        try:
-            self.parent.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1e3) # keV 
-        except TypeError:
-            pass
-        angle_x = self.control.tem_status["stage.GetPos"][3]
-        if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
-        self.control.beam_sigmaxy = [self.tem_controls.sigma_x_spBx.value(), self.tem_controls.sigma_y_spBx.value()]
-        
-        # 1) Live query on both the current mode and the beam blank state
-        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
-
-        if Mag_idx in [0, 1, 2]:
-            magnification = self.control.tem_status["eos.GetMagValue"][2]
-            self.tem_detector.input_magnification.setText(magnification)
-            self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
-        elif Mag_idx == 4:            
-            detector_distance = self.control.tem_status["eos.GetMagValue"][2]
-            self.tem_detector.input_det_distance.setText(detector_distance)
-            self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
-            
-        beam_blank_state = self.control.tem_status["defl.GetBeamBlank"] = self.control.client.GetBeamBlank()
-
-        # 2) Only do something if the mode *changed*
-        if Mag_idx != self.last_mag_mode:
-            if Mag_idx in [0, 1, 2]:
-                if not self.parent.autoContrastBtn.started:
-                    self.parent.autoContrastBtn.clicked.emit()
-
-                # In MAG mode, we generally *want* Gaussian Fit OFF
-                # so if it's currently ON, turn it OFF programmatically
-                if self.tem_tasks.btnGaussianFit.started:
-                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
-                
-                self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
-            elif Mag_idx == 4:
-                if self.parent.autoContrastBtn.started:
-                    self.parent.resetContrastBtn.clicked.emit()
-
-                # In DIFF mode, we generally *want* Gaussian Fit ON (unless user forced it off).
-                # So if it's currently OFF and not user-forced-off, turn it on programmatically.
-                if (not self.tem_tasks.btnGaussianFit.started) and (not self.tem_controls.gaussian_user_forced_off):
-                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
-                
-                self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
-            else:
-                logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
-
-            self.last_mag_mode = Mag_idx
-
-        # 3) Handle beam blank logic on *every* poll (even if mode hasn't changed)
-        if beam_blank_state == 1:
-            # If the beam is blanked, forcibly turn off Gaussian Fit (if it’s currently running)
-            if self.tem_tasks.btnGaussianFit.started:
-                self.tem_controls.toggle_gaussianFit_beam(by_user=False)
-        else:
-            # If the beam is unblanked (0) and we are in DIFF mode (4), 
-            # and not user-forced-off, ensure it's on
-            if Mag_idx == 4 and not self.tem_controls.gaussian_user_forced_off:
-                if not self.tem_tasks.btnGaussianFit.started:
-                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
-
-        # Update rotation_speed radio button in GUI to refelct status of TEM
-        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"] # = self.control.client.Getf1OverRateTxNum()
-        logging.debug(f"Rotation speed index: {rotation_speed_index}")
-        if rotation_speed_index in [0,1,2,3]: self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
-        
-        self.plot_currentposition()
-
-        if not self.tem_tasks.rotation_button.started:
-            if self.tem_tasks.withwriter_checkbox.isChecked():
-                self.tem_tasks.rotation_button.setText("Rotation/Record")
-            else:
-                self.tem_tasks.rotation_button.setText("Rotation")
-
-        logging.debug("GUI updated with lastest TEM Status") """
-
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
-    """ RE-CODED FOR BETTER PERFORMANCE """
-    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def drawscale_overlay(self, xo=0, yo=0, l_draw=1):
         """Draw scale overlay on the image with caching optimizations."""
         # Early exit if scale checkbox is unchecked
@@ -733,15 +576,13 @@ class TEMAction(QObject):
         # Cache rotation speed mappings
         speed_values = [10.0, 2.0, 1.0, 0.5]
         
-        # Execute command once
-        result = self.control.execute_command("Setf1OverRateTxNum("+ str(idx_rot_button) +")")
-        print(f"-----result = {result}")
-
-        if result is not None:
+        try:
+            # Execute command once
+            self.control.client.Setf1OverRateTxNum(idx_rot_button)
             logging.info(f"Rotation velocity is set to {speed_values[idx_rot_button]} deg/s")
-        else:
+        except Exception as e:
             # Only get TEM status if command failed
-            rotation_at_tem = self.control.client.Getf1OverRateTxNum()
+            rotation_at_tem = self.control.execute_command("Getf1OverRateTxNum")
             logging.error(f"Changes of rotation speed has failed!\nRotation at TEM is {speed_values[rotation_at_tem]} deg/s")
 
     def toggle_mag_modes(self):
@@ -753,21 +594,18 @@ class TEMAction(QObject):
         if idx_mag_button == 4:
             self.parent.resetContrastBtn.clicked.emit()
         
-        # Cache client reference
-        client = self.control.client
-        
         try:
             # Send command once
-            client.SelectFunctionMode(idx_mag_button)
-            
-            # Get function mode only once
-            function_mode = client.GetFunctionMode()[0]
-            logging.info(f"Function Mode switched to {function_mode} (0=MAG, 2=Low MAG, 4=DIFF)")
+            # client.SelectFunctionMode(idx_mag_button)
+            self.control.execute_command("SelectFunctionMode("+ str(idx_mag_button) +")")
+            logging.info(f"Function Mode switched to {idx_mag_button} (0=MAG, 2=Low MAG, 4=DIFF)")
         except Exception as e:
             logging.warning(f"Error occurred when relaying 'SelectFunctionMode({idx_mag_button})': {e}")
             
             # Only get function mode if there was an error
-            idx = client.GetFunctionMode()[0]
+            # idx = client.GetFunctionMode()[0]
+            idx = self.control.execute_command("GetFunctionMode")
+            print()
             
             # Normalize function mode (treat MAG and MAG2 as same)
             if idx == 1:
@@ -775,74 +613,6 @@ class TEMAction(QObject):
                 
             # Update UI to reflect actual state
             self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
-
-    """ def drawscale_overlay(self, xo=0, yo=0, l_draw=1):
-        pixel = cfg_jf.others.pixelsize
-        ht = self.parent.tem_controls.voltage_spBx.value()
-        if self.scale != None:
-            self.parent.plot.removeItem(self.scale)
-        if self.tem_detector.scale_checkbox.isChecked():
-            if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
-                detector_distance = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                detector_distance = self.lut.interpolated_distance(detector_distance, self.parent.tem_controls.voltage_spBx.value())
-                radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=ht)
-                self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
-            else:
-                magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                magnification = self.lut.calibrated_magnification(magnification)
-                scale_in_px = l_draw * 1e-3 * magnification / pixel
-                self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
-            self.scale.setPen(pg.mkPen('w', width=2))
-            self.parent.plot.addItem(self.scale)        
-
-    def toggle_blank(self):
-        if self.control.tem_status["defl.GetBeamBlank"] == 0:
-            self.control.client.SetBeamBlank(1)
-            self.tem_stagectrl.blanking_button.setText("Unblank beam")
-            self.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
-        else:
-            self.control.client.SetBeamBlank(0)
-            self.tem_stagectrl.blanking_button.setText("Blank beam")
-            self.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-
-    def toggle_screen(self):
-        try:
-            screen_status = self.control.client._send_message("GetScreen")
-            if screen_status == 0:
-                self.control.client._send_message("SetScreen", 2)
-                time.sleep(2)
-                self.tem_stagectrl.screen_button.setText("Screen Up")
-            else:
-                self.control.client._send_message("SetScreen", 0)
-                time.sleep(2)
-                self.tem_stagectrl.screen_button.setText("Screen Down")
-        except RuntimeError:
-            logging.warning('To move screen, use specific version of tem_server.py!')
-
-    def toggle_rb_speeds(self):
-        idx_rot_button = self.tem_stagectrl.rb_speeds.checkedId()
-        if self.cfg.rotation_speed_idx != idx_rot_button:
-            self.update_rotation_speed_idx_from_ui(idx_rot_button)
-            result = self.control.execute_command("Setf1OverRateTxNum("+ str(idx_rot_button) +")")
-            if result is not None:
-                logging.info(f"Rotation velocity is set to {[10.0, 2.0, 1.0, 0.5][idx_rot_button]} deg/s")
-            else:
-                rotation_at_tem = self.control.client.Getf1OverRateTxNum()
-                logging.error(f"Changes of rotation speed has failed!\nRotation at TEM is {[10.0, 2.0, 1.0, 0.5][rotation_at_tem]} deg/s")
-                # TODO ? Make sure the right (eq to TEM status) button is checked
-
-    def toggle_mag_modes(self):
-        idx_mag_button = self.tem_stagectrl.mag_modes.checkedId()
-        if idx_mag_button == 4:
-            self.parent.resetContrastBtn.clicked.emit()
-        try:
-            self.control.client.SelectFunctionMode(idx_mag_button)
-            logging.info(f"Function Mode switched to {self.control.client.GetFunctionMode()[0]} (0=MAG, 2=Low MAG, 4=DIFF)")
-        except Exception as e:
-            logging.warning(f"Error occured when relaying 'SelectFunctionMode({idx_mag_button}': {e}")
-            idx = self.control.client.GetFunctionMode()[0]
-            if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
-            self.tem_stagectrl.mag_modes.button(idx).setChecked(True) """
 
     def update_rotation_speed_idx_from_ui(self, idx_rot_button):
         self.cfg.rotation_speed_idx = idx_rot_button
