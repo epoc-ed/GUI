@@ -227,12 +227,15 @@ class ApplicationWindow(QMainWindow):
             self.toggle_autoContrast()
         self.histogram.setLevels(lower, upper)
 
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    """ RE-CODED FOR BETTER PERFORMANCE """
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def toggle_autoContrast(self):
         if not self.autoContrastBtn.started:
             self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
             self.autoContrastBtn.setText('Stop Auto Contrast')
             self.autoContrastBtn.started = True
-            self.timer_contrast.start(250)  # Assuming 100Hz streaming frequency at most
+            self.timer_contrast.start(200)  # Assuming 100Hz streaming frequency at most
         else:
             self.timer_contrast.stop()
             self.autoContrastBtn.started = False

@@ -459,6 +459,9 @@ class ControlWorker(QObject):
         logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
         return results """
     
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    """ RE-CODED FOR BETTER PERFORMANCE """
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     @Slot(dict)
     def update_tem_status_detailed(self, response):
         """Update control worker with detailed TEM status."""
@@ -483,7 +486,7 @@ class ControlWorker(QObject):
                 logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status['eos.GetFunctionMode']}")
             
             # Get function mode once
-            function_mode = tem_status.get('eos.GetFunctionMode', [None])[0]
+            function_mode = tem_status.get('eos.GetFunctionMode', [None, None])[0]
             mag_value = tem_status.get('eos.GetMagValue')
             
             # Handle magnification mode
@@ -521,13 +524,7 @@ class ControlWorker(QObject):
     @Slot(dict)
     def update_tem_status_init(self, response):
         """Update control worker with initial TEM status."""
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            logging.debug("Updating ControlWorker map with last TEM Status, only for starting items")
-        
         try:
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug("START of the update loop")
-            
             # Pre-fetch references
             tem_status = self.tem_status
             tem_update_times = self.tem_update_times
@@ -536,9 +533,6 @@ class ControlWorker(QObject):
             for entry, data in response.items():
                 tem_status[entry] = data["val"]
                 tem_update_times[entry] = (data["tst_before"], data["tst_after"])
-            
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug("END of update loop")
             
             # Set default HT value if needed
             ht_value = tem_status.get('ht.GetHtValue')
@@ -566,11 +560,10 @@ class ControlWorker(QObject):
             for entry, value in response.items():
                 tem_status[entry] = value
             
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status.get('eos.GetFunctionMode')}")
+            logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status.get('eos.GetFunctionMode')}")
             
             # Get function mode once
-            function_mode = tem_status.get('eos.GetFunctionMode', [None])[0]
+            function_mode = tem_status.get('eos.GetFunctionMode', [None, None])[0]
             mag_value = tem_status.get('eos.GetMagValue')
             
             # Handle magnification mode
@@ -617,8 +610,7 @@ class ControlWorker(QObject):
     @Slot(str) 
     def send_to_tem(self, message, asynchronous=True):
         """Send commands to TEM with optimized thread handling."""
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            logging.debug(f'Sending {message} to TEM...')
+        logging.debug(f'Sending {message} to TEM...')
         
         # Create a mapping of commands to their handler functions
         command_map = {
@@ -631,7 +623,10 @@ class ControlWorker(QObject):
         handler = command_map.get(message)
         if handler:
             if asynchronous:
-                threading.Thread(target=handler, args=(asynchronous,)).start()
+                # Use daemon threads to prevent hanging
+                thread = threading.Thread(target=handler, args=(asynchronous,))
+                thread.daemon = True
+                thread.start()
             else:
                 handler(asynchronous)
         else:
@@ -639,33 +634,27 @@ class ControlWorker(QObject):
 
     def _handle_info_command(self, asynchronous):
         """Handle '#info' command."""
-        if asynchronous:
-            results = self.get_state()
-            self.trigger_tem_update.emit(results)
-        else:
-            results = self.get_state()
-            self.trigger_tem_update.emit(results)
+        # Get state with batched processing
+        results = self.get_state_batched()
+        # Emit signal with results
+        self.trigger_tem_update.emit(results)
 
     def _handle_more_command(self, asynchronous):
         """Handle '#more' command."""
-        if asynchronous:
-            results = self.get_state_detailed()
-            self.trigger_tem_update_detailed.emit(results)
-        else:
-            results = self.get_state_detailed()
-            self.trigger_tem_update_detailed.emit(results)
+        # Get detailed state with batched processing
+        results = self.get_state_detailed_batched()
+        # Emit signal with results
+        self.trigger_tem_update_detailed.emit(results)
 
     def _handle_init_command(self, asynchronous):
         """Handle '#init' command."""
-        if asynchronous:
-            results = self.get_state_init()
-            self.trigger_tem_update_init.emit(results)
-        else:
-            results = self.get_state_init()
-            self.trigger_tem_update_init.emit(results)
+        # Get init state with batched processing
+        results = self.get_state_init_batched()
+        # Emit signal with results
+        self.trigger_tem_update_init.emit(results)
 
-    def get_state(self):
-        """Get basic TEM state with performance optimizations."""
+    """ def get_state(self):
+        '''Get basic TEM state with performance optimizations.'''
         results = {}
         tic_loop = time.perf_counter()
         
@@ -696,7 +685,7 @@ class ControlWorker(QObject):
         return results
 
     def get_state_detailed(self):
-        """Get detailed TEM state with performance optimizations."""
+        '''Get detailed TEM state with performance optimizations.'''
         results = {}
         tic_loop = time.perf_counter()
         
@@ -734,7 +723,7 @@ class ControlWorker(QObject):
         return results
 
     def get_state_init(self):
-        """Get initial TEM state with performance optimizations."""
+        '''Get initial TEM state with performance optimizations.'''
         results = {}
         tic_loop = time.perf_counter()
         
@@ -769,319 +758,137 @@ class ControlWorker(QObject):
         toc_loop = time.perf_counter()
         logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
         
-        return results@Slot(dict)
-    def update_tem_status_detailed(self, response):
-        """Update control worker with detailed TEM status."""
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            logging.debug("Updating ControlWorker map with last TEM Status")
-        
-        try:
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug("START of the update loop")
-            
-            # Pre-fetch references to avoid dictionary lookups in loop
-            tem_status = self.tem_status
-            tem_update_times = self.tem_update_times
-            
-            # Update status in single loop
-            for entry, data in response.items():
-                tem_status[entry] = data["val"]
-                tem_update_times[entry] = (data["tst_before"], data["tst_after"])
-            
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug("END of update loop")
-                logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status['eos.GetFunctionMode']}")
-            
-            # Get function mode once
-            function_mode = tem_status.get('eos.GetFunctionMode', [None])[0]
-            mag_value = tem_status.get('eos.GetMagValue')
-            
-            # Handle magnification mode
-            if function_mode == 0:  # MAG
-                tem_status['eos.GetMagValue_MAG'] = mag_value
-                globals.mag_value_img = mag_value
-                tem_update_times['eos.GetMagValue_MAG'] = tem_update_times['eos.GetMagValue']
-            elif function_mode == 4:  # DIFF
-                tem_status['eos.GetMagValue_DIFF'] = mag_value
-                globals.mag_value_diff = mag_value
-                tem_update_times['eos.GetMagValue_DIFF'] = tem_update_times['eos.GetMagValue']
-            
-            # Handle aperture kind
-            apt_kind = tem_status.get('apt.GetKind')
-            if apt_kind is not None:
-                apt_position = tem_status.get('apt.GetPosition')
-                if apt_kind == 1:  # CLA
-                    tem_status['apt.GetPosition_CL'] = apt_position
-                elif apt_kind == 2:  # OLA
-                    tem_status['apt.GetPosition_OL'] = apt_position
-                elif apt_kind == 4:  # SAA
-                    tem_status['apt.GetPosition_SA'] = apt_position
-
-            # Update blanking button with live status at TEM - do this once
-            self._update_blanking_button(tem_status.get("defl.GetBeamBlank", 0))
-
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug("TEM Status Dictionary updated!")
-            
-            # Signal update
-            self.updated.emit()
-        except Exception as e:
-            logging.error(f"Error during updating detailed tem_status map: {e}")
-
-    @Slot(dict)
-    def update_tem_status_init(self, response):
-        """Update control worker with initial TEM status."""
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            logging.debug("Updating ControlWorker map with last TEM Status, only for starting items")
-        
-        try:
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug("START of the update loop")
-            
-            # Pre-fetch references
-            tem_status = self.tem_status
-            tem_update_times = self.tem_update_times
-            
-            # Update in single loop
-            for entry, data in response.items():
-                tem_status[entry] = data["val"]
-                tem_update_times[entry] = (data["tst_before"], data["tst_after"])
-            
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug("END of update loop")
-            
-            # Set default HT value if needed
-            ht_value = tem_status.get('ht.GetHtValue')
-            if ht_value is not None:
-                tem_status['ht.GetHtValue_readout'] = 1
-            else:
-                tem_status['ht.GetHtValue'] = 200000.00
-            
-            # Signal update
-            self.updated.emit()
-        except Exception as e:
-            logging.error(f"Error during starting tem_status map: {e}")
-
-    @Slot(dict)
-    def update_tem_status(self, response):
-        """Update control worker with basic TEM status."""
-        try:
-            # Pre-fetch references
-            tem_status = self.tem_status
-            
-            # Save previous position
-            tem_status["stage.GetPos_prev"] = tem_status.get("stage.GetPos", [0, 0, 0, 0, 0])
-            
-            # Update status in single loop
-            for entry, value in response.items():
-                tem_status[entry] = value
-            
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status.get('eos.GetFunctionMode')}")
-            
-            # Get function mode once
-            function_mode = tem_status.get('eos.GetFunctionMode', [None])[0]
-            mag_value = tem_status.get('eos.GetMagValue')
-            
-            # Handle magnification mode
-            if function_mode == 0:  # MAG
-                tem_status['eos.GetMagValue_MAG'] = mag_value
-                globals.mag_value_img = mag_value
-            elif function_mode == 4:  # DIFF
-                tem_status['eos.GetMagValue_DIFF'] = mag_value
-                globals.mag_value_diff = mag_value
-
-            # Update blanking button with live status at TEM
-            self._update_blanking_button(tem_status.get("defl.GetBeamBlank", 0))
-
-            # Calculate position difference using numpy operations
-            position = np.array(tem_status.get("stage.GetPos", [0, 0, 0, 0, 0]))
-            position_prev = np.array(tem_status.get("stage.GetPos_prev", [0, 0, 0, 0, 0]))
-            
-            # Calculate difference and apply threshold in one step
-            diff_pos = position - position_prev
-            threshold = np.array([30, 30, 30, 0.2, 100])  # nm, nm, nm, deg., deg.
-            update_mask = np.abs(diff_pos) > threshold
-            
-            # Update diff using vectorized operations
-            prev_diff = tem_status.get("stage.GetPos_diff", np.zeros(5))
-            tem_status["stage.GetPos_diff"] = np.where(update_mask, diff_pos, prev_diff)
-            
-            # Signal update
-            self.updated.emit()
-        except Exception as e:
-            logging.error(f"Error during quick updating tem_status map: {e}")
-
-    def _update_blanking_button(self, beam_blank_state):
-        """Helper method to update blanking button state."""
-        # Cache reference to button
-        button = self.tem_action.tem_stagectrl.blanking_button
-        
-        if beam_blank_state == 0:
-            button.setText("Blank beam")
-            button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-        else:
-            button.setText("Unblank beam")
-            button.setStyleSheet('background-color: orange; color: white;')
-
-    @Slot(str) 
-    def send_to_tem(self, message, asynchronous=True):
-        """Send commands to TEM with optimized thread handling."""
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            logging.debug(f'Sending {message} to TEM...')
-        
-        # Create a mapping of commands to their handler functions
-        command_map = {
-            "#info": self._handle_info_command,
-            "#more": self._handle_more_command,
-            "#init": self._handle_init_command
-        }
-        
-        # Execute the appropriate handler if command is valid
-        handler = command_map.get(message)
-        if handler:
-            if asynchronous:
-                threading.Thread(target=handler, args=(asynchronous,)).start()
-            else:
-                handler(asynchronous)
-        else:
-            logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
-
-    def _handle_info_command(self, asynchronous):
-        """Handle '#info' command."""
-        if asynchronous:
-            results = self.get_state()
-            self.trigger_tem_update.emit(results)
-        else:
-            results = self.get_state()
-            self.trigger_tem_update.emit(results)
-
-    def _handle_more_command(self, asynchronous):
-        """Handle '#more' command."""
-        if asynchronous:
-            results = self.get_state_detailed()
-            self.trigger_tem_update_detailed.emit(results)
-        else:
-            results = self.get_state_detailed()
-            self.trigger_tem_update_detailed.emit(results)
-
-    def _handle_init_command(self, asynchronous):
-        """Handle '#init' command."""
-        if asynchronous:
-            results = self.get_state_init()
-            self.trigger_tem_update_init.emit(results)
-        else:
-            results = self.get_state_init()
-            self.trigger_tem_update_init.emit(results)
-
-    def get_state(self):
-        """Get basic TEM state with performance optimizations."""
+        return results """
+    
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    """ RE-CODED FOR BETTER PERFORMANCE """
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    def get_state_batched(self, batch_size=3):
+        """Get TEM state in batches to prevent freezes."""
         results = {}
         tic_loop = time.perf_counter()
-        
-        # Cache mapping dictionary
         mapping = tools.full_mapping
         
-        # Use iterator to avoid lookups in loop
-        for query in self.info_queries:
-            tic = time.perf_counter()
-            
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug(" ++++++++++++++++ ")
-                logging.debug(f"Command from list {query}")
-                logging.debug(f"Command as executed {mapping[query]}")
-            
-            # Execute command with mapped value
-            results[query] = self.execute_command(mapping[query])
-            
-            if logging.getLogger().isEnabledFor(logging.DEBUG):
-                logging.debug(f"results[query] is {results[query]}")
-                toc = time.perf_counter()
-                logging.debug(f"Getting info for {query} took {toc - tic} seconds")
+        # Process queries in batches to allow UI updates between batches
+        query_batches = [self.info_queries[i:i+batch_size] for i in range(0, len(self.info_queries), batch_size)]
         
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            toc_loop = time.perf_counter()
-            logging.debug(f"Getting #info took {toc_loop - tic_loop} seconds")
+        for batch in query_batches:
+            batch_results = {}
+            
+            # Process each query in the batch
+            for query in batch:
+                logging.debug(f"Processing command: {query}")
+                
+                # Execute command with mapped value and timeout
+                batch_results[query] = self.execute_command(mapping[query])
+            
+            # Update results with batch results
+            results.update(batch_results)
+            
+            # Short yield to allow UI updates
+            if len(query_batches) > 1:
+                time.sleep(0.001)  # Minimal sleep to allow event loop to process
+
+        toc_loop = time.perf_counter()
+        logging.warning(f"Getting #info took {toc_loop - tic_loop} seconds")
         
         return results
 
-    def get_state_detailed(self):
-        """Get detailed TEM state with performance optimizations."""
+    def get_state_detailed_batched(self, batch_size=3):
+        """Get detailed TEM state in batches."""
         results = {}
         tic_loop = time.perf_counter()
-        
-        # Cache mapping dictionary
         mapping = tools.full_mapping
-        
-        # Track items to delete
         del_items = []
         
-        # Process all queries
-        for query in self.more_queries:
-            # Create result structure once
-            result = {
-                "tst_before": time.time(),
-                "val": self.execute_command(mapping[query]),
-            }
-            result["tst_after"] = time.time()
-            
-            # Store result
-            results[query] = result
-            
-            # Check for None values in specific queries
-            if result["val"] is None and query in ["apt.GetKind", "apt.GetPosition"]:
-                del_items.append(query)
+        # Process queries in batches
+        query_batches = [self.more_queries[i:i+batch_size] for i in range(0, len(self.more_queries), batch_size)]
         
-        # Remove failed queries from the list
-        if del_items:
-            for query in del_items:
+        for batch in query_batches:
+            batch_results = {}
+            
+            # Process each query in the batch
+            for query in batch:
+                # Create result structure
+                result = {
+                    "tst_before": time.time(),
+                    "val": self.execute_command(mapping[query]),
+                    "tst_after": time.time()
+                }
+                
+                # Store result
+                batch_results[query] = result
+                
+                # Check for None values
+                if result["val"] is None and query in ["apt.GetKind", "apt.GetPosition"]:
+                    del_items.append(query)
+            
+            # Update results with batch results
+            results.update(batch_results)
+            
+            # Short yield to allow UI updates
+            if len(query_batches) > 1:
+                time.sleep(0.001)
+        
+        # Remove failed queries
+        for query in del_items:
+            if query in self.more_queries:
                 self.more_queries.remove(query)
-                logging.warning(f"{query} is removed from list of query")
-        
+                logging.warning(f"{query} removed from query list")
+
         toc_loop = time.perf_counter()
         logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
         
         return results
 
-    def get_state_init(self):
-        """Get initial TEM state with performance optimizations."""
+    def get_state_init_batched(self, batch_size=3):
+        """Get initial TEM state in batches."""
         results = {}
         tic_loop = time.perf_counter()
-        
-        # Cache mapping dictionary
         mapping = tools.full_mapping
-        
-        # Track items to delete
         del_items = []
         
-        # Process all queries
-        for query in self.init_queries:
-            # Create result structure once
-            result = {
-                "tst_before": time.time(),
-                "val": self.execute_command(mapping[query]),
-            }
-            result["tst_after"] = time.time()
-            
-            # Store result
-            results[query] = result
-            
-            # Check for None values
-            if result["val"] is None:
-                del_items.append(query)
+        # Process queries in batches
+        query_batches = [self.init_queries[i:i+batch_size] for i in range(0, len(self.init_queries), batch_size)]
         
-        # Remove failed queries from the list
-        if del_items:
-            for query in del_items:
+        for batch in query_batches:
+            batch_results = {}
+            
+            # Process each query in the batch
+            for query in batch:
+                # Create result structure
+                result = {
+                    "tst_before": time.time(),
+                    "val": self.execute_command(mapping[query]),
+                    "tst_after": time.time()
+                }
+                
+                # Store result
+                batch_results[query] = result
+                
+                # Check for None values
+                if result["val"] is None:
+                    del_items.append(query)
+            
+            # Update results with batch results
+            results.update(batch_results)
+            
+            # Short yield to allow UI updates
+            if len(query_batches) > 1:
+                time.sleep(0.001)
+        
+        # Remove failed queries
+        for query in del_items:
+            if query in self.init_queries:
                 self.init_queries.remove(query)
-                logging.warning(f"{query} is removed from list of query")
+                logging.warning(f"{query} removed from query list")
         
         toc_loop = time.perf_counter()
         logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
-        
-        return results
 
-    def execute_command(self, command_str):
+        return results 
+
+    """ def execute_command(self, command_str):
         try:
             # Split the command into method name and arguments
             parts = command_str.split('(')
@@ -1114,7 +921,105 @@ class ControlWorker(QObject):
             return None
         except Exception as e:
             logging.error(f"Error: {e}")
+            return None """
+
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    """ RE-CODED FOR BETTER PERFORMANCE """
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    def execute_command(self, command_str):
+        """Execute a TEM command with optimized performance."""
+        # Early validation
+        if not command_str or '(' not in command_str or not hasattr(self, 'client'):
+            logging.error(f"Invalid command format or missing client: {command_str}")
             return None
+            
+        try:
+            # Cache frequently used operations
+            method_parts = command_str.split('(', 1)
+            method_name = method_parts[0]
+        
+            # Handle the case where there might not be a closing parenthesis
+            if ')' in method_parts[1]:
+                arguments = method_parts[1].split(')', 1)[0]
+            else:
+                arguments = method_parts[1]
+            
+            # Prepare arguments (only process if we have arguments)
+            if arguments.strip():
+                # Pre-split arguments
+                arg_list = arguments.split(',')
+                args = []
+                
+                # Process each argument once with optimized type conversion
+                for arg in arg_list:
+                    arg = arg.strip()
+                    if arg.lower() == 'true':
+                        args.append(True)
+                    elif arg.lower() == 'false':
+                        args.append(False)
+                    else:
+                        # Try numeric conversion with minimal overhead
+                        try:
+                            if '.' in arg:
+                                args.append(float(arg))
+                            else:
+                                args.append(int(arg))
+                        except ValueError:
+                            args.append(arg)
+                
+                # Convert to tuple once
+                args = tuple(args)
+            else:
+                args = ()
+            
+            # Get method reference once (expensive operation)
+            try:
+                method = getattr(self.client, method_name)
+            except AttributeError:
+                logging.error(f"Method '{method_name}' does not exist")
+                return None
+                
+            # Set a timeout for TEM communication
+            result = self._execute_with_timeout(method, args)
+            return result
+            
+        except Exception as e:
+            logging.error(f"Error executing '{command_str}': {str(e)}")
+            return None
+
+    def _execute_with_timeout(self, method, args, timeout=10.0):
+        """Execute a method with a timeout to prevent UI freezes."""
+        # Create a result container
+        result_container = []
+        exception_container = []
+        
+        # Define the worker function
+        def worker():
+            try:
+                result_container.append(method(*args))
+            except Exception as e:
+                exception_container.append(e)
+        
+        # Create and start the thread
+        thread = threading.Thread(target=worker)
+        thread.daemon = True  # Allow program to exit even if thread is running
+        thread.start()
+        
+        # Wait for thread with timeout
+        thread.join(timeout)
+        
+        # Check if thread is still alive (timed out)
+        if thread.is_alive():
+            logging.warning(f"TEM command timed out: {method.__name__}")
+            return None
+        
+        # Check for exceptions
+        if exception_container:
+            logging.error(f"Error in TEM command: {str(exception_container[0])}")
+            return None
+        
+        # Return the result
+        return result_container[0] if result_container else None
 
     def stop_task(self):
         if self.task:
