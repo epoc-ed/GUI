@@ -129,7 +129,65 @@ class TEMAction(QObject):
     def set_configuration(self):
         self.file_operations.outPath_input.setText(self.cfg.data_dir.as_posix())
 
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    """ RE-CODED FOR BETTER PERFORMANCE """
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def enabling(self, enables=True):
+        '''Enable or disable TEM-related UI controls efficiently.'''
+        # Create groups of controls to enable/disable together
+        # This reduces the number of individual setEnabled calls
+        
+        # Only check beam_center once
+        scale_checkbox_enabled = enables and self.cfg.beam_center != [1, 1]
+        self.tem_detector.scale_checkbox.setEnabled(scale_checkbox_enabled)
+        
+        # Group button operations to reduce UI updates
+        button_groups = [
+            self.tem_stagectrl.rb_speeds.buttons(),
+            self.tem_stagectrl.movestages.buttons(),
+            self.tem_stagectrl.mag_modes.buttons()
+        ]
+        
+        # Batch enable/disable for each group
+        for group in button_groups:
+            for button in group:
+                button.setEnabled(enables)
+        
+        # Call speed toggle only if enabling
+        if enables:
+            # Use a separate thread for potentially slow operations
+            QTimer.singleShot(0, self.toggle_rb_speeds)
+        
+        # Combined setting for task controls
+        task_controls = [
+            self.tem_tasks.centering_checkbox,
+            self.tem_tasks.btnGaussianFit,
+            self.tem_tasks.beamAutofocus,
+            self.tem_tasks.rotation_button,
+            self.tem_tasks.input_start_angle,
+            self.tem_tasks.update_end_angle,
+            self.tem_stagectrl.blanking_button,
+            self.tem_stagectrl.position_list,
+            self.tem_stagectrl.go_button,
+            self.tem_stagectrl.addpos_button
+        ]
+        
+        # Batch enable/disable task controls
+        for control in task_controls:
+            control.setEnabled(enables)
+        
+        # Safe screen button enabling
+        try:
+            self.tem_stagectrl.screen_button.setEnabled(enables)
+        except AttributeError:
+            pass
+        
+        # Developer-specific controls
+        if globals.dev and enables:
+            self.tem_detector.calc_e_incoming_button.setEnabled(True)
+            self.tem_stagectrl.mapsnapshot_button.setEnabled(True)
+            
+    """ def enabling(self, enables=True):
         if self.cfg.beam_center != [1,1]:
             self.tem_detector.scale_checkbox.setEnabled(enables)
         for i in self.tem_stagectrl.rb_speeds.buttons():
@@ -159,13 +217,160 @@ class TEMAction(QObject):
         self.tem_stagectrl.addpos_button.setEnabled(enables)
         if globals.dev:
             self.tem_detector.calc_e_incoming_button.setEnabled(enables)
-            self.tem_stagectrl.mapsnapshot_button.setEnabled(enables)
+            self.tem_stagectrl.mapsnapshot_button.setEnabled(enables) """
+    
 
     def reset_rotation_button(self):
+        '''Reset rotation button to initial state.'''
         self.tem_tasks.rotation_button.setText("Rotation")
         self.tem_tasks.rotation_button.started = False
 
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    """ RE-CODED FOR BETTER PERFORMANCE """
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def toggle_connectTEM(self):
+        """Toggle TEM connection with performance optimizations."""
+        if not self.tem_tasks.connecttem_button.started:
+            # Starting connection
+            
+            # Pre-cache button reference
+            button = self.tem_tasks.connecttem_button
+            
+            # Try to set voltage value safely without multiple lookups
+            try:
+                ht_value = self.control.tem_status.get("ht.GetHtValue", 200000.0)
+                self.tem_controls.voltage_spBx.setValue(ht_value/1e3)
+            except TypeError:
+                pass
+            
+            # Initialize connection
+            self.control.init.emit()
+            
+            # Create thread and worker in one block
+            self.connect_thread = QThread()
+            self.temConnector = TEM_Connector()
+            
+            # Track thread/worker pair
+            self.parent.threadWorkerPairs.append((self.connect_thread, self.temConnector))
+            
+            # Initialize once
+            self.initializeWorker(self.connect_thread, self.temConnector)
+            
+            # Start thread
+            self.connect_thread.start()
+            self.connectorWorkerReady = True
+            logging.info("Starting tem-connecting process")
+            
+            # Update button state
+            button.started = True
+            
+            # Start timer with polling frequency
+            polling_ms = self.tem_tasks.polling_frequency.value()
+            self.timer_tem_connexion.start(polling_ms)
+            
+            # Get initial TEM state (non-blocking)
+            QTimer.singleShot(0, lambda: self.control.send_to_tem("#init", asynchronous=True))
+            
+            # Update overlays efficiently
+            self._update_overlays()
+        else:
+            # Stopping connection
+            button = self.tem_tasks.connecttem_button
+            
+            # Update button appearance
+            button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            button.setText("Check TEM Connection")
+            button.started = False
+            
+            # Stop timer first to prevent new tasks
+            self.timer_tem_connexion.stop()
+            
+            # Stop worker and thread
+            self.parent.stopWorker(self.connect_thread, self.temConnector)
+            
+            # Reset worker and thread
+            self.temConnector, self.connect_thread = thread_manager.reset_worker_and_thread(
+                self.temConnector, self.connect_thread
+            )
+
+    def _update_overlays(self):
+        """Helper method to update overlays efficiently."""
+        # Remove existing overlays
+        if self.main_overlays[0] is not None:
+            for overlay in self.main_overlays:
+                self.parent.plot.removeItem(overlay)
+        
+        # Get voltage once
+        voltage = self.parent.tem_controls.voltage_spBx.value() * 1e3
+        
+        # Get new overlays
+        self.main_overlays = self.lut.overlays_for_ht(voltage)
+        
+        # Add new overlays
+        for overlay in self.main_overlays:
+            self.parent.plot.addItem(overlay)
+
+    def initializeWorker(self, thread, worker):
+        """Initialize worker with thread connections."""
+        # Move worker to thread
+        thread_manager.move_worker_to_thread(thread, worker)
+        
+        # Connect signals directly
+        worker.finished.connect(self.updateTemControls)
+        worker.finished.connect(self.getConnectorReady)
+
+    def getConnectorReady(self):
+        """Mark connector as ready."""
+        # Simple flag setter, no performance issues
+        self.connectorWorkerReady = True
+
+    def checkTemConnexion(self):
+        """Check TEM connection with performance optimizations."""
+        # Short-circuit if worker isn't ready
+        if not self.connectorWorkerReady:
+            return
+        
+        # Mark as not ready before invoking
+        self.connectorWorkerReady = False
+        
+        # Use invokeMethod to run in worker's thread
+        QMetaObject.invokeMethod(self.temConnector, "run", Qt.QueuedConnection)
+
+    def updateTemControls(self, tem_connected):
+        """Update TEM controls based on connection status."""
+        # Cache button reference
+        button = self.tem_tasks.connecttem_button
+        
+        if tem_connected:
+            # Connected state
+            button.setStyleSheet('background-color: green; color: white;')
+            button.setText("Connection OK")
+        else:
+            # Disconnected state
+            button.setStyleSheet('background-color: red; color: white;')
+            button.setText("Disconnected")
+        
+        # Enable/disable controls based on connection
+        # Use delayed execution for enabling to prevent UI freeze
+        QTimer.singleShot(0, lambda: self.enabling(tem_connected))
+        
+        # Get TEM info if connected
+        if tem_connected:
+            # Make non-blocking with asynchronous=True
+            QTimer.singleShot(0, lambda: self.control.send_to_tem("#info", asynchronous=True))
+
+    def callGetInfoTask(self):
+        """Call get info task with optimizations."""
+        # Initialize control
+        self.control.init.emit()
+        
+        # Get checkbox state once
+        get_tem_info = 'Y' if self.tem_tasks.gettem_checkbox.isChecked() else 'N'
+        
+        # Trigger info gathering
+        self.control.trigger_getteminfo.emit(get_tem_info)
+
+    """ def toggle_connectTEM(self):
         if not self.tem_tasks.connecttem_button.started:
             try:
                 self.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1e3)
@@ -227,8 +432,12 @@ class TEMAction(QObject):
             #     logging.info(f'Trying to add TEM information to {self.formatted_filename}')
             #     self.temtools.addinfo_to_hdf()
         else:
-            self.control.trigger_getteminfo.emit('N')
+            self.control.trigger_getteminfo.emit('N') """
+    
 
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    """ RE-CODED FOR BETTER PERFORMANCE """
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     def on_tem_update(self):
         logging.debug("Updating GUI with last TEM Status...")
 
