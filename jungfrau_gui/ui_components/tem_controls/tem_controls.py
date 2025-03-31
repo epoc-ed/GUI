@@ -212,7 +212,7 @@ class TemControls(QGroupBox):
         btn.started = True
         if self.checkbox.isChecked():
             self.showPlotDialog()
-        self.parent.timer_fit.start(10)
+        self.parent.timer_fit.start(200)
         if by_user:
             self.gaussian_user_forced_off = False
 

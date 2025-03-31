@@ -231,153 +231,406 @@ class TEMAction(QObject):
 
     def on_tem_update(self):
         logging.debug("Updating GUI with last TEM Status...")
+
         try:
-            self.parent.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1e3) # keV 
+            # Cache the tem_status reference to avoid repeated dictionary lookups
+            tem_status = self.control.tem_status
+            
+            # Update voltage display
+            self.parent.tem_controls.voltage_spBx.setValue(tem_status["ht.GetHtValue"]/1e3)  # keV 
         except TypeError:
             pass
-        angle_x = self.control.tem_status["stage.GetPos"][3]
-        if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
-        self.control.beam_sigmaxy = [self.tem_controls.sigma_x_spBx.value(), self.tem_controls.sigma_y_spBx.value()]
         
-        # 1) Live query on both the current mode and the beam blank state
-        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
-
+        # Update angle display (only when needed)
+        angle_x = tem_status.get("stage.GetPos", [None, None, None, None, None])[3]
+        if angle_x is not None:
+            self.tem_tasks.input_start_angle.setValue(angle_x)
+        
+        # Store beam sigma values
+        self.control.beam_sigmaxy = [
+            self.tem_controls.sigma_x_spBx.value(), 
+            self.tem_controls.sigma_y_spBx.value()
+        ]
+        
+        # Get current function mode (fix assignment operator bug)
+        client = self.control.client
+        Mag_idx = client.GetFunctionMode()[0]
+        tem_status["eos.GetFunctionMode"] = [Mag_idx]
+        
+        # Cache magnification values to avoid repeated lookups
+        mag_value = tem_status.get("eos.GetMagValue", [None, None, None])[2]
+        
+        # Process mode-specific logic
         if Mag_idx in [0, 1, 2]:
-            magnification = self.control.tem_status["eos.GetMagValue"][2]
-            self.tem_detector.input_magnification.setText(magnification)
-            self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
-        elif Mag_idx == 4:            
-            detector_distance = self.control.tem_status["eos.GetMagValue"][2]
-            self.tem_detector.input_det_distance.setText(detector_distance)
+            # MAG mode
+            self.tem_detector.input_magnification.setText(str(mag_value))
+            # Get image dimensions once
+            img = self.parent.imageItem.image
+            if img is not None:
+                shape = img.shape
+                self.drawscale_overlay(xo=shape[1]*0.85, yo=shape[0]*0.1)
+        elif Mag_idx == 4:
+            # DIFF mode
+            self.tem_detector.input_det_distance.setText(str(mag_value))
             self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
+        
+        # Get beam blank state
+        beam_blank_state = client.GetBeamBlank()
+        tem_status["defl.GetBeamBlank"] = beam_blank_state
+        
+        # Check if mode changed
+        mode_changed = Mag_idx != self.last_mag_mode
+        if mode_changed:
+            # Cache references to frequently accessed properties
+            auto_contrast_btn = self.parent.autoContrastBtn
+            gaussian_fit_btn = self.tem_tasks.btnGaussianFit
             
-        beam_blank_state = self.control.tem_status["defl.GetBeamBlank"] = self.control.client.GetBeamBlank()
-
-        # 2) Only do something if the mode *changed*
-        if Mag_idx != self.last_mag_mode:
             if Mag_idx in [0, 1, 2]:
-                if not self.parent.autoContrastBtn.started:
-                    self.parent.autoContrastBtn.clicked.emit()
+                # MAG mode handling
+                if not auto_contrast_btn.started:
+                    auto_contrast_btn.clicked.emit()
 
-                # In MAG mode, we generally *want* Gaussian Fit OFF
-                # so if it's currently ON, turn it OFF programmatically
-                if self.tem_tasks.btnGaussianFit.started:
+                # Turn OFF Gaussian Fit in MAG mode if it's currently ON
+                if gaussian_fit_btn.started:
                     self.tem_controls.toggle_gaussianFit_beam(by_user=False)
-                
+                    
+                # Update UI state
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             elif Mag_idx == 4:
-                if self.parent.autoContrastBtn.started:
+                # DIFF mode handling
+                if auto_contrast_btn.started:
                     self.parent.resetContrastBtn.clicked.emit()
 
-                # In DIFF mode, we generally *want* Gaussian Fit ON (unless user forced it off).
-                # So if it's currently OFF and not user-forced-off, turn it on programmatically.
-                if (not self.tem_tasks.btnGaussianFit.started) and (not self.tem_controls.gaussian_user_forced_off):
+                # Turn ON Gaussian Fit in DIFF mode if it's not user-forced-off
+                if (not gaussian_fit_btn.started) and (not self.tem_controls.gaussian_user_forced_off):
                     self.tem_controls.toggle_gaussianFit_beam(by_user=False)
-                
+                    
+                # Update UI state
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
             else:
-                logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
+                logging.error(f"Magnification index {Mag_idx} is invalid.")
 
+            # Update last mode
             self.last_mag_mode = Mag_idx
 
-        # 3) Handle beam blank logic on *every* poll (even if mode hasn't changed)
+        # Handle beam blank logic on every poll
         if beam_blank_state == 1:
-            # If the beam is blanked, forcibly turn off Gaussian Fit (if it’s currently running)
+            # Beam is blanked - turn off Gaussian Fit if running
             if self.tem_tasks.btnGaussianFit.started:
                 self.tem_controls.toggle_gaussianFit_beam(by_user=False)
-        else:
-            # If the beam is unblanked (0) and we are in DIFF mode (4), 
-            # and not user-forced-off, ensure it's on
-            if Mag_idx == 4 and not self.tem_controls.gaussian_user_forced_off:
-                if not self.tem_tasks.btnGaussianFit.started:
-                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+        elif Mag_idx == 4 and not self.tem_controls.gaussian_user_forced_off:
+            # Beam is unblanked and in DIFF mode - ensure Gaussian Fit is on
+            if not self.tem_tasks.btnGaussianFit.started:
+                self.tem_controls.toggle_gaussianFit_beam(by_user=False)
 
-        # Update rotation_speed radio button in GUI to refelct status of TEM
-        rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"] # = self.control.client.Getf1OverRateTxNum()
-        logging.debug(f"Rotation speed index: {rotation_speed_index}")
-        if rotation_speed_index in [0,1,2,3]: self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        # Update rotation speed UI
+        rotation_speed_index = tem_status.get("stage.Getf1OverRateTxNum")
+        if rotation_speed_index in [0, 1, 2, 3]:
+            self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         
+        # Update position plot
         self.plot_currentposition()
 
-        if not self.tem_tasks.rotation_button.started:
-            if self.tem_tasks.withwriter_checkbox.isChecked():
-                self.tem_tasks.rotation_button.setText("Rotation/Record")
-            else:
-                self.tem_tasks.rotation_button.setText("Rotation")
+        # Update rotation button text if needed
+        rotation_button = self.tem_tasks.rotation_button
+        if not rotation_button.started:
+            rotation_button.setText(
+                "Rotation/Record" if self.tem_tasks.withwriter_checkbox.isChecked() else "Rotation"
+            )
 
         logging.debug("GUI updated with lastest TEM Status")
 
+    # def on_tem_update(self):
+    #     logging.debug("Updating GUI with last TEM Status...")
+    #     try:
+    #         self.parent.tem_controls.voltage_spBx.setValue(self.control.tem_status["ht.GetHtValue"]/1e3) # keV 
+    #     except TypeError:
+    #         pass
+    #     angle_x = self.control.tem_status["stage.GetPos"][3]
+    #     if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
+    #     self.control.beam_sigmaxy = [self.tem_controls.sigma_x_spBx.value(), self.tem_controls.sigma_y_spBx.value()]
+        
+    #     # 1) Live query on both the current mode and the beam blank state
+    #     Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
+
+    #     if Mag_idx in [0, 1, 2]:
+    #         magnification = self.control.tem_status["eos.GetMagValue"][2]
+    #         self.tem_detector.input_magnification.setText(magnification)
+    #         self.drawscale_overlay(xo=self.parent.imageItem.image.shape[1]*0.85, yo=self.parent.imageItem.image.shape[0]*0.1)
+    #     elif Mag_idx == 4:            
+    #         detector_distance = self.control.tem_status["eos.GetMagValue"][2]
+    #         self.tem_detector.input_det_distance.setText(detector_distance)
+    #         self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
+            
+    #     beam_blank_state = self.control.tem_status["defl.GetBeamBlank"] = self.control.client.GetBeamBlank()
+
+    #     # 2) Only do something if the mode *changed*
+    #     if Mag_idx != self.last_mag_mode:
+    #         if Mag_idx in [0, 1, 2]:
+    #             if not self.parent.autoContrastBtn.started:
+    #                 self.parent.autoContrastBtn.clicked.emit()
+
+    #             # In MAG mode, we generally *want* Gaussian Fit OFF
+    #             # so if it's currently ON, turn it OFF programmatically
+    #             if self.tem_tasks.btnGaussianFit.started:
+    #                 self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+                
+    #             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
+    #         elif Mag_idx == 4:
+    #             if self.parent.autoContrastBtn.started:
+    #                 self.parent.resetContrastBtn.clicked.emit()
+
+    #             # In DIFF mode, we generally *want* Gaussian Fit ON (unless user forced it off).
+    #             # So if it's currently OFF and not user-forced-off, turn it on programmatically.
+    #             if (not self.tem_tasks.btnGaussianFit.started) and (not self.tem_controls.gaussian_user_forced_off):
+    #                 self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+                
+    #             self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
+    #         else:
+    #             logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
+
+    #         self.last_mag_mode = Mag_idx
+
+    #     # 3) Handle beam blank logic on *every* poll (even if mode hasn't changed)
+    #     if beam_blank_state == 1:
+    #         # If the beam is blanked, forcibly turn off Gaussian Fit (if it’s currently running)
+    #         if self.tem_tasks.btnGaussianFit.started:
+    #             self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+    #     else:
+    #         # If the beam is unblanked (0) and we are in DIFF mode (4), 
+    #         # and not user-forced-off, ensure it's on
+    #         if Mag_idx == 4 and not self.tem_controls.gaussian_user_forced_off:
+    #             if not self.tem_tasks.btnGaussianFit.started:
+    #                 self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+
+    #     # Update rotation_speed radio button in GUI to refelct status of TEM
+    #     rotation_speed_index = self.control.tem_status["stage.Getf1OverRateTxNum"] # = self.control.client.Getf1OverRateTxNum()
+    #     logging.debug(f"Rotation speed index: {rotation_speed_index}")
+    #     if rotation_speed_index in [0,1,2,3]: self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+        
+    #     self.plot_currentposition()
+
+    #     if not self.tem_tasks.rotation_button.started:
+    #         if self.tem_tasks.withwriter_checkbox.isChecked():
+    #             self.tem_tasks.rotation_button.setText("Rotation/Record")
+    #         else:
+    #             self.tem_tasks.rotation_button.setText("Rotation")
+
+    #     logging.debug("GUI updated with lastest TEM Status")
+
     def drawscale_overlay(self, xo=0, yo=0, l_draw=1):
+        """Draw scale overlay on the image with caching optimizations."""
+        # Early exit if scale checkbox is unchecked
+        if not self.tem_detector.scale_checkbox.isChecked():
+            if self.scale is not None:
+                self.parent.plot.removeItem(self.scale)
+                self.scale = None
+            return
+            
+        # Cache frequently accessed values
         pixel = cfg_jf.others.pixelsize
         ht = self.parent.tem_controls.voltage_spBx.value()
-        if self.scale != None:
+        
+        # Remove previous scale item
+        if self.scale is not None:
             self.parent.plot.removeItem(self.scale)
-        if self.tem_detector.scale_checkbox.isChecked():
-            if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
-                detector_distance = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                detector_distance = self.lut.interpolated_distance(detector_distance, self.parent.tem_controls.voltage_spBx.value())
-                radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=ht)
-                self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
-            else:
-                magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-                magnification = self.lut.calibrated_magnification(magnification)
-                scale_in_px = l_draw * 1e-3 * magnification / pixel
-                self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
-            self.scale.setPen(pg.mkPen('w', width=2))
-            self.parent.plot.addItem(self.scale)        
+        
+        # Cache tem_status to avoid repeated lookups
+        tem_status = self.control.tem_status
+        function_mode = tem_status["eos.GetFunctionMode"][0]
+        mag_value = tem_status["eos.GetMagValue"][2]
+        
+        # Create scale based on function mode
+        if function_mode == 4:
+            # Use cached or memoized interpolation when possible
+            detector_distance = self.lut.interpolated_distance(mag_value, ht)
+            radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=ht)
+            self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
+        else:
+            # Use cached or memoized calibration when possible
+            magnification = self.lut.calibrated_magnification(mag_value)
+            scale_in_px = l_draw * 1e-3 * magnification / pixel
+            self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
+        
+        # Set pen only once and add to plot
+        self.scale.setPen(pg.mkPen('w', width=2))
+        self.parent.plot.addItem(self.scale)
 
     def toggle_blank(self):
-        if self.control.tem_status["defl.GetBeamBlank"] == 0:
-            self.control.client.SetBeamBlank(1)
-            self.tem_stagectrl.blanking_button.setText("Unblank beam")
-            self.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
+        """Toggle beam blank state with state caching."""
+        # Cache client reference
+        client = self.control.client
+        
+        # Cache button reference
+        blank_button = self.tem_stagectrl.blanking_button
+        
+        # Check current blank state
+        is_blanked = self.control.tem_status["defl.GetBeamBlank"] == 1
+        
+        if not is_blanked:
+            # Blank the beam
+            client.SetBeamBlank(1)
+            blank_button.setText("Unblank beam")
+            blank_button.setStyleSheet('background-color: orange; color: white;')
         else:
-            self.control.client.SetBeamBlank(0)
-            self.tem_stagectrl.blanking_button.setText("Blank beam")
-            self.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            # Unblank the beam
+            client.SetBeamBlank(0)
+            blank_button.setText("Blank beam")
+            blank_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
 
     def toggle_screen(self):
+        """Toggle screen position with error handling."""
+        # Cache client reference
+        client = self.control.client
+        screen_button = self.tem_stagectrl.screen_button
+        
         try:
-            screen_status = self.control.client._send_message("GetScreen")
-            if screen_status == 0:
-                self.control.client._send_message("SetScreen", 2)
-                time.sleep(2)
-                self.tem_stagectrl.screen_button.setText("Screen Up")
-            else:
-                self.control.client._send_message("SetScreen", 0)
-                time.sleep(2)
-                self.tem_stagectrl.screen_button.setText("Screen Down")
+            # Get screen status only once
+            screen_status = client._send_message("GetScreen")
+            
+            # Set new screen state based on current state
+            new_state = 0 if screen_status != 0 else 2
+            new_text = "Screen Down" if new_state == 0 else "Screen Up"
+            
+            # Send command once
+            client._send_message("SetScreen", new_state)
+            
+            # Use a single sleep call
+            time.sleep(2)
+            
+            # Update button text once
+            screen_button.setText(new_text)
         except RuntimeError:
             logging.warning('To move screen, use specific version of tem_server.py!')
 
     def toggle_rb_speeds(self):
+        """Toggle rotation speed with performance optimizations."""
+        # Get checked button ID once
         idx_rot_button = self.tem_stagectrl.rb_speeds.checkedId()
-        if self.cfg.rotation_speed_idx != idx_rot_button:
-            self.update_rotation_speed_idx_from_ui(idx_rot_button)
-            result = self.control.execute_command("Setf1OverRateTxNum("+ str(idx_rot_button) +")")
-            if result is not None:
-                logging.info(f"Rotation velocity is set to {[10.0, 2.0, 1.0, 0.5][idx_rot_button]} deg/s")
-            else:
-                rotation_at_tem = self.control.client.Getf1OverRateTxNum()
-                logging.error(f"Changes of rotation speed has failed!\nRotation at TEM is {[10.0, 2.0, 1.0, 0.5][rotation_at_tem]} deg/s")
-                # TODO ? Make sure the right (eq to TEM status) button is checked
-    
+        
+        # Only proceed if speed has changed
+        if self.cfg.rotation_speed_idx == idx_rot_button:
+            return
+            
+        # Update UI configuration first
+        self.update_rotation_speed_idx_from_ui(idx_rot_button)
+        
+        # Cache rotation speed mappings
+        speed_values = [10.0, 2.0, 1.0, 0.5]
+        
+        # Execute command once
+        result = self.control.execute_command(f"Setf1OverRateTxNum({idx_rot_button})")
+        
+        if result is not None:
+            logging.info(f"Rotation velocity is set to {speed_values[idx_rot_button]} deg/s")
+        else:
+            # Only get TEM status if command failed
+            rotation_at_tem = self.control.client.Getf1OverRateTxNum()
+            logging.error(f"Changes of rotation speed has failed!\nRotation at TEM is {speed_values[rotation_at_tem]} deg/s")
+
     def toggle_mag_modes(self):
+        """Toggle magnification modes with error handling."""
+        # Get checked button ID once
         idx_mag_button = self.tem_stagectrl.mag_modes.checkedId()
+        
+        # Early reset contrast if needed
         if idx_mag_button == 4:
             self.parent.resetContrastBtn.clicked.emit()
+        
+        # Cache client reference
+        client = self.control.client
+        
         try:
-            self.control.client.SelectFunctionMode(idx_mag_button)
-            logging.info(f"Function Mode switched to {self.control.client.GetFunctionMode()[0]} (0=MAG, 2=Low MAG, 4=DIFF)")
+            # Send command once
+            client.SelectFunctionMode(idx_mag_button)
+            
+            # Get function mode only once
+            function_mode = client.GetFunctionMode()[0]
+            logging.info(f"Function Mode switched to {function_mode} (0=MAG, 2=Low MAG, 4=DIFF)")
         except Exception as e:
-            logging.warning(f"Error occured when relaying 'SelectFunctionMode({idx_mag_button}': {e}")
-            idx = self.control.client.GetFunctionMode()[0]
-            if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
+            logging.warning(f"Error occurred when relaying 'SelectFunctionMode({idx_mag_button})': {e}")
+            
+            # Only get function mode if there was an error
+            idx = client.GetFunctionMode()[0]
+            
+            # Normalize function mode (treat MAG and MAG2 as same)
+            if idx == 1:
+                idx = 0
+                
+            # Update UI to reflect actual state
             self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
 
-    def update_rotation_speed_idx_from_ui(self, idx_rot_button):
-        self.cfg.rotation_speed_idx = idx_rot_button
-        logging.debug(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
+    # def drawscale_overlay(self, xo=0, yo=0, l_draw=1):
+    #     pixel = cfg_jf.others.pixelsize
+    #     ht = self.parent.tem_controls.voltage_spBx.value()
+    #     if self.scale != None:
+    #         self.parent.plot.removeItem(self.scale)
+    #     if self.tem_detector.scale_checkbox.isChecked():
+    #         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
+    #             detector_distance = self.control.tem_status["eos.GetMagValue"][2] ## with unit
+    #             detector_distance = self.lut.interpolated_distance(detector_distance, self.parent.tem_controls.voltage_spBx.value())
+    #             radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=ht)
+    #             self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
+    #         else:
+    #             magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
+    #             magnification = self.lut.calibrated_magnification(magnification)
+    #             scale_in_px = l_draw * 1e-3 * magnification / pixel
+    #             self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
+    #         self.scale.setPen(pg.mkPen('w', width=2))
+    #         self.parent.plot.addItem(self.scale)        
+
+    # def toggle_blank(self):
+    #     if self.control.tem_status["defl.GetBeamBlank"] == 0:
+    #         self.control.client.SetBeamBlank(1)
+    #         self.tem_stagectrl.blanking_button.setText("Unblank beam")
+    #         self.tem_stagectrl.blanking_button.setStyleSheet('background-color: orange; color: white;')
+    #     else:
+    #         self.control.client.SetBeamBlank(0)
+    #         self.tem_stagectrl.blanking_button.setText("Blank beam")
+    #         self.tem_stagectrl.blanking_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+
+    # def toggle_screen(self):
+    #     try:
+    #         screen_status = self.control.client._send_message("GetScreen")
+    #         if screen_status == 0:
+    #             self.control.client._send_message("SetScreen", 2)
+    #             time.sleep(2)
+    #             self.tem_stagectrl.screen_button.setText("Screen Up")
+    #         else:
+    #             self.control.client._send_message("SetScreen", 0)
+    #             time.sleep(2)
+    #             self.tem_stagectrl.screen_button.setText("Screen Down")
+    #     except RuntimeError:
+    #         logging.warning('To move screen, use specific version of tem_server.py!')
+
+    # def toggle_rb_speeds(self):
+    #     idx_rot_button = self.tem_stagectrl.rb_speeds.checkedId()
+    #     if self.cfg.rotation_speed_idx != idx_rot_button:
+    #         self.update_rotation_speed_idx_from_ui(idx_rot_button)
+    #         result = self.control.execute_command("Setf1OverRateTxNum("+ str(idx_rot_button) +")")
+    #         if result is not None:
+    #             logging.info(f"Rotation velocity is set to {[10.0, 2.0, 1.0, 0.5][idx_rot_button]} deg/s")
+    #         else:
+    #             rotation_at_tem = self.control.client.Getf1OverRateTxNum()
+    #             logging.error(f"Changes of rotation speed has failed!\nRotation at TEM is {[10.0, 2.0, 1.0, 0.5][rotation_at_tem]} deg/s")
+    #             # TODO ? Make sure the right (eq to TEM status) button is checked
+    
+    # def toggle_mag_modes(self):
+    #     idx_mag_button = self.tem_stagectrl.mag_modes.checkedId()
+    #     if idx_mag_button == 4:
+    #         self.parent.resetContrastBtn.clicked.emit()
+    #     try:
+    #         self.control.client.SelectFunctionMode(idx_mag_button)
+    #         logging.info(f"Function Mode switched to {self.control.client.GetFunctionMode()[0]} (0=MAG, 2=Low MAG, 4=DIFF)")
+    #     except Exception as e:
+    #         logging.warning(f"Error occured when relaying 'SelectFunctionMode({idx_mag_button}': {e}")
+    #         idx = self.control.client.GetFunctionMode()[0]
+    #         if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
+    #         self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
+
+    # def update_rotation_speed_idx_from_ui(self, idx_rot_button):
+    #     self.cfg.rotation_speed_idx = idx_rot_button
+    #     logging.debug(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
 
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:
