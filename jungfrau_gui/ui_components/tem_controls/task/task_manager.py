@@ -273,15 +273,15 @@ class ControlWorker(QObject):
         logging.info("####### ######## Sweeping worker ready? --> FALSE")
         self.sweepingWorkerReady = False
 
-    @Slot(dict)
+    """ @Slot(dict)
     def update_tem_status_detailed(self, response):
-        """ 
+        '''
         #*************** 
         print(f"Display update values")
         for key, value in response.items():
             print(f"{key}: {value}")
         #*************** 
-        # """
+        ''' 
         logging.debug("Updating ControlWorker map with last TEM Status")
         try:
             logging.debug("START of the update loop")
@@ -457,6 +457,628 @@ class ControlWorker(QObject):
             # time.sleep(2) # debug line
         toc_loop = time.perf_counter()
         logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
+        return results """
+    
+    @Slot(dict)
+    def update_tem_status_detailed(self, response):
+        """Update control worker with detailed TEM status."""
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug("Updating ControlWorker map with last TEM Status")
+        
+        try:
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("START of the update loop")
+            
+            # Pre-fetch references to avoid dictionary lookups in loop
+            tem_status = self.tem_status
+            tem_update_times = self.tem_update_times
+            
+            # Update status in single loop
+            for entry, data in response.items():
+                tem_status[entry] = data["val"]
+                tem_update_times[entry] = (data["tst_before"], data["tst_after"])
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("END of update loop")
+                logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status['eos.GetFunctionMode']}")
+            
+            # Get function mode once
+            function_mode = tem_status.get('eos.GetFunctionMode', [None])[0]
+            mag_value = tem_status.get('eos.GetMagValue')
+            
+            # Handle magnification mode
+            if function_mode == 0:  # MAG
+                tem_status['eos.GetMagValue_MAG'] = mag_value
+                globals.mag_value_img = mag_value
+                tem_update_times['eos.GetMagValue_MAG'] = tem_update_times['eos.GetMagValue']
+            elif function_mode == 4:  # DIFF
+                tem_status['eos.GetMagValue_DIFF'] = mag_value
+                globals.mag_value_diff = mag_value
+                tem_update_times['eos.GetMagValue_DIFF'] = tem_update_times['eos.GetMagValue']
+            
+            # Handle aperture kind
+            apt_kind = tem_status.get('apt.GetKind')
+            if apt_kind is not None:
+                apt_position = tem_status.get('apt.GetPosition')
+                if apt_kind == 1:  # CLA
+                    tem_status['apt.GetPosition_CL'] = apt_position
+                elif apt_kind == 2:  # OLA
+                    tem_status['apt.GetPosition_OL'] = apt_position
+                elif apt_kind == 4:  # SAA
+                    tem_status['apt.GetPosition_SA'] = apt_position
+
+            # Update blanking button with live status at TEM - do this once
+            self._update_blanking_button(tem_status.get("defl.GetBeamBlank", 0))
+
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("TEM Status Dictionary updated!")
+            
+            # Signal update
+            self.updated.emit()
+        except Exception as e:
+            logging.error(f"Error during updating detailed tem_status map: {e}")
+
+    @Slot(dict)
+    def update_tem_status_init(self, response):
+        """Update control worker with initial TEM status."""
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug("Updating ControlWorker map with last TEM Status, only for starting items")
+        
+        try:
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("START of the update loop")
+            
+            # Pre-fetch references
+            tem_status = self.tem_status
+            tem_update_times = self.tem_update_times
+            
+            # Update in single loop
+            for entry, data in response.items():
+                tem_status[entry] = data["val"]
+                tem_update_times[entry] = (data["tst_before"], data["tst_after"])
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("END of update loop")
+            
+            # Set default HT value if needed
+            ht_value = tem_status.get('ht.GetHtValue')
+            if ht_value is not None:
+                tem_status['ht.GetHtValue_readout'] = 1
+            else:
+                tem_status['ht.GetHtValue'] = 200000.00
+            
+            # Signal update
+            self.updated.emit()
+        except Exception as e:
+            logging.error(f"Error during starting tem_status map: {e}")
+
+    @Slot(dict)
+    def update_tem_status(self, response):
+        """Update control worker with basic TEM status."""
+        try:
+            # Pre-fetch references
+            tem_status = self.tem_status
+            
+            # Save previous position
+            tem_status["stage.GetPos_prev"] = tem_status.get("stage.GetPos", [0, 0, 0, 0, 0])
+            
+            # Update status in single loop
+            for entry, value in response.items():
+                tem_status[entry] = value
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status.get('eos.GetFunctionMode')}")
+            
+            # Get function mode once
+            function_mode = tem_status.get('eos.GetFunctionMode', [None])[0]
+            mag_value = tem_status.get('eos.GetMagValue')
+            
+            # Handle magnification mode
+            if function_mode == 0:  # MAG
+                tem_status['eos.GetMagValue_MAG'] = mag_value
+                globals.mag_value_img = mag_value
+            elif function_mode == 4:  # DIFF
+                tem_status['eos.GetMagValue_DIFF'] = mag_value
+                globals.mag_value_diff = mag_value
+
+            # Update blanking button with live status at TEM
+            self._update_blanking_button(tem_status.get("defl.GetBeamBlank", 0))
+
+            # Calculate position difference using numpy operations
+            position = np.array(tem_status.get("stage.GetPos", [0, 0, 0, 0, 0]))
+            position_prev = np.array(tem_status.get("stage.GetPos_prev", [0, 0, 0, 0, 0]))
+            
+            # Calculate difference and apply threshold in one step
+            diff_pos = position - position_prev
+            threshold = np.array([30, 30, 30, 0.2, 100])  # nm, nm, nm, deg., deg.
+            update_mask = np.abs(diff_pos) > threshold
+            
+            # Update diff using vectorized operations
+            prev_diff = tem_status.get("stage.GetPos_diff", np.zeros(5))
+            tem_status["stage.GetPos_diff"] = np.where(update_mask, diff_pos, prev_diff)
+            
+            # Signal update
+            self.updated.emit()
+        except Exception as e:
+            logging.error(f"Error during quick updating tem_status map: {e}")
+
+    def _update_blanking_button(self, beam_blank_state):
+        """Helper method to update blanking button state."""
+        # Cache reference to button
+        button = self.tem_action.tem_stagectrl.blanking_button
+        
+        if beam_blank_state == 0:
+            button.setText("Blank beam")
+            button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+        else:
+            button.setText("Unblank beam")
+            button.setStyleSheet('background-color: orange; color: white;')
+
+    @Slot(str) 
+    def send_to_tem(self, message, asynchronous=True):
+        """Send commands to TEM with optimized thread handling."""
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug(f'Sending {message} to TEM...')
+        
+        # Create a mapping of commands to their handler functions
+        command_map = {
+            "#info": self._handle_info_command,
+            "#more": self._handle_more_command,
+            "#init": self._handle_init_command
+        }
+        
+        # Execute the appropriate handler if command is valid
+        handler = command_map.get(message)
+        if handler:
+            if asynchronous:
+                threading.Thread(target=handler, args=(asynchronous,)).start()
+            else:
+                handler(asynchronous)
+        else:
+            logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
+
+    def _handle_info_command(self, asynchronous):
+        """Handle '#info' command."""
+        if asynchronous:
+            results = self.get_state()
+            self.trigger_tem_update.emit(results)
+        else:
+            results = self.get_state()
+            self.trigger_tem_update.emit(results)
+
+    def _handle_more_command(self, asynchronous):
+        """Handle '#more' command."""
+        if asynchronous:
+            results = self.get_state_detailed()
+            self.trigger_tem_update_detailed.emit(results)
+        else:
+            results = self.get_state_detailed()
+            self.trigger_tem_update_detailed.emit(results)
+
+    def _handle_init_command(self, asynchronous):
+        """Handle '#init' command."""
+        if asynchronous:
+            results = self.get_state_init()
+            self.trigger_tem_update_init.emit(results)
+        else:
+            results = self.get_state_init()
+            self.trigger_tem_update_init.emit(results)
+
+    def get_state(self):
+        """Get basic TEM state with performance optimizations."""
+        results = {}
+        tic_loop = time.perf_counter()
+        
+        # Cache mapping dictionary
+        mapping = tools.full_mapping
+        
+        # Use iterator to avoid lookups in loop
+        for query in self.info_queries:
+            tic = time.perf_counter()
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug(" ++++++++++++++++ ")
+                logging.debug(f"Command from list {query}")
+                logging.debug(f"Command as executed {mapping[query]}")
+            
+            # Execute command with mapped value
+            results[query] = self.execute_command(mapping[query])
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug(f"results[query] is {results[query]}")
+                toc = time.perf_counter()
+                logging.debug(f"Getting info for {query} took {toc - tic} seconds")
+        
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            toc_loop = time.perf_counter()
+            logging.debug(f"Getting #info took {toc_loop - tic_loop} seconds")
+        
+        return results
+
+    def get_state_detailed(self):
+        """Get detailed TEM state with performance optimizations."""
+        results = {}
+        tic_loop = time.perf_counter()
+        
+        # Cache mapping dictionary
+        mapping = tools.full_mapping
+        
+        # Track items to delete
+        del_items = []
+        
+        # Process all queries
+        for query in self.more_queries:
+            # Create result structure once
+            result = {
+                "tst_before": time.time(),
+                "val": self.execute_command(mapping[query]),
+            }
+            result["tst_after"] = time.time()
+            
+            # Store result
+            results[query] = result
+            
+            # Check for None values in specific queries
+            if result["val"] is None and query in ["apt.GetKind", "apt.GetPosition"]:
+                del_items.append(query)
+        
+        # Remove failed queries from the list
+        if del_items:
+            for query in del_items:
+                self.more_queries.remove(query)
+                logging.warning(f"{query} is removed from list of query")
+        
+        toc_loop = time.perf_counter()
+        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
+        
+        return results
+
+    def get_state_init(self):
+        """Get initial TEM state with performance optimizations."""
+        results = {}
+        tic_loop = time.perf_counter()
+        
+        # Cache mapping dictionary
+        mapping = tools.full_mapping
+        
+        # Track items to delete
+        del_items = []
+        
+        # Process all queries
+        for query in self.init_queries:
+            # Create result structure once
+            result = {
+                "tst_before": time.time(),
+                "val": self.execute_command(mapping[query]),
+            }
+            result["tst_after"] = time.time()
+            
+            # Store result
+            results[query] = result
+            
+            # Check for None values
+            if result["val"] is None:
+                del_items.append(query)
+        
+        # Remove failed queries from the list
+        if del_items:
+            for query in del_items:
+                self.init_queries.remove(query)
+                logging.warning(f"{query} is removed from list of query")
+        
+        toc_loop = time.perf_counter()
+        logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
+        
+        return results@Slot(dict)
+    def update_tem_status_detailed(self, response):
+        """Update control worker with detailed TEM status."""
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug("Updating ControlWorker map with last TEM Status")
+        
+        try:
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("START of the update loop")
+            
+            # Pre-fetch references to avoid dictionary lookups in loop
+            tem_status = self.tem_status
+            tem_update_times = self.tem_update_times
+            
+            # Update status in single loop
+            for entry, data in response.items():
+                tem_status[entry] = data["val"]
+                tem_update_times[entry] = (data["tst_before"], data["tst_after"])
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("END of update loop")
+                logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status['eos.GetFunctionMode']}")
+            
+            # Get function mode once
+            function_mode = tem_status.get('eos.GetFunctionMode', [None])[0]
+            mag_value = tem_status.get('eos.GetMagValue')
+            
+            # Handle magnification mode
+            if function_mode == 0:  # MAG
+                tem_status['eos.GetMagValue_MAG'] = mag_value
+                globals.mag_value_img = mag_value
+                tem_update_times['eos.GetMagValue_MAG'] = tem_update_times['eos.GetMagValue']
+            elif function_mode == 4:  # DIFF
+                tem_status['eos.GetMagValue_DIFF'] = mag_value
+                globals.mag_value_diff = mag_value
+                tem_update_times['eos.GetMagValue_DIFF'] = tem_update_times['eos.GetMagValue']
+            
+            # Handle aperture kind
+            apt_kind = tem_status.get('apt.GetKind')
+            if apt_kind is not None:
+                apt_position = tem_status.get('apt.GetPosition')
+                if apt_kind == 1:  # CLA
+                    tem_status['apt.GetPosition_CL'] = apt_position
+                elif apt_kind == 2:  # OLA
+                    tem_status['apt.GetPosition_OL'] = apt_position
+                elif apt_kind == 4:  # SAA
+                    tem_status['apt.GetPosition_SA'] = apt_position
+
+            # Update blanking button with live status at TEM - do this once
+            self._update_blanking_button(tem_status.get("defl.GetBeamBlank", 0))
+
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("TEM Status Dictionary updated!")
+            
+            # Signal update
+            self.updated.emit()
+        except Exception as e:
+            logging.error(f"Error during updating detailed tem_status map: {e}")
+
+    @Slot(dict)
+    def update_tem_status_init(self, response):
+        """Update control worker with initial TEM status."""
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug("Updating ControlWorker map with last TEM Status, only for starting items")
+        
+        try:
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("START of the update loop")
+            
+            # Pre-fetch references
+            tem_status = self.tem_status
+            tem_update_times = self.tem_update_times
+            
+            # Update in single loop
+            for entry, data in response.items():
+                tem_status[entry] = data["val"]
+                tem_update_times[entry] = (data["tst_before"], data["tst_after"])
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug("END of update loop")
+            
+            # Set default HT value if needed
+            ht_value = tem_status.get('ht.GetHtValue')
+            if ht_value is not None:
+                tem_status['ht.GetHtValue_readout'] = 1
+            else:
+                tem_status['ht.GetHtValue'] = 200000.00
+            
+            # Signal update
+            self.updated.emit()
+        except Exception as e:
+            logging.error(f"Error during starting tem_status map: {e}")
+
+    @Slot(dict)
+    def update_tem_status(self, response):
+        """Update control worker with basic TEM status."""
+        try:
+            # Pre-fetch references
+            tem_status = self.tem_status
+            
+            # Save previous position
+            tem_status["stage.GetPos_prev"] = tem_status.get("stage.GetPos", [0, 0, 0, 0, 0])
+            
+            # Update status in single loop
+            for entry, value in response.items():
+                tem_status[entry] = value
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status.get('eos.GetFunctionMode')}")
+            
+            # Get function mode once
+            function_mode = tem_status.get('eos.GetFunctionMode', [None])[0]
+            mag_value = tem_status.get('eos.GetMagValue')
+            
+            # Handle magnification mode
+            if function_mode == 0:  # MAG
+                tem_status['eos.GetMagValue_MAG'] = mag_value
+                globals.mag_value_img = mag_value
+            elif function_mode == 4:  # DIFF
+                tem_status['eos.GetMagValue_DIFF'] = mag_value
+                globals.mag_value_diff = mag_value
+
+            # Update blanking button with live status at TEM
+            self._update_blanking_button(tem_status.get("defl.GetBeamBlank", 0))
+
+            # Calculate position difference using numpy operations
+            position = np.array(tem_status.get("stage.GetPos", [0, 0, 0, 0, 0]))
+            position_prev = np.array(tem_status.get("stage.GetPos_prev", [0, 0, 0, 0, 0]))
+            
+            # Calculate difference and apply threshold in one step
+            diff_pos = position - position_prev
+            threshold = np.array([30, 30, 30, 0.2, 100])  # nm, nm, nm, deg., deg.
+            update_mask = np.abs(diff_pos) > threshold
+            
+            # Update diff using vectorized operations
+            prev_diff = tem_status.get("stage.GetPos_diff", np.zeros(5))
+            tem_status["stage.GetPos_diff"] = np.where(update_mask, diff_pos, prev_diff)
+            
+            # Signal update
+            self.updated.emit()
+        except Exception as e:
+            logging.error(f"Error during quick updating tem_status map: {e}")
+
+    def _update_blanking_button(self, beam_blank_state):
+        """Helper method to update blanking button state."""
+        # Cache reference to button
+        button = self.tem_action.tem_stagectrl.blanking_button
+        
+        if beam_blank_state == 0:
+            button.setText("Blank beam")
+            button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+        else:
+            button.setText("Unblank beam")
+            button.setStyleSheet('background-color: orange; color: white;')
+
+    @Slot(str) 
+    def send_to_tem(self, message, asynchronous=True):
+        """Send commands to TEM with optimized thread handling."""
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug(f'Sending {message} to TEM...')
+        
+        # Create a mapping of commands to their handler functions
+        command_map = {
+            "#info": self._handle_info_command,
+            "#more": self._handle_more_command,
+            "#init": self._handle_init_command
+        }
+        
+        # Execute the appropriate handler if command is valid
+        handler = command_map.get(message)
+        if handler:
+            if asynchronous:
+                threading.Thread(target=handler, args=(asynchronous,)).start()
+            else:
+                handler(asynchronous)
+        else:
+            logging.error(f"{message} is not valid for ControlWorker::send_to_tem()")
+
+    def _handle_info_command(self, asynchronous):
+        """Handle '#info' command."""
+        if asynchronous:
+            results = self.get_state()
+            self.trigger_tem_update.emit(results)
+        else:
+            results = self.get_state()
+            self.trigger_tem_update.emit(results)
+
+    def _handle_more_command(self, asynchronous):
+        """Handle '#more' command."""
+        if asynchronous:
+            results = self.get_state_detailed()
+            self.trigger_tem_update_detailed.emit(results)
+        else:
+            results = self.get_state_detailed()
+            self.trigger_tem_update_detailed.emit(results)
+
+    def _handle_init_command(self, asynchronous):
+        """Handle '#init' command."""
+        if asynchronous:
+            results = self.get_state_init()
+            self.trigger_tem_update_init.emit(results)
+        else:
+            results = self.get_state_init()
+            self.trigger_tem_update_init.emit(results)
+
+    def get_state(self):
+        """Get basic TEM state with performance optimizations."""
+        results = {}
+        tic_loop = time.perf_counter()
+        
+        # Cache mapping dictionary
+        mapping = tools.full_mapping
+        
+        # Use iterator to avoid lookups in loop
+        for query in self.info_queries:
+            tic = time.perf_counter()
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug(" ++++++++++++++++ ")
+                logging.debug(f"Command from list {query}")
+                logging.debug(f"Command as executed {mapping[query]}")
+            
+            # Execute command with mapped value
+            results[query] = self.execute_command(mapping[query])
+            
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                logging.debug(f"results[query] is {results[query]}")
+                toc = time.perf_counter()
+                logging.debug(f"Getting info for {query} took {toc - tic} seconds")
+        
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            toc_loop = time.perf_counter()
+            logging.debug(f"Getting #info took {toc_loop - tic_loop} seconds")
+        
+        return results
+
+    def get_state_detailed(self):
+        """Get detailed TEM state with performance optimizations."""
+        results = {}
+        tic_loop = time.perf_counter()
+        
+        # Cache mapping dictionary
+        mapping = tools.full_mapping
+        
+        # Track items to delete
+        del_items = []
+        
+        # Process all queries
+        for query in self.more_queries:
+            # Create result structure once
+            result = {
+                "tst_before": time.time(),
+                "val": self.execute_command(mapping[query]),
+            }
+            result["tst_after"] = time.time()
+            
+            # Store result
+            results[query] = result
+            
+            # Check for None values in specific queries
+            if result["val"] is None and query in ["apt.GetKind", "apt.GetPosition"]:
+                del_items.append(query)
+        
+        # Remove failed queries from the list
+        if del_items:
+            for query in del_items:
+                self.more_queries.remove(query)
+                logging.warning(f"{query} is removed from list of query")
+        
+        toc_loop = time.perf_counter()
+        logging.warning(f"Getting #more took {toc_loop - tic_loop} seconds")
+        
+        return results
+
+    def get_state_init(self):
+        """Get initial TEM state with performance optimizations."""
+        results = {}
+        tic_loop = time.perf_counter()
+        
+        # Cache mapping dictionary
+        mapping = tools.full_mapping
+        
+        # Track items to delete
+        del_items = []
+        
+        # Process all queries
+        for query in self.init_queries:
+            # Create result structure once
+            result = {
+                "tst_before": time.time(),
+                "val": self.execute_command(mapping[query]),
+            }
+            result["tst_after"] = time.time()
+            
+            # Store result
+            results[query] = result
+            
+            # Check for None values
+            if result["val"] is None:
+                del_items.append(query)
+        
+        # Remove failed queries from the list
+        if del_items:
+            for query in del_items:
+                self.init_queries.remove(query)
+                logging.warning(f"{query} is removed from list of query")
+        
+        toc_loop = time.perf_counter()
+        logging.warning(f"Getting #init took {toc_loop - tic_loop} seconds")
+        
         return results
 
     def execute_command(self, command_str):

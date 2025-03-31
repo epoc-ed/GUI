@@ -628,9 +628,9 @@ class TEMAction(QObject):
     #         if idx == 1: idx=0 # 0=MAG, 1=MAG2 -> Treat them as same
     #         self.tem_stagectrl.mag_modes.button(idx).setChecked(True)
 
-    # def update_rotation_speed_idx_from_ui(self, idx_rot_button):
-    #     self.cfg.rotation_speed_idx = idx_rot_button
-    #     logging.debug(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
+    def update_rotation_speed_idx_from_ui(self, idx_rot_button):
+        self.cfg.rotation_speed_idx = idx_rot_button
+        logging.debug(f"rotation_speed_idx updated to: {self.cfg.rotation_speed_idx} i.e. velocity is {[10.0, 2.0, 1.0, 0.5][self.cfg.rotation_speed_idx]} deg/s")
 
     def toggle_rotation(self):
         if not self.tem_tasks.rotation_button.started:
