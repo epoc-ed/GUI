@@ -15,6 +15,7 @@ class TemUpdateWorker(QObject):
     def process_tem_info(self):
         """Process TEM info in a separate thread."""
         try:
+            logging.debug("In TemUpdateWorker::process_tem_info() -> Processing batched results")
             # Get the state without blocking UI
             results = self.control_worker.get_state_batched()
             

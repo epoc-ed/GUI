@@ -5,7 +5,7 @@ from datetime import datetime as dt
 import numpy as np
 import threading
 
-from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt
+from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt, QTimer
 
 from .task import Task
 from .record_task import RecordTask
@@ -374,8 +374,9 @@ class ControlWorker(QObject):
             logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status.get('eos.GetFunctionMode')}")
             
             # Get function mode once
-            function_mode = tem_status.get('eos.GetFunctionMode', [None, None])[0]
-            mag_value = tem_status.get('eos.GetMagValue')
+            function_mode_list = tem_status.get('eos.GetFunctionMode') or [None, None]
+            function_mode = function_mode_list[0]
+            mag_value = tem_status.get('eos.GetMagValue', None)
             
             # Handle magnification mode
             if function_mode is not None:
@@ -390,17 +391,20 @@ class ControlWorker(QObject):
             self._update_blanking_button(tem_status.get("defl.GetBeamBlank", 0))
 
             # Calculate position difference using numpy operations
-            position = np.array(tem_status.get("stage.GetPos", [0, 0, 0, 0, 0]))
-            position_prev = np.array(tem_status.get("stage.GetPos_prev", [0, 0, 0, 0, 0]))
+            pos_list = tem_status.get("stage.GetPos", [0, 0, 0, 0, 0])
+            pos_prev_list = tem_status.get("stage.GetPos_prev", [0, 0, 0, 0, 0])
             
             # Calculate difference and apply threshold in one step
-            diff_pos = position - position_prev
-            threshold = np.array([30, 30, 30, 0.2, 100])  # nm, nm, nm, deg., deg.
-            update_mask = np.abs(diff_pos) > threshold
+            if pos_list is not None and pos_prev_list is not None:
+                position = np.array(pos_list)
+                position_prev = np.array(pos_prev_list)
+                diff_pos = position - position_prev
+                threshold = np.array([30, 30, 30, 0.2, 100])  # nm, nm, nm, deg., deg.
+                update_mask = np.abs(diff_pos) > threshold
             
-            # Update diff using vectorized operations
-            prev_diff = tem_status.get("stage.GetPos_diff", np.zeros(5))
-            tem_status["stage.GetPos_diff"] = np.where(update_mask, diff_pos, prev_diff)
+                # Update diff using vectorized operations
+                prev_diff = tem_status.get("stage.GetPos_diff", np.zeros(5))
+                tem_status["stage.GetPos_diff"] = np.where(update_mask, diff_pos, prev_diff)
             
             # Signal update
             self.updated.emit()
@@ -412,12 +416,16 @@ class ControlWorker(QObject):
         # Cache reference to button
         button = self.tem_action.tem_stagectrl.blanking_button
         
-        if beam_blank_state == 0:
-            button.setText("Blank beam")
-            button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+        if beam_blank_state is not None:
+            if beam_blank_state == 0:
+                button.setText("Blank beam")
+                button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            else:
+                button.setText("Unblank beam")
+                button.setStyleSheet('background-color: orange; color: white;')
         else:
-            button.setText("Unblank beam")
-            button.setStyleSheet('background-color: orange; color: white;')
+            button.setText("Unknown Blanking State...")
+            button.setStyleSheet('background-color: red; color: white;')
 
     @Slot(str) 
     def send_to_tem(self, message, asynchronous=True):
@@ -447,9 +455,9 @@ class ControlWorker(QObject):
     def _handle_info_command(self, asynchronous):
         """Handle '#info' command in a worker thread."""
         # If we have a worker, use it
-        if hasattr(self, 'tem_threads') and self.tem_threads.get('update_worker'):
+        if hasattr(self.tem_action, 'tem_threads') and self.tem_action.tem_threads.get('update_worker'):
             # Invoke the worker method
-            QMetaObject.invokeMethod(self.tem_threads['update_worker'], 
+            QMetaObject.invokeMethod(self.tem_action.tem_threads['update_worker'], 
                                     "process_tem_info", 
                                     Qt.QueuedConnection)
         else:
@@ -729,7 +737,9 @@ class ControlWorker(QObject):
 
     @Slot(int, float, float)
     def move_with_backlash(self, moverid=0, value=10, backlash=0, scale=1): # +x, -x, +y, -y, +z, -z, +tx, -tx (0-7) 
-        self.send_to_tem("#info")
+        # self.send_to_tem("#info")
+        QTimer.singleShot(0, lambda: self.send_to_tem("#info", asynchronous=True))
+        
         # time.sleep(0.5)
         # backlash correction
         if moverid%2 == 0 and np.sign(self.tem_status["stage.GetPos_diff"][moverid//2]) >= 0: backlash = 0
@@ -737,15 +747,16 @@ class ControlWorker(QObject):
         
         logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")
         
+        client = self.client
         match moverid:
-            case 0: threading.Thread(target=self.client.SetXRel, args=(value*scale-backlash,)).start()
-            case 1: threading.Thread(target=self.client.SetXRel, args=(value*scale+backlash,)).start()
-            case 2: threading.Thread(target=self.client.SetYRel, args=(value*scale-backlash,)).start()
-            case 3: threading.Thread(target=self.client.SetYRel, args=(value*scale+backlash,)).start()
-            case 4: threading.Thread(target=self.client.SetZRel, args=(value*scale+backlash,)).start()
-            case 5: threading.Thread(target=self.client.SetZRel, args=(value*scale-backlash,)).start()
-            case 6: threading.Thread(target=self.client.SetTXRel, args=(value*scale+backlash,)).start()
-            case 7: threading.Thread(target=self.client.SetTXRel, args=(value*scale-backlash,)).start()
+            case 0: threading.Thread(target=client.SetXRel, args=(value*scale-backlash,)).start()
+            case 1: threading.Thread(target=client.SetXRel, args=(value*scale+backlash,)).start()
+            case 2: threading.Thread(target=client.SetYRel, args=(value*scale-backlash,)).start()
+            case 3: threading.Thread(target=client.SetYRel, args=(value*scale+backlash,)).start()
+            case 4: threading.Thread(target=client.SetZRel, args=(value*scale+backlash,)).start()
+            case 5: threading.Thread(target=client.SetZRel, args=(value*scale-backlash,)).start()
+            case 6: threading.Thread(target=client.SetTXRel, args=(value*scale+backlash,)).start()
+            case 7: threading.Thread(target=client.SetTXRel, args=(value*scale-backlash,)).start()
             case _:
                 logging.warning(f"Undefined moverid {moverid}")
                 return
