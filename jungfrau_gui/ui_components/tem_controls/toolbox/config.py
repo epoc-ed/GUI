@@ -27,7 +27,7 @@ class lut:
 
     def __init__(self):
         self.array_data = np.array([list(d.values()) for d in self.distance])
-        self.raw_grid = np.delete(self.array_data, [2, 4, 5], -1)[:-3,:] # remove date, unit, and mag
+        self.raw_grid = np.delete(self.array_data, [2, 4, 5, 6], -1)[:-3,:] # remove date, unit, mag, and brightness at the moment
         self.data_grid = np.array([[int(nominal[:-2])*10, int(ht_value), float(calibrated)] for nominal, calibrated, ht_value in self.raw_grid])
 
     def _lookup(self, dic, key, label_search, label_get, index=0):
