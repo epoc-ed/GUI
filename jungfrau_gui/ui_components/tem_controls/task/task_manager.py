@@ -378,12 +378,13 @@ class ControlWorker(QObject):
             mag_value = tem_status.get('eos.GetMagValue')
             
             # Handle magnification mode
-            if function_mode == 0:  # MAG
-                tem_status['eos.GetMagValue_MAG'] = mag_value
-                globals.mag_value_img = mag_value
-            elif function_mode == 4:  # DIFF
-                tem_status['eos.GetMagValue_DIFF'] = mag_value
-                globals.mag_value_diff = mag_value
+            if function_mode is not None:
+                if function_mode == 0:  # MAG
+                    tem_status['eos.GetMagValue_MAG'] = mag_value
+                    globals.mag_value_img = mag_value
+                elif function_mode == 4:  # DIFF
+                    tem_status['eos.GetMagValue_DIFF'] = mag_value
+                    globals.mag_value_diff = mag_value
 
             # Update blanking button with live status at TEM
             self._update_blanking_button(tem_status.get("defl.GetBeamBlank", 0))
