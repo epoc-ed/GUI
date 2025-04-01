@@ -271,8 +271,8 @@ class TEMTasks(QGroupBox):
         INPUT_layout = QHBoxLayout()
         input_start_angle_lb = QLabel("Start angle:", self) # current value
         self.input_start_angle = QDoubleSpinBox(self)
-        self.input_start_angle.setMaximum(70)
-        self.input_start_angle.setMinimum(-70)
+        self.input_start_angle.setMaximum(72)
+        self.input_start_angle.setMinimum(-72)
         self.input_start_angle.setSuffix('°')
         self.input_start_angle.setDecimals(1)
         # self.input_start_angle.setValue("")
@@ -285,11 +285,13 @@ class TEMTasks(QGroupBox):
         END_layout = QHBoxLayout()
         end_angle = QLabel("Target angle:", self)
         self.update_end_angle = QDoubleSpinBox(self)
-        self.update_end_angle.setMaximum(71) # should be checked with the holder's threshold
-        self.update_end_angle.setMinimum(-71)
+        self.update_end_angle.setMaximum(72) # should be checked with the holder's threshold
+        self.update_end_angle.setMinimum(-72)
         self.update_end_angle.setSuffix('°')
         self.update_end_angle.setDecimals(1)
         self.update_end_angle.setValue(60) # will be replaced with configuration file
+        self.mirror_angles_checkbox = QCheckBox("mirror", self)
+        self.mirror_angles_checkbox.setChecked(False)
 
         END_layout.addWidget(end_angle)
         END_layout.addWidget(self.update_end_angle)
@@ -356,7 +358,10 @@ class TEMTasks(QGroupBox):
         ROT_group.addSpacing(10)
         ROT_group.addLayout(ROT_section_1)
         ROT_section_2.addLayout(INPUT_layout)
-        ROT_section_2.addSpacing(30)
+        if globals.dev:
+            END_layout.addWidget(self.mirror_angles_checkbox)
+        else:
+            ROT_section_2.addSpacing(30)
         ROT_section_2.addLayout(END_layout)
         ROT_group.addLayout(ROT_section_2)
         tasks_section.addLayout(ROT_group)

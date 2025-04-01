@@ -30,7 +30,7 @@ class CenteringTask(Task):
         # self.thresholds = [0.3, 100, 1, 10] # xy-min, xy-max, z-min, z-max [um]
         self.thresholds = {
             'dxy_min': 0.3, 'dxy_max': 100, 
-            'dz_min_mag': 1, 'dz_max_mag': 10, 'dz_min_lmag': 5, 'absz_min': -60, 'absz_max': 20, 
+            'dz_min_mag': 1, 'dz_max_mag': 10, 'dz_min_lmag': 3, 'absz_min': -70, 'absz_max': 20, 
         }
     
     def rot2d(self, vector, theta):# anti-clockwise
@@ -80,10 +80,10 @@ class CenteringTask(Task):
                 return
             logging.info(f'Move X: {movexy[0]} um,  Y: {movexy[1]} um with MAG: {magnification[2]}')
             # self.client.SetXRel(movexy[0]*-1e3)
-            self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, movexy[0]*-1e3, cfg_jf.others.backlash[0])            
+            self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, movexy[0]*-1e3, cfg_jf.others.backlash[0], False)            
             time.sleep(0.5)
             # self.client.SetYRel(movexy[1]*-1e3)
-            self.control.trigger_movewithbacklash.emit((np.sign(movexy[1]) > 0)+2, movexy[1]*-1e3, cfg_jf.others.backlash[1])
+            self.control.trigger_movewithbacklash.emit((np.sign(movexy[1]) > 0)+2, movexy[1]*-1e3, cfg_jf.others.backlash[1], False)
             time.sleep(0.5)
         else:
             if tilt_X_abs < 11:
@@ -96,16 +96,16 @@ class CenteringTask(Task):
             if globals.dev:
                 if Mag_idx == 0: # Mag
                     if np.abs(movez) < self.thresholds['dz_min_mag'] or np.abs(movez) > self.thresholds['dz_max_mag']:
-                        logging.info(f'Too small or too large Z-Vector: {movez}')
+                        logging.info(f'Too small or too large Z-Vector: {movez} um')
                         return
                 elif int(magnification[0]) == 1200: # LowMag, not 1200x
                     if np.abs(movez) < self.thresholds['dz_min_lmag'] or position[2]/1e3 + movez < self.thresholds['absz_min'] or position[2]/1e3 + movez > self.thresholds['absz_max']:
-                        logging.info(f'Too small or too large Z-Vector: {movez}')
+                        logging.info(f'Too small or too large Z-Vector: {movez} um')
                         return
                 else:
                     logging.info(f'Move Z is currently not supported in this magnification: {magnification[2]}')
                     return
-                logging.info(f'Move Z: {movez} with MAG: {magnification[2]}')
+                logging.info(f'Move Z: {movez} um with MAG: {magnification[2]}')
                 self.client.SetZRel(movez*1e3)
             else:
                 logging.warning(f'Move Z is currently only supported in developer mode (-e).')

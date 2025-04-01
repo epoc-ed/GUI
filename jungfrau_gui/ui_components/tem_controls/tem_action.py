@@ -89,10 +89,10 @@ class TEMAction(QObject):
         
         self.control.updated.connect(self.on_tem_update)
 
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, cfg_jf.others.backlash[0]))
-        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, cfg_jf.others.backlash[0]))
-        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, cfg_jf.others.backlash[3]))
-        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, cfg_jf.others.backlash[3]))
+        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, cfg_jf.others.backlash[0], True))
+        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, cfg_jf.others.backlash[0], True))
+        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, cfg_jf.others.backlash[3], False))
+        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, cfg_jf.others.backlash[3], False))
 
         # Move X positive 10 micrometers
         #self.tem_stagectrl.movex10ump.clicked.connect(
@@ -236,11 +236,16 @@ class TEMAction(QObject):
         except TypeError:
             pass
         angle_x = self.control.tem_status["stage.GetPos"][3]
-        if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
+        if angle_x is not None:
+            self.tem_tasks.input_start_angle.setValue(angle_x)
+            if self.tem_tasks.mirror_angles_checkbox.isChecked():
+                end_angle = (np.abs(angle_x) - 2) * np.sign(angle_x) * -1 # '-2' for safe, could be updated depending on the absolute value
+                self.tem_tasks.update_end_angle.setValue(end_angle)
+
         self.control.beam_sigmaxy = [self.tem_controls.sigma_x_spBx.value(), self.tem_controls.sigma_y_spBx.value()]
         
         # 1) Live query on both the current mode and the beam blank state
-        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
+        Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] #= self.control.client.GetFunctionMode()[0]
 
         if Mag_idx in [0, 1, 2]:
             magnification = self.control.tem_status["eos.GetMagValue"][2]
@@ -251,7 +256,7 @@ class TEMAction(QObject):
             self.tem_detector.input_det_distance.setText(detector_distance)
             self.drawscale_overlay(xo=self.cfg.beam_center[0], yo=self.cfg.beam_center[1])
             
-        beam_blank_state = self.control.tem_status["defl.GetBeamBlank"] = self.control.client.GetBeamBlank()
+        beam_blank_state = self.control.tem_status["defl.GetBeamBlank"] #= self.control.client.GetBeamBlank()
 
         # 2) Only do something if the mode *changed*
         if Mag_idx != self.last_mag_mode:
@@ -275,8 +280,10 @@ class TEMAction(QObject):
                     self.tem_controls.toggle_gaussianFit_beam(by_user=False)
                 
                 self.tem_stagectrl.mag_modes.button(mag_indices[Mag_idx]).setChecked(True)
+            elif self.last_mag_mode is None:
+                pass # only happens for the first polling
             else:
-                logging.error(f"Magnification index is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
+                logging.error(f"Magnification index: {Mag_idx} is invalid. Possible error when relaying 'eos.GetMagValue' to TEM")
 
             self.last_mag_mode = Mag_idx
 
@@ -535,9 +542,10 @@ class TEMAction(QObject):
         arrow_c = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
                              headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
         # add updated items
-        self.tem_stagectrl.gridarea.addItem(arrow_a)
-        self.tem_stagectrl.gridarea.addItem(arrow_b)
-        self.tem_stagectrl.gridarea.addItem(arrow_c)
+        if spots[0]/spots[1] > 0.05: # assumes the lower spot-indexing rate as unsuccessful
+            self.tem_stagectrl.gridarea.addItem(arrow_a)
+            self.tem_stagectrl.gridarea.addItem(arrow_b)
+            self.tem_stagectrl.gridarea.addItem(arrow_c)
         self.tem_stagectrl.position_list.addItem(text)
         self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
@@ -614,7 +622,7 @@ class TEMAction(QObject):
             self.tem_detector.e_incoming_display.setText(f'N/A')
             logging.warning(e)
 
-    def take_snapshot(self, max_list=10):
+    def take_snapshot(self, max_list=50):
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             logging.warning(f'Snaphot does not support Diff-mode at the moment!')
             return
@@ -703,14 +711,14 @@ class TEMAction(QObject):
             return
 
         if dx >= 0:
-            self.control.trigger_movewithbacklash.emit(0, dx, cfg_jf.others.backlash[0])
+            self.control.trigger_movewithbacklash.emit(0, dx, cfg_jf.others.backlash[0], False)
         else:
-            self.control.trigger_movewithbacklash.emit(1, dx, cfg_jf.others.backlash[0])
+            self.control.trigger_movewithbacklash.emit(1, dx, cfg_jf.others.backlash[0], False)
         time.sleep(np.abs(dx)/5e4) # assumes speed of movement as > 50 um/s
         if dy >= 0:
-            self.control.trigger_movewithbacklash.emit(2, dy, cfg_jf.others.backlash[1])
+            self.control.trigger_movewithbacklash.emit(2, dy, cfg_jf.others.backlash[1], False)
         else:
-            self.control.trigger_movewithbacklash.emit(3, dy, cfg_jf.others.backlash[1])
+            self.control.trigger_movewithbacklash.emit(3, dy, cfg_jf.others.backlash[1], False)
 
         logging.info(f'Move X: {dx/1e3:.1f} um,  Y: {dy/1e3:.1f} um')
 
