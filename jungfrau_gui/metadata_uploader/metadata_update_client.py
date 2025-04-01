@@ -107,6 +107,7 @@ if __name__ == "__main__":
     beam_property = {
         "center" : cfg.beam_center, 
         "sigma_width" : [-1, -1], 
+        "angle" : 0,
         "illumination" : {"pa_per_cm2": 0, "e_per_A2_sample": 0},
     }
 

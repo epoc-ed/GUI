@@ -326,7 +326,8 @@ class FileOperations(QGroupBox):
                 logging.info(" ******************** Adding Info to H5 over Server...")
                 beam_property = {
                     "beamcenter" : self.cfg.beam_center, 
-                    "sigma_width" : self.parent.tem_controls.tem_action.control.beam_sigmaxy,
+                    "sigma_width" : self.parent.tem_controls.tem_action.control.beam_property_fitting[:2],
+                    "angle" : self.parent.tem_controls.tem_action.control.beam_property_fitting[2],
                     "illumination" : self.parent.tem_controls.tem_action.control.beam_intensity,
                 }                
                 try:

@@ -237,7 +237,9 @@ class TEMAction(QObject):
             pass
         angle_x = self.control.tem_status["stage.GetPos"][3]
         if angle_x is not None: self.tem_tasks.input_start_angle.setValue(angle_x)
-        self.control.beam_sigmaxy = [self.tem_controls.sigma_x_spBx.value(), self.tem_controls.sigma_y_spBx.value()]
+        self.control.beam_property_fitting = [self.tem_controls.sigma_x_spBx.value(), 
+                                              self.tem_controls.sigma_y_spBx.value(),
+                                              self.tem_controls.angle_spBx.value()]
         
         # 1) Live query on both the current mode and the beam blank state
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
