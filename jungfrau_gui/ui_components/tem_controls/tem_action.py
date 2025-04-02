@@ -653,17 +653,26 @@ class TEMAction(QObject):
     def _update_rotation_speed(self):
         """Update rotation speed UI elements."""
         try:
-            # Cache references
-            tem_status = self.control.tem_status
-
-            # # Live query of Rotation Speed (Blocking)
-            # """ client = self.control.client
-            # tem_status["stage.Getf1OverRateTxNum"] = client.Getf1OverRateTxNum() """
+            # Check if user recently changed this value
+            user_override = False
+            if hasattr(self, 'last_user_rotation_change'):
+                # Only respect user changes for a certain time window (e.g., 3 seconds)
+                time_since_change = time.time() - self.last_user_rotation_change['timestamp']
+                if time_since_change < 1.0:  # 3 second override window
+                    user_override = True
+                    # Keep the UI matching what the user selected
+                    idx = self.last_user_rotation_change['value']
+                    self.tem_stagectrl.rb_speeds.button(idx).setChecked(True)
             
-            # Update rotation speed UI
-            rotation_speed_index = tem_status.get("stage.Getf1OverRateTxNum")
-            if rotation_speed_index in [0, 1, 2, 3]:
-                self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
+            # Only update from TEM status if no recent user override
+            if not user_override:
+                # Cache references
+                tem_status = self.control.tem_status
+                
+                # Update rotation speed UI
+                rotation_speed_index = tem_status.get("stage.Getf1OverRateTxNum")
+                if rotation_speed_index in [0, 1, 2, 3]:
+                    self.tem_stagectrl.rb_speeds.button(rotation_speed_index).setChecked(True)
         except Exception as e:
             logging.error(f"Error updating rotation speed: {e}")
 
@@ -771,6 +780,32 @@ class TEMAction(QObject):
         except RuntimeError:
             logging.warning('To move screen, use specific version of tem_server.py!')
 
+    # def toggle_rb_speeds(self):
+    #     """Toggle rotation speed with performance optimizations."""
+    #     # Get checked button ID once
+    #     idx_rot_button = self.tem_stagectrl.rb_speeds.checkedId()
+        
+    #     # Only proceed if speed has changed
+    #     if self.cfg.rotation_speed_idx == idx_rot_button:
+    #         return
+            
+    #     # Update UI configuration first
+    #     self.update_rotation_speed_idx_from_ui(idx_rot_button)
+        
+    #     # Cache rotation speed mappings
+    #     speed_values = [10.0, 2.0, 1.0, 0.5]
+        
+    #     try:
+    #         # Execute command once
+    #         # self.control.client.Setf1OverRateTxNum(idx_rot_button) # Blocking
+    #         threading.Thread(target=self.control.client.Setf1OverRateTxNum, args=(idx_rot_button,)).start()
+    #         self.control.tem_status["stage.Getf1OverRateTxNum"] = idx_rot_button # TO_TEST: Live update
+    #         logging.info(f"Rotation velocity is set to {speed_values[idx_rot_button]} deg/s")
+    #     except Exception as e:
+    #         # Only get TEM status if command failed
+    #         rotation_at_tem = self.control.execute_command("Getf1OverRateTxNum")
+    #         logging.error(f"Changes of rotation speed has failed!\nRotation at TEM is {speed_values[rotation_at_tem]} deg/s")
+
     def toggle_rb_speeds(self):
         """Toggle rotation speed with performance optimizations."""
         # Get checked button ID once
@@ -787,10 +822,18 @@ class TEMAction(QObject):
         speed_values = [10.0, 2.0, 1.0, 0.5]
         
         try:
-            # Execute command once
-            # self.control.client.Setf1OverRateTxNum(idx_rot_button) # Blocking
-            threading.Thread(target=self.control.client.Setf1OverRateTxNum, args=(idx_rot_button,)).start()
-            self.control.tem_status["stage.Getf1OverRateTxNum"] = idx_rot_button # TO_TEST: Live update
+            # Execute command in a thread to avoid blocking
+            threading.Thread(target=self.control.client.Setf1OverRateTxNum, args=(idx_rot_button,), daemon=True).start()
+            
+            # Update the local status to match what the user just selected
+            self.control.tem_status["stage.Getf1OverRateTxNum"] = idx_rot_button
+            
+            # Set a "user override" flag with a timestamp
+            self.last_user_rotation_change = {
+                'value': idx_rot_button,
+                'timestamp': time.time()
+            }
+            
             logging.info(f"Rotation velocity is set to {speed_values[idx_rot_button]} deg/s")
         except Exception as e:
             # Only get TEM status if command failed
