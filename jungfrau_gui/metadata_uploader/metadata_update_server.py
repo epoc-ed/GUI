@@ -63,13 +63,12 @@ class XDSparams:
     def __init__(self, xdstempl):
         self.xdstempl = xdstempl
 
-    def update(self, orgx, orgy, templ, d_range, osc_range, dist, jobs='XYCORR INIT COLSPOT IDXREF', starting_angle=0, axis=[0.908490,-0.417907,0.0001], ht=200):
+    def update(self, orgx, orgy, templ, d_range, osc_range, dist, jobs='XYCORR INIT COLSPOT IDXREF', starting_angle=0, axis=[0.908490,-0.417907,0.0001], ht=200, beam_direction=[0,0,1]):
         """
            replace parameters for ORGX/ORGY, TEMPLATE, OSCILLATION_RANGE,
            DATA_RANGE, SPOT_RANGE, BACKGROUND_RANGE, STARTING_ANGLE(?)
         """
         self.xdsinp = []
-        margin = args.center_mask # 10
         with open(self.xdstempl, 'r') as f:
             for line in f:
                 [keyw, rem] = self.uncomment(line)
@@ -80,6 +79,8 @@ class XDSparams:
                     # axis = np.fromstring(keyw.split("=")[1].strip(), sep=" ")
                     axis = np.sign(osc_range) * axis
                     keyw = self.replace(keyw, "ROTATION_AXIS=", "  ".join(map(lambda x: str(x), axis)))
+                if "INCIDENT_BEAM_DIRECTION" in keyw:
+                    keyw = self.replace(keyw, "INCIDENT_BEAM_DIRECTION=", f"{beam_direction[0]:.5f} {beam_direction[1]:.5f} {beam_direction[2]:.2f}\n")
                 keyw = self.replace(keyw, "OSCILLATION_RANGE=", abs(osc_range))
                 keyw = self.replace(keyw, "DETECTOR_DISTANCE=", dist)
                 keyw = self.replace(keyw, "NAME_TEMPLATE_OF_DATA_FRAMES=", templ + '\n')
@@ -93,9 +94,6 @@ class XDSparams:
                 keyw = self.replace(keyw, "GAIN=", f"{ht:.1f}")
 
                 self.xdsinp.append(keyw + ' ' + rem)
-
-        if margin > 0:
-            self.xdsinp.append(f" UNTRUSTED_ELLIPSE= {orgx-margin:d} {orgx+margin:d} {orgy-margin:d} {orgy+margin:d}\n")                
             
     def xdswrite(self, filepath="XDS.INP"):
         "write lines of keywords to XDS.INP in local directory"
@@ -170,18 +168,32 @@ class XDSparams:
             # logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
             h = master_file['entry/data/data_000001'].shape[2]
             w = master_file['entry/data/data_000001'].shape[1]
-            for i in range(1):
-                image = master_file['entry/data/data_000001'][i]
-                # logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
-                org_x, org_y = beamcenter[0], beamcenter[1]
             break
 
+        org_x, org_y = w/2, h/2
+        pixel_x_mm = master_file['entry/instrument/detector/x_pixel_size'][()]*1e3
+        pixel_y_mm = master_file['entry/instrument/detector/y_pixel_size'][()]*1e3
+        
+        try:
+            optical_x = master_file['entry/instrument/optics/optical_axis_center_x'][()]
+            optical_y = master_file['entry/instrument/optics/optical_axis_center_y'][()]
+            org_x, org_y = optical_x, optical_y
+        except KeyError:
+            logging.warning(f'Optical_axis_center_xy is missing! Instread, the center of detector is referred')
+
+        beam_direction = [pixel_x_mm * (beamcenter[0] - org_x), pixel_y_mm * (beamcenter[1] - org_y), detector_distance]                
         self.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range, detector_distance, 
                         starting_angle=master_file['entry/instrument/stage/stage_tx_start'][()],
                         axis=master_file['entry/instrument/stage/stage_tx_axis'][()], 
                         ht=master_file['entry/instrument/optics/accelerationVoltage'][()], 
+                        beam_direction=beam_direction,
                    )
-        self.xdswrite(filepath=xds_filepath)    
+
+        margin = args.center_mask # 10
+        if margin > 0:
+            self.xdsinp.append(f" UNTRUSTED_ELLIPSE= {beamcenter[0]-margin:.0f} {beamcenter[0]+margin:.0f} {beamcenter[1]-margin:.0f} {beamcenter[1]+margin:.0f}\n")
+
+        self.xdswrite(filepath=xds_filepath)
 
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
@@ -580,6 +592,8 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/instrument/optics/il_stigm_y', data = tem_status['defl.GetILs'][1], dtype='uint32')
                     create_or_update_dataset('entry/instrument/optics/pl_align_x', data = tem_status['defl.GetPLA'][0], dtype='uint32')
                     create_or_update_dataset('entry/instrument/optics/pl_align_y', data = tem_status['defl.GetPLA'][1], dtype='uint32')
+                    create_or_update_dataset('entry/instrument/optics/optical_axis_center_x', data = tem_status['optical_axis_center'][0], dtype='float')
+                    create_or_update_dataset('entry/instrument/optics/optical_axis_center_y', data = tem_status['optical_axis_center'][1], dtype='float')
 
                     create_or_update_dataset('entry/instrument/optics/beam_width_sigmax', data = beam_property['sigma_width'][0], dtype='float')
                     create_or_update_dataset('entry/instrument/optics/beam_width_sigmay', data = beam_property['sigma_width'][1], dtype='float')
@@ -727,6 +741,7 @@ if __name__ == "__main__":
     parser.add_argument("-j", "--json", action="store_true", help="write a summary of postprocess as a JSON'L' file (process_result.jsonl)")
     parser.add_argument("-m", "--hotpixel_mask", type=str, default='670,670,257,314', help="hot-pixel mask area, by adding another mask-layer (670,670,257,314). deactivate with '.'")
     parser.add_argument("-o", "--exoscillation", action="store_true", help="use measured oscillation value for postprocess")
+    # parser.add_argument("-p", "--opticalcenter", action="store_true", help="calibtate the beam direction")
     parser.add_argument("-q", "--quiet", action="store_true", help="suppress outputs of external programs")
     parser.add_argument("-r", "--refinecenter", action="store_true", help="force post-refine beamcenter position")
     parser.add_argument("-v", "--version", action="store_true", help="display version information")
