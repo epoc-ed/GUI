@@ -333,9 +333,10 @@ class ApplicationWindow(QMainWindow):
 
     def stopWorker(self, thread, worker):
         if globals.tem_mode:
+            control = self.tem_controls.tem_action.control
             if self.tem_controls.tem_action.control.task is not None:
-                logging.info(f"Control has - \033[1m{self.tem_controls.tem_action.control.task.task_name}\033[0m\033[34m - task alive!")
-                thread_manager.handle_tem_task_cleanup(self.tem_controls.tem_action.control)
+                logging.info(f"Control has - \033[1m{control.task.task_name}\033[0m\033[34m - task alive!")
+                thread_manager.handle_tem_task_cleanup(control)
         thread_manager.disconnect_worker_signals(worker)
         thread_manager.terminate_thread(thread)
         thread_manager.remove_worker_thread_pair(self.threadWorkerPairs, thread)
@@ -370,10 +371,12 @@ class ApplicationWindow(QMainWindow):
             if reply == QMessageBox.Yes:
                 globals.exit_flag.value = True
                 if globals.tem_mode:
-                    if self.tem_controls.tem_action.control.beam_fitter is not None:
-                        self.tem_controls.tem_action.control.beam_fitter.stop()
+                    control = self.tem_controls.tem_action.control
+                    if control.beam_fitter is not None:
+                        if control.beam_fitter:
+                            control.beam_fitter.stop()
                 for thread, worker in running_threadWorkerPairs:
-                    logging.warning(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
+                    logging.warning(f'Stopping Thread-Worker pair = ({thread.objectName()} - {worker}).')
                     self.stopWorker(thread, worker) 
             else:
                 event.ignore()  # Prevents the window from closing

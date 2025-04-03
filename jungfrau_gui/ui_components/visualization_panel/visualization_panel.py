@@ -662,6 +662,7 @@ class VisualizationPanel(QGroupBox):
     def toggle_viewStream(self):
         if not self.stream_view_button.started:
             self.thread_read = QThread()
+            self.thread_read.setObjectName("Frame_Reader Thread")
             self.streamReader = Reader(self.parent.receiver)
             self.parent.threadWorkerPairs.append((self.thread_read, self.streamReader))                              
             self.initializeWorker(self.thread_read, self.streamReader) # Initialize the worker thread and fitter

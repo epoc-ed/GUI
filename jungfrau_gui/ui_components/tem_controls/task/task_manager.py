@@ -68,6 +68,7 @@ class ControlWorker(QObject):
 
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
+        self.task_thread.setObjectName("TEM_Task Thread")
         self.tem_action = tem_action
         self.file_operations = self.tem_action.file_operations
         self.visualization_panel = self.tem_action.visualization_panel
@@ -76,7 +77,7 @@ class ControlWorker(QObject):
         self.more_queries = tools.MORE_QUERIES
         self.init_queries = tools.INIT_QUERIES
         
-        self.setObjectName("control Thread")
+        self.setObjectName("Control Worker")
         
         self.init.connect(self._init)
         self.send.connect(self.send_to_tem)
@@ -159,7 +160,7 @@ class ControlWorker(QObject):
         self.last_task = self.task
         self.task = task
         # Create a new QThread for each task to avoid reuse issues
-        self.task_thread = QThread()  
+        self.task_thread = QThread()
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
         self.task.finished.connect(self.on_task_finished)
         self.task.moveToThread(self.task_thread)
@@ -245,8 +246,8 @@ class ControlWorker(QObject):
                                 "You need to stop the current task before starting a new one.")
                 # self.stop_task()
                 return           
-
-        if self.tem_status['eos.GetFunctionMode'][1] != 4:
+        print(f"--------- self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']} ")
+        if self.tem_status['eos.GetFunctionMode'][0] != 4:
             logging.warning('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
             # Switching to Diffraction Mode
@@ -671,7 +672,7 @@ class ControlWorker(QObject):
             logging.error(f"Error executing '{command_str}': {str(e)}")
             return None
 
-    def _execute_with_timeout(self, method, args, timeout=0.5):
+    def _execute_with_timeout(self, method, args, timeout=1.0):
         """Execute a method with a timeout to prevent UI freezes."""
         # Create a result container
         result_container = []

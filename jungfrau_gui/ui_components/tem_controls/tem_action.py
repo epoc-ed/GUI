@@ -213,6 +213,7 @@ class TEMAction(QObject):
             
             # Create thread and worker in one block
             self.connect_thread = QThread()
+            self.connect_thread.setObjectName("TEM_Connector Thread")
             self.temConnector = TEM_Connector()
             
             # Track thread/worker pair
@@ -331,6 +332,7 @@ class TEMAction(QObject):
         """Set up a worker thread for TEM updates."""
         # Create worker and thread
         self.update_thread = QThread()
+        self.update_thread.setObjectName("UI_Updater Thread")
         self.update_worker = TemUpdateWorker(self.control)
         
         # Track thread/worker pair
@@ -506,7 +508,7 @@ class TEMAction(QObject):
                 auto_contrast_btn.clicked.emit()
                 
             # Just pause the Gaussian Fit in MAG mode if it's currently ON
-            if gaussian_fit_btn.started:
+            if gaussian_fit_btn.started and not self.tem_controls._fit_paused:
                 self.tem_controls.toggle_gaussianFit_beam(by_user=False, pause_only=True)
                 
             # Update UI state
@@ -562,12 +564,16 @@ class TEMAction(QObject):
         try:
             if beam_blank_state == 1:
                 # Beam is blanked - turn off Gaussian Fit if running
-                if self.tem_tasks.btnGaussianFit.started:
-                    self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+                if self.tem_tasks.btnGaussianFit.started and not self.tem_controls._fit_paused:
+                    # self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+                    self.tem_controls.toggle_gaussianFit_beam(by_user=False, pause_only=True)
             elif Mag_idx == 4 and not self.tem_controls.gaussian_user_forced_off:
                 # Beam is unblanked and in DIFF mode - ensure Gaussian Fit is on
                 if not self.tem_tasks.btnGaussianFit.started:
                     self.tem_controls.toggle_gaussianFit_beam(by_user=False)
+                else:
+                    self.tem_controls.resume_gaussian_fit(btn=self.tem_tasks.btnGaussianFit,
+                                                          running_text="Stop Fitting")
         except Exception as e:
             logging.error(f"Error handling beam blank: {e}")
 
@@ -579,7 +585,7 @@ class TEMAction(QObject):
             if hasattr(self, 'last_user_rotation_change'):
                 # Only respect user changes for a certain time window (e.g., 3 seconds)
                 time_since_change = time.time() - self.last_user_rotation_change['timestamp']
-                if time_since_change < 1.0:  # 3 second override window
+                if time_since_change < 1.0:  # 1 second override window
                     user_override = True
                     # Keep the UI matching what the user selected
                     idx = self.last_user_rotation_change['value']
@@ -667,12 +673,14 @@ class TEMAction(QObject):
         
         if not is_blanked:
             # Blank the beam
-            client.SetBeamBlank(1)
+            # client.SetBeamBlank(1)
+            threading.Thread(target=client.SetBeamBlank, args=(1,), daemon=True).start()
             blank_button.setText("Unblank beam")
             blank_button.setStyleSheet('background-color: orange; color: white;')
         else:
             # Unblank the beam
-            client.SetBeamBlank(0)
+            # client.SetBeamBlank(0)
+            threading.Thread(target=client.SetBeamBlank, args=(0,), daemon=True).start()
             blank_button.setText("Blank beam")
             blank_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
 
@@ -733,6 +741,8 @@ class TEMAction(QObject):
         except Exception as e:
             # Only get TEM status if command failed
             rotation_at_tem = self.control.execute_command("Getf1OverRateTxNum")
+            if rotation_at_tem is not None:
+                self.update_rotation_speed_idx_from_ui(rotation_at_tem)
             logging.error(f"Changes of rotation speed has failed!\nRotation at TEM is {speed_values[rotation_at_tem]} deg/s")
 
     def toggle_mag_modes(self):
@@ -954,6 +964,7 @@ class TEMAction(QObject):
         if self.dataReceiverReady:
             self.process_receiver = ProcessedDataReceiver(self, host = "noether")            
             self.datareceiver_thread = QThread()
+            self.datareceiver_thread.setObjectName("Data_Receiver Thread")
             self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
             thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
             self.datareceiver_thread.start()
@@ -1122,6 +1133,7 @@ class TEMAction(QObject):
             return
 
         self.datareceiver_thread = QThread()
+        self.datareceiver_thread.setObjectName("Data_Receiver Thread")
         self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
         thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
         self.datareceiver_thread.start()
