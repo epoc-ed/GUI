@@ -27,6 +27,8 @@ class CustomJSONEncoder(json.JSONEncoder):
             return float(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
+        elif isinstance(obj, dict):
+            return {k: v.tolist() if isinstance(v, np.ndarray) else str(v) for k, v in obj.items()}
         # Add more types as needed
         return super().default(obj)
 

@@ -422,6 +422,11 @@ class Hdf5MetadataUpdater:
                             jf_gui_tag=message["jf_gui_tag"],
                             commit_hash=message["commit_hash"],
                         )
+
+                        # wait until finish writing
+                        while not os.access(filename, os.W_OK):
+                            time.sleep(0.2)
+                        
                         if len(args.hotpixel_mask.split(sep=',')) != 4:
                             self.addusermask_to_hdf(filename)
                             self.socket.send_string("Metadata/Maskdata added successfully")
@@ -521,7 +526,7 @@ class Hdf5MetadataUpdater:
         try:
             ht = tem_status['ht.GetHtValue'] / 1000  # keV  # <- HT3
         except (ValueError, TypeError) as e:
-            logging.warning(f"Error while reading HT value: {e}")
+            logging.warning(f"Error while reading HT value: {e}. '200 kV' is used instead.")
             ht = 200
         wavelength = eV2angstrom(ht * 1e3)  # Angstrom
         stage_rates = [10.0, 2.0, 1.0, 0.5]
