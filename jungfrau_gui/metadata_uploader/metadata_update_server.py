@@ -597,6 +597,7 @@ class Hdf5MetadataUpdater:
 
                     create_or_update_dataset('entry/instrument/optics/beam_width_sigmax', data = beam_property['sigma_width'][0], dtype='float')
                     create_or_update_dataset('entry/instrument/optics/beam_width_sigmay', data = beam_property['sigma_width'][1], dtype='float')
+                    create_or_update_dataset('entry/instrument/optics/beam_ellipse_angle', data = beam_property['angle'], dtype='float')
                     create_or_update_dataset('entry/instrument/optics/beam_illumination_pa_per_cm2_detector', data = beam_property['illumination']['pa_per_cm2'], dtype='float')
                     create_or_update_dataset('entry/instrument/optics/beam_illumination_e_per_A2_sample', data = beam_property['illumination']['e_per_A2_sample'], dtype='float')
                     

@@ -216,7 +216,8 @@ class RecordTask(Task):
                 try:
                     beam_property = {
                         "beamcenter" : self.cfg.beam_center, 
-                        "sigma_width" : self.control.beam_sigmaxy,
+                        "sigma_width" : self.control.beam_property_fitting[:2],
+                        "angle" : self.control.beam_property_fitting[2],
                         "illumination" : self.control.beam_intensity,
                     }
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
