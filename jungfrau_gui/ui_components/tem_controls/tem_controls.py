@@ -4,7 +4,7 @@ import numpy as np
 from ... import globals
 import pyqtgraph as pg
 from datetime import datetime
-from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot
+from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot, Signal, QTimer
 from PySide6.QtGui import QTransform, QFont
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox,
                                QDoubleSpinBox, QCheckBox, QGraphicsEllipseItem, QGraphicsRectItem)
@@ -20,15 +20,19 @@ import jungfrau_gui.ui_threading_helpers as thread_manager
 
 from epoc import ConfigurationClient, auth_token, redis_host
 from ...ui_components.palette import *
+import threading
 
 class TemControls(QGroupBox):
-    # trigger_update_full_fname = Signal()
-
+    check_done = Signal(object, object, bool) # Signals: fit_results, draw_flag, should_process
+    
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
         self.fitter = None
-        # self.trigger_update_full_fname.connect(self.update_full_fname)
+        # Set up the connection once during initialization
+        self.check_done.connect(self._on_check_done)
+        # Track if we're currently checking conditions
+        self.checking_conditions = False
         self.initUI()
 
     def initUI(self):
@@ -212,7 +216,7 @@ class TemControls(QGroupBox):
         btn.started = True
         if self.checkbox.isChecked():
             self.showPlotDialog()
-        self.parent.timer_fit.start(10)
+        self.parent.timer_fit.start(200)
         if by_user:
             self.gaussian_user_forced_off = False
 
@@ -225,7 +229,7 @@ class TemControls(QGroupBox):
             self.plotDialog.close()
         self.parent.stopWorker(self.thread_fit, self.fitter)
         self.fitter, self.thread_fit = thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
-        self.removeAxes()
+        QTimer.singleShot(100, self.removeAxes)
         if by_user:
             self.gaussian_user_forced_off = True
 
@@ -234,11 +238,36 @@ class TemControls(QGroupBox):
         # When not running, text becomes "Stop Fitting"; when stopping, revert to "Beam Gaussian Fit"
         self._toggle_gaussian_fit(self.btnGaussianFitTest, off_text="Beam Gaussian Fit", on_text="Stop Fitting")
 
-    def toggle_gaussianFit_beam(self, by_user=False):
-        """Toggle fitting using the tem_tasks button, with an optional user override."""
-        # When not running, text becomes "Stop Fitting"; when stopping, revert to "Gaussian Fit"
-        self._toggle_gaussian_fit(self.tem_tasks.btnGaussianFit, off_text="Gaussian Fit", on_text="Stop Fitting", by_user=by_user)
+    def pause_gaussian_fit(self, btn, paused_text):
+        """Pause the Gaussian fitting process without destroying the thread."""
+        btn.setText(paused_text)
+        self.parent.timer_fit.stop()
 
+        if self.plotDialog is not None:
+            self.plotDialog.hide()  # Hide instead of close
+        # Schedule axes removal with a small delay to improve responsiveness
+        """ QTimer.singleShot(100, self.removeAxes) """
+        # We're pausing, not stopping, so don't set started to False
+        
+    def resume_gaussian_fit(self, btn, running_text):
+        """Resume the Gaussian fitting process."""
+        btn.setText(running_text)
+
+        if self.checkbox.isChecked() and self.plotDialog is not None:
+            self.plotDialog.show()  # Show the previously hidden dialog
+        self.parent.timer_fit.start(200)
+
+    def toggle_gaussianFit_beam(self, by_user=False, pause_only=False):
+        """Toggle or pause/resume fitting using the tem_tasks button."""
+        btn = self.tem_tasks.btnGaussianFit
+        
+        if pause_only and btn.started:
+            # Just pause it without destroying the thread
+            self.pause_gaussian_fit(btn, "Gaussian Fit (Paused)")
+            return
+        
+        self._toggle_gaussian_fit(btn, off_text="Gaussian Fit", on_text="Stop Fitting", by_user=by_user)
+    
     @Slot()
     def disableGaussianFitButton(self):
         self.tem_tasks.btnGaussianFit.setEnabled(False)
@@ -276,7 +305,7 @@ class TemControls(QGroupBox):
         self.plotDialog.show() 
 
     @Slot()
-    def updateFitParams(self, fit_result_best_values, draw = True):
+    def updateFitParams(self, fit_result_best_values, draw=True):
         if globals.tem_mode:
             if not self.tem_tasks.btnGaussianFit.started:
                 # Fitter was stopped, ignore any last-minute signals
@@ -286,19 +315,57 @@ class TemControls(QGroupBox):
                 # Same for playmode
                 return
             
-        # Add a direct beam blank check to catch state changes that happened
-        # between polling cycles - this prevents stale updates
+        if globals.tem_mode:           
+            # Start a thread to check beam blank state
+            thread = threading.Thread(
+                target=self._check_conditions_thread,
+                args=(fit_result_best_values, draw),
+                daemon=True
+            )
+            thread.start()
+        else:
+            # In playmode, just process immediately
+            self._process_fit_update(fit_result_best_values, draw)
+
+    def _check_conditions_thread(self, fit_result_best_values, draw):
+        """Thread function to check beam blank state and function mode."""
         try:
-            if globals.tem_mode:
-                beam_blank_state = self.tem_action.control.client.GetBeamBlank()
-                if beam_blank_state == 1:
-                    # Beam is blanked, don't process this update
-                    logging.warning("Ignoring fit update - beam is blanked")
-                    return
-        except Exception as e:
-            logging.warning(f"Could not check beam state during fit update: {e}")
+            # Get fresh beam blank state
+            beam_blank_state = self.tem_action.control.client.GetBeamBlank()
             
-        logging.debug(datetime.now().strftime(" START UPDATING GUI @ %H:%M:%S.%f")[:-3])
+            # Get fresh function mode
+            function_mode = self.tem_action.control.client.GetFunctionMode()[0]
+            
+            # Update the cached values
+            self.tem_action.control.tem_status["defl.GetBeamBlank"] = beam_blank_state
+            self.tem_action.control.tem_status["eos.GetFunctionMode"] = [function_mode]
+            
+            # Determine if we should process
+            should_process = (beam_blank_state == 0) and (function_mode == 4)
+            
+            # Emit signal with results and processing flag
+            self.check_done.emit(fit_result_best_values, draw, should_process)
+        except Exception as e:
+            logging.warning(f"Condition check failed: {e}")
+            # On error, emit signal with "don't process" to be safe
+            self.check_done.emit(fit_result_best_values, draw, False)
+        finally:
+            # Always reset the checking flag
+            self.checking_conditions = False
+
+    @Slot(object, object, bool)
+    def _on_check_done(self, fit_result_best_values, draw, should_process):
+        """Handle the condition check result."""
+        if not should_process:
+            logging.warning("Ignoring fit update - conditions not met (fresh check)")
+            self.pause_gaussian_fit(self.tem_tasks.btnGaussianFit, "Gaussian Fit (Paused)")
+            return
+        
+        # Process the fit results
+        self._process_fit_update(fit_result_best_values, draw)
+
+    def _process_fit_update(self, fit_result_best_values, draw):
+        """Process the fit update."""
         amplitude = float(fit_result_best_values['amplitude'])
         xo = float(fit_result_best_values['xo'])
         yo = float(fit_result_best_values['yo'])        
