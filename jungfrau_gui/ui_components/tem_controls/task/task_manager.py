@@ -213,7 +213,7 @@ class ControlWorker(QObject):
         if self.tem_action.tem_tasks.mirror_angles_checkbox.isChecked():
             end_angle = (np.abs(self.tem_status["stage.GetPos"][3]) - 2) * np.sign(self.tem_status["stage.GetPos"][3])*-1 # '-2' for safe, could be updated depending on the absolute value
             self.tem_action.tem_tasks.update_end_angle.setValue(end_angle)
-            time.sleep(0.5)
+            time.sleep(0.5) # For user's recognition on the update
         else:
             end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
