@@ -25,8 +25,7 @@ class DIALSparams:
         from libtbx import easy_run
         os.makedirs(self.workdir, exist_ok=False)
         os.chdir(self.workdir)
-        redirect = '> /del/null' if suppress else ''
-
+        redirect = '> /dev/null' if suppress else ''
         r = easy_run.fully_buffered(f'dials.import {self.datapath} slow_fast_beam_centre={self.beamcenter[1]},{self.beamcenter[0]} redirect')
         if len(r.stderr_lines) > 0:
             logging.info(f'import of {self.datapath} faild!')
