@@ -738,27 +738,61 @@ class ControlWorker(QObject):
             pass
 
     @Slot(int, float, float)
-    def move_with_backlash(self, moverid=0, value=10, backlash=0, scale=1): # +x, -x, +y, -y, +z, -z, +tx, -tx (0-7) 
-        # self.send_to_tem("#info")
+    def move_with_backlash(self, moverid=0, value=10, backlash=0, scale=1):
+        """
+        Move the stage with backlash correction.
+        
+        Args:
+            moverid: Direction identifier (0-7)
+                0,1: +X, -X
+                2,3: +Y, -Y
+                4,5: +Z, -Z
+                6,7: +TX, -TX (tilt)
+            value: Movement amount
+            backlash: Backlash correction amount
+            scale: Scaling factor for movement value
+        """
+        # Request current status information
         QTimer.singleShot(0, lambda: self.send_to_tem("#info", asynchronous=True))
         
-        # time.sleep(0.5)
-        # backlash correction
-        if moverid%2 == 0 and np.sign(self.tem_status["stage.GetPos_diff"][moverid//2]) >= 0: backlash = 0
-        elif moverid%2 == 1 and np.sign(self.tem_status["stage.GetPos_diff"][moverid//2]) < 0: backlash = 0
+        # Backlash correction logic - only apply when changing direction
+        axis = moverid // 2  # Determine which axis (X=0, Y=1, Z=2, TX=3)
+        direction = moverid % 2  # Determine direction (even=positive, odd=negative)
         
-        logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")
+        # Check if we're continuing in the same direction (no backlash needed)
+        if direction == 0 and np.sign(self.tem_status["stage.GetPos_diff"][axis]) >= 0:
+            backlash = 0
+        elif direction == 1 and np.sign(self.tem_status["stage.GetPos_diff"][axis]) < 0:
+            backlash = 0
+            
+        logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, "
+                      f"{self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}"
+        )
         
+        # Get client reference
         client = self.client
+
+        # Calculate final movement value with backlash compensation
+        movement_value = value * scale
+        
+        # Execute movement in a separate thread based on direction
         match moverid:
-            case 0: threading.Thread(target=client.SetXRel, args=(value*scale-backlash,)).start()
-            case 1: threading.Thread(target=client.SetXRel, args=(value*scale+backlash,)).start()
-            case 2: threading.Thread(target=client.SetYRel, args=(value*scale-backlash,)).start()
-            case 3: threading.Thread(target=client.SetYRel, args=(value*scale+backlash,)).start()
-            case 4: threading.Thread(target=client.SetZRel, args=(value*scale+backlash,)).start()
-            case 5: threading.Thread(target=client.SetZRel, args=(value*scale-backlash,)).start()
-            case 6: threading.Thread(target=client.SetTXRel, args=(value*scale+backlash,)).start()
-            case 7: threading.Thread(target=client.SetTXRel, args=(value*scale-backlash,)).start()
+            case 0:  # +X
+                threading.Thread(target=client.SetXRel, args=(movement_value - backlash,)).start()
+            case 1:  # -X
+                threading.Thread(target=client.SetXRel, args=(movement_value + backlash,)).start()
+            case 2:  # +Y
+                threading.Thread(target=client.SetYRel, args=(movement_value - backlash,)).start()
+            case 3:  # -Y
+                threading.Thread(target=client.SetYRel, args=(movement_value + backlash,)).start()
+            case 4:  # +Z
+                threading.Thread(target=client.SetZRel, args=(movement_value + backlash,)).start()
+            case 5:  # -Z
+                threading.Thread(target=client.SetZRel, args=(movement_value - backlash,)).start()
+            case 6:  # +TX (tilt)
+                threading.Thread(target=client.SetTXRel, args=(movement_value + backlash,)).start()
+            case 7:  # -TX (tilt)
+                threading.Thread(target=client.SetTXRel, args=(movement_value - backlash,)).start()
             case _:
                 logging.warning(f"Undefined moverid {moverid}")
                 return
