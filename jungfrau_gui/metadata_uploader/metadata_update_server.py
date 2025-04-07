@@ -635,8 +635,8 @@ class Hdf5MetadataUpdater:
                     create_or_update_dataset('entry/cif/_diffrn_detector_area_resol_mean', data = f'{1/pixel:6.3f}') # 13.333 = 1/0.075
 
                     logging.info(f'Information updated in {filename}')
-                except ValueError as e:
-                    logging.warning(f"ValueError while updating metadata: {e}")
+                except (ValueError, KeyError) as e:
+                    logging.warning(f"ValueError/KeyError while updating metadata: {e}")
         except OSError as e:
             logging.error(f"Failed to update information in {filename}: {e}")
 
