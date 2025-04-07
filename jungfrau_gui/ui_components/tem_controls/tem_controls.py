@@ -100,7 +100,7 @@ class TemControls(QGroupBox):
         self.label_sigma_x.setStyleSheet('color: cyan;')
         self.sigma_x_spBx = QDoubleSpinBox()
         self.sigma_x_spBx.setStyleSheet('color: blue;')
-        self.sigma_x_spBx.setValue(1)
+        self.sigma_x_spBx.setValue(0) # 1
         self.sigma_x_spBx.setSingleStep(0.1)
         self.sigma_x_spBx.setReadOnly(True)
 
@@ -109,7 +109,7 @@ class TemControls(QGroupBox):
         self.label_sigma_y.setStyleSheet('color: red;')
         self.sigma_y_spBx = QDoubleSpinBox()
         self.sigma_y_spBx.setStyleSheet('color: red;')
-        self.sigma_y_spBx.setValue(1)
+        self.sigma_y_spBx.setValue(0) # 1
         self.sigma_y_spBx.setSingleStep(0.1)
         self.sigma_y_spBx.setReadOnly(True)
 

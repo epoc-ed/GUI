@@ -56,7 +56,7 @@ class ControlWorker(QObject):
     trigger_shutdown = Signal()
     trigger_getteminfo = Signal(str)
     trigger_centering = Signal(bool, str)
-    trigger_movewithbacklash = Signal(int, float, float)
+    trigger_movewithbacklash = Signal(int, float, float, bool)
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
@@ -211,7 +211,12 @@ class ControlWorker(QObject):
                 # self.stop_task()  # Ensure that the current task is fully stopped
                 return
 
-        end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
+        if self.tem_action.tem_tasks.mirror_angles_checkbox.isChecked():
+            end_angle = (np.abs(self.tem_status["stage.GetPos"][3]) - 2) * np.sign(self.tem_status["stage.GetPos"][3])*-1 # '-2' for safe, could be updated depending on the absolute value
+            self.tem_action.tem_tasks.update_end_angle.setValue(end_angle)
+            time.sleep(0.5) # For user's recognition on the update
+        else:
+            end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
         # Interrupting TEM Polling
@@ -752,8 +757,8 @@ class ControlWorker(QObject):
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
 
-    @Slot(int, float, float)
-    def move_with_backlash(self, moverid=0, value=10, backlash=0, scale=1):
+    @Slot(int, float, float, bool)
+    def move_with_backlash(self, moverid=0, value=10, backlash=0, button=False, scale=1):
         """
         Move the stage with backlash correction.
         
@@ -812,6 +817,12 @@ class ControlWorker(QObject):
                 logging.warning(f"Undefined moverid {moverid}")
                 return
 
-        if moverid < 2:
-            logging.info(f"Moved stage {value*scale/1e3:.1f} um in X-direction")
+        if moverid < 2 and button: # display the previous move to user
+            # logging.info(f"Moved stage {value*scale/1e3:.1f} um in X-direction")
+            if moverid == 0:
+                self.tem_action.tem_stagectrl.movex10ump.setStyleSheet('background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);')
+                self.tem_action.tem_stagectrl.movex10umn.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            else:
+                self.tem_action.tem_stagectrl.movex10ump.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+                self.tem_action.tem_stagectrl.movex10umn.setStyleSheet('background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);')
         logging.debug(f"xyz1, dxyz1 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")
