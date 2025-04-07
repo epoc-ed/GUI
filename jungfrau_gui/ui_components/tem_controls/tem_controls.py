@@ -370,7 +370,14 @@ class TemControls(QGroupBox):
             self.tem_action.control.tem_status["eos.GetFunctionMode"] = function_mode
             
             # Determine if we should process
-            should_process = (beam_blank_state == 0) and (function_mode[0] == 4)
+            should_process = False  # Default to False for safety
+            if beam_blank_state is not None:
+                if function_mode and len(function_mode) > 0:
+                    should_process = (beam_blank_state == 0) and (function_mode[0] == 4)
+                else:
+                    logging.warning("Function mode list is empty, cannot determine if should process.")
+            else:
+                logging.warning("Beam blank state is None, cannot determine if should process.")
             
             # Emit signal with results and processing flag
             self.check_done.emit(fit_result_best_values, draw, should_process)
