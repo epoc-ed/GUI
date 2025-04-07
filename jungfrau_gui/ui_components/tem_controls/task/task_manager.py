@@ -214,12 +214,27 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
+        # Interrupting TEM Polling
+        if self.tem_action.tem_tasks.connecttem_button.started:
+            self.tem_action.tem_tasks.connecttem_button.click()
+
+        while self.tem_action.tem_tasks.connecttem_button.started:
+            time.sleep(0.1)
+
+        logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection!")
+
         # Stop the Gaussian Fitting if running
         if self.tem_action.tem_tasks.btnGaussianFit.started:
-            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
+            print("-------- Pausing the GF -----")
+            # self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
+            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True, pause_only=True) 
             time.sleep(0.1)
-            self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
+            # self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
             
+        # Disable the Gaussian Fitting
+        self.tem_action.tem_controls.disableGaussianFitButton()
+        logging.warning("Gaussian Fitting is disabled during rotation/record task!")
+        
         self.beam_property_fitting = [self.tem_action.tem_controls.sigma_x_spBx.value(),
                                       self.tem_action.tem_controls.sigma_y_spBx.value(),
                                       self.tem_action.tem_controls.angle_spBx.value()]

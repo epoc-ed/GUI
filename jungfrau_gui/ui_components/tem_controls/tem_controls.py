@@ -275,6 +275,8 @@ class TemControls(QGroupBox):
         if pause_only and btn.started:
             # Just pause it without destroying the thread
             self.pause_gaussian_fit(btn, "Gaussian Fit (Paused)")
+            if by_user:
+                self.gaussian_user_forced_off = True
             return
         
         self._toggle_gaussian_fit(btn, off_text="Gaussian Fit", on_text="Stop Fitting", by_user=by_user)
