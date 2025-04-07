@@ -395,11 +395,13 @@ class TEMAction(QObject):
             if angle_x is not None:
                 self.tem_tasks.input_start_angle.setValue(angle_x)
             
-            # Store beam sigma values
-            self.control.beam_sigmaxy = [
+            # Store beam sigmas and angle
+            self.control.beam_property_fitting = [
                 self.tem_controls.sigma_x_spBx.value(), 
-                self.tem_controls.sigma_y_spBx.value()
+                self.tem_controls.sigma_y_spBx.value(),
+                self.tem_controls.angle_spBx.value()
             ]
+                                          
         except Exception as e:
             logging.error(f"Error in GUI update step 1: {e}")
         

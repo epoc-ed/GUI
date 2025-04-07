@@ -106,7 +106,7 @@ class ControlWorker(QObject):
         self.triggerdelay_ms = 500
         self.previous_tx_abs = 0
         self.beam_intensity = {"pa_per_cm2": 0, "e_per_A2_sample": 0}
-        self.beam_sigmaxy = [-1, -1]
+        self.beam_property_fitting = [-1, -1, 0] # sigmax, sigmay, angle
 
     @Slot()
     def _init(self):
@@ -220,8 +220,9 @@ class ControlWorker(QObject):
             time.sleep(0.1)
             self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
             
-        self.beam_sigmaxy = [self.tem_action.tem_controls.sigma_x_spBx.value(),
-                             self.tem_action.tem_controls.sigma_y_spBx.value()]
+        self.beam_property_fitting = [self.tem_action.tem_controls.sigma_x_spBx.value(),
+                                      self.tem_action.tem_controls.sigma_y_spBx.value(),
+                                      self.tem_action.tem_controls.angle_spBx.value()]
             
         if self.tem_action.tem_tasks.withwriter_checkbox.isChecked():
             self.file_operations.update_base_data_directory() # Update the GUI

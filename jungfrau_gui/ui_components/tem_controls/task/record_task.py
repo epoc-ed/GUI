@@ -209,33 +209,15 @@ class RecordTask(Task):
             except Exception as e:
                 logging.error("Error updating TEM status: {e}")
             
-            # Enable auto reset of tilt
-            if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
-                logging.info("Return the stage tilt to zero.")
-                try:
-                    self.client.Setf1OverRateTxNum(0)
-                    time.sleep(0.1) # Wait for the command to go through
-                    self.tem_action.tem_stagectrl.move0deg.clicked.emit()
-                    time.sleep(0.5) # Wait for the command to go through before checking rotation state
-                except Exception as e:
-                    logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
-                    pass              
-                
-            # Waiting for the rotation to end
-            try:
-                while self.client.is_rotating:
-                    time.sleep(0.01)
-            except Exception as e:
-                logging.error(f'Error during "Auto-Reset" rotation: {e}')
-
-            # Add H5 info and file finalization
+            # Add H5 info and file finalization; can be launched before stage-resetting
             if self.writer is not None:
                 time.sleep(0.1)
                 logging.info(" ******************** Adding Info to H5 over Server...")
                 try:
                     beam_property = {
                         "beamcenter" : self.cfg.beam_center, 
-                        "sigma_width" : self.control.beam_sigmaxy,
+                        "sigma_width" : self.control.beam_property_fitting[:2],
+                        "angle" : self.control.beam_property_fitting[2],
                         "illumination" : self.control.beam_intensity,
                     }
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
@@ -252,6 +234,25 @@ class RecordTask(Task):
                 except Exception as e:
                     logging.error(f"Metadata Update Error: {e}")
                     self.file_operations.update_xtalinfo_signal.emit('Metadata error', 'XDS')
+
+            # Enable auto reset of tilt
+            if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
+                logging.info("Return the stage tilt to zero.")
+                try:
+                    self.client.Setf1OverRateTxNum(0)
+                    time.sleep(0.1) # Wait for the command to go through
+                    self.tem_action.tem_stagectrl.move0deg.clicked.emit()
+                    time.sleep(0.5) # Wait for the command to go through before checking rotation state
+                except Exception as e:
+                    logging.error(f"Unexpected error @ client.SetTiltXAngle(0): {e}") 
+                    pass              
+                
+            # Waiting for the rotation to end
+            try:
+                while self.client.is_rotating:
+                    time.sleep(0.2) # 0.01, but only supressing (reducing) output is necessary
+            except Exception as e:
+                logging.error(f'Error during "Auto-Reset" rotation: {e}')
 
             if self.writer is None:
                 self.reset_rotation_signal.emit()
@@ -287,51 +288,3 @@ class RecordTask(Task):
                                     Qt.QueuedConnection
             )
             self.reset_rotation_signal.emit()
-        
-        # self.make_xds_file(master_filepath,
-        #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
-        #                    self.tem_action.xds_template_filepath)
-         
-    # def on_tem_receive(self):
-    #     self.rotations_angles.append(
-    #         (self.control.tem_update_times['stage.GetPos'][0],
-    #         self.control.tem_status['stage.GetPos'][3],
-    #         self.control.tem_update_times['stage.GetPos'][1])
-    #     )
-
-    def make_xds_file(self, master_filepath, xds_filepath, xds_template_filepath):
-        master_file = h5py.File(master_filepath, 'r')
-        template_filepath = master_filepath[:-9] + "??????.h5" # master_filepath.replace('master', '??????')
-        frame_time = master_file['entry/instrument/detector/frame_time'][()]
-        oscillation_range = 0.05 # frame_time * self.phi_dot
-        logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
-        logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
-
-        for dset in master_file["entry/data"]:
-            nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"]
-            logging.info(f" DATA_RANGE= 1 {nimages_dset}")
-            logging.info(f" BACKGROUND_RANGE= 1 {nimages_dset}")
-            logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
-            h = master_file['entry/data/data_000001'].shape[2]
-            w = master_file['entry/data/data_000001'].shape[1]
-            for i in range(1):
-                image = master_file['entry/data/data_000001'][i]
-                logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
-                org_x, org_y = self.cfg.beam_center[0], self.cfg.beam_center[1]
-                # org_x, org_y = self.tem_action.beamcenter[0], \
-                #                self.tem_action.beamcenter[1]
-            break
-
-        # myxds = XDSparams(xdstempl=xds_template_filepath)
-        # myxds.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range,
-        #              self.control.tem_status['eos.GetMagValue'][0]*10)
-        # myxds.xdswrite(filepath=xds_filepath)
-        
-        # def do_xds(self):
-        #     make_xds_file()
-        #     subprocess.run(cmd_xds, cwd=self.'workingdirectory')
-        #     if os.path.isfile(** + '/IDXREF.LP'):
-        #         with open(** + '/IDXREF.LP', 'r') as f:
-        #             [extract cell parameters and indexing rate]
-        #     [report to the GUI or control_worker]
-                    
