@@ -21,6 +21,7 @@ import jungfrau_gui.ui_threading_helpers as thread_manager
 from epoc import ConfigurationClient, auth_token, redis_host
 from ...ui_components.palette import *
 import threading
+from PySide6.QtWidgets import QApplication
 
 class TemControls(QGroupBox):
     check_done = Signal(object, object, bool) # Signals: fit_results, draw_flag, should_process
@@ -234,6 +235,11 @@ class TemControls(QGroupBox):
             self.plotDialog.close()
         self.parent.stopWorker(self.thread_fit, self.fitter)
         self.fitter, self.thread_fit = thread_manager.reset_worker_and_thread(self.fitter, self.thread_fit)
+        # Force process events
+        QApplication.processEvents()
+        # Remove visual elements
+        self.removeAxes()  # Try removing immediately
+        # Also schedule a delayed removal as backup
         QTimer.singleShot(100, self.removeAxes)
         if by_user:
             self.gaussian_user_forced_off = True
@@ -253,8 +259,10 @@ class TemControls(QGroupBox):
 
         if self.plotDialog is not None:
             self.plotDialog.hide()  # Hide instead of close
-        # Schedule axes removal with a small delay to improve responsiveness
-        QTimer.singleShot(100, self.removeAxes)
+
+        QApplication.processEvents()
+        self.removeAxes()  # Try removing immediately
+        QTimer.singleShot(10, self.removeAxes)
         # We're pausing, not stopping, so don't set started to False
         
     def resume_gaussian_fit(self, btn, running_text):
@@ -317,16 +325,24 @@ class TemControls(QGroupBox):
         self.plotDialog.startPlotting(self.gauss_height_spBx.value(), self.sigma_x_spBx.value(), self.sigma_y_spBx.value())
         self.plotDialog.show() 
 
+    def is_gaussian_fit_active(self):
+        """
+        Check if the Gaussian fitting is currently active.
+        Returns:
+            bool: True if fitting is active, False otherwise
+        """
+        if globals.tem_mode:
+            # Fitter was stopped, ignore any last-minute signals
+            return self.tem_tasks.btnGaussianFit.started
+        else:
+            # Same for playmode
+            return self.btnGaussianFitTest.started
+
     @Slot()
     def updateFitParams(self, fit_result_best_values, draw=True):
-        if globals.tem_mode:
-            if not self.tem_tasks.btnGaussianFit.started:
-                # Fitter was stopped, ignore any last-minute signals
-                return
-        else:
-            if not self.btnGaussianFitTest.started:
-                # Same for playmode
-                return
+        if not self.is_gaussian_fit_active():
+            # Fitting was stopped, ignore any signals
+            return
             
         if globals.tem_mode:           
             # Start a thread to check beam blank state
@@ -405,6 +421,9 @@ class TemControls(QGroupBox):
             self.drawFittingEllipse(xo,yo,sigma_x, sigma_y, theta_deg)
 
     def drawFittingEllipse(self, xo, yo, sigma_x, sigma_y, theta_deg):
+        if not self.is_gaussian_fit_active():
+            # Fitting was stopped, no need to draw fit results
+            return
         # p = 0.5 is equivalent to using the Full Width at Half Maximum (FWHM)
         # where FWHM = 2*sqrt(2*ln(2))*sigma ~ 2.3548*sigma
         p = 0.368 #0.2

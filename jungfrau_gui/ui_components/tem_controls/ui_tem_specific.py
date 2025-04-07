@@ -290,8 +290,9 @@ class TEMTasks(QGroupBox):
         self.update_end_angle.setSuffix('°')
         self.update_end_angle.setDecimals(1)
         self.update_end_angle.setValue(60) # will be replaced with configuration file
-        self.mirror_angles_checkbox = QCheckBox("mirror", self)
-        self.mirror_angles_checkbox.setChecked(False)
+        if globals.dev:
+            self.mirror_angles_checkbox = QCheckBox("mirror", self)
+            self.mirror_angles_checkbox.setChecked(False)
 
         END_layout.addWidget(end_angle)
         END_layout.addWidget(self.update_end_angle)

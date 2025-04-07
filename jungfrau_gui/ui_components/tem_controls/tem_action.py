@@ -394,9 +394,10 @@ class TEMAction(QObject):
             angle_x = pos_list[3]  # guaranteed index
             if angle_x is not None:
                 self.tem_tasks.input_start_angle.setValue(angle_x)
-                if self.tem_tasks.mirror_angles_checkbox.isChecked():
-                    end_angle = (np.abs(angle_x) - 2) * np.sign(angle_x) * -1 # '-2' for safe, could be updated depending on the absolute value
-                    self.tem_tasks.update_end_angle.setValue(end_angle)
+                if globals.dev:
+                    if self.tem_tasks.mirror_angles_checkbox.isChecked():
+                        end_angle = (np.abs(angle_x) - 2) * np.sign(angle_x) * -1 # '-2' for safe, could be updated depending on the absolute value
+                        self.tem_tasks.update_end_angle.setValue(end_angle)
             
             # Store beam sigmas and angle
             self.control.beam_property_fitting = [

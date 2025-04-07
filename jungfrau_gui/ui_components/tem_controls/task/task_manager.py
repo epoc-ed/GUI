@@ -199,6 +199,27 @@ class ControlWorker(QObject):
         task = CenteringTask(self, pixels)
         self.start_task(task)
 
+    def _interupt_TEM_polling_and_pause_GF(self):
+        # Interrupting TEM Polling
+        if self.tem_action.tem_tasks.connecttem_button.started:
+            self.tem_action.tem_tasks.connecttem_button.click()
+
+        while self.tem_action.tem_tasks.connecttem_button.started:
+            time.sleep(0.1)
+
+        logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection and autofocus tasks!")
+
+        # Stop the Gaussian Fitting if running
+        if self.tem_action.tem_tasks.btnGaussianFit.started:
+            # self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
+            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True, pause_only=True) 
+            time.sleep(0.1)
+            # self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
+            
+        # Disable the Gaussian Fitting
+        self.tem_action.tem_controls.disableGaussianFitButton()
+        logging.warning("Gaussian Fitting is disabled during rotation/record task!")
+
     @Slot()
     def start_record(self):
         logging.info("Starting Rotation/Record")
@@ -211,34 +232,16 @@ class ControlWorker(QObject):
                 # self.stop_task()  # Ensure that the current task is fully stopped
                 return
 
-        if self.tem_action.tem_tasks.mirror_angles_checkbox.isChecked():
-            end_angle = (np.abs(self.tem_status["stage.GetPos"][3]) - 2) * np.sign(self.tem_status["stage.GetPos"][3])*-1 # '-2' for safe, could be updated depending on the absolute value
-            self.tem_action.tem_tasks.update_end_angle.setValue(end_angle)
-            time.sleep(0.5) # For user's recognition on the update
+        if globals.dev:
+            if self.tem_action.tem_tasks.mirror_angles_checkbox.isChecked():
+                end_angle = (np.abs(self.tem_status["stage.GetPos"][3]) - 2) * np.sign(self.tem_status["stage.GetPos"][3])*-1 # '-2' for safe, could be updated depending on the absolute value
+                self.tem_action.tem_tasks.update_end_angle.setValue(end_angle)
+                time.sleep(0.5) # For user's recognition on the update
         else:
             end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
-        # Interrupting TEM Polling
-        if self.tem_action.tem_tasks.connecttem_button.started:
-            self.tem_action.tem_tasks.connecttem_button.click()
-
-        while self.tem_action.tem_tasks.connecttem_button.started:
-            time.sleep(0.1)
-
-        logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection!")
-
-        # Stop the Gaussian Fitting if running
-        if self.tem_action.tem_tasks.btnGaussianFit.started:
-            print("-------- Pausing the GF -----")
-            # self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
-            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True, pause_only=True) 
-            time.sleep(0.1)
-            # self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
-            
-        # Disable the Gaussian Fitting
-        self.tem_action.tem_controls.disableGaussianFitButton()
-        logging.warning("Gaussian Fitting is disabled during rotation/record task!")
+        self._interupt_TEM_polling_and_pause_GF()
         
         self.beam_property_fitting = [self.tem_action.tem_controls.sigma_x_spBx.value(),
                                       self.tem_action.tem_controls.sigma_y_spBx.value(),
@@ -267,18 +270,14 @@ class ControlWorker(QObject):
                                 "You need to stop the current task before starting a new one.")
                 # self.stop_task()
                 return           
-        print(f"--------- self.tem_status['eos.GetFunctionMode'] = {self.tem_status['eos.GetFunctionMode']} ")
+                
         if self.tem_status['eos.GetFunctionMode'][0] != 4:
             logging.warning('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
             # Switching to Diffraction Mode
             self.client.SelectFunctionMode(4)
 
-        # Stop the Gaussian Fitting if running
-        if self.tem_action.tem_tasks.btnGaussianFit.started:
-            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
-            time.sleep(0.1)
-            # self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
+        self._interupt_TEM_polling_and_pause_GF()
 
         self.beam_fitter = GaussianFitterMP()
 
