@@ -295,8 +295,9 @@ class ControlWorker(QObject):
             
             # Update status in single loop
             for entry, data in response.items():
-                tem_status[entry] = data["val"]
-                tem_update_times[entry] = (data["tst_before"], data["tst_after"])
+                if data["val"] is not None or entry in ["apt.GetSize(1)", "apt.GetSize(4)"]: # None is allowable only for specific data-tags
+                    tem_status[entry] = data["val"]
+                    tem_update_times[entry] = (data["tst_before"], data["tst_after"])
             
             if logging.getLogger().isEnabledFor(logging.DEBUG):
                 logging.debug("END of update loop")
@@ -318,14 +319,14 @@ class ControlWorker(QObject):
             
             # Handle aperture kind
             apt_kind = tem_status.get('apt.GetKind')
-            if apt_kind is not None:
-                apt_position = tem_status.get('apt.GetPosition')
-                if apt_kind == 1:  # CLA
-                    tem_status['apt.GetPosition_CL'] = apt_position
-                elif apt_kind == 2:  # OLA
-                    tem_status['apt.GetPosition_OL'] = apt_position
-                elif apt_kind == 4:  # SAA
-                    tem_status['apt.GetPosition_SA'] = apt_position
+            # if apt_kind is not None:
+            apt_position = tem_status.get('apt.GetPosition')
+            if apt_kind == 1:  # CLA
+                tem_status['apt.GetPosition_CL'] = apt_position
+            elif apt_kind == 2:  # OLA
+                tem_status['apt.GetPosition_OL'] = apt_position
+            elif apt_kind == 4:  # SAA
+                tem_status['apt.GetPosition_SA'] = apt_position
 
             # Update blanking button with live status at TEM - do this once
             self._update_blanking_button(tem_status.get("defl.GetBeamBlank", 0))
@@ -375,7 +376,8 @@ class ControlWorker(QObject):
             
             # Update status in single loop
             for entry, value in response.items():
-                tem_status[entry] = value
+                if value is not None:
+                    tem_status[entry] = value
             
             logging.debug(f"self.tem_status['eos.GetFunctionMode'] = {tem_status.get('eos.GetFunctionMode')}")
             
@@ -401,16 +403,16 @@ class ControlWorker(QObject):
             pos_prev_list = tem_status.get("stage.GetPos_prev", [0, 0, 0, 0, 0])
             
             # Calculate difference and apply threshold in one step
-            if pos_list is not None and pos_prev_list is not None:
-                position = np.array(pos_list)
-                position_prev = np.array(pos_prev_list)
-                diff_pos = position - position_prev
-                threshold = np.array([30, 30, 30, 0.2, 100])  # nm, nm, nm, deg., deg.
-                update_mask = np.abs(diff_pos) > threshold
-            
-                # Update diff using vectorized operations
-                prev_diff = tem_status.get("stage.GetPos_diff", np.zeros(5))
-                tem_status["stage.GetPos_diff"] = np.where(update_mask, diff_pos, prev_diff)
+            # if pos_list is not None and pos_prev_list is not None:
+            position = np.array(pos_list)
+            position_prev = np.array(pos_prev_list)
+            diff_pos = position - position_prev
+            threshold = np.array([30, 30, 30, 0.2, 100])  # nm, nm, nm, deg., deg.
+            update_mask = np.abs(diff_pos) > threshold
+
+            # Update diff using vectorized operations
+            prev_diff = tem_status.get("stage.GetPos_diff", np.zeros(5))
+            tem_status["stage.GetPos_diff"] = np.where(update_mask, diff_pos, prev_diff)
             
             # Signal update
             self.updated.emit()
@@ -599,9 +601,9 @@ class ControlWorker(QObject):
             if len(query_batches) > 1:
                 time.sleep(0.001)
         
-        # Remove failed queries
+        # Remove failed queries at the first time 
         for query in del_items:
-            if query in self.init_queries:
+            if query in self.init_queries and self.tem_status['ht.GetHtValue_readout'] == 0:
                 self.init_queries.remove(query)
                 logging.warning(f"{query} removed from query list")
         
