@@ -1,6 +1,6 @@
 import logging
 from PySide6.QtGui import QIcon, QFont, QRegularExpressionValidator
-from PySide6.QtCore import Signal, Qt, QRegularExpression, QTimer, Slot
+from PySide6.QtCore import Signal, Qt, QRegularExpression, QTimer, Slot, QObject
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QLineEdit, QSpinBox, QButtonGroup,
                                 QPushButton, QFileDialog, QCheckBox,
@@ -17,9 +17,18 @@ from epoc import ConfigurationClient, auth_token, redis_host
 
 import os
 import re
+import threading
 
 font_big = QFont("Arial", 11)
 font_big.setBold(True)
+
+class MetadataSignalHandler(QObject):
+    # Define signals
+    success = Signal()
+    error = Signal(str)
+
+# Global instance to be accessible
+metadata_signal_handler = MetadataSignalHandler()
 
 class XtalInfo(QGroupBox):
     def __init__(self):
@@ -306,11 +315,57 @@ class FileOperations(QGroupBox):
         except AttributeError:
             pass 
 
+    # def toggle_snapshot_btn(self):
+    #     if not self.parent.visualization_panel.jfj_broker_is_ready:
+    #         logging.warning('JFJ is not ready!!')
+    #         return
+    #     if not self.snapshot_button.started:
+    #         self.pre_text = self.tag_input.text()
+    #         self.tag_input.setText(self.prefix_input.text())
+    #         self.update_measurement_tag()
+    #         self.snapshot_button.setText("Stop")
+    #         self.snapshot_button.started = True
+    #         self.parent.visualization_panel.send_command_to_jfjoch('collect')
+    #         logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
+    #         QTimer.singleShot(self.snapshot_spin.value(), self.toggle_snapshot_btn)
+    #     else:
+    #         self.parent.visualization_panel.send_command_to_jfjoch('cancel')
+    #         if self.parent.tem_controls.tem_action.temConnector is not None: ## to be checked again
+    #             self.parent.tem_controls.tem_action.control.send_to_tem("#more", asynchronous = False)
+    #             logging.info(" ******************** Adding Info to H5 over Server...")
+    #             beam_property = {
+    #                 "beamcenter" : self.cfg.beam_center, 
+    #                 "sigma_width" : self.parent.tem_controls.tem_action.control.beam_sigmaxy,
+    #                 "illumination" : self.parent.tem_controls.tem_action.control.beam_intensity,
+    #             }                
+    #             try:
+    #                 send_with_retries(self.metadata_notifier.notify_metadata_update, 
+    #                                     self.parent.visualization_panel.formatted_filename, 
+    #                                     self.parent.tem_controls.tem_action.control.tem_status, 
+    #                                     beam_property,
+    #                                     None, # self.rotations_angles,
+    #                                     self.cfg.threshold,
+    #                                     retries=3, 
+    #                                     delay=0.1) 
+    #             except Exception as e:
+    #                 logging.error(f"Metadata Update Error: {e}")
+    #         logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
+    #         self.tag_input.setText(self.pre_text) # reset the tag to value before snapshot
+    #         self.update_measurement_tag()
+    #         self.snapshot_button.setText("Write Stream as a snapshot-H5")
+    #         self.snapshot_button.started = False
+
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    """ @@@@@@@ Optimized Snapshot Logic @@@@@@@ """
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+
     def toggle_snapshot_btn(self):
         if not self.parent.visualization_panel.jfj_broker_is_ready:
             logging.warning('JFJ is not ready!!')
             return
+            
         if not self.snapshot_button.started:
+            # Start snapshot - no changes needed here
             self.pre_text = self.tag_input.text()
             self.tag_input.setText(self.prefix_input.text())
             self.update_measurement_tag()
@@ -320,32 +375,109 @@ class FileOperations(QGroupBox):
             logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
             QTimer.singleShot(self.snapshot_spin.value(), self.toggle_snapshot_btn)
         else:
+            # Cancel collection
             self.parent.visualization_panel.send_command_to_jfjoch('cancel')
-            if self.parent.tem_controls.tem_action.temConnector is not None: ## to be checked again
-                self.parent.tem_controls.tem_action.control.send_to_tem("#more", asynchronous = False)
-                logging.info(" ******************** Adding Info to H5 over Server...")
-                beam_property = {
-                    "beamcenter" : self.cfg.beam_center, 
-                    "sigma_width" : self.parent.tem_controls.tem_action.control.beam_property_fitting[:2],
-                    "angle" : self.parent.tem_controls.tem_action.control.beam_property_fitting[2],
-                    "illumination" : self.parent.tem_controls.tem_action.control.beam_intensity,
-                }                
-                try:
-                    send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                        self.parent.visualization_panel.formatted_filename, 
-                                        self.parent.tem_controls.tem_action.control.tem_status, 
-                                        beam_property,
-                                        None, # self.rotations_angles,
-                                        self.cfg.threshold,
-                                        retries=3, 
-                                        delay=0.1) 
-                except Exception as e:
-                    logging.error(f"Metadata Update Error: {e}")
-            logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
-            self.tag_input.setText(self.pre_text) # reset the tag to value before snapshot
-            self.update_measurement_tag()
-            self.snapshot_button.setText("Write Stream as a snapshot-H5")
-            self.snapshot_button.started = False
+            
+            # Configure signal handlers for metadata updates
+            metadata_signal_handler.success.connect(self._on_metadata_success)
+            metadata_signal_handler.error.connect(self._on_metadata_error)
+            
+            # Use a QTimer to defer the rest of processing
+            QTimer.singleShot(0, self._process_snapshot_completion)
+            
+    def _process_snapshot_completion(self):
+        """Handle TEM interaction without blocking the UI"""
+        if self.parent.tem_controls.tem_action.temConnector is not None:
+            try:
+                # Make TEM control asynchronous if possible
+                self.parent.tem_controls.tem_action.control.send_to_tem("#more", asynchronous=False)
+                
+                # Process metadata in the next event loop iteration
+                QTimer.singleShot(0, self._process_metadata_update)
+            except Exception as e:
+                logging.error(f"TEM Command Error: {e}")
+                self._handle_metadata_error(f"TEM command error: {e}")
+        else:
+            # If no TEM connector, proceed with metadata directly
+            QTimer.singleShot(0, self._process_metadata_update)
+
+    def _process_metadata_update(self):
+        """Process metadata update in a non-blocking manner"""
+        logging.info(" ******************** Adding Info to H5 over Server...")
+        
+        try:
+            beam_property = {
+                "beamcenter": self.cfg.beam_center, 
+                "sigma_width": self.parent.tem_controls.tem_action.control.beam_sigmaxy,
+                "illumination": self.parent.tem_controls.tem_action.control.beam_intensity,
+            }
+            
+            # Use a separate thread for the blocking operation
+            # BUT do not update UI immediately
+            thread = threading.Thread(
+                target=self._send_metadata_with_retries,
+                args=(beam_property,),
+                daemon=True
+            )
+            thread.start()       
+        except Exception as e:
+            logging.error(f"Metadata Update Setup Error: {e}")
+            self._handle_metadata_error(f"Failed to setup metadata update: {e}")
+
+    def _send_metadata_with_retries(self, beam_property):
+        """Send metadata in a background thread and signal results back to main thread"""
+        try:
+            send_with_retries(
+                self.metadata_notifier.notify_metadata_update, 
+                self.parent.visualization_panel.formatted_filename, 
+                self.parent.tem_controls.tem_action.control.tem_status, 
+                beam_property,
+                None,  # self.rotations_angles,
+                self.cfg.threshold,
+                retries=3, 
+                delay=0.1
+            )
+            logging.info("Metadata update completed successfully")
+            # Signal success back to the main thread
+            metadata_signal_handler.success.emit()
+        except Exception as e:
+            logging.error(f"Metadata Update Error: {e}")
+            # Signal error back to the main thread
+            metadata_signal_handler.error.emit(str(e))
+
+    def _on_metadata_success(self):
+        """Handle successful metadata update"""
+        # Disconnect signals to prevent memory leaks
+        self._disconnect_metadata_signals()
+        logging.info("Metadata update successful")
+        self._finalize_snapshot()
+
+    def _on_metadata_error(self, error_message):
+        """Handle metadata update error"""
+        # Disconnect signals to prevent memory leaks
+        self._disconnect_metadata_signals()
+        self._handle_metadata_error(error_message)
+
+    def _handle_metadata_error(self, error_message):
+        """Common error handling for metadata issues"""
+        logging.error(f"Metadata update failed: {error_message}")
+        self._finalize_snapshot()  # Still reset the UI state
+
+    def _disconnect_metadata_signals(self):
+        """Disconnect metadata signals to prevent memory leaks"""
+        metadata_signal_handler.success.disconnect(self._on_metadata_success)
+        metadata_signal_handler.error.disconnect(self._on_metadata_error)
+
+    def _finalize_snapshot(self):
+        """Reset UI state after snapshot completion"""
+        logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
+        self.tag_input.setText(self.pre_text)  # reset the tag to value before snapshot
+        self.update_measurement_tag()
+        self.snapshot_button.setText("Write Stream as a snapshot-H5")
+        self.snapshot_button.started = False
+
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
+    """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
            
     def text_modified(self, line_edit): 
         line_edit.setStyleSheet(f"QLineEdit {{ color: orange; background-color: {self.background_color}; }}")
