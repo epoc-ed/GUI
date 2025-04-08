@@ -36,10 +36,11 @@ class ZmqReceiver:
         def wrapper(self, *args, **kwargs):
             if not hasattr(self, 'first_success_logged'):
                 result = func(self, *args, **kwargs)
-                if result[0] is not None:
-                    logging.info("Connection successful!")
-                    self.first_success_logged = True
-                return result
+                if result:
+                    if result[0] is not None:
+                        logging.info("Connection successful!")
+                        self.first_success_logged = True
+                    return result
             return func(self, *args, **kwargs)
         return wrapper
             

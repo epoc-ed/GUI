@@ -68,6 +68,7 @@ class ControlWorker(QObject):
 
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
+        self.task_thread.setObjectName("TEM_Task Thread")
         self.tem_action = tem_action
         self.file_operations = self.tem_action.file_operations
         self.visualization_panel = self.tem_action.visualization_panel
@@ -76,7 +77,7 @@ class ControlWorker(QObject):
         self.more_queries = tools.MORE_QUERIES
         self.init_queries = tools.INIT_QUERIES
         
-        self.setObjectName("control Thread")
+        self.setObjectName("Control Worker")
         
         self.init.connect(self._init)
         self.send.connect(self.send_to_tem)
@@ -159,7 +160,7 @@ class ControlWorker(QObject):
         self.last_task = self.task
         self.task = task
         # Create a new QThread for each task to avoid reuse issues
-        self.task_thread = QThread()  
+        self.task_thread = QThread()
         self.tem_action.parent.threadWorkerPairs.append((self.task_thread, self.task))
         self.task.finished.connect(self.on_task_finished)
         self.task.moveToThread(self.task_thread)
@@ -198,6 +199,27 @@ class ControlWorker(QObject):
         task = CenteringTask(self, pixels)
         self.start_task(task)
 
+    def _interupt_TEM_polling_and_pause_GF(self):
+        # Interrupting TEM Polling
+        if self.tem_action.tem_tasks.connecttem_button.started:
+            self.tem_action.tem_tasks.connecttem_button.click()
+
+        while self.tem_action.tem_tasks.connecttem_button.started:
+            time.sleep(0.1)
+
+        logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection and autofocus tasks!")
+
+        # Stop the Gaussian Fitting if running
+        if self.tem_action.tem_tasks.btnGaussianFit.started:
+            # self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
+            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True, pause_only=True) 
+            time.sleep(0.1)
+            # self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
+            
+        # Disable the Gaussian Fitting
+        self.tem_action.tem_controls.disableGaussianFitButton()
+        logging.warning("Gaussian Fitting is disabled during rotation/record task!")
+
     @Slot()
     def start_record(self):
         logging.info("Starting Rotation/Record")
@@ -210,20 +232,17 @@ class ControlWorker(QObject):
                 # self.stop_task()  # Ensure that the current task is fully stopped
                 return
 
-        if self.tem_action.tem_tasks.mirror_angles_checkbox.isChecked():
-            end_angle = (np.abs(self.tem_status["stage.GetPos"][3]) - 2) * np.sign(self.tem_status["stage.GetPos"][3])*-1 # '-2' for safe, could be updated depending on the absolute value
-            self.tem_action.tem_tasks.update_end_angle.setValue(end_angle)
-            time.sleep(0.5) # For user's recognition on the update
+        if globals.dev:
+            if self.tem_action.tem_tasks.mirror_angles_checkbox.isChecked():
+                end_angle = (np.abs(self.tem_status["stage.GetPos"][3]) - 2) * np.sign(self.tem_status["stage.GetPos"][3])*-1 # '-2' for safe, could be updated depending on the absolute value
+                self.tem_action.tem_tasks.update_end_angle.setValue(end_angle)
+                time.sleep(0.5) # For user's recognition on the update
         else:
             end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         logging.info(f"End angle = {end_angle}")
 
-        # Stop the Gaussian Fitting if running
-        if self.tem_action.tem_tasks.btnGaussianFit.started:
-            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
-            time.sleep(0.1)
-            self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
-            
+        self._interupt_TEM_polling_and_pause_GF()
+        
         self.beam_property_fitting = [self.tem_action.tem_controls.sigma_x_spBx.value(),
                                       self.tem_action.tem_controls.sigma_y_spBx.value(),
                                       self.tem_action.tem_controls.angle_spBx.value()]
@@ -251,18 +270,14 @@ class ControlWorker(QObject):
                                 "You need to stop the current task before starting a new one.")
                 # self.stop_task()
                 return           
-
-        if self.tem_status['eos.GetFunctionMode'][1] != 4:
+                
+        if self.tem_status['eos.GetFunctionMode'][0] != 4:
             logging.warning('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
             # Switching to Diffraction Mode
             self.client.SelectFunctionMode(4)
 
-        # Stop the Gaussian Fitting if running
-        if self.tem_action.tem_tasks.btnGaussianFit.started:
-            self.tem_action.tem_controls.toggle_gaussianFit_beam(by_user=True) # Simulate a user-forced off operation 
-            time.sleep(0.1)
-            # self.tem_action.tem_tasks.btnGaussianFit.clicked.disconnect()
+        self._interupt_TEM_polling_and_pause_GF()
 
         self.beam_fitter = GaussianFitterMP()
 
@@ -679,7 +694,7 @@ class ControlWorker(QObject):
             logging.error(f"Error executing '{command_str}': {str(e)}")
             return None
 
-    def _execute_with_timeout(self, method, args, timeout=0.5):
+    def _execute_with_timeout(self, method, args, timeout=1.0):
         """Execute a method with a timeout to prevent UI freezes."""
         # Create a result container
         result_container = []
@@ -743,28 +758,62 @@ class ControlWorker(QObject):
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
 
-    @Slot(int, float, float)
-    def move_with_backlash(self, moverid=0, value=10, backlash=0, button=False, scale=1): # +x, -x, +y, -y, +z, -z, +tx, -tx (0-7) 
-        # self.send_to_tem("#info")
+    @Slot(int, float, float, bool)
+    def move_with_backlash(self, moverid=0, value=10, backlash=0, button=False, scale=1):
+        """
+        Move the stage with backlash correction.
+        
+        Args:
+            moverid: Direction identifier (0-7)
+                0,1: +X, -X
+                2,3: +Y, -Y
+                4,5: +Z, -Z
+                6,7: +TX, -TX (tilt)
+            value: Movement amount
+            backlash: Backlash correction amount
+            scale: Scaling factor for movement value
+        """
+        # Request current status information
         QTimer.singleShot(0, lambda: self.send_to_tem("#info", asynchronous=True))
         
-        # time.sleep(0.5)
-        # backlash correction
-        if moverid%2 == 0 and np.sign(self.tem_status["stage.GetPos_diff"][moverid//2]) >= 0: backlash = 0
-        elif moverid%2 == 1 and np.sign(self.tem_status["stage.GetPos_diff"][moverid//2]) < 0: backlash = 0
+        # Backlash correction logic - only apply when changing direction
+        axis = moverid // 2  # Determine which axis (X=0, Y=1, Z=2, TX=3)
+        direction = moverid % 2  # Determine direction (even=positive, odd=negative)
         
-        logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")
+        # Check if we're continuing in the same direction (no backlash needed)
+        if direction == 0 and np.sign(self.tem_status["stage.GetPos_diff"][axis]) >= 0:
+            backlash = 0
+        elif direction == 1 and np.sign(self.tem_status["stage.GetPos_diff"][axis]) < 0:
+            backlash = 0
+            
+        logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, "
+                      f"{self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}"
+        )
         
+        # Get client reference
         client = self.client
+
+        # Calculate final movement value with backlash compensation
+        movement_value = value * scale
+        
+        # Execute movement in a separate thread based on direction
         match moverid:
-            case 0: threading.Thread(target=client.SetXRel, args=(value*scale-backlash,)).start()
-            case 1: threading.Thread(target=client.SetXRel, args=(value*scale+backlash,)).start()
-            case 2: threading.Thread(target=client.SetYRel, args=(value*scale-backlash,)).start()
-            case 3: threading.Thread(target=client.SetYRel, args=(value*scale+backlash,)).start()
-            case 4: threading.Thread(target=client.SetZRel, args=(value*scale+backlash,)).start()
-            case 5: threading.Thread(target=client.SetZRel, args=(value*scale-backlash,)).start()
-            case 6: threading.Thread(target=client.SetTXRel, args=(value*scale+backlash,)).start()
-            case 7: threading.Thread(target=client.SetTXRel, args=(value*scale-backlash,)).start()
+            case 0:  # +X
+                threading.Thread(target=client.SetXRel, args=(movement_value - backlash,)).start()
+            case 1:  # -X
+                threading.Thread(target=client.SetXRel, args=(movement_value + backlash,)).start()
+            case 2:  # +Y
+                threading.Thread(target=client.SetYRel, args=(movement_value - backlash,)).start()
+            case 3:  # -Y
+                threading.Thread(target=client.SetYRel, args=(movement_value + backlash,)).start()
+            case 4:  # +Z
+                threading.Thread(target=client.SetZRel, args=(movement_value + backlash,)).start()
+            case 5:  # -Z
+                threading.Thread(target=client.SetZRel, args=(movement_value - backlash,)).start()
+            case 6:  # +TX (tilt)
+                threading.Thread(target=client.SetTXRel, args=(movement_value + backlash,)).start()
+            case 7:  # -TX (tilt)
+                threading.Thread(target=client.SetTXRel, args=(movement_value - backlash,)).start()
             case _:
                 logging.warning(f"Undefined moverid {moverid}")
                 return
