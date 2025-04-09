@@ -415,11 +415,11 @@ class FileOperations(QGroupBox):
         
         try:
             beam_property = {
-                "beamcenter": self.cfg.beam_center, 
-                "sigma_width": self.parent.tem_controls.tem_action.control.beam_sigmaxy,
-                "illumination": self.parent.tem_controls.tem_action.control.beam_intensity,
-            }
-            
+                "beamcenter" : self.cfg.beam_center, 
+                "sigma_width" : self.parent.tem_controls.tem_action.control.beam_property_fitting[:2],
+                "angle" : self.parent.tem_controls.tem_action.control.beam_property_fitting[2],
+                "illumination" : self.parent.tem_controls.tem_action.control.beam_intensity,
+            }                 
             # Use a separate thread for the blocking operation
             # BUT do not update UI immediately
             thread = threading.Thread(
