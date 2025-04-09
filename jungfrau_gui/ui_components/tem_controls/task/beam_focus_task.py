@@ -50,24 +50,6 @@ class AutoFocusTask(Task):
 
     def run(self, init_IL1=IL1_0, init_stigm=ILS_0, time_budget=15):
         try:
-            # ------------------------
-            # Interrupting TEM Polling
-            # ------------------------
-            if self.tem_action.tem_tasks.connecttem_button.started:
-                QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
-
-            while self.tem_action.tem_tasks.connecttem_button.started:
-                time.sleep(0.01)
-
-            logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection!")
-
-            # Disable the Gaussian Fitting
-            QMetaObject.invokeMethod(self.tem_action.tem_controls, 
-                                    "disableGaussianFitButton", 
-                                    Qt.QueuedConnection
-            )
-            logging.warning("Gaussian Fitting is disabled during Beam Autofocus task!")
-
             # ----------------------
             # Start parallel process
             # ----------------------
@@ -94,6 +76,8 @@ class AutoFocusTask(Task):
                 time.sleep(0.1)
 
             logging.warning('Polling of TEM-info restarted.')
+            # Give back control to the TEM inspector for automatic updates of the UI
+            self.tem_action.tem_controls.gaussian_user_forced_off = False
             # Once done, call your cleanup logic
             self.cleanup()
 

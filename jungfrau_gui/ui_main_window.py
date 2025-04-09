@@ -226,13 +226,13 @@ class ApplicationWindow(QMainWindow):
         if self.autoContrastBtn.started:
             self.toggle_autoContrast()
         self.histogram.setLevels(lower, upper)
-    
+
     def toggle_autoContrast(self):
         if not self.autoContrastBtn.started:
             self.autoContrastBtn.setStyleSheet('background-color: red; color: white;')
             self.autoContrastBtn.setText('Stop Auto Contrast')
             self.autoContrastBtn.started = True
-            self.timer_contrast.start(10) # Assuming 100Hz streaming frequency at most
+            self.timer_contrast.start(100)  # Could go down to 10ms assuming 100Hz streaming frequency at most
         else:
             self.timer_contrast.stop()
             self.autoContrastBtn.started = False
@@ -240,65 +240,68 @@ class ApplicationWindow(QMainWindow):
             self.autoContrastBtn.setText('Apply Auto Contrast')
             self.prev_low_thresh = None
             self.prev_high_thresh = None
-    
-    # @profile
-    def applyAutoContrast(self, histo_boost = False):
-        if histo_boost:
-            data_flat = self.imageItem.image.flatten()
-            histogram = Histogram(Regular(1000000, data_flat.min(), data_flat.max()))
-            histogram.fill(data_flat)
-            cumsum_pre = np.cumsum(histogram.view())
-            cumsum = cumsum_pre[np.where(cumsum_pre < np.iinfo('int32').max-1)]
-            total = cumsum[-1]
-            low_thresh = np.searchsorted(cumsum, total * 0.01)
-            high_thresh = np.searchsorted(cumsum, total * 0.99999)
-        else:
-            image_data = self.imageItem.image
-            image_data_deloverflow = image_data[np.where(image_data < np.iinfo('int32').max-1)]
-            low_thresh, high_thresh = np.percentile(image_data_deloverflow, (1, 99.999))
 
-         # --- Only update the levels if thresholds differ by more than 20% ---
-        if self.should_update_levels(low_thresh, high_thresh):
+    # Cache for computed values to avoid unnecessary recalculations
+    @property
+    def cached_image_data(self):
+        if not hasattr(self, '_cached_image') or self._cached_image is None or id(self.imageItem.image) != self._cached_image_id:
+            self._cached_image = self.imageItem.image
+            self._cached_image_id = id(self.imageItem.image)
+            # Pre-compute the filtered data to avoid repeated filtering
+            self._filtered_data = self._cached_image[self._cached_image < np.iinfo('int32').max-1]
+        return self._filtered_data
+
+    def applyAutoContrast(self, histo_boost=False):
+        # Early exit if image doesn't exist
+        if self.imageItem.image is None or self.imageItem.image.size == 0:
+            return
+        
+        if histo_boost:
+            # Use a more efficient histogram approach 
+            data_flat = self.cached_image_data
+            
+            # Use numpy's histogram function instead of custom Histogram class
+            hist, bin_edges = np.histogram(data_flat, bins=1000)
+            cumsum = np.cumsum(hist)
+            total = cumsum[-1]
+            
+            # Find thresholds using numpy's optimized functions
+            low_idx = np.searchsorted(cumsum, total * 0.01)
+            high_idx = np.searchsorted(cumsum, total * 0.99999)
+            
+            low_thresh = bin_edges[low_idx]
+            high_thresh = bin_edges[high_idx]
+        else:
+            # Use numpy's optimized percentile function directly on filtered data
+            low_thresh, high_thresh = np.percentile(self.cached_image_data, (1, 99.999))
+        
+        # Only update the levels if thresholds differ significantly
+        if self._should_update_levels_fast(low_thresh, high_thresh):
             self.histogram.setLevels(low_thresh, high_thresh)
             self.prev_low_thresh = low_thresh
             self.prev_high_thresh = high_thresh
 
-    def should_update_levels(self, new_low, new_high, tolerance=0.25, abs_wiggle_low = 100):
+    def _should_update_levels_fast(self, new_low, new_high, tolerance=0.25, abs_wiggle_low=100):
         """
-        Returns True if the new thresholds differ enough from the old ones
-        to warrant updating the histogram.
-
-        :param new_low: Newly computed 'low' threshold
-        :param new_high: Newly computed 'high' threshold
-        :param tolerance: Relative difference threshold for high changes (e.g. 0.25 = 25%)
-        :param abs_wiggle_low: Absolute difference threshold allowed for low changes
+        Optimized version of should_update_levels
         """
         # If we have never stored thresholds, we must update
         if self.prev_low_thresh is None or self.prev_high_thresh is None:
             return True
 
-        old_low = float(self.prev_low_thresh)
-        old_high = float(self.prev_high_thresh)
-        new_low = float(new_low)
-        new_high = float(new_high)
-
-        # --- 1) Check low threshold with an ABSOLUTE comparison ---
-        # Because old_low is near zero, a relative difference would always fire.
-        # E.g., only update if the low threshold moves by more than ±abs_wiggle_low
-        changed_low = abs(new_low - old_low) > abs_wiggle_low
-
-        # --- 2) Check high threshold with a RELATIVE comparison ---
-        # If old_high is not near zero, do a relative difference check
-        def changed_relatively(old_val, new_val, fraction):
-            # handle near-zero old_val if needed
-            if abs(old_val) < 1e-10:
-                # fallback to an absolute difference if old_val is extremely small
-                return abs(new_val - old_val) > abs_wiggle_low
-            return (abs(new_val - old_val) / abs(old_val)) > fraction
-
-        changed_high = changed_relatively(old_high, new_high, tolerance)
-
-        return changed_low or changed_high
+        # Use direct comparisons without type conversions
+        old_low = self.prev_low_thresh
+        old_high = self.prev_high_thresh
+        
+        # Check low threshold with an ABSOLUTE comparison
+        if abs(new_low - old_low) > abs_wiggle_low:
+            return True
+            
+        # Check high threshold with a RELATIVE comparison
+        if abs(old_high) < 1e-10:
+            return abs(new_high - old_high) > abs_wiggle_low
+        
+        return (abs(new_high - old_high) / abs(old_high)) > tolerance
 
     def roiChanged(self):
         roiPos = self.roi.pos()
@@ -330,9 +333,10 @@ class ApplicationWindow(QMainWindow):
 
     def stopWorker(self, thread, worker):
         if globals.tem_mode:
+            control = self.tem_controls.tem_action.control
             if self.tem_controls.tem_action.control.task is not None:
-                logging.info(f"Control has - \033[1m{self.tem_controls.tem_action.control.task.task_name}\033[0m\033[34m - task alive!")
-                thread_manager.handle_tem_task_cleanup(self.tem_controls.tem_action.control)
+                logging.info(f"Control has - \033[1m{control.task.task_name}\033[0m\033[34m - task alive!")
+                thread_manager.handle_tem_task_cleanup(control)
         thread_manager.disconnect_worker_signals(worker)
         thread_manager.terminate_thread(thread)
         thread_manager.remove_worker_thread_pair(self.threadWorkerPairs, thread)
@@ -367,10 +371,12 @@ class ApplicationWindow(QMainWindow):
             if reply == QMessageBox.Yes:
                 globals.exit_flag.value = True
                 if globals.tem_mode:
-                    if self.tem_controls.tem_action.control.beam_fitter is not None:
-                        self.tem_controls.tem_action.control.beam_fitter.stop()
+                    control = self.tem_controls.tem_action.control
+                    if control.beam_fitter is not None:
+                        if control.beam_fitter:
+                            control.beam_fitter.stop()
                 for thread, worker in running_threadWorkerPairs:
-                    logging.warning(f'Stopping Thread-Worker pair = ({thread}-{worker}).')
+                    logging.warning(f'Stopping Thread-Worker pair = ({thread.objectName()} - {worker}).')
                     self.stopWorker(thread, worker) 
             else:
                 event.ignore()  # Prevents the window from closing
