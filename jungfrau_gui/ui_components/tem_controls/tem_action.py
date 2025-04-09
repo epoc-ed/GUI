@@ -988,6 +988,7 @@ class TEMAction(QObject):
         self.dataReceiverReady = True
 
     def update_ecount(self, cutoff=400, bins_set=20):
+        # estimate the number of incoming electrons with the most frequent bin of the count-histogram.
         ht = self.parent.tem_controls.voltage_spBx.value()
         cutoff = cutoff / 200 * ht
         pixel = cfg_jf.others.pixelsize
@@ -995,7 +996,7 @@ class TEMAction(QObject):
         if Mag_idx == 4:
             logging.warning("Brightness should be calculated in imaging mode")
             return
-        frame = self.parent.timer.interval()
+        frame = self.visualization_panel.jfjoch_client._lots_of_images / 3600 # usually 20, with 100 frame-sum
         image = self.parent.imageItem.image
         data_flat = image.flatten()
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
