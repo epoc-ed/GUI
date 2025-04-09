@@ -470,12 +470,9 @@ class VisualizationPanel(QGroupBox):
                     # Cancel current task
                     self.send_command_to_jfjoch("cancel") 
                     self.jfjoch_client.wait_until_idle()
-                    ######
-                    if globals.dev:
-                        self.jfjoch_client.image_time_us = self.frame_summed.value() * 500 # 100
-                        self.jfjoch_client._lots_of_images = 2000 * 3600 // self.frame_summed.value() # 72000
-                        logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per image acquisition")
-                    ######
+                    self.jfjoch_client._lots_of_images = 72000 # 2000 hz x 3600 sec / 100 frame-summation
+                    self.jfjoch_client.image_time_us = 50000 # 500 us/frame * 100 frame-summation
+                    logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per image acquisition")
                     logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
@@ -516,6 +513,12 @@ class VisualizationPanel(QGroupBox):
                     
                     logging.warning(f"Starting to collect data...")
                     self.formatted_filename = self.cfg.fpath
+
+                    if globals.dev:
+                        self.jfjoch_client.image_time_us = self.frame_summed.value() * 500 # 100
+                        self.jfjoch_client._lots_of_images = 2000 * 3600 // self.frame_summed.value() # 72000
+                        logging.info(f"Nb of frames per trigger for measurement: {self.jfjoch_client._lots_of_images}") # 72000
+                        logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per image acquisition")
                     
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
                                             fname = self.formatted_filename.as_posix(),

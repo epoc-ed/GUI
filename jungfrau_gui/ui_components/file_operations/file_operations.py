@@ -14,6 +14,7 @@ from ...ui_components.tem_controls.toolbox.tool import send_with_retries
 from ...metadata_uploader.metadata_update_client import MetadataNotifier
 
 from epoc import ConfigurationClient, auth_token, redis_host
+from ... import globals
 
 import os
 import re
@@ -363,7 +364,7 @@ class FileOperations(QGroupBox):
         if not self.parent.visualization_panel.jfj_broker_is_ready:
             logging.warning('JFJ is not ready!!')
             return
-            
+           
         if not self.snapshot_button.started:
             # Start snapshot - no changes needed here
             self.pre_text = self.tag_input.text()
@@ -371,6 +372,13 @@ class FileOperations(QGroupBox):
             self.update_measurement_tag()
             self.snapshot_button.setText("Stop")
             self.snapshot_button.started = True
+            
+            if globals.dev:
+                prev_image_time_us = self.parent.visualization_panel.jfjoch_client.image_time_us # 50000
+                self.frame_summed_for_rotation = self.parent.visualization_panel.frame_summed.value()
+                frame_summed_for_snapshot = prev_image_time_us // 500 # 100
+                self.parent.visualization_panel.frame_summed.setValue(frame_summed_for_snapshot)
+
             self.parent.visualization_panel.send_command_to_jfjoch('collect')
             logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
             QTimer.singleShot(self.snapshot_spin.value(), self.toggle_snapshot_btn)
@@ -474,6 +482,8 @@ class FileOperations(QGroupBox):
         self.tag_input.setText(self.pre_text)  # reset the tag to value before snapshot
         self.update_measurement_tag()
         self.snapshot_button.setText("Write Stream as a snapshot-H5")
+        if globals.dev:
+            self.parent.visualization_panel.frame_summed.setValue(self.frame_summed_for_rotation)
         self.snapshot_button.started = False
 
     """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
