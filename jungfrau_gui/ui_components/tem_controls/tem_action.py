@@ -73,8 +73,9 @@ class TEMAction(QObject):
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
         # self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
         # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
-        self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)    
-        self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
+        self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)
+        if globals.dev:  
+            self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
         self.tem_tasks.btnGaussianFit.clicked.connect(lambda: self.tem_controls.toggle_gaussianFit_beam(by_user=True))
         self.tem_stagectrl.rb_speeds.buttonClicked.connect(self.toggle_rb_speeds)
         self.tem_stagectrl.mag_modes.buttonClicked.connect(self.toggle_mag_modes)
@@ -163,7 +164,7 @@ class TEMAction(QObject):
             # self.tem_tasks.centering_button,
             self.tem_tasks.centering_checkbox,
             self.tem_tasks.btnGaussianFit,
-            self.tem_tasks.beamAutofocus,
+            # self.tem_tasks.beamAutofocus,
             self.tem_tasks.rotation_button,
             self.tem_tasks.input_start_angle,
             self.tem_tasks.update_end_angle,
@@ -172,6 +173,9 @@ class TEMAction(QObject):
             self.tem_stagectrl.go_button,
             self.tem_stagectrl.addpos_button
         ]
+
+        if globals.dev:
+            task_controls.append(self.tem_tasks.beamAutofocus)
         
         # Batch enable/disable task controls
         for control in task_controls:
