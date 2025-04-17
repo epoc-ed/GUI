@@ -68,6 +68,7 @@ class TEMAction(QObject):
         self.snapshot_images = []
         self.cfg.beam_center = [1, 1] # Flag for non-updated metadata
         self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
+        self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - 4
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
@@ -895,67 +896,73 @@ class TEMAction(QObject):
         self.xtallist.append({"gui_id": new_id, "gui_text": text, "gui_marker": marker,
                               "gui_label": label, "position": position, "status": status})
         logging.info(f"{new_id}: {position} is added to the list")
+        self.control.tem_status["gui_id"] = new_id
 
     @Slot(dict)
     def update_plotitem(self, info_d):
+        prev_xtalid = next((i for i, item in enumerate(self.xtallist[1:]) if item['gui_id'] == info_d["gui_id"]), None)
+        if prev_xtalid is not None:
+            logging.info(f"Item {info_d["gui_id"]} will be overwritten")
+            if info_d["gui_id"] is None or info_d["gui_id"] == 999:
+                info_d["gui_id"] = self.tem_stagectrl.position_list.count() - 4
+            self.tem_stagectrl.position_list.removeItem(self.xtallist[prev_xtalid+1]['gui_id'] + 4)
+            if 'gui_marker' in self.xtallist[prev_xtalid+1]:
+                self.tem_stagectrl.gridarea.removeItem(self.xtallist[prev_xtalid+1]["gui_marker"])
+                self.tem_stagectrl.gridarea.removeItem(self.xtallist[prev_xtalid+1]["gui_label"])
+            del self.xtallist[prev_xtalid+1]
+        else:
+            for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
+                info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
+        
+        position = info_d["position"]
+        label = pg.TextItem(str(info_d["gui_id"]), anchor=(0, 1))
+        label.setFont(QFont('Arial', 8))
+        label.setPos(position[0]*1e-3, position[1]*1e-3)
         # read unmeasured data
         if not 'spots' in info_d:
             logging.info(f"Item {info_d['gui_id']} is loaded")
-            position = info_d["position"]
             marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush='red')
-            self.tem_stagectrl.position_list.addItem(info_d["gui_text"])
-            self.tem_stagectrl.gridarea.addItem(marker)
-            return
-       
+            self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + 4, info_d["gui_text"])
+        else:
         # read measured/processed data
-        if not "gui_id" in info_d:
-            for gui_key in ["gui_id", "position", "gui_marker", "gui_label"]:
-                info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
-        if info_d["gui_id"] in [d.get('gui_id') for d in self.xtallist[1:]]:
-            self.tem_stagectrl.position_list.removeItem(info_d["gui_id"] + 4)
-            self.tem_stagectrl.gridarea.removeItem(info_d["gui_marker"])
-            self.tem_stagectrl.gridarea.removeItem(info_d["gui_label"])
-        elif info_d["gui_id"] is None or info_d["gui_id"] == 999:
-            info_d["gui_id"] = self.tem_stagectrl.position_list.count() - 4
-
         # updated widget info
-        position = info_d["position"]
-        spots = np.array(info_d["spots"], dtype=float)
-        axes = np.array(info_d["cell axes"], dtype=float)
-        color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
-        color = color_map.map(spots[0]/spots[1], mode='qcolor')
-        text = f"{info_d['dataid']}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
-        label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
-        label.setFont(QFont('Arial', 8))
-        label.setPos(position[0]*1e-3, position[1]*1e-3)
-        marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
-        # represent orientation with cell-a axis, usually shortest
-        angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
-        length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])
-        arrow_a = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
-                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
-        # represent orientation with cell-b axis
-        angle = np.degrees(np.arctan2(axes[4], axes[3])) + 180
-        length = np.linalg.norm(axes[3:5]) / np.linalg.norm(axes[3:6])
-        arrow_b = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
-                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
-        # represent orientation with cell-c axis
-        angle = np.degrees(np.arctan2(axes[7], axes[6])) + 180
-        length = np.linalg.norm(axes[6:8]) / np.linalg.norm(axes[6:9])
-        arrow_c = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
-                             headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
-        # add updated items
-        if spots[0]/spots[1] > 0.05: # assumes the lower spot-indexing rate as unsuccessful
-            self.tem_stagectrl.gridarea.addItem(arrow_a)
-            self.tem_stagectrl.gridarea.addItem(arrow_b)
-            self.tem_stagectrl.gridarea.addItem(arrow_c)
-        self.tem_stagectrl.position_list.addItem(text)
+            spots = np.array(info_d["spots"], dtype=float)
+            axes = np.array(info_d["cell axes"], dtype=float)
+            color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
+            color = color_map.map(spots[0]/spots[1], mode='qcolor')
+            text = f"{info_d['dataid']}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
+            marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
+            # represent orientation with cell-a axis, usually shortest
+            angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
+            length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])
+            arrow_a = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                                 headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+            # represent orientation with cell-b axis
+            angle = np.degrees(np.arctan2(axes[4], axes[3])) + 180
+            length = np.linalg.norm(axes[3:5]) / np.linalg.norm(axes[3:6])
+            arrow_b = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                                 headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+            # represent orientation with cell-c axis
+            angle = np.degrees(np.arctan2(axes[7], axes[6])) + 180
+            length = np.linalg.norm(axes[6:8]) / np.linalg.norm(axes[6:9])
+            arrow_c = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+                                 headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
+            # add updated items
+            if spots[0]/spots[1] > 0.05: # assumes the lower spot-indexing rate as unsuccessful
+                self.tem_stagectrl.gridarea.addItem(arrow_a)
+                self.tem_stagectrl.gridarea.addItem(arrow_b)
+                self.tem_stagectrl.gridarea.addItem(arrow_c)
+            self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + 4, text)
+            logging.info(f"Item {info_d['gui_id']}:{info_d["dataid"]} is updated")
+            info_d["status"] = 'processed'
+
         self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
-        logging.info(f"Item {info_d['gui_id']} is updated")
-        info_d["status"] = 'processed'
+        info_d["gui_marker"] = marker
+        info_d["gui_label"] = label
         self.xtallist.append(info_d)
         logging.debug(self.xtallist)
+        self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - 4
     
     def plot_listedposition(self, color='gray'):
         xy_list = [self.tem_stagectrl.position_list.itemText(i).split()[1:-2] for i in range(self.tem_stagectrl.position_list.count())]
@@ -1135,6 +1142,7 @@ class TEMAction(QObject):
         if self.tem_stagectrl.position_list.count() == 5:
             self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=1)
             logging.info("Start session-metadata loading")
+            self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - 4
         # save mode
         elif len(self.xtallist) != 1:
             self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=2)
