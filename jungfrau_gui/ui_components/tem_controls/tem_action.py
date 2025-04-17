@@ -915,14 +915,12 @@ class TEMAction(QObject):
                 info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
         
         position = info_d["position"]
-        label = pg.TextItem(str(info_d["gui_id"]), anchor=(0, 1))
-        label.setFont(QFont('Arial', 8))
-        label.setPos(position[0]*1e-3, position[1]*1e-3)
         # read unmeasured data
         if not 'spots' in info_d:
             logging.info(f"Item {info_d['gui_id']} is loaded")
             marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush='red')
             self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + 4, info_d["gui_text"])
+            label = pg.TextItem(str(info_d["gui_id"]), anchor=(0, 1))
         else:
         # read measured/processed data
         # updated widget info
@@ -932,6 +930,7 @@ class TEMAction(QObject):
             color = color_map.map(spots[0]/spots[1], mode='qcolor')
             text = f"{info_d['dataid']}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
             marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
+            label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
             # represent orientation with cell-a axis, usually shortest
             angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
             length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])
@@ -957,6 +956,8 @@ class TEMAction(QObject):
             info_d["status"] = 'processed'
 
         self.tem_stagectrl.gridarea.addItem(marker)
+        label.setFont(QFont('Arial', 8))
+        label.setPos(position[0]*1e-3, position[1]*1e-3)
         self.tem_stagectrl.gridarea.addItem(label)
         info_d["gui_marker"] = marker
         info_d["gui_label"] = label
