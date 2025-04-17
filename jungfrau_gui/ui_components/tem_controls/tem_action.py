@@ -982,7 +982,11 @@ class TEMAction(QObject):
         if position is not None:
             self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
             self.tem_stagectrl.gridarea.addItem(self.marker)
-
+            view = self.tem_stagectrl.gridarea.getViewBox()
+            y_range = position[1]*1e-3 - view.size().height()/2, position[1]*1e-3 + view.size().height()/2
+            x_range = position[0]*1e-3 - view.size().width()/2, position[0]*1e-3 + view.size().width()/2
+            view.setRange(xRange=x_range, yRange=y_range) # padding=0
+            
     @Slot()
     def inquire_processed_data(self):
         if self.dataReceiverReady:
