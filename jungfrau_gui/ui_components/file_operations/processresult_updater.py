@@ -63,6 +63,9 @@ class ProcessedDataReceiver(QObject):
                     if 'In processing...' in result_json:
                         time.sleep(update_interval_ms/1000)
                         self.trial -= 1
+                    elif 'Feedback is not activated.' in result_json:
+                        logging.info("Server does not run in the feedback mode. Inquiry cloded.")
+                        break
                     else:
                         result = json.loads(result_json)
                         logging.info("Succeeded in receiving processed data request.")
@@ -83,6 +86,8 @@ class ProcessedDataReceiver(QObject):
                 result_json = socket.recv_string()
                 if 'not found' in result_json:
                     logging.warning(f'No data found around {search_path}')
+                elif 'Feedback is not activated.' in result_json:
+                    logging.info("Server does not run in the feedback mode. Inquiry cloded.")
                 else:
                     # logging.warning(json.loads(result_json))
                     for d in json.loads(result_json):
