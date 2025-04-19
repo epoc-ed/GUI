@@ -519,6 +519,8 @@ class VisualizationPanel(QGroupBox):
                         self.jfjoch_client._lots_of_images = 2000 * 3600 // self.frame_summed.value() # 72000
                         logging.info(f"Nb of frames per trigger for measurement: {self.jfjoch_client._lots_of_images}") # 72000
                         logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per image acquisition")
+                        prev_contrast = self.parent.histogram.getLevels()
+                        self.parent.histogram.setLevels(prev_contrast[0] * self.frame_summed.value() / 100, prev_contrast[1] * self.frame_summed.value() / 100)
                     
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
                                             fname = self.formatted_filename.as_posix(),
