@@ -530,6 +530,7 @@ class VisualizationPanel(QGroupBox):
                                             detector_distance_mm = self.lut.interpolated_distance(globals.mag_value_diff[2], self.parent.tem_controls.voltage_spBx.value()),
                                             incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
                                             wait = self.wait_option.isChecked())
+                    self.prev_fpath = self.formatted_filename.as_posix()
                     self.jfj_is_collecting = True
                     # Create and start the wait_until_idle thread for asynchronous monitoring
                     self.idle_thread = threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,), daemon=True)
@@ -620,7 +621,7 @@ class VisualizationPanel(QGroupBox):
             # Now proceed with the remaining code in "collect"
             logging.info("Measurement ended")
 
-            logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
+            logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}") ## not always identical to the saved filename!!
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
 

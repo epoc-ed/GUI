@@ -212,6 +212,7 @@ class RecordTask(Task):
                                         retries=3, 
                                         delay=0.1) 
                     
+                    self.tem_action.trigger_process_launcher.emit()
                     self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
                     # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')
                 except Exception as e:

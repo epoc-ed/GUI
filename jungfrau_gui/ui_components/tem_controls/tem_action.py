@@ -14,7 +14,7 @@ from .task.task_manager import *
 from epoc import ConfigurationClient, auth_token, redis_host
 
 from .connectivity_inspector import TEM_Connector
-from ..file_operations.processresult_updater import ProcessedDataReceiver
+from ..file_operations.processresult_updater import DataProcessingManager
 from .tem_status_updater import TemUpdateWorker
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
@@ -35,13 +35,14 @@ class TEMAction(QObject):
     trigger_getbeamintensity = Signal()
     trigger_updateitem = Signal(dict)
     trigger_processed_receiver = Signal()
+    trigger_process_launcher = Signal()
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
         self.tem_controls = parent
         self.visualization_panel = self.parent.visualization_panel
         self.file_operations = self.parent.file_operations
-        self.dataReceiverReady = True
+        self.processManagerReady = True
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
@@ -118,6 +119,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
+        self.trigger_process_launcher.connect(self.launch_data_processing)
         self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
         # self.trigger_getbeamintensity.connect(self.update_ecount)
@@ -971,25 +973,41 @@ class TEMAction(QObject):
             self.tem_stagectrl.gridarea.addItem(self.marker)
 
     @Slot()
-    def inquire_processed_data(self):
-        if self.dataReceiverReady:
-            self.process_receiver = ProcessedDataReceiver(self, host = "noether")            
-            self.datareceiver_thread = QThread()
-            self.datareceiver_thread.setObjectName("Data_Receiver Thread")
-            self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
-            thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
-            self.datareceiver_thread.start()
-            self.dataReceiverReady = False
-            self.process_receiver.finished.connect(self.getdataReceiverReady)
-            logging.info("Starting processed-data inquiring")
-        else:
-            logging.warning("Previous inquiry continues runnng")
+    def launch_data_processing(self):
+        if not self.processManagerReady:
+            self.getprocessManagerReady()
 
-    def getdataReceiverReady(self):
-        thread_manager.terminate_thread(self.datareceiver_thread)
-        thread_manager.remove_worker_thread_pair(self.parent.threadWorkerPairs, self.datareceiver_thread)
-        thread_manager.reset_worker_and_thread(self.process_receiver, self.datareceiver_thread)
-        self.dataReceiverReady = True
+        self.process_manager = DataProcessingManager(self, host = "noether", mode=0)
+        logging.info("Launching the postprocessing")
+        self.processmanager_thread = QThread()
+        self.processmanager_thread.setObjectName("Data_Process_Launcher Thread")
+        self.parent.threadWorkerPairs.append((self.processmanager_thread, self.process_manager))
+        thread_manager.move_worker_to_thread(self.processmanager_thread, self.process_manager)
+        self.processmanager_thread.start()
+        self.processManagerReady = False
+        self.process_manager.finished.connect(self.getprocessManagerReady)
+
+    @Slot()
+    def inquire_processed_data(self):
+        if not self.processManagerReady:
+            logging.warning("Previous inquiry continues runnng")
+            return
+
+        self.process_manager = DataProcessingManager(self, host = "noether", mode=1)
+        self.processmanager_thread = QThread()
+        self.processmanager_thread.setObjectName("Data_Process_Receiver Thread")
+        self.parent.threadWorkerPairs.append((self.processmanager_thread, self.process_manager))
+        thread_manager.move_worker_to_thread(self.processmanager_thread, self.process_manager)
+        self.processmanager_thread.start()
+        self.processManagerReady = False
+        self.process_manager.finished.connect(self.getprocessManagerReady)
+        logging.info("Starting processed-data inquiring")
+
+    def getprocessManagerReady(self):
+        thread_manager.terminate_thread(self.processmanager_thread)
+        thread_manager.remove_worker_thread_pair(self.parent.threadWorkerPairs, self.processmanager_thread)
+        thread_manager.reset_worker_and_thread(self.process_manager, self.processmanager_thread)
+        self.processManagerReady = True
 
     def update_ecount(self, cutoff=400, bins_set=20):
         # estimate the number of incoming electrons with the most frequent bin of the count-histogram.
@@ -1128,26 +1146,26 @@ class TEMAction(QObject):
 
         logging.info(f'Move X: {dx/1e3:.1f} um,  Y: {dy/1e3:.1f} um')
 
-    def synchronize_xtallist(self):
-        if not self.dataReceiverReady:
+    def synchronize_xtallist(self):        
+        if not self.processManagerReady:
             logging.warning("Other inquiry runnng")
             return
         # load mode
         if self.tem_stagectrl.position_list.count() == 5:
-            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=1)
+            self.process_manager = DataProcessingManager(self, host = "noether", mode=2)
             logging.info("Start session-metadata loading")
         # save mode
         elif len(self.xtallist) != 1:
-            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=2)
+            self.process_manager = DataProcessingManager(self, host = "noether", mode=3)
             logging.info("Start session-metadata saving")
         else:
             logging.warning("No data available")
             return
 
-        self.datareceiver_thread = QThread()
-        self.datareceiver_thread.setObjectName("Data_Receiver Thread")
-        self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
-        thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
-        self.datareceiver_thread.start()
-        self.dataReceiverReady = False
-        self.process_receiver.finished.connect(self.getdataReceiverReady)
+        self.processmanager_thread = QThread()
+        self.processmanager_thread.setObjectName("Data_Process_Sender/Loader Thread")
+        self.parent.threadWorkerPairs.append((self.processmanager_thread, self.process_manager))
+        thread_manager.move_worker_to_thread(self.processmanager_thread, self.process_manager)
+        self.processmanager_thread.start()
+        self.processManagerReady = False
+        self.process_manager.finished.connect(self.getprocessManagerReady)
