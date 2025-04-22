@@ -68,7 +68,8 @@ class TEMAction(QObject):
         self.snapshot_images = []
         self.cfg.beam_center = [1, 1] # Flag for non-updated metadata
         self.tem_stagectrl.position_list.addItems(cfg_jf.pos2textlist())
-        self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - 4
+        self.gui_id_offset = self.tem_stagectrl.position_list.count()
+        self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - self.gui_id_offset
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
@@ -851,12 +852,12 @@ class TEMAction(QObject):
         #     return
         position = self.control.tem_status["stage.GetPos"] # in nm
         selected_item = self.tem_stagectrl.position_list.currentIndex()
-        if selected_item < 5:
+        if selected_item <= self.gui_id_offset:
             position_aim = np.array((cfg_jf.lut.positions[selected_item]['xyz']), dtype=float) *1e3
         else:
-            xtalinfo_selected = next((d for d in self.xtallist if d.get("gui_id") == selected_item - 4), None)        
+            xtalinfo_selected = next((d for d in self.xtallist if d.get("gui_id") == selected_item - self.gui_id_offset), None)        
             if xtalinfo_selected is None:
-                logging.warning(f"Item ID {selected_item - 4:3d} is missing...")
+                logging.warning(f"Item ID {selected_item - self.gui_id_offset:3d} is missing...")
                 logging.warning(self.xtallist)
                 return
             position_aim = xtalinfo_selected['position']
@@ -884,7 +885,7 @@ class TEMAction(QObject):
             except Exception as e:
                 logging.error(f"Error: {e}")
                 return
-        new_id = self.tem_stagectrl.position_list.count() - 4
+        new_id = self.tem_stagectrl.position_list.count() - self.gui_id_offset
         text = f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"
         marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
         label = pg.TextItem(str(new_id), anchor=(0, 1))
@@ -900,12 +901,16 @@ class TEMAction(QObject):
 
     @Slot(dict)
     def update_plotitem(self, info_d):
+        if info_d is None:
+            logging.error(f"Item is not updated by {info_d}")
+            return
+
         prev_xtalid = next((i for i, item in enumerate(self.xtallist[1:]) if item['gui_id'] == info_d["gui_id"]), None)
         if prev_xtalid is not None:
-            logging.info(f"Item {info_d["gui_id"]} will be overwritten")
+            logging.info(f"Item {info_d['gui_id']} will be overwritten")
             if info_d["gui_id"] is None or info_d["gui_id"] == 999:
-                info_d["gui_id"] = self.tem_stagectrl.position_list.count() - 4
-            self.tem_stagectrl.position_list.removeItem(self.xtallist[prev_xtalid+1]['gui_id'] + 4)
+                info_d["gui_id"] = self.tem_stagectrl.position_list.count() - self.gui_id_offset
+            self.tem_stagectrl.position_list.removeItem(self.xtallist[prev_xtalid+1]['gui_id'] + self.gui_id_offset)
             if 'gui_marker' in self.xtallist[prev_xtalid+1]:
                 self.tem_stagectrl.gridarea.removeItem(self.xtallist[prev_xtalid+1]["gui_marker"])
                 self.tem_stagectrl.gridarea.removeItem(self.xtallist[prev_xtalid+1]["gui_label"])
@@ -916,10 +921,10 @@ class TEMAction(QObject):
         
         position = info_d["position"]
         # read unmeasured data
-        if not 'spots' in info_d:
+        if 'spots' not in info_d:
             logging.info(f"Item {info_d['gui_id']} is loaded")
             marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush='red')
-            self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + 4, info_d["gui_text"])
+            self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + self.gui_id_offset, info_d["gui_text"])
             label = pg.TextItem(str(info_d["gui_id"]), anchor=(0, 1))
         else:
         # read measured/processed data
@@ -951,7 +956,7 @@ class TEMAction(QObject):
                 self.tem_stagectrl.gridarea.addItem(arrow_a)
                 self.tem_stagectrl.gridarea.addItem(arrow_b)
                 self.tem_stagectrl.gridarea.addItem(arrow_c)
-            self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + 4, text)
+            self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + self.gui_id_offset, text)
             logging.info(f"Item {info_d['gui_id']}:{info_d["dataid"]} is updated")
             info_d["status"] = 'processed'
 
@@ -963,7 +968,7 @@ class TEMAction(QObject):
         info_d["gui_label"] = label
         self.xtallist.append(info_d)
         logging.debug(self.xtallist)
-        self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - 4
+        self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - self.gui_id_offset
     
     def plot_listedposition(self, color='gray'):
         xy_list = [self.tem_stagectrl.position_list.itemText(i).split()[1:-2] for i in range(self.tem_stagectrl.position_list.count())]
@@ -1141,10 +1146,10 @@ class TEMAction(QObject):
             logging.warning("Other inquiry runnng")
             return
         # load mode
-        if self.tem_stagectrl.position_list.count() == 5:
+        if self.tem_stagectrl.position_list.count() == self.gui_id_offset + 1:
             self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=1)
             logging.info("Start session-metadata loading")
-            self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - 4
+            self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - self.gui_id_offset
         # save mode
         elif len(self.xtallist) != 1:
             self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=2)
