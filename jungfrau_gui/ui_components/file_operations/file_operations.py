@@ -4,7 +4,8 @@ from PySide6.QtCore import Signal, Qt, QRegularExpression, QTimer, Slot, QObject
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QLineEdit, QSpinBox, QButtonGroup,
                                 QPushButton, QFileDialog, QCheckBox,
-                                QMessageBox, QGridLayout, QRadioButton)
+                                QMessageBox, QGridLayout, QRadioButton,
+                                QTableWidget, QTableWidgetItem, QHeaderView)
 
 
 from ...ui_components.toggle_button import ToggleButton
@@ -22,6 +23,7 @@ import threading
 
 font_big = QFont("Arial", 11)
 font_big.setBold(True)
+font_small = QFont("Arial", 8)
 
 class MetadataSignalHandler(QObject):
     # Define signals
@@ -58,19 +60,51 @@ class XtalInfo(QGroupBox):
         xtal_label.setFont(font_big)
 
         xtal_section.addWidget(xtal_label)
-
+        
         hbox_process = QHBoxLayout()
         xds_label = QLabel("XDS:", self)
-        # dials_label = QLabel("DIALS:", self)
         self.xds_results = QLineEdit(self)
         self.xds_results.setReadOnly(True)
-        # self.dials_results = QLineEdit(self)
-        # self.dials_results.setReadOnly(True)
         hbox_process.addWidget(xds_label)
         hbox_process.addWidget(self.xds_results)
+        # dials_label = QLabel("DIALS:", self)
+        # self.dials_results = QLineEdit(self)
+        # self.dials_results.setReadOnly(True)
         # hbox_process.addWidget(dials_label)
         # hbox_process.addWidget(self.dials_results)
+        
         xtal_section.addLayout(hbox_process)
+
+        if globals.dev:
+            process_label = QLabel("Parameters set:", self)
+            self.cell_input = QLineEdit(self)
+            self.cell_input.setText(" ".join(map(lambda x: f"{float(x):.0f}", self.xtallist[0]["lattice"])))
+            self.sg_input = QSpinBox(self)
+            self.sg_input.setValue(0)
+            self.sg_input.setMaximum(230)
+            self.run_button = QPushButton("Run", self)
+            self.run_button.setEnabled(False)
+
+            process_layout = QHBoxLayout()
+            process_layout.addWidget(process_label, 2)
+            process_layout.addWidget(self.cell_input, 7)
+            process_layout.addWidget(self.sg_input, 1)
+            process_layout.addWidget(self.run_button, 1)
+            xtal_section.addLayout(process_layout)
+
+            self.datatable = QTableWidget(3, 7)
+            self.datatable.setFont(font_small)
+            self.datatable.setHorizontalHeaderLabels(['', 'ID', 'Status', 'Spots', 'Cell', 'SG', 'Comp.'])
+            for row in range(3):
+                name_item = QTableWidgetItem(f"ID {row+1}")
+                checkbox_item = QTableWidgetItem()
+                checkbox_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                checkbox_item.setCheckState(Qt.Unchecked)
+                self.datatable.setItem(row, 0, checkbox_item)
+                self.datatable.setItem(row, 1, name_item)
+
+            self.datatable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            xtal_section.addWidget(self.datatable)
 
         # self.hbox_command = QHBoxLayout()
         # command_label = QLabel("TEMcmd:", self)
