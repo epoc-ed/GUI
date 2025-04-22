@@ -19,8 +19,8 @@ from dxtbx.model.experiment_list import ExperimentList
 VERSION = "for JF_GUI/v2025.04.xx or later"
 V_DATE = "2025.04.22"
 
-# ROOT_DATA_SAVED = "/data/epoc/storage/jem2100plus/" # self.cfg.base_data_dir.as_posix()
-ROOT_DATA_SAVED = "/data/noether/jem2100plus/"
+ROOT_DATA_SAVED = "/data/epoc/storage/jem2100plus/" # self.cfg.base_data_dir.as_posix()
+# ROOT_DATA_SAVED = "/data/noether/jem2100plus/" # for local-test on another server
 XDS_TEMPLATE = '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP'
 XDS_EXE = '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par'
 XSCALE_EXE = '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xscale_par'
@@ -545,7 +545,7 @@ class PostprocessLauncher:
             if 'x' in args.processor:
                 xds_thread = threading.Thread(target=self.run_xds, 
                                               args=(filename, process_dir + '/XDS/' + dataid, XDS_TEMPLATE, XDS_EXE, 
-                                    beamcenter_refined, args.quiet, args.exoscillation, ), daemon=True)
+                                    beamcenter_refined, args.quiet, args.exoscillation, message["tem_status"]['gui_id'], ), daemon=True)
                 xds_thread.start()
 
             if 'd' in args.processor:
@@ -664,11 +664,12 @@ class PostprocessLauncher:
         self.results = results
         logging.info(self.results)
         
-    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False, osc_measured=False, pos_output=True):
+    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False, osc_measured=False, gui_id=999, pos_output=True):
         root = working_directory
         myxds = XDSparams(xdstempl=xds_template_filepath)
         myxds.make_xds_file(master_filepath, os.path.join(root, "XDS.INP"), beamcenter, osc_measured=osc_measured)
         results = {
+            "gui_id": gui_id,
             "dataid": os.path.basename(root),
             "filepath": master_filepath,
             "processor": "XDS",

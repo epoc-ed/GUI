@@ -12,7 +12,7 @@ class DataProcessingManager(QObject):
     finished = Signal()
 
     # def __init__(self, parent, host='noether', port=3467, verbose = True, mode=1):
-    def __init__(self, parent, host='gauss', port=3467, verbose = True, mode=1):
+    def __init__(self, parent, host='noether', port=3467, verbose = True, mode=1):
         super().__init__()
         self.task_name = "Processing Launcher/Receiver"
         self.parent = parent
@@ -91,8 +91,9 @@ class DataProcessingManager(QObject):
             try:
                 list_to_send = self.parent.tem_controls.tem_action.xtallist[1:]
                 list_to_send.append({'filename': self.parent.visualization_panel.full_fname.text()})
-                filtered_list = [{k: v for k, v in d.items() if k not in {'gui_marker', 'gui_label'} and v not in ['recorded', 'processed']} for d in list_to_send]
-                # logging.info(filtered_list)
+                filtered_list = [{k: v for k, v in d.items() if k not in {'gui_marker', 'gui_label'}} for d in list_to_send]
+                filtered_list = [item for item in filtered_list if not item.get('status') in ['recorded', 'processed']]
+                logging.debug(filtered_list)
                 message_json = json.dumps(filtered_list)
                 socket.send_string(message_json)
                 response = socket.recv_string()

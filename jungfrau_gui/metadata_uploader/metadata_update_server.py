@@ -234,7 +234,7 @@ class Hdf5MetadataUpdater:
                     logging.warning(f"ValueError/KeyError while updating metadata: {e}")
         except OSError as e:
             logging.error(f"Failed to update information in {filename}: {e}")
-
+            
 # Example server execution
 if __name__ == "__main__":
 
