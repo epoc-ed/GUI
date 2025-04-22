@@ -12,10 +12,10 @@ class DataProcessingManager(QObject):
     finished = Signal()
 
     # def __init__(self, parent, host='noether', port=3467, verbose = True, mode=1):
-    def __init__(self, parent, host='noether', port=3467, verbose = True, mode=1):
+    def __init__(self, parent, host='gauss', port=3467, verbose = True, mode=1):
         super().__init__()
         self.task_name = "Processing Launcher/Receiver"
-        self.parent = parent
+        self.parent = parent # TEMAction
         self.host = host
         self.port = port
         self.verbose = verbose
@@ -44,7 +44,9 @@ class DataProcessingManager(QObject):
         if self.mode == 0: # emit postprocessing
             try:
                 file_path = self.parent.visualization_panel.prev_fpath
-                socket.send_string(f"Launching the postprocess...: {file_path}")
+                # gui_id = self.parent.tem_controls.tem_action.contol.tem_status["gui_id"]
+                gui_id = self.parent.control.tem_status["gui_id"]
+                socket.send_string(f"Launching the postprocess...: {file_path} as {gui_id}")
                 result_json = socket.recv_string()
                 response = socket.recv_string()
                 if self.verbose:
@@ -63,7 +65,8 @@ class DataProcessingManager(QObject):
                         result = json.loads(result_json)
                         logging.info("Succeeded in receiving processed data request.")
                         logging.info("Lattice parameters: " + " ".join(map(str, result["lattice"])))
-                        self.parent.tem_controls.tem_action.trigger_updateitem.emit(result)
+                        # self.parent.tem_controls.tem_action.trigger_updateitem.emit(result)
+                        self.parent.trigger_updateitem.emit(result)
                         # self.parent.file_operations.add_results_in_table.emit(result)
                         break
                 except zmq.ZMQError as e:
@@ -83,13 +86,15 @@ class DataProcessingManager(QObject):
                     # logging.warning(json.loads(result_json))
                     for d in json.loads(result_json):
                         if 'filename' in d: continue
-                        self.parent.tem_controls.tem_action.trigger_updateitem.emit(d)
+                        # self.parent.tem_controls.tem_action.trigger_updateitem.emit(d)
+                        self.parent.trigger_updateitem.emit(d)
                     logging.info('Succeeded in loading session-metadata')
             except zmq.ZMQError as e:
                 logging.error(f"Failed to receive session-metadata request: {e}")
         elif self.mode == 3: # send position list
             try:
-                list_to_send = self.parent.tem_controls.tem_action.xtallist[1:]
+                # list_to_send = self.parent.tem_controls.tem_action.xtallist[1:]
+                list_to_send = self.parent.xtallist[1:]
                 list_to_send.append({'filename': self.parent.visualization_panel.full_fname.text()})
                 filtered_list = [{k: v for k, v in d.items() if k not in {'gui_marker', 'gui_label'}} for d in list_to_send]
                 filtered_list = [item for item in filtered_list if not item.get('status') in ['recorded', 'processed']]
@@ -103,7 +108,7 @@ class DataProcessingManager(QObject):
                 logging.error(f"Failed to send position list to server: {e}")
         # elif self.mode == 4: # emit re-processing with user-defined parameters
         #     try:
-        #         list_of_dataid = self.parent.tem_controls.tem_action.xtallist[1:]
+        #         list_of_dataid = self.parent.xtallist[1:]
         #         filtered_list = list_of_dataid # something filtering, e.g. by status, spots, etc.
         #         # logging.info(filtered_list)
         #         filtered_list.append(

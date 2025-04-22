@@ -19,8 +19,8 @@ from dxtbx.model.experiment_list import ExperimentList
 VERSION = "for JF_GUI/v2025.04.xx or later"
 V_DATE = "2025.04.22"
 
-ROOT_DATA_SAVED = "/data/epoc/storage/jem2100plus/" # self.cfg.base_data_dir.as_posix()
-# ROOT_DATA_SAVED = "/data/noether/jem2100plus/" # for local-test on another server
+# ROOT_DATA_SAVED = "/data/epoc/storage/jem2100plus/" # self.cfg.base_data_dir.as_posix()
+ROOT_DATA_SAVED = "/data/noether/jem2100plus/" # for local-test on another server
 XDS_TEMPLATE = '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP'
 XDS_EXE = '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par'
 XSCALE_EXE = '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xscale_par'
@@ -209,33 +209,33 @@ class DIALSparams:
         os.chdir(self.workdir)
         redirect = '> /dev/null' if suppress else ''
         
-        r = easy_run.fully_buffered(f'dials.import {self.datapath} slow_fast_beam_centre={self.beamcenter[1]},{self.beamcenter[0]} redirect')
+        r = easy_run.fully_buffered(f'dials.import {self.datapath} slow_fast_beam_centre={self.beamcenter[1]},{self.beamcenter[0]} {redirect}')
         if len(r.stderr_lines) > 0:
             logging.info(f'DIALS failed to import {self.datapath}!')
             return
         self.expt = self.workdir + "/imported.expt"
-        r = easy_run.fully_buffered(f'dials.find_spots imported.expt gain={gain} d_max={dmax} min_spot_size=12 redirect')
+        r = easy_run.fully_buffered(f'dials.find_spots imported.expt gain={gain} d_max={dmax} min_spot_size=12 {redirect}')
         if len(r.stderr_lines) > 0:
             logging.info(f'DIALS failed to find spots of {self.datapath}!')
             return
-        r = easy_run.fully_buffered(f'dials.index imported.expt strong.refl detector.fix=distance redirect')
+        r = easy_run.fully_buffered(f'dials.index imported.expt strong.refl detector.fix=distance {redirect}')
         if len(r.stderr_lines) > 0:
             logging.info(f'DIALS failed to index {self.datapath}!')
             return
         self.expt = self.workdir + "/indexed.expt"
-        # r = easy_run.fully_buffered(f'dials.refine indexed.expt indexed.refl scan_varying=true detector.fix=distance redirect')
+        # r = easy_run.fully_buffered(f'dials.refine indexed.expt indexed.refl scan_varying=true detector.fix=distance {redirect}')
         # if len(r.stderr_lines) > 0:
         #     logging.info(f'refinement of {self.datapath} faild!')
         #     return
-        # r = easy_run.fully_buffered(f'dials.integrate refined.expt refined.refl significance_filter.enable=true redirect')
+        # r = easy_run.fully_buffered(f'dials.integrate refined.expt refined.refl significance_filter.enable=true {redirect}')
         # if len(r.stderr_lines) > 0:
         #     logging.info(f'integration of {self.datapath} faild!')
         #     return
-        # r = easy_run.fully_buffered(f'dials.scale integrated.expt integrated.refl output.merging.nbins={nbin} d_min={dmin} redirect')
+        # r = easy_run.fully_buffered(f'dials.scale integrated.expt integrated.refl output.merging.nbins={nbin} d_min={dmin} {redirect}')
         # if len(r.stderr_lines) > 0:
         #     logging.info(f'scaling of {self.datapath} faild!')
         #     return
-        # r = easy_run.fully_buffered(f'dials.export scaled.expt scaled.refl format="shelx" compositon="CHNO" redirect')
+        # r = easy_run.fully_buffered(f'dials.export scaled.expt scaled.refl format="shelx" compositon="CHNO" {redirect}')
         # if len(r.stderr_lines) > 0:
         #     logging.info(f'exporting of {self.datapath} faild!')
         #     return
@@ -468,7 +468,8 @@ class PostprocessLauncher:
                 message_raw = self.socket.recv_string()
                 if 'Launching the postprocess...' in message_raw:
                     print(message_raw)
-                    filename = self.root_data_directory + message_raw.split()[-1]
+                    filename = self.root_data_directory + message_raw.split()[-3]
+                    gui_id = int(message_raw.split()[-1])
                     if not os.path.exists(filename):
                         logging.error(f"{filename} is not found!!")
                         self.socket.send_string('Saved data not found')
@@ -545,7 +546,7 @@ class PostprocessLauncher:
             if 'x' in args.processor:
                 xds_thread = threading.Thread(target=self.run_xds, 
                                               args=(filename, process_dir + '/XDS/' + dataid, XDS_TEMPLATE, XDS_EXE, 
-                                    beamcenter_refined, args.quiet, args.exoscillation, message["tem_status"]['gui_id'], ), daemon=True)
+                                    beamcenter_refined, args.quiet, args.exoscillation, gui_id, ), daemon=True)
                 xds_thread.start()
 
             if 'd' in args.processor:
@@ -725,13 +726,15 @@ class PostprocessLauncher:
         self.results = results
         logging.info(self.results)
 
-    def run_dials(self, master_filepath, working_directory, beamcenter=[515, 532], suppress=False): # osc_measured=False
+    def run_dials(self, master_filepath, working_directory, beamcenter=[515, 532], suppress=False, gui_id=999, pos_output=True): # osc_measured=False
         which = subprocess.run(['which', 'dials.import'], stdout=subprocess.PIPE)
         if len(which.stdout) == 0:
             logging.warning('DIALS is not available!')
             return
 
+        root = working_directory
         results = {
+            "gui_id": gui_id,
             "dataid": os.path.basename(root),
             "filepath": master_filepath,
             "subprocessor": "DIALS",
@@ -750,7 +753,7 @@ class PostprocessLauncher:
                                    master_file['entry/instrument/stage/stage_z'][()]*1e3]
             results["status"] = "measured"
 
-        root = working_directory
+        print(f"Now DIALS runs for {master_filepath}...")
         mydials = DIALSparams(datapath=master_filepath, workdir=root, beamcenter=beamcenter)
         mydials.launch(suppress=suppress)
         results_dials = mydials.get_result()
@@ -776,7 +779,7 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--refinecenter", action="store_true", help="force post-refine beamcenter position")
     parser.add_argument("-v", "--version", action="store_true", help="display version information")
     # parser.add_argument("-f", "--formula", type=str, default='C2H5NO2', help="chemical formula for ab-initio phasing with shelxt/d")
-    parser.add_argument("-p", "--processor", type=str, default='x', help="enable post-processing. 'x' for XDS, 'd' for dials and 'xd' for both)
+    parser.add_argument("-p", "--processor", type=str, default='x', help="enable post-processing. 'x' for XDS, 'd' for dials and 'xd' for both")
 
     args = parser.parse_args()
 
