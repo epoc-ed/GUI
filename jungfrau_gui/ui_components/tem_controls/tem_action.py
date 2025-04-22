@@ -977,7 +977,7 @@ class TEMAction(QObject):
         if not self.processManagerReady:
             self.getprocessManagerReady()
 
-        self.process_manager = DataProcessingManager(self, host = "noether", mode=0)
+        self.process_manager = DataProcessingManager(self, mode=0)
         logging.info("Launching the postprocessing")
         self.processmanager_thread = QThread()
         self.processmanager_thread.setObjectName("Data_Process_Launcher Thread")
@@ -993,7 +993,7 @@ class TEMAction(QObject):
             logging.warning("Previous inquiry continues runnng")
             return
 
-        self.process_manager = DataProcessingManager(self, host = "noether", mode=1)
+        self.process_manager = DataProcessingManager(self, mode=1)
         self.processmanager_thread = QThread()
         self.processmanager_thread.setObjectName("Data_Process_Receiver Thread")
         self.parent.threadWorkerPairs.append((self.processmanager_thread, self.process_manager))
@@ -1152,11 +1152,11 @@ class TEMAction(QObject):
             return
         # load mode
         if self.tem_stagectrl.position_list.count() == 5:
-            self.process_manager = DataProcessingManager(self, host = "noether", mode=2)
+            self.process_manager = DataProcessingManager(self, mode=2)
             logging.info("Start session-metadata loading")
         # save mode
         elif len(self.xtallist) != 1:
-            self.process_manager = DataProcessingManager(self, host = "noether", mode=3)
+            self.process_manager = DataProcessingManager(self, mode=3)
             logging.info("Start session-metadata saving")
         else:
             logging.warning("No data available")

@@ -12,11 +12,15 @@ import zmq
 import argparse
 import shutil
 # from epoc import ConfigurationClient, auth_token, redis_host
+from libtbx import easy_run
+# from dxtbx.serialize import load
+from dxtbx.model.experiment_list import ExperimentList
 
 VERSION = "for JF_GUI/v2025.04.xx or later"
-V_DATE = "2025.04.20"
+V_DATE = "2025.04.22"
 
-ROOT_DATA_SAVED = "/data/epoc/storage/jem2100plus/" # self.cfg.base_data_dir.as_posix()
+# ROOT_DATA_SAVED = "/data/epoc/storage/jem2100plus/" # self.cfg.base_data_dir.as_posix()
+ROOT_DATA_SAVED = "/data/noether/jem2100plus/"
 XDS_TEMPLATE = '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP'
 XDS_EXE = '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par'
 XSCALE_EXE = '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xscale_par'
@@ -193,45 +197,73 @@ def getcenter(img_array, center=(515, 532), area=100, bin_factor=5, return_all_m
         # Return the average location (single point)
         return np.round(bright_spots.mean(axis=0)).astype(int)
 
-# class DIALSparams:
-#     def __init__(self, datapath, workdir, beamcenter=[515, 532]):
-#         self.datapath = datapath
-#         self.workdir=workdir
-#         self.beamcenter = beamcenter
+class DIALSparams:
+    def __init__(self, datapath, workdir, beamcenter=[515, 532]):
+        self.datapath = datapath
+        self.workdir=workdir
+        self.beamcenter = beamcenter
+        self.expt = None
 
-#     def launch(self, dmax=10, dmin=0.4, nbin=20, gain=20, suppress=False): # this gain is only used in spotfind
-#         from libtbx import easy_run
-#         os.makedirs(self.workdir, exist_ok=False)
-#         os.chdir(self.workdir)
-#         redirect = '> /dev/null' if suppress else ''
-#         r = easy_run.fully_buffered(f'dials.import {self.datapath} slow_fast_beam_centre={self.beamcenter[1]},{self.beamcenter[0]} redirect')
-#         if len(r.stderr_lines) > 0:
-#             logging.info(f'import of {self.datapath} faild!')
-#             return
-#         r = easy_run.fully_buffered(f'dials.find_spots imported.expt gain={gain} d_max={dmax} min_spot_size=12 redirect')
-#         if len(r.stderr_lines) > 0:
-#             logging.info(f'spotfinding of {self.datapath} faild!')
-#             return
-#         r = easy_run.fully_buffered(f'dials.index imported.expt strong.refl detector.fix=distance redirect')
-#         if len(r.stderr_lines) > 0:
-#             logging.info(f'indexing of {self.datapath} faild!')
-#             return
-#         r = easy_run.fully_buffered(f'dials.refine indexed.expt indexed.refl scan_varying=true detector.fix=distance redirect')
-#         if len(r.stderr_lines) > 0:
-#             logging.info(f'refinement of {self.datapath} faild!')
-#             return
-#         r = easy_run.fully_buffered(f'dials.integrate refined.expt refined.refl significance_filter.enable=true redirect')
-#         if len(r.stderr_lines) > 0:
-#             logging.info(f'integration of {self.datapath} faild!')
-#             return
-#         r = easy_run.fully_buffered(f'dials.scale integrated.expt integrated.refl output.merging.nbins={nbin} d_min={dmin} redirect')
-#         if len(r.stderr_lines) > 0:
-#             logging.info(f'scaling of {self.datapath} faild!')
-#             return
-#         r = easy_run.fully_buffered(f'dials.export scaled.expt scaled.refl format="shelx" compositon="CHNO" redirect')
-#         if len(r.stderr_lines) > 0:
-#             logging.info(f'exporting of {self.datapath} faild!')
-#             return    
+    def launch(self, dmax=10, dmin=0.4, nbin=20, gain=20, suppress=False): # this gain is only used in spotfind
+        os.makedirs(self.workdir, exist_ok=False)
+        os.chdir(self.workdir)
+        redirect = '> /dev/null' if suppress else ''
+        
+        r = easy_run.fully_buffered(f'dials.import {self.datapath} slow_fast_beam_centre={self.beamcenter[1]},{self.beamcenter[0]} redirect')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'DIALS failed to import {self.datapath}!')
+            return
+        self.expt = self.workdir + "/imported.expt"
+        r = easy_run.fully_buffered(f'dials.find_spots imported.expt gain={gain} d_max={dmax} min_spot_size=12 redirect')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'DIALS failed to find spots of {self.datapath}!')
+            return
+        r = easy_run.fully_buffered(f'dials.index imported.expt strong.refl detector.fix=distance redirect')
+        if len(r.stderr_lines) > 0:
+            logging.info(f'DIALS failed to index {self.datapath}!')
+            return
+        self.expt = self.workdir + "/indexed.expt"
+        # r = easy_run.fully_buffered(f'dials.refine indexed.expt indexed.refl scan_varying=true detector.fix=distance redirect')
+        # if len(r.stderr_lines) > 0:
+        #     logging.info(f'refinement of {self.datapath} faild!')
+        #     return
+        # r = easy_run.fully_buffered(f'dials.integrate refined.expt refined.refl significance_filter.enable=true redirect')
+        # if len(r.stderr_lines) > 0:
+        #     logging.info(f'integration of {self.datapath} faild!')
+        #     return
+        # r = easy_run.fully_buffered(f'dials.scale integrated.expt integrated.refl output.merging.nbins={nbin} d_min={dmin} redirect')
+        # if len(r.stderr_lines) > 0:
+        #     logging.info(f'scaling of {self.datapath} faild!')
+        #     return
+        # r = easy_run.fully_buffered(f'dials.export scaled.expt scaled.refl format="shelx" compositon="CHNO" redirect')
+        # if len(r.stderr_lines) > 0:
+        #     logging.info(f'exporting of {self.datapath} faild!')
+        #     return
+
+    def get_result(self): #, refl):
+        """
+        read lines of indexing results
+        """
+        expt = self.expt
+        results = {}
+        if expt is None: return results
+        # expt_list = load.experiment_list(expt)
+    
+        expt_list = ExperimentList.from_file(expt)
+        xtal = expt_list.crystals()[0]
+        if xtal is None: return results
+            
+        results['cell'] = xtal.get_unit_cell().parameters()
+        results['cell std'] = xtal.get_cell_parameter_sd()
+        results['cell a-axis'] = xtal.get_U()[:3]
+        results['cell b-axis'] = xtal.get_U()[3:6]
+        results['cell c-axis'] = xtal.get_U()[6:]
+        results['space group'] = str(xtal.get_space_group().info())
+        # with open('dials.index.log', 'r') as f:
+        #     spotinfo = f.readlines()[-4].split()
+        #     results['spots'] = [spotinfo[3], spotinfo[3]+spotinfo[5]]
+        #     results['spots'] = line.split()[0], line.split()[3]
+        return results
 
 class XDSparams:
     """
@@ -434,14 +466,14 @@ class PostprocessLauncher:
             ready_postprocess = False
             try:
                 message_raw = self.socket.recv_string()
-                if args.feedback and 'Launching the postprocess...' in message_raw:
+                if 'Launching the postprocess...' in message_raw:
                     print(message_raw)
                     filename = self.root_data_directory + message_raw.split()[-1]
                     if not os.path.exists(filename):
                         logging.error(f"{filename} is not found!!")
                         self.socket.send_string('Saved data not found')
                     else:
-                        self.socket.send_string('{filename} will be processed soon.')
+                        self.socket.send_string(f'{filename} will be processed soon.')
                         ready_postprocess = True
                 elif args.feedback and 'Results being inquired...' in message_raw:
                     print(message_raw)
@@ -466,7 +498,7 @@ class PostprocessLauncher:
                     message = json.loads(message_raw)
                     if isinstance(message, list) and args.json:
                         process_dir = args.path_process
-                        if process_dir == '.' or not os.access(process_dir, os.W_OK):
+                        if process_dir == '.':
                             process_dir = os.path.dirname(self.root_data_directory + message[-1]["filename"])
                         with open(process_dir + '/process_result.jsonl', 'a') as f:
                             [f.write(json.dumps(i) + "\n") for i in message]
@@ -507,23 +539,25 @@ class PostprocessLauncher:
             logging.info(f'Subdirname: {os.path.dirname(filename)}/XDS/{dataid}')
 
             process_dir = args.path_process
-            if process_dir == '.' or not os.access(process_dir, os.W_OK):
+            if process_dir == '.' :
                 process_dir = os.path.dirname(filename)
-            xds_thread = threading.Thread(target=self.run_xds, 
-                                          args=(filename, process_dir + '/XDS/' + dataid, XDS_TEMPLATE, XDS_EXE, 
-                                beamcenter_refined, args.quiet, args.exoscillation, ), daemon=True)
-            xds_thread.start()
-            # dials_thread = threading.Thread(target=self.run_dials, 
-            #                                 args=(filename, 
-            #                     os.path.dirname(filename) + '/DIALS/' + dataid,
-            #                     beamcenter_refined, args.quiet, ), daemon=True)
-            # dials_thread.start()
+                
+            if 'x' in args.processor:
+                xds_thread = threading.Thread(target=self.run_xds, 
+                                              args=(filename, process_dir + '/XDS/' + dataid, XDS_TEMPLATE, XDS_EXE, 
+                                    beamcenter_refined, args.quiet, args.exoscillation, ), daemon=True)
+                xds_thread.start()
+
+            if 'd' in args.processor:
+                dials_thread = threading.Thread(target=self.run_dials, 
+                                                args=(filename, process_dir + '/DIALS/' + dataid, beamcenter_refined, args.quiet, ), daemon=True)
+                dials_thread.start()
     
     def stop(self):
         self.running = False
         logging.info("Stopping server...")
 
-'''
+    """
     def merge_xds(self, reference_datapath, list_dataid, xscale_exepath='xscale_par', output_name="XSCALE.HKL", cell=[10,10,10,90,90,90], spacegroup=1, resolution_range=[20, -1]):
         root = os.path.dirname(reference_datapath) # root of working_directory
         filtered_list = []
@@ -557,7 +591,7 @@ class PostprocessLauncher:
         
         #### TBU: process to read results
 
-    def run_shelxt(self, hkl_filepath, shelxt_exepath='shelxt', suppress=False, cell=[10,10,10,90,90,90], zerr=[1,0,0,0,0,0,0], duration_sec=10, options='', composition='CHNO'):
+    def run_shelxt(self, hkl_filepath, shelxt_exepath='shelxt', suppress=False, cell=[10,10,10,90,90,90], zerr=[1,0,0,0,0,0,0], options='', composition='CHNO'):
         root = os.path.dirname(hkl_filepath) # root of working_directory
 
         #### TBU: conversion of hkl to shelx-format
@@ -589,9 +623,9 @@ class PostprocessLauncher:
             return 'crystal.ins is missing.'
         
         #### TBU: process to read results
-'''
+    """
 
-    def rerun_xds(self, prev_xds_filepath, xds_exepath='xds_par', suppress=False, duration_sec=10, jobs='IDXREF DEFPIX INTEGRATE CORRECT', cell=[10,10,10,90,90,90], spacegroup=1):
+    def rerun_xds(self, prev_xds_filepath, xds_exepath='xds_par', suppress=False, jobs='IDXREF DEFPIX INTEGRATE CORRECT', cell=[10,10,10,90,90,90], spacegroup=1):
         if self.results is not None:
             results = self.results
         else:
@@ -602,6 +636,7 @@ class PostprocessLauncher:
         myxds.refine(jobs=jobs, cell=cell, spacegroup=spacegroup)
         myxds.xdswrite(filepath=prev_xds_filepath)
         if os.path.isfile(root + '/XDS.INP'):
+            logging.info(f'XDS runs at {root}...')
             if suppress:
                 logging.info('Quiet mode:')
                 subprocess.run([xds_exepath], stdout=subprocess.DEVNULL, cwd=root)
@@ -610,7 +645,6 @@ class PostprocessLauncher:
         else:
             return 'XDS.INP is missing.'
 
-        time.sleep(duration_sec)
         results["integrate"] = "Succeeded" if os.path.isfile(root + "/INTEGRATE.LP") else "Failed"
         if os.path.isfile(root + "/CORRECT.LP"):
             logging.info('Correction succeeded.')
@@ -630,8 +664,7 @@ class PostprocessLauncher:
         self.results = results
         logging.info(self.results)
         
-    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False, osc_measured=False, pos_output=True, duration_sec=3):
-        # self.socket.send_string("Processing with XDS")
+    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False, osc_measured=False, pos_output=True):
         root = working_directory
         myxds = XDSparams(xdstempl=xds_template_filepath)
         myxds.make_xds_file(master_filepath, os.path.join(root, "XDS.INP"), beamcenter, osc_measured=osc_measured)
@@ -660,17 +693,18 @@ class PostprocessLauncher:
                                    master_file['entry/instrument/stage/stage_y'][()]*1e3,
                                    master_file['entry/instrument/stage/stage_z'][()]*1e3]
             results["status"] = "measured"
-        
+
         if os.path.isfile(root + '/XDS.INP'):
+            logging.info(f'XDS runs at {root}...')
             if suppress:
                 logging.info('Quiet mode:')
                 subprocess.run([xds_exepath], stdout=subprocess.DEVNULL, cwd=root) # stderr=subprocess.DEVNULL
             else:
                 subprocess.run([xds_exepath], cwd=root)
         else:
-            return 'XDS.INP is missing.'
+            logging.warning('XDS.INP is missing.')
+            return
         
-        time.sleep(duration_sec)
         results["init"] = "Succeeded" if os.path.isfile(root + "/INIT.LP") else "Failed"
         results["colspot"] = "Succeeded" if os.path.isfile(root + "/COLSPOT.LP") else "Failed"
         if os.path.isfile(root + "/XPARM.XDS"):
@@ -690,34 +724,44 @@ class PostprocessLauncher:
         self.results = results
         logging.info(self.results)
 
-'''
-    def run_dials(self, master_filepath, working_directory, beamcenter=[515, 532], suppress=False):
-        # self.socket.send_string("Processing with DIALS")
-        results = "Failed"
-        root = working_directory
-        
+    def run_dials(self, master_filepath, working_directory, beamcenter=[515, 532], suppress=False): # osc_measured=False
         which = subprocess.run(['which', 'dials.import'], stdout=subprocess.PIPE)
         if len(which.stdout) == 0:
-            logging.warning('DIALS is not available')
-            return results
-        
+            logging.warning('DIALS is not available!')
+            return
+
+        results = {
+            "dataid": os.path.basename(root),
+            "filepath": master_filepath,
+            "subprocessor": "DIALS",
+            "import": None,
+            "findspots": None,
+            "index": None,
+            "lattice_dials": [1,1,1,90,90,90],
+            "spots_dials": [0, 1],
+            "cell axes_dials": [1,0,0, 0,1,0, 0,0,1],
+        }
+
+        if pos_output:
+            master_file = h5py.File(master_filepath, 'r')            
+            results["position"] = [master_file['entry/instrument/stage/stage_x'][()]*1e3, 
+                                   master_file['entry/instrument/stage/stage_y'][()]*1e3,
+                                   master_file['entry/instrument/stage/stage_z'][()]*1e3]
+            results["status"] = "measured"
+
+        root = working_directory
         mydials = DIALSparams(datapath=master_filepath, workdir=root, beamcenter=beamcenter)
         mydials.launch(suppress=suppress)
-
-        if os.path.isfile(root + '/indexed.refl'):
-            logging.info('Indexing succeeded.')
-            with open('dials.index.log', 'r') as f:
-                results['cell'] = re.sub('([0-9]*)', "", f.readlines()[-18]).split(sep='[, s]')
-                spotinfo = f.readlines()[-4].split()
-                results['spots'] = [spotinfo[3], spotinfo[3]+spotinfo[5]]
-            results_describe = '{0[0]:.1f} {0[1]:.1f} {0[2]:.1f} {0[3]:.0f} {0[4]:.0f} {0[5]:.0f}, {1[0]}/{1[1]}'.format(results['cell'], results['spots'])
-            # self.socket.send_string(results_describe)
-            return results_describe
-        else:
-            logging.info('Indexing failed.')
-        # self.socket.send_string(results)
-        return results
-'''        
+        results_dials = mydials.get_result()
+        if results_dials.get('cell') is not None:
+            results["lattice_dials"] = results_dials["cell"]
+            results["lattice esd"] = results_dials["cell esd"]
+            results["cell axes"] = results_dials["cell a-axis"] + results_corr["cell b-axis"] + results_corr["cell c-axis"]
+            results["space group"] = results_dials["space group"]
+            results["import"] = results["findspots"] = results["index"] = "Succeeded"
+        # results["spots"] = results_dials["spots"]
+        logging.info(results)
+        # self.results = results
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -726,11 +770,12 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--path_process", type=str, default='.', help="root directory path for data-processing (.). file-writing permission is necessary.")
     parser.add_argument("-j", "--json", action="store_true", help="write a summary of postprocess as a JSON'L' file (process_result.jsonl)")
     parser.add_argument("-o", "--exoscillation", action="store_true", help="use measured oscillation value for postprocess")
-    # parser.add_argument("-p", "--opticalcenter", action="store_true", help="calibtate the beam direction")
+    # parser.add_argument("-op", "--opticalcenter", action="store_true", help="calibtate the beam direction")
     parser.add_argument("-q", "--quiet", action="store_true", help="suppress outputs of external programs")
     parser.add_argument("-r", "--refinecenter", action="store_true", help="force post-refine beamcenter position")
     parser.add_argument("-v", "--version", action="store_true", help="display version information")
     # parser.add_argument("-f", "--formula", type=str, default='C2H5NO2', help="chemical formula for ab-initio phasing with shelxt/d")
+    parser.add_argument("-p", "--processor", type=str, default='x', help="enable post-processing. 'x' for XDS, 'd' for dials and 'xd' for both)
 
     args = parser.parse_args()
 
@@ -762,7 +807,8 @@ if __name__ == "__main__":
     logger.addHandler(console_handler)
 
     if not os.access(args.path_process, os.W_OK):
-        logging.warning("No file permission. Data-directory will be used for processing instead.")
+        logging.warning("No file-writing permission!")
+        exit()
     
     server = PostprocessLauncher()
     server_thread = threading.Thread(target=server.run, daemon=True)

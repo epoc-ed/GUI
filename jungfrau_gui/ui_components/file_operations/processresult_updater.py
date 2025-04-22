@@ -11,7 +11,8 @@ import time
 class DataProcessingManager(QObject):
     finished = Signal()
 
-    def __init__(self, parent, host, port=3467, verbose = True, mode=1):
+    # def __init__(self, parent, host='noether', port=3467, verbose = True, mode=1):
+    def __init__(self, parent, host='gauss', port=3467, verbose = True, mode=1):
         super().__init__()
         self.task_name = "Processing Launcher/Receiver"
         self.parent = parent
