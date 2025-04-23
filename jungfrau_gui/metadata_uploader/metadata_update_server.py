@@ -494,7 +494,7 @@ class Hdf5MetadataUpdater:
                                 process_dir + '/XDS/' + dataid,
                                 '/xtal/Integration/XDS/CCSA-templates/XDS-JF1M_JFJ_2024-12-10.INP',
                                 '/xtal/Integration/XDS/XDS-INTEL64_Linux_x86_64/xds_par', 
-                                beamcenter_refined, args.quiet, args.exoscillation, ), daemon=True)
+                                beamcenter_refined, args.quiet, args.exoscillation, message["tem_status"]['gui_id'], ), daemon=True)
             xds_thread.start()
             # dials_thread = threading.Thread(target=self.run_dials, 
             #                                 args=(filename, 
@@ -645,7 +645,7 @@ class Hdf5MetadataUpdater:
         except OSError as e:
             logging.error(f"Failed to update information in {filename}: {e}")
 
-    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False, osc_measured=False, pos_output=True, duration_sec=3):
+    def run_xds(self, master_filepath, working_directory, xds_template_filepath, xds_exepath='xds_par', beamcenter=[515, 532], suppress=False, osc_measured=False, gui_id=999, pos_output=True, duration_sec=3):
         # self.socket.send_string("Processing with XDS")
         root = working_directory
         myxds = XDSparams(xdstempl=xds_template_filepath)
@@ -654,6 +654,7 @@ class Hdf5MetadataUpdater:
                            beamcenter,
                            osc_measured=osc_measured)
         results = {
+            "gui_id": gui_id,
             "dataid": os.path.basename(root),
             "filepath": master_filepath,
             "processor": "XDS",

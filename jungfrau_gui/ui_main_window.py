@@ -120,9 +120,9 @@ class ApplicationWindow(QMainWindow):
         logging.debug(f"type(data) is {type(data[0,0])}")
         self.imageItem.setImage(data, autoRange = False, autoLevels = False, autoHistogramRange = False)
         
-        # Plot overlays for dev-mode, overlays are put reading the HT-value from TEM
-        if not globals.dev:
-            draw_overlay(self.plot)
+        # Original overlay scheme
+        # if not globals.dev:
+        #     draw_overlay(self.plot)
         
         # Mouse hovering
         self.imageItem.hoverEvent = self.imageHoverEvent

@@ -561,6 +561,7 @@ class ControlWorker(QObject):
                 # Check for None values
                 if result["val"] is None and query in ["apt.GetKind", "apt.GetPosition"]:
                     del_items.append(query)
+                    result["val"] = 0
             
             # Update results with batch results
             results.update(batch_results)
@@ -569,9 +570,9 @@ class ControlWorker(QObject):
             if len(query_batches) > 1:
                 time.sleep(0.001)
         
-        # Remove failed queries
+        # Remove failed queries at the first time 
         for query in del_items:
-            if query in self.more_queries:
+            if query in self.more_queries and self.tem_status['ht.GetHtValue_readout'] == 0:
                 self.more_queries.remove(query)
                 logging.warning(f"{query} removed from query list")
 
