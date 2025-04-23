@@ -1,6 +1,5 @@
 import pyqtgraph as pg
 import numpy as np
-#import random
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
@@ -983,10 +982,18 @@ class TEMAction(QObject):
             self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
             self.tem_stagectrl.gridarea.addItem(self.marker)
             view = self.tem_stagectrl.gridarea.getViewBox()
-            y_range = position[1]*1e-3 - view.size().height()/2, position[1]*1e-3 + view.size().height()/2
-            x_range = position[0]*1e-3 - view.size().width()/2, position[0]*1e-3 + view.size().width()/2
-            view.setRange(xRange=x_range, yRange=y_range) # padding=0
-            
+            width = view.viewRange()[0][1] - view.viewRange()[0][0]
+            height = view.viewRange()[1][1] - view.viewRange()[1][0]
+            x_range = position[0]*1e-3 - width/2, position[0]*1e-3 + width/2
+            y_range = position[1]*1e-3 - height/2, position[1]*1e-3 + height/2
+            view.setRange(xRange=x_range, yRange=y_range,padding=0)
+            # Update position plot colored by spotcount
+            if globals.dev:
+                spotchart = self.tem_stagectrl.spotchartItem.image
+                position_on_chart = np.array([(self.tem_stagectrl.radius2 + position[0]*1e-3) // self.tem_stagectrl.grid_resolution, (self.tem_stagectrl.radius2 + position[1]*1e-3) // self.tem_stagectrl.grid_resolution], dtype=int)
+                spotchart[position_on_chart[1], position_on_chart[0]] = self.visualization_panel.spotcount
+                self.tem_stagectrl.spotchartItem.setImage(spotchart)
+
     @Slot()
     def inquire_processed_data(self):
         if self.dataReceiverReady:
@@ -1096,7 +1103,7 @@ class TEMAction(QObject):
         snapshot_image.setTransform(tr)
         self.tem_stagectrl.gridarea.addItem(snapshot_image)
         snapshot_image.setPos(position[0]*1e-3, position[1]*1e-3)
-        snapshot_image.setZValue(-2)
+        snapshot_image.setZValue(-3) # bottom layer
         view = self.tem_stagectrl.gridarea.getViewBox()
         aspect_ratio = view.size().width()/view.size().height()
         y_range = position[1]*1e-3 - scale*image.shape[1]/2, position[1]*1e-3 + scale*image.shape[1]/2

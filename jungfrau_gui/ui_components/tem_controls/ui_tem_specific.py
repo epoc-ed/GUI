@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
                                QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy, QComboBox,
                                QSpinBox, QWidget, QGridLayout)
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QTransform
 from ..toggle_button import ToggleButton
 from ..utils import create_horizontal_line_with_margin
 
@@ -185,11 +185,26 @@ class TEMStageCtrl(QGroupBox):
         y = radius1 * np.sin(np.linspace(0, 2*np.pi, 100))
         self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen('darkGray')))
 
-        radius2 = 1200
-        x = radius2 * np.cos(np.linspace(0, 2*np.pi, 100))
-        y = radius2 * np.sin(np.linspace(0, 2*np.pi, 100))
+        self.radius2 = 1200
+        x = self.radius2 * np.cos(np.linspace(0, 2*np.pi, 100))
+        y = self.radius2 * np.sin(np.linspace(0, 2*np.pi, 100))
         # crystals outside of this ring should be cared for rotation limit
         self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen('yellow')))
+        
+        self.grid_resolution = 4 # um
+        tr = QTransform()
+        tr.scale(self.grid_resolution, self.grid_resolution)
+        self.spotchartItem = pg.ImageItem()
+        self.gridarea.addItem(self.spotchartItem)
+        self.spotchartItem.setTransform(tr)
+        self.spotchartItem.setPos(-self.radius2, -self.radius2)
+        self.spotchartItem.setZValue(-2) # middle layer
+        # import random
+        self.spotchartItem.setImage(np.zeros((self.radius2*2//self.grid_resolution, self.radius2*2//self.grid_resolution))) #+random.randint(0, 100))
+        self.histogram_for_gridview = pg.HistogramLUTItem()
+        self.histogram_for_gridview.setLevels(0, 50)
+        self.histogram_for_gridview.gradient.loadPreset("inferno")
+        self.histogram_for_gridview.hide()
 
         self.grid_plot.setAspectLocked()
         self.grid_plot.showGrid(x=True, y=True)

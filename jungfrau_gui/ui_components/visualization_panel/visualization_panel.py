@@ -19,7 +19,9 @@ from ...ui_components.utils import create_horizontal_line_with_margin
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
-from epoc import JungfraujochWrapper, ConfigurationClient, auth_token, redis_host
+# from epoc import JungfraujochWrapper, ConfigurationClient, auth_token, redis_host
+from epoc import ConfigurationClient, auth_token, redis_host
+from .JungfraujochWrapper import *
 from ...ui_components.palette import *
 from rich import print
 from ..tem_controls.toolbox.progress_pop_up import ProgressPopup
@@ -50,6 +52,7 @@ class VisualizationPanel(QGroupBox):
         # super().__init__("Visualization Panel")
         super().__init__()
         self.parent = parent
+        self.spotcount = 0
         self.assess_gui_jfj_communication_and_display_state.connect(self.update_gui_with_jfj_state)
         self.initUI()
 
@@ -733,7 +736,22 @@ class VisualizationPanel(QGroupBox):
             self.readerWorkerReady = False
             QMetaObject.invokeMethod(self.streamReader, "run", Qt.QueuedConnection)
 
+    # import random
     def updateUI(self, image, frame_nr):
         self.parent.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False)
         if frame_nr is not None:
-            self.parent.statusBar().showMessage(f'Frame: {frame_nr}')
+            # self.parent.statusBar().showMessage(f'Frame: {frame_nr}')
+#### testing feature on 23 Apr 2025 #####            
+            # self.toggle_jfjoch_spotfind()
+            self.jfjoch_client.set_spotfind(enable=True)
+            # print(self.jfjoch_client.get_spotfind_status(), self.get_jfjoch_spotfind())
+            self.spotcount = self.get_jfjoch_spotfind() # +random.randint(0, 100)
+            self.parent.statusBar().showMessage(f'Frame: {frame_nr}, Spots: {self.spotcount}')
+
+    # def toggle_jfjoch_spotfind(self):
+    #     if self.jfjoch_client is not None:
+    #         self.jfjoch_client.set_spotfind(enable=not self.jfjoch_client.get_spotfind_status())
+
+    def get_jfjoch_spotfind(self):
+        '''return zero even if sf is disabled'''
+        return self.jfjoch_client.get_spotplots()
