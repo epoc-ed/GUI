@@ -515,10 +515,10 @@ class VisualizationPanel(QGroupBox):
                     self.formatted_filename = self.cfg.fpath
 
                     if globals.dev:
-                        self.jfjoch_client.image_time_us = self.frame_summed.value() * 500 # 100
-                        self.jfjoch_client._lots_of_images = 2000 * 3600 // self.frame_summed.value() # 72000
+                        self.jfjoch_client.image_time_us = self.frame_summed.value() * 500 # i.e. 500 us per image for a 2kHz frame rate
+                        self.jfjoch_client._lots_of_images = 2000 * 3600 // self.frame_summed.value() # -> 72000 summed images per hour for a summing factor of 100 at 2kHz frame rate
                         logging.info(f"Nb of frames per trigger for measurement: {self.jfjoch_client._lots_of_images}") # 72000
-                        logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per image acquisition")
+                        logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per (summed) image acquisition")
                         prev_contrast = self.parent.histogram.getLevels()
                         self.parent.histogram.setLevels(prev_contrast[0] * self.frame_summed.value() / 100, prev_contrast[1] * self.frame_summed.value() / 100)
                     
