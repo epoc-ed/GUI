@@ -759,8 +759,8 @@ class PostprocessLauncher:
         results_dials = mydials.get_result()
         if results_dials.get('cell') is not None:
             results["lattice_dials"] = results_dials["cell"]
-            results["lattice esd"] = results_dials["cell esd"]
-            results["cell axes"] = results_dials["cell a-axis"] + results_corr["cell b-axis"] + results_corr["cell c-axis"]
+            results["lattice std"] = results_dials["cell std"]
+            results["cell axes"] = results_dials["cell a-axis"] + results_dials["cell b-axis"] + results_dials["cell c-axis"]
             results["space group"] = results_dials["space group"]
             results["import"] = results["findspots"] = results["index"] = "Succeeded"
         # results["spots"] = results_dials["spots"]
