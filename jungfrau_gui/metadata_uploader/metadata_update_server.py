@@ -382,25 +382,31 @@ class Hdf5MetadataUpdater:
             ready_postprocess = False
             try:
                 message_raw = self.socket.recv_string()
-                if args.feedback and 'Results being inquired...' in message_raw:
+                if 'Results being inquired...' in message_raw:
                     print(message_raw)
-                    if self.results is None:
-                        self.socket.send_string("In processing...")
+                    if args.r_feedback:
+                        if self.results is None:
+                            self.socket.send_string("In processing...")
+                        else:
+                            logging.info("Sending results to GUI...")
+                            self.socket.send_string(json.dumps(self.results))
+                            self.results = None
                     else:
-                        logging.info("Sending results to GUI...")
-                        self.socket.send_string(json.dumps(self.results))
-                        self.results = None
-                elif args.feedback and 'Session-metadata being inquired...' in message_raw:
+                        self.socket.send_string("Feedback is not activated.")
+                elif 'Session-metadata being inquired...' in message_raw:
                     print(message_raw)
-                    search_dir = os.path.dirname(self.root_data_directory + message_raw.split()[-1])
-                    if not os.path.exists(search_dir + '/process_result.jsonl'):
-                        logging.info(f"Previous session-data does not exist in {search_dir}")
-                        self.socket.send_string('Previous session-data not found')
+                    if args.r_feedback:
+                        search_dir = os.path.dirname(self.root_data_directory + message_raw.split()[-1])
+                        if not os.path.exists(search_dir + '/process_result.jsonl'):
+                            logging.info(f"Previous session-data does not exist in {search_dir}")
+                            self.socket.send_string('Previous session-data not found')
+                        else:
+                            with open(search_dir + '/process_result.jsonl', 'r') as f:
+                                prev_data = [json.loads(line) for line in f]
+                            logging.info("Sending Previous session-data...")
+                            self.socket.send_string(json.dumps(prev_data))
                     else:
-                        with open(search_dir + '/process_result.jsonl', 'r') as f:
-                            prev_data = [json.loads(line) for line in f]
-                        logging.info("Sending Previous session-data...")
-                        self.socket.send_string(json.dumps(prev_data))
+                        self.socket.send_string("Feedback is not activated.")
                 else:
                     message = json.loads(message_raw)
                     if 'tem_status' in message:
@@ -736,7 +742,7 @@ class Hdf5MetadataUpdater:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-b", "--feedback", action="store_true", help="send post-process results to GUI")
+    parser.add_argument("-b", "--r_feedback", action="store_false", help="deactivate sending post-process results to GUI")
     parser.add_argument("-c", "--center_mask", type=int, default=10, help="centre mask radius [px] in XDS.INP (10). deactivate with 0.")
     parser.add_argument("-d", "--path_process", type=str, default='.', help="root directory path for data-processing (.). file-writing permission is necessary.")
     parser.add_argument("-j", "--json", action="store_true", help="write a summary of postprocess as a JSON'L' file (process_result.jsonl)")
