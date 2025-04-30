@@ -620,8 +620,7 @@ class VisualizationPanel(QGroupBox):
             # Now proceed with the remaining code in "collect"
             logging.info("Measurement ended")
 
-            # logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
-            logging.info(f"Data has been saved in the following file:\n{self.formatted_filename.as_posix()}")
+            logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
 
