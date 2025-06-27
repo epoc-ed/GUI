@@ -16,10 +16,7 @@ class Reader(QObject):
     # @profile
     @Slot()
     def run(self):
-        # if globals.jfj:
-        image, frame_nb = self.receiver.get_frame_jfj()  # Retrieve image and header       
-        # else:
-        #     image, frame_nb = self.receiver.get_frame()  # Retrieve image and header  
+        image, frame_nb = self.receiver.get_frame_jfj()  # Retrieve image and header
                
         if globals.accframes > 0:
             logging.info(f'{globals.accframes} frames to add ')

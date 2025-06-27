@@ -5,9 +5,8 @@ import logging
 import numpy as np
 from .task import Task
 from .dectris2xds import XDSparams
-from PySide6.QtWidgets import QMessageBox, QProgressDialog, QApplication
+from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Signal, Qt, QMetaObject
-
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
 from ..toolbox.tool import send_with_retries
@@ -33,7 +32,7 @@ class RecordTask(Task):
         logging.info("RecordTask initialized")
         self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.metadata_notifier = MetadataNotifier(host = "noether")
+        self.metadata_notifier = MetadataNotifier(host = "noether", port = 3463, verbose = False)
         # self.standard_h5_recording = standard_h5_recording
 
         self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)
@@ -59,22 +58,6 @@ class RecordTask(Task):
             phi_dot_idx = self.client.Getf1OverRateTxNum()
 
             self.phi_dot = stage_rates[phi_dot_idx]
-
-            # Interrupting TEM Polling
-            if self.tem_action.tem_tasks.connecttem_button.started:
-                QMetaObject.invokeMethod(self.tem_action.tem_tasks.connecttem_button, "click", Qt.QueuedConnection)
-
-            while self.tem_action.tem_tasks.connecttem_button.started:
-                time.sleep(0.1)
-
-            logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection!")
-
-            # Disable the Gaussian Fitting
-            QMetaObject.invokeMethod(self.tem_action.tem_controls, 
-                                    "disableGaussianFitButton", 
-                                    Qt.QueuedConnection
-            )
-            logging.warning("Gaussina Fitting is disabled during rotation/record task!")
             
             # Attempt to open the logfile and catch potential issues
             try:
@@ -209,6 +192,32 @@ class RecordTask(Task):
             except Exception as e:
                 logging.error("Error updating TEM status: {e}")
             
+            # Add H5 info and file finalization; can be launched before stage-resetting
+            if self.writer is not None:
+                time.sleep(0.1)
+                logging.info(" ******************** Adding Info to H5 over Server...")
+                try:
+                    beam_property = {
+                        "beamcenter" : self.cfg.beam_center, 
+                        "sigma_width" : self.control.beam_property_fitting[:2],
+                        "angle" : self.control.beam_property_fitting[2],
+                        "illumination" : self.control.beam_intensity,
+                    }
+                    send_with_retries(self.metadata_notifier.notify_metadata_update, 
+                                        self.tem_action.visualization_panel.formatted_filename, 
+                                        self.control.tem_status, 
+                                        beam_property,
+                                        self.rotations_angles,
+                                        self.cfg.threshold,
+                                        retries=3, 
+                                        delay=0.1) 
+                    
+                    self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
+                    # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')
+                except Exception as e:
+                    logging.error(f"Metadata Update Error: {e}")
+                    self.file_operations.update_xtalinfo_signal.emit('Metadata error', 'XDS')
+
             # Enable auto reset of tilt
             if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
                 logging.info("Return the stage tilt to zero.")
@@ -224,34 +233,15 @@ class RecordTask(Task):
             # Waiting for the rotation to end
             try:
                 while self.client.is_rotating:
-                    time.sleep(0.01)
+                    time.sleep(0.2) # 0.01, but only supressing (reducing) output is necessary
             except Exception as e:
                 logging.error(f'Error during "Auto-Reset" rotation: {e}')
 
-            # Add H5 info and file finalization
-            if self.writer is not None:
-                time.sleep(0.1)
-                logging.info(" ******************** Adding Info to H5 over Server...")
-                try:
-                    send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                        self.tem_action.visualization_panel.formatted_filename, 
-                                        self.control.tem_status, 
-                                        self.cfg.beam_center, 
-                                        self.rotations_angles,
-                                        self.cfg.threshold,
-                                        retries=3, 
-                                        delay=0.1) 
-                    
-                    self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
-                    # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')
-                except Exception as e:
-                        logging.error(f"Metadata Update Error: {e}")
-                        self.file_operations.update_xtalinfo_signal.emit('Metadata error', 'XDS')
-
             if self.writer is None:
                 self.reset_rotation_signal.emit()
-                
-            self.tem_action.trigger_additem.emit('green', 'recorded')
+            else:
+                self.tem_action.trigger_additem.emit('green', 'recorded', pos)
+                self.tem_action.trigger_processed_receiver.emit()
             time.sleep(0.5)
             print("------REACHED END OF TASK----------")
 
@@ -276,52 +266,7 @@ class RecordTask(Task):
                 logfile.close()  # Ensure the logfile is closed in case of any errors
             self.client.SetBeamBlank(1)
             time.sleep(0.01)
+            # Give back control to the TEM inspector for automatic updates of the UI
+            self.tem_action.tem_controls.gaussian_user_forced_off = False
+
             self.reset_rotation_signal.emit()
-        
-        # self.make_xds_file(master_filepath,
-        #                    os.path.join(sample_filepath, "INPUT.XDS"), # why not XDS.INP?
-        #                    self.tem_action.xds_template_filepath)
-         
-    # def on_tem_receive(self):
-    #     self.rotations_angles.append(
-    #         (self.control.tem_update_times['stage.GetPos'][0],
-    #         self.control.tem_status['stage.GetPos'][3],
-    #         self.control.tem_update_times['stage.GetPos'][1])
-    #     )
-
-    def make_xds_file(self, master_filepath, xds_filepath, xds_template_filepath):
-        master_file = h5py.File(master_filepath, 'r')
-        template_filepath = master_filepath[:-9] + "??????.h5" # master_filepath.replace('master', '??????')
-        frame_time = master_file['entry/instrument/detector/frame_time'][()]
-        oscillation_range = 0.05 # frame_time * self.phi_dot
-        logging.info(f" OSCILLATION_RANGE= {oscillation_range} ! frame time {frame_time}")
-        logging.info(f" NAME_TEMPLATE_OF_DATA_FRAMES= {template_filepath}")
-
-        for dset in master_file["entry/data"]:
-            nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"]
-            logging.info(f" DATA_RANGE= 1 {nimages_dset}")
-            logging.info(f" BACKGROUND_RANGE= 1 {nimages_dset}")
-            logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
-            h = master_file['entry/data/data_000001'].shape[2]
-            w = master_file['entry/data/data_000001'].shape[1]
-            for i in range(1):
-                image = master_file['entry/data/data_000001'][i]
-                logging.info(f"   !Image dimensions: {image.shape}, 1st value: {image[0]}")
-                org_x, org_y = self.cfg.beam_center[0], self.cfg.beam_center[1]
-                # org_x, org_y = self.tem_action.beamcenter[0], \
-                #                self.tem_action.beamcenter[1]
-            break
-
-        # myxds = XDSparams(xdstempl=xds_template_filepath)
-        # myxds.update(org_x, org_y, template_filepath, nimages_dset, oscillation_range,
-        #              self.control.tem_status['eos.GetMagValue'][0]*10)
-        # myxds.xdswrite(filepath=xds_filepath)
-        
-        # def do_xds(self):
-        #     make_xds_file()
-        #     subprocess.run(cmd_xds, cwd=self.'workingdirectory')
-        #     if os.path.isfile(** + '/IDXREF.LP'):
-        #         with open(** + '/IDXREF.LP', 'r') as f:
-        #             [extract cell parameters and indexing rate]
-        #     [report to the GUI or control_worker]
-                    

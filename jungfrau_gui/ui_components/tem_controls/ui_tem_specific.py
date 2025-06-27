@@ -22,15 +22,12 @@ class TEMDetector(QGroupBox):
     def initUI(self):
         detector_section = QVBoxLayout()
         
-        self.hbox_mag = QVBoxLayout()
         self.hbox_mag = QHBoxLayout()
         magn_label = QLabel("Magnification:", self)
         dist_label = QLabel("Distance:", self)
         self.input_magnification = QLineEdit(self)
-        self.input_magnification.setText(globals.mag_value_img[2])
         self.input_magnification.setReadOnly(True)
         self.input_det_distance = QLineEdit(self)
-        self.input_det_distance.setText(globals.mag_value_diff[2])
         self.input_det_distance.setReadOnly(True)
         self.scale_checkbox = QCheckBox("scale", self)
         self.scale_checkbox.setChecked(False)
@@ -41,16 +38,28 @@ class TEMDetector(QGroupBox):
         self.hbox_mag.addWidget(self.scale_checkbox, 1)
 
         detector_section.addLayout(self.hbox_mag)
+
+        if globals.dev:
+            self.hbox_e_incoming = QHBoxLayout()
+            self.calc_e_incoming_button = QPushButton("Calc Brightness on Detector/Sample", self)
+            self.e_incoming_display = QLineEdit(self)
+            self.e_incoming_display.setReadOnly(True)
+            self.calc_e_incoming_button.setEnabled(False)
+            self.hbox_e_incoming.addWidget(self.calc_e_incoming_button, 1)
+            self.hbox_e_incoming.addWidget(self.e_incoming_display, 2)
+            detector_section.addLayout(self.hbox_e_incoming)
+        
         self.setLayout(detector_section)
 
 class TEMStageCtrl(QGroupBox):
     def __init__(self):
         super().__init__() #"Stage Status / Quick Moves"
-        self.setTitle("X/Y stage plot")  # optional
-        self.setCheckable(True)
-        self.setChecked(True)
-        # Connect QGroupBox toggled signal to a custom slot
-        self.toggled.connect(self.on_collapsed)
+        if not globals.dev:
+            self.setTitle("X/Y stage plot")  # optional
+            self.setCheckable(True)
+            self.setChecked(True)
+            # Connect QGroupBox toggled signal to a custom slot
+            self.toggled.connect(self.on_collapsed)
         self.initUI()
 
     def initUI(self):
@@ -130,6 +139,9 @@ class TEMStageCtrl(QGroupBox):
             self.screen_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             self.screen_button.setEnabled(False)
             self.hbox_extras.addWidget(self.screen_button)
+            self.mapsnapshot_button = QPushButton("Snapshot", self)
+            self.mapsnapshot_button.setEnabled(False)
+            self.hbox_extras.addWidget(self.mapsnapshot_button)
         stage_ctrl_section.addLayout(self.hbox_extras)
         
         self.hbox_gotopos = QHBoxLayout()
@@ -142,9 +154,17 @@ class TEMStageCtrl(QGroupBox):
         self.go_button.setEnabled(False)
         # self.goxyz_button = QPushButton("Go XYZ", self)
         self.hbox_gotopos.addWidget(gotopos_label, 1)
-        self.hbox_gotopos.addWidget(self.position_list, 7)
-        self.hbox_gotopos.addWidget(self.addpos_button, 1)
-        self.hbox_gotopos.addWidget(self.go_button, 1)
+        if globals.dev:
+            self.loadsave_button = QPushButton("Load/Save", self)
+            # self.loadsave_button.setEnabled(False)
+            self.hbox_gotopos.addWidget(self.position_list, 6)
+            self.hbox_gotopos.addWidget(self.addpos_button, 1)
+            self.hbox_gotopos.addWidget(self.go_button, 1)
+            self.hbox_gotopos.addWidget(self.loadsave_button, 1)
+        else:
+            self.hbox_gotopos.addWidget(self.position_list, 7)
+            self.hbox_gotopos.addWidget(self.addpos_button, 1)
+            self.hbox_gotopos.addWidget(self.go_button, 1)
         stage_ctrl_section.addLayout(self.hbox_gotopos)
 
         # 1) Create a container widget to hold the plot
@@ -153,6 +173,8 @@ class TEMStageCtrl(QGroupBox):
 
         # 2) Create the PlotWidget
         self.grid_plot = pg.PlotWidget()
+        self.grid_plot.getViewBox().invertX(True)
+        self.grid_plot.getViewBox().invertY(True)
         self.plot_layout.addWidget(self.grid_plot)
 
         # 3) Access the plotItem if needed
@@ -223,8 +245,12 @@ class TEMTasks(QGroupBox):
         BEAM_label.setFont(font_big)
         self.btnGaussianFit = ToggleButton("Gaussian Fit", self)
         self.btnGaussianFit.setEnabled(False)
-        self.beamAutofocus = ToggleButton('Autofocus', self)
-        self.beamAutofocus.setEnabled(False)
+        if globals.dev:
+            self.beamAutofocus = ToggleButton('Autofocus', self)
+            self.beamAutofocus.setEnabled(False)
+            self.fast_autofocus_checkbox = QCheckBox("fast", self)
+            self.fast_autofocus_checkbox.setChecked(True)
+
         self.popup_checkbox = self.parent.checkbox
         self.plotDialog = self.parent.plotDialog
 
@@ -246,8 +272,8 @@ class TEMTasks(QGroupBox):
         INPUT_layout = QHBoxLayout()
         input_start_angle_lb = QLabel("Start angle:", self) # current value
         self.input_start_angle = QDoubleSpinBox(self)
-        self.input_start_angle.setMaximum(70)
-        self.input_start_angle.setMinimum(-70)
+        self.input_start_angle.setMaximum(72)
+        self.input_start_angle.setMinimum(-72)
         self.input_start_angle.setSuffix('°')
         self.input_start_angle.setDecimals(1)
         # self.input_start_angle.setValue("")
@@ -260,11 +286,14 @@ class TEMTasks(QGroupBox):
         END_layout = QHBoxLayout()
         end_angle = QLabel("Target angle:", self)
         self.update_end_angle = QDoubleSpinBox(self)
-        self.update_end_angle.setMaximum(71) # should be checked with the holder's threshold
-        self.update_end_angle.setMinimum(-71)
+        self.update_end_angle.setMaximum(72) # should be checked with the holder's threshold
+        self.update_end_angle.setMinimum(-72)
         self.update_end_angle.setSuffix('°')
         self.update_end_angle.setDecimals(1)
         self.update_end_angle.setValue(60) # will be replaced with configuration file
+        if globals.dev:
+            self.mirror_angles_checkbox = QCheckBox("mirror", self)
+            self.mirror_angles_checkbox.setChecked(False)
 
         END_layout.addWidget(end_angle)
         END_layout.addWidget(self.update_end_angle)
@@ -288,9 +317,15 @@ class TEMTasks(QGroupBox):
         BEAM_group.addWidget(BEAM_label)
         BEAM_group.addLayout(Voltage_layout)
         BEAM_group.addSpacing(10)
-        layout_Beam_buttons = QHBoxLayout()
-        layout_Beam_buttons.addWidget(self.btnGaussianFit)
-        layout_Beam_buttons.addWidget(self.beamAutofocus)
+        layout_Beam_buttons = QGridLayout()
+        if globals.dev:
+            layout_Beam_buttons.addWidget(self.btnGaussianFit           ,0,0,1,4)
+            layout_Beam_buttons.addWidget(self.beamAutofocus            ,0,4,1,4)
+            layout_Beam_buttons.addWidget(self.fast_autofocus_checkbox  ,0,8,1,1)
+        else:
+            layout_Beam_buttons.addWidget(self.btnGaussianFit           ,0,0)
+
+
         BEAM_group.addLayout(layout_Beam_buttons)
         BEAM_group.addWidget(self.popup_checkbox)
         
@@ -330,7 +365,10 @@ class TEMTasks(QGroupBox):
         ROT_group.addSpacing(10)
         ROT_group.addLayout(ROT_section_1)
         ROT_section_2.addLayout(INPUT_layout)
-        ROT_section_2.addSpacing(30)
+        if globals.dev:
+            END_layout.addWidget(self.mirror_angles_checkbox)
+        else:
+            ROT_section_2.addSpacing(30)
         ROT_section_2.addLayout(END_layout)
         ROT_group.addLayout(ROT_section_2)
         tasks_section.addLayout(ROT_group)

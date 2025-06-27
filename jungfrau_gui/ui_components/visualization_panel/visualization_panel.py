@@ -25,6 +25,12 @@ from rich import print
 from ..tem_controls.toolbox.progress_pop_up import ProgressPopup
 from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
 
+font_big = QFont("Arial", 11)
+font_big.setBold(True)
+font_medium = QFont("Arial", 10)
+font_medium.setBold(True)
+font_small = QFont("Arial", 10)
+
 class BrokerCheckTask(QRunnable):
     def __init__(self, check_function, complete_callback):
         super().__init__()
@@ -52,14 +58,12 @@ class VisualizationPanel(QGroupBox):
         self.cfg =  ConfigurationClient(redis_host(), token=auth_token())
         self.receiver_client =  None
         self.jfjoch_client = None
+        self.lut = cfg_jf.lut()
 
         # Thread pool for running check tasks in separate threads
         self.thread_pool = QThreadPool()
         self.checked_jfj_task_running = False  # Flag to ensure no overlapping tasks
         
-        font_big = QFont("Arial", 11)
-        font_big.setBold(True)
-        font_small = QFont("Arial", 10)  # Specify the font name and size
 
         self.palette = get_palette("dark")
         self.setPalette(self.palette)
@@ -91,9 +95,7 @@ class VisualizationPanel(QGroupBox):
         # Set the initial theme
         self.current_theme = 'viridis'
         self.change_theme(self.current_theme)
-        
-        #self.change_theme('viridis')
-        
+                
         section_visual.addLayout(colors_group)
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
@@ -120,9 +122,8 @@ class VisualizationPanel(QGroupBox):
  
         view_contrast_group.addLayout(grid_1)
         section_visual.addLayout(view_contrast_group)
-        # section_visual.addWidget(create_horizontal_line_with_margin())
 
-        time_interval = QLabel("Acquisition Interval (ms):", self)
+        time_interval = QLabel("Display Interval (ms):", self)
         self.update_interval = QSpinBox(self)
         self.update_interval.setMaximum(5000)
         self.update_interval.setSuffix(' ms')
@@ -132,54 +133,64 @@ class VisualizationPanel(QGroupBox):
         time_interval_layout.addWidget(time_interval)
         time_interval_layout.addWidget(self.update_interval)
         section_visual.addLayout(time_interval_layout)
+        
+        if globals.dev:
+            frame_sum = QLabel("Frames summed:", self)
+            self.frame_summed = QSpinBox(self)
+            self.frame_summed.setRange(10, 1000)
+            self.frame_summed.setSingleStep(10)
+            self.frame_summed.setValue(100)
+            frame_sum_layout = QHBoxLayout()
+            frame_sum_layout.addWidget(frame_sum)
+            frame_sum_layout.addWidget(self.frame_summed)
+            section_visual.addLayout(frame_sum_layout)
+
         section_visual.addWidget(create_horizontal_line_with_margin(15))
 
-        # if globals.jfj:
-
         jfjoch_control_group = QVBoxLayout()
-        # jfjoch_control_group.addWidget(create_horizontal_line_with_margin(15))
 
         jfjoch_control_label = QLabel("Jungfraujoch Control Panel")
         jfjoch_control_label.setFont(font_big)
         jfjoch_control_group.addWidget(jfjoch_control_label)
 
-        self.connectTojfjoch = ToggleButton('Connect to Jungfraujoch', self)
+        jfjoch_com_status = QGridLayout()
+        connectTojfjoch_label = QLabel("Connection to JFJ")
+        jfjoch_com_status.addWidget(connectTojfjoch_label, 0, 0, 1, 3)
+        self.connectTojfjoch = ToggleButton('Disconnected', self)
         self.connectTojfjoch.setMaximumHeight(50)
-        self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client)
+        self.connectTojfjoch.setEnabled(False)
+        self.connectTojfjoch.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+        # self.connectTojfjoch.clicked.connect(self.connect_and_start_jfjoch_client)
+        jfjoch_com_status.addWidget(self.connectTojfjoch, 0, 3, 1, 5)
         
         self.check_jfj_timer = QTimer()
         self.check_jfj_timer.timeout.connect(self.run_check_jfj_ready_in_thread)
         self.jfj_broker_is_ready = False
 
-        grid_connection_jfjoch = QGridLayout()
-        grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
-
-        spacer1 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
-        grid_connection_jfjoch.addItem(spacer1)
+        grid_connection_jfjoch = QVBoxLayout()
+        # grid_connection_jfjoch.addWidget(self.connectTojfjoch, 0, 0, 2, 5)
+        grid_connection_jfjoch.addLayout(jfjoch_com_status)
 
         jfjoch_control_group.addLayout(grid_connection_jfjoch)
+        
+        live_stream_status = QGridLayout()
+        live_stream_status_label = QLabel("Live stream state")
+        live_stream_status.addWidget(live_stream_status_label, 0, 0, 1, 3)
 
-        grid_streaming_jfjoch = QGridLayout()
+        self.live_stream_button = ToggleButton('Unknown', self)
+        self.live_stream_button.setEnabled(False)
+        self.live_stream_button.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+        # self.live_stream_button.clicked.connect(self.toggle_LiveStream)
 
-        grid_stream_label = QLabel("Live streaming")
-        grid_stream_label.setFont(font_small)
+        self.live_stream_timer = QTimer()
+        self.live_stream_timer.timeout.connect(self.restart_stream)
 
-        grid_streaming_jfjoch.addWidget(grid_stream_label)
+        live_stream_status.addWidget(self.live_stream_button, 0, 3, 1, 5)
+        jfjoch_control_group.addLayout(live_stream_status)
 
-        self.live_stream_button = ToggleButton('Live Stream', self)
-        self.live_stream_button.setDisabled(True)
-        self.live_stream_button.clicked.connect(self.toggle_LiveStream)
+        threshold_box = QGridLayout()
 
-        grid_streaming_jfjoch.addWidget(self.live_stream_button, 4, 0, 1, 5)   # Stop button spanning all 4 columns at row 3
-
-        jfjoch_control_group.addLayout(grid_streaming_jfjoch)
-
-        grid_collection_jfjoch = QGridLayout()
-
-        grid_collection_label = QLabel("Data Collection")
-        grid_collection_label.setFont(font_small)
-
-        grid_collection_jfjoch.addWidget(grid_collection_label)
+        threshold_label = QLabel("Threshold (kV) ")
 
         self.thresholdBox = QSpinBox(self)
         self.thresholdBox.setMinimum(0)
@@ -187,7 +198,6 @@ class VisualizationPanel(QGroupBox):
         self.thresholdBox.setValue(self.cfg.threshold)
         self.thresholdBox.setDisabled(True)
         self.thresholdBox.setSingleStep(10)
-        self.thresholdBox.setPrefix("Threshold: ")
 
         self.last_threshold_value = self.thresholdBox.value()
         self.thresholdBox.valueChanged.connect(lambda value: (
@@ -196,15 +206,27 @@ class VisualizationPanel(QGroupBox):
         ))
         self.thresholdBox.editingFinished.connect(self.update_threshold_for_jfjoch)
 
-        self.wait_option = QCheckBox("wait", self)
+        self.wait_option = QCheckBox("wait on stream", self)
         self.wait_option.setChecked(False)
         self.wait_option.setDisabled(True)
 
         self.wait_option.setToolTip("Check this option to block the GUI when collecting data.")
 
-        # grid_collection_jfjoch.addWidget(self.nbFrames, 1, 0, 1, 3)
-        grid_collection_jfjoch.addWidget(self.thresholdBox, 1, 0, 1, 3)
-        grid_collection_jfjoch.addWidget(self.wait_option, 1, 3, 1, 1)
+        threshold_box.addWidget(threshold_label, 0, 0, 1, 3)
+        threshold_box.addWidget(self.thresholdBox, 0, 3, 1, 3)
+        threshold_box.addWidget(self.wait_option, 0, 6, 1, 1)
+        
+        jfjoch_control_group.addLayout(threshold_box)
+
+        spacer1 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
+        jfjoch_control_group.addItem(spacer1)
+
+        grid_collection_jfjoch = QGridLayout()
+
+        grid_collection_label = QLabel("Data Collection")
+        grid_collection_label.setFont(font_medium)
+
+        grid_collection_jfjoch.addWidget(grid_collection_label)
 
         self.fname_label = QLabel("Path to recorded file", self)
         self.full_fname = QLineEdit(self)
@@ -215,7 +237,7 @@ class VisualizationPanel(QGroupBox):
         hbox_layout.addWidget(self.fname_label)
         hbox_layout.addWidget(self.full_fname)
 
-        grid_collection_jfjoch.addLayout(hbox_layout, 2, 0, 1, 6)
+        grid_collection_jfjoch.addLayout(hbox_layout, 1, 0, 1, 6)
 
         self.startCollection = QPushButton('Collect', self)
         self.startCollection.setDisabled(True)
@@ -226,8 +248,8 @@ class VisualizationPanel(QGroupBox):
         self.stop_jfj_measurement.setDisabled(True)
         self.stop_jfj_measurement.clicked.connect(lambda: self.send_command_to_jfjoch('cancel'))
 
-        grid_collection_jfjoch.addWidget(self.startCollection, 3, 0, 1, 6)
-        grid_collection_jfjoch.addWidget(self.stop_jfj_measurement, 4, 0, 1, 6)
+        grid_collection_jfjoch.addWidget(self.startCollection, 2, 0, 1, 6)
+        grid_collection_jfjoch.addWidget(self.stop_jfj_measurement, 3, 0, 1, 6)
 
         spacer2 = QSpacerItem(10, 10)  # 20 pixels wide, 40 pixels tall
         grid_collection_jfjoch.addItem(spacer2)
@@ -261,8 +283,6 @@ class VisualizationPanel(QGroupBox):
             tem_detector_layout.addWidget(self.tem_detector)
 
             section_visual.addLayout(tem_detector_layout)
-        else: 
-            pass
         
         section_visual.addStretch()
         self.setLayout(section_visual)
@@ -279,14 +299,16 @@ class VisualizationPanel(QGroupBox):
             if result is not True:
                 logging.warning("Exiting toggle_LiveStream due to failed 'live' command.")
                 return  # Exit early if the "live" command failed
-            
-            self.live_stream_button.setText("Stop")
+            self.live_stream_button.setStyleSheet('background-color: green; color: white;')
+            self.live_stream_button.setText("Live stream of frames is ON")
             self.parent.plot.setTitle("View of the stream from the Jungfraujoch broker")
             self.live_stream_button.started = True
+            self.live_stream_timer.start(3540000) # restart live stream after 59 min
         else:
-            # self.send_command_to_jfjoch("cancel")
+            self.live_stream_timer.stop()
             logging.info(f"Stopping the stream...") 
-            self.live_stream_button.setText("Live Stream")
+            self.live_stream_button.setStyleSheet('background-color: red; color: white;')
+            self.live_stream_button.setText("Live stream has been stopped...")
             self.parent.plot.setTitle("Stream stopped")
             self.jfjoch_client.cancel()
             self.live_stream_button.started = False
@@ -320,7 +342,7 @@ class VisualizationPanel(QGroupBox):
         if not self.jfj_is_collecting:
             self.startCollection.setEnabled(enables)
         self.stop_jfj_measurement.setEnabled(enables)
-        self.live_stream_button.setEnabled(enables)
+        # self.live_stream_button.setEnabled(enables)
         self.wait_option.setEnabled(enables) 
         self.thresholdBox.setEnabled(enables)
         self.recordPedestalBtn.setEnabled(enables)
@@ -386,6 +408,9 @@ class VisualizationPanel(QGroupBox):
                         # Then check the JFJ state of operation every 5 seconds
                         self.check_jfj_timer.start(5000)
 
+                        # Start the stream automatically if communication is successful
+                        # self.live_stream_button.clicked.emit()
+                        self.toggle_LiveStream()
                     except TimeoutError as e:
                         logging.error(f"Connection attempt timed out: {e}")
                         self.connectTojfjoch.setStyleSheet('background-color: red; color: white;')
@@ -424,7 +449,7 @@ class VisualizationPanel(QGroupBox):
             self.thread_pool.waitForDone()  # Wait for all tasks to finish
             self.connectTojfjoch.started = False
             self.connectTojfjoch.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-            self.connectTojfjoch.setText('Connect to Jungfraujoch')
+            self.connectTojfjoch.setText('Disconnected')
             self.send_command_to_jfjoch("cancel") # For now, the easiest way to keep up with the JFJ state
             
             """ 
@@ -445,7 +470,9 @@ class VisualizationPanel(QGroupBox):
                     # Cancel current task
                     self.send_command_to_jfjoch("cancel") 
                     self.jfjoch_client.wait_until_idle()
-
+                    self.jfjoch_client._lots_of_images = 72000 # 2000 hz x 3600 sec / 100 frame-summation
+                    self.jfjoch_client.image_time_us = 50000 # 500 us/frame * 100 frame-summation
+                    logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per image acquisition")
                     logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
@@ -453,9 +480,8 @@ class VisualizationPanel(QGroupBox):
                                             th = self.thresholdBox.value(),
                                             beam_x_pxl = self.cfg.beam_center[0],
                                             beam_y_pxl = self.cfg.beam_center[1],
-                                            # detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated'), #100
-                                            detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated'), #100
-                                            incident_energy_ke_v = 200,
+                                            detector_distance_mm = self.lut.interpolated_distance(globals.mag_value_diff[2], self.parent.tem_controls.voltage_spBx.value()),
+                                            incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
                                             wait = self.wait_option.isChecked())
                     logging.warning("Live stream started successfully.")
                     
@@ -487,15 +513,22 @@ class VisualizationPanel(QGroupBox):
                     
                     logging.warning(f"Starting to collect data...")
                     self.formatted_filename = self.cfg.fpath
+
+                    if globals.dev:
+                        self.jfjoch_client.image_time_us = self.frame_summed.value() * 500 # i.e. 500 us per image for a 2kHz frame rate
+                        self.jfjoch_client._lots_of_images = 2000 * 3600 // self.frame_summed.value() # -> 72000 summed images per hour for a summing factor of 100 at 2kHz frame rate
+                        logging.info(f"Nb of frames per trigger for measurement: {self.jfjoch_client._lots_of_images}") # 72000
+                        logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per (summed) image acquisition")
+                        prev_contrast = self.parent.histogram.getLevels()
+                        self.parent.histogram.setLevels(prev_contrast[0] * self.frame_summed.value() / 100, prev_contrast[1] * self.frame_summed.value() / 100)
                     
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
                                             fname = self.formatted_filename.as_posix(),
                                             th = self.thresholdBox.value(),
                                             beam_x_pxl = self.cfg.beam_center[0],
                                             beam_y_pxl = self.cfg.beam_center[1],
-                                            # detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, self.cfg.mag_value_diff[2], 'displayed', 'calibrated'), #100
-                                            detector_distance_mm = cfg_jf.lookup(cfg_jf.lut.distance, globals.mag_value_diff[2], 'displayed', 'calibrated'), #100
-                                            incident_energy_ke_v = 200,
+                                            detector_distance_mm = self.lut.interpolated_distance(globals.mag_value_diff[2], self.parent.tem_controls.voltage_spBx.value()),
+                                            incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
                                             wait = self.wait_option.isChecked())
                     self.jfj_is_collecting = True
                     # Create and start the wait_until_idle thread for asynchronous monitoring
@@ -575,7 +608,7 @@ class VisualizationPanel(QGroupBox):
                     self.toggle_LiveStream() # toggle OFF
                 else:
                     logging.info(f"Cancel request forwarded to JFJ...") 
-                    self.jfjoch_client.cancel()  
+                    if self.jfjoch_client is not None: self.jfjoch_client.cancel()  
 
         except Exception as e:
             logging.error(f"GUI caught relayed error: {e}")
@@ -587,7 +620,7 @@ class VisualizationPanel(QGroupBox):
             # Now proceed with the remaining code in "collect"
             logging.info("Measurement ended")
 
-            logging.info(f"Data has been saved in the following file:\n{self.cfg.fpath.as_posix()}")
+            logging.info(f"Data has been saved in the following file:\n{self.formatted_filename.as_posix()}")
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
 
@@ -603,6 +636,10 @@ class VisualizationPanel(QGroupBox):
             self.startCollection.setEnabled(True)
             self.resume_live_stream()
 
+    def restart_stream(self):
+        if not self.live_stream_button.started:
+            self.toggle_LiveStream()  # Start the stream after stopping
+
     def resume_live_stream(self):
         logging.warning(f"Resuming Live Stream now...")
         if not self.live_stream_button.started:
@@ -611,11 +648,7 @@ class VisualizationPanel(QGroupBox):
         else:
             # If "Live" button is ON, turn it off, then re-start the stream
             self.send_command_to_jfjoch("cancel")  # Stop the stream first
-
-            def restart_stream():
-                if not self.live_stream_button.started:
-                    self.toggle_LiveStream()  # Start the stream after stopping
-            QTimer.singleShot(200, restart_stream)  # Additional delay to ensure cancel completes
+            QTimer.singleShot(200, self.restart_stream)  # Additional delay to ensure cancel completes
 
     """ ******************************************** """
     """ Methods for Streaming/Contrasting operations """
@@ -651,6 +684,7 @@ class VisualizationPanel(QGroupBox):
     def toggle_viewStream(self):
         if not self.stream_view_button.started:
             self.thread_read = QThread()
+            self.thread_read.setObjectName("Frame_Reader Thread")
             self.streamReader = Reader(self.parent.receiver)
             self.parent.threadWorkerPairs.append((self.thread_read, self.streamReader))                              
             self.initializeWorker(self.thread_read, self.streamReader) # Initialize the worker thread and fitter
@@ -665,13 +699,20 @@ class VisualizationPanel(QGroupBox):
             logging.info(f"Timer interval: {self.parent.timer.interval()}")
             # Start timer and enable file operation buttons
             self.parent.timer.start()
+            if not self.connectTojfjoch.started: 
+                self.connect_and_start_jfjoch_client()
+
         else:
+            if self.connectTojfjoch.started: 
+                self.connect_and_start_jfjoch_client()
+
             self.stream_view_button.setText("View Stream")
             self.parent.plot.setTitle("Stream stopped at the current Frame")
             self.stream_view_button.started = False
             self.parent.timer.stop()
             # Properly stop and cleanup worker and thread  
             self.parent.stopWorker(self.thread_read, self.streamReader)
+            self.streamReader, self.thread_read = thread_manager.reset_worker_and_thread(self.streamReader, self.thread_read)
             # Wait for thread to actually stop
             if self.thread_read is not None:
                 logging.info("** Read-thread forced to sleep **")

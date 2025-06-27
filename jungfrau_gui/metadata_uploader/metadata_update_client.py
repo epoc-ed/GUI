@@ -27,6 +27,8 @@ class CustomJSONEncoder(json.JSONEncoder):
             return float(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
+        elif isinstance(obj, dict):
+            return {k: v.tolist() if isinstance(v, np.ndarray) else str(v) for k, v in obj.items()}
         # Add more types as needed
         return super().default(obj)
 
@@ -41,7 +43,7 @@ class MetadataNotifier:
     def _now(self):
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    def notify_metadata_update(self, filename, tem_status, beamcenter, rotations_angles, jf_threshold, jf_gui_tag = globals.tag, commit_hash = globals.commit, timeout_ms = 5000):
+    def notify_metadata_update(self, filename, tem_status, beam_property, rotations_angles, jf_threshold, jf_gui_tag = globals.tag, commit_hash = globals.commit, timeout_ms = 5000):
         
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
@@ -50,15 +52,17 @@ class MetadataNotifier:
         socket.setsockopt(zmq.LINGER, 0)
         socket.connect(f"tcp://{self.host}:{self.port}")
 
-        detector_distance = cfg_jf.lookup(cfg_jf.lut.distance, tem_status['eos.GetMagValue_DIFF'][2], 'displayed', 'calibrated')
-        aperture_size_cl = cfg_jf.lookup(cfg_jf.lut.cl, tem_status['apt.GetSize(1)'], 'ID', 'size')
-        aperture_size_sa = cfg_jf.lookup(cfg_jf.lut.sa, tem_status['apt.GetSize(4)'], 'ID', 'size')
+        detector_distance = cfg_jf.lut().interpolated_distance(tem_status['eos.GetMagValue_DIFF'][2], tem_status["ht.GetHtValue"]/1e3)
+        aperture_size_cl = cfg_jf.lut().cl_size(tem_status['apt.GetSize(1)'])
+        aperture_size_sa = cfg_jf.lut().sa_size(tem_status['apt.GetSize(4)'])
+        tem_status['rotation_axis'] = cfg_jf.lut().rotaxis_for_ht(tem_status["ht.GetHtValue"])
+        tem_status['optical_axis_center'] = cfg_jf.lut.optical_axis_center
 
         try:
             message = {
                 "filename": filename.as_posix(),
                 "tem_status": tem_status,
-                "beamcenter": beamcenter,
+                "beam_property": beam_property,
                 "rotations_angles": rotations_angles,
                 "jf_threshold": jf_threshold,
                 "detector_distance": detector_distance,
@@ -102,8 +106,14 @@ if __name__ == "__main__":
     with open("tem_status_exemplar.txt", 'r') as file:
         tem_status = json.load(file)
 
-    beamcenter = cfg.beam_center # Read from Redis DB
-    
+    # beamcenter = cfg.beam_center # Read from Redis DB
+    beam_property = {
+        "center" : cfg.beam_center, 
+        "sigma_width" : [-1, -1], 
+        "angle" : 0,
+        "illumination" : {"pa_per_cm2": 0, "e_per_A2_sample": 0},
+    }
+
     # Example data for rotation at 10deg/s
     rotations_angles = [[0.0, 0.0], [1.0, 10.0], [2.0, 19.95], [3.0, 30.12], [4.0, 40.2],[5.0, 50.05],[6.0, 60.0]]
     
@@ -111,4 +121,5 @@ if __name__ == "__main__":
     #input("Enter to continue!")
 
     notifier = MetadataNotifier(host=args.host, port=args.port)
-    notifier.notify_metadata_update(args.filepath, tem_status, beamcenter, rotations_angles, jf_threshold)
+    # notifier.notify_metadata_update(args.filepath, tem_status, beamcenter, rotations_angles, jf_threshold)
+    notifier.notify_metadata_update(args.filepath, tem_status, beam_property, rotations_angles, jf_threshold)
