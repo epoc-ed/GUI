@@ -957,7 +957,7 @@ class TEMAction(QObject):
                 self.tem_stagectrl.gridarea.addItem(arrow_b)
                 self.tem_stagectrl.gridarea.addItem(arrow_c)
             self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + self.gui_id_offset, text)
-            logging.info(f"Item {info_d['gui_id']}:{info_d["dataid"]} is updated")
+            logging.info(f"Item {info_d['gui_id']}:{info_d['dataid']} is updated")
             info_d["status"] = 'processed'
 
         self.tem_stagectrl.gridarea.addItem(marker)
