@@ -50,7 +50,12 @@ class lut:
             return interpolated_distance[0]
         
     def calibrated_distance(self, key_search):
-        return self._lookup(self.distance, key_search, 'displayed', 'calibrated')
+        calibrated = self._lookup(self.distance, key_search, 'displayed', 'calibrated')
+        if calibrated != 0:
+            return calibrated
+        else:
+            logging.warning('Unregistered value. Nominal value returns instead!')
+            return self.distance
         
     def calibrated_magnification(self, key_search):
         return self._lookup(self.magnification, key_search, 'displayed', 'calibrated')
