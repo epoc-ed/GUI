@@ -1,10 +1,10 @@
 import logging
-from PySide6.QtGui import QIcon, QFont, QRegularExpressionValidator
+from PySide6.QtGui import QIcon, QFont, QRegularExpressionValidator, QStandardItem, QStandardItemModel
 from PySide6.QtCore import Signal, Qt, QRegularExpression, QTimer, Slot, QObject
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
                                 QLabel, QLineEdit, QSpinBox, QButtonGroup,
                                 QPushButton, QFileDialog, QCheckBox,
-                                QMessageBox, QGridLayout, QRadioButton)
+                                QMessageBox, QGridLayout, QRadioButton, QComboBox, QCompleter)
 
 
 from ...ui_components.toggle_button import ToggleButton
@@ -114,29 +114,52 @@ class FileOperations(QGroupBox):
         ########################
         # Experiment Class Field
         ########################
-        self.experiment_class = QLabel("Experiment Class", self)
-        self.rb_univie = QRadioButton("UniVie", self)
-        self.rb_external = QRadioButton("External", self)
-        self.rb_ip = QRadioButton("IP", self)
+#         self.experiment_class = QLabel("Experiment Class", self)
+#         self.rb_univie = QRadioButton("UniVie", self)
+#         self.rb_external = QRadioButton("External", self)
+#         self.rb_ip = QRadioButton("IP", self)
 
-        self.rb_experiment_class = QButtonGroup()
-        self.rb_experiment_class.addButton(self.rb_univie, 0)
-        self.rb_experiment_class.addButton(self.rb_external, 1)
-        self.rb_experiment_class.addButton(self.rb_ip, 2)
-        for rb in self.rb_experiment_class.buttons():
-            if rb.text() == self.cfg.experiment_class:
-                rb.setChecked(True)
-                break
+#         self.rb_experiment_class = QButtonGroup()
+#         self.rb_experiment_class.addButton(self.rb_univie, 0)
+#         self.rb_experiment_class.addButton(self.rb_external, 1)
+#         self.rb_experiment_class.addButton(self.rb_ip, 2)
+#         for rb in self.rb_experiment_class.buttons():
+#             if rb.text() == self.cfg.experiment_class:
+#                 rb.setChecked(True)
+#                 break
 
-        self.rb_experiment_class.buttonClicked.connect(self.update_experiment_class)
+#         self.rb_experiment_class.buttonClicked.connect(self.update_experiment_class)
 
-        redis_experiment_class_layout = QHBoxLayout()
-        redis_experiment_class_layout.addWidget(self.experiment_class)
-        for rb in self.rb_experiment_class.buttons():
-            redis_experiment_class_layout.addWidget(rb, 1)
-        # redis_experiment_class_layout.addWidget(self.get_experiment_class)
+#         redis_experiment_class_layout = QHBoxLayout()
+#         redis_experiment_class_layout.addWidget(self.experiment_class)
+#         for rb in self.rb_experiment_class.buttons():
+#             redis_experiment_class_layout.addWidget(rb, 1)
+#         # redis_experiment_class_layout.addWidget(self.get_experiment_class)
 
-        section3.addLayout(redis_experiment_class_layout)
+#         section3.addLayout(redis_experiment_class_layout)
+
+        self.affiliation = QLabel("Affiliation", self)
+        self.affiliation_input = QComboBox(self)
+        self.affiliation_input.setLineEdit(QLineEdit())
+        self.affiliation_input.setCompleter(QCompleter())
+        self.affiliation_list = QStandardItemModel(self)
+        for item in self.cfg.usedAffiliations:
+            qitem = QStandardItem(item)
+            self.affiliation_list.setItem(self.affiliation_list.rowCount(), 0, qitem)
+        self.affiliation_input.setModel(self.affiliation_list)
+        self.affiliation_input.completer().setModel(self.affiliation_list)
+#        self.affiliation_input.lineEdit().setText('')
+        
+        self.redis_fields.append(self.affiliation_input.lineEdit())
+        self.affiliation_input.lineEdit().setText(f'{self.cfg.affiliation}')
+        
+        self.affiliation_input.lineEdit().returnPressed.connect(self.update_affiliation)
+        
+        redis_affiliation_layout = QHBoxLayout()
+        redis_affiliation_layout.addWidget(self.affiliation)
+        redis_affiliation_layout.addWidget(self.affiliation_input)
+        
+        section3.addLayout(redis_affiliation_layout)
         
         #################
         # User Name Field
@@ -494,6 +517,14 @@ class FileOperations(QGroupBox):
 
     def spin_box_modified(self, spin_box):
         spin_box.setStyleSheet(f"QSpinBox {{ color: orange; background-color: {self.background_color}; }}")
+
+    def update_affiliation(self):
+        self.cfg.affiliation = self.affiliation_input.lineEdit().text() # Update the configuration when button is clicked
+        if not self.cfg.affiliation in self.cfg.usedAffiliations:
+            self.cfg.usedAffiliations = self.cfg.usedAffiliations + [self.cfg.affiliation]
+        self.reset_style(self.affiliation_input.lineEdit()) # Reset style to default
+        logging.info(f"Affiliation: {self.cfg.affiliation}")
+        self.update_data_directory()
 
     def update_userName(self):
         self.cfg.PI_name = self.userName_input.text() # Update the configuration when button is clicked
