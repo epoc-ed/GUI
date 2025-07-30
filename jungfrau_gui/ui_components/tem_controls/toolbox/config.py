@@ -91,6 +91,8 @@ class lut:
         w, h = self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'overlay_wh', index=-1)
         item_rect = QGraphicsRectItem(QRectF(x, y, w, h))
         item_rect.setPen(pg.mkPen('r', width=2))
+        item_rect.setFlag(QGraphicsEllipseItem.ItemIsMovable)
+        item_rect.setFlag(QGraphicsEllipseItem.ItemIsSelectable)
 
         return item_circle, item_rect, item_common
     
