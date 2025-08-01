@@ -45,7 +45,7 @@ class lut:
         interpolated_distance = griddata(self.data_grid[:, :-1], self.data_grid[:, -1], beam, method='linear')
         if np.isnan(interpolated_distance[0]):
             logging.info('Interpolation failed. Calibrated value returns instead.')
-            return self._lookup(self.distance, nominal, 'displayed', 'calibrated')
+            return self.calibrated_distance(nominal)
         else:
             return interpolated_distance[0]
         
@@ -55,7 +55,7 @@ class lut:
             return calibrated
         else:
             logging.warning('Unregistered value. Nominal value returns instead!')
-            return self.distance
+            return int(key_search[:-2])*10
         
     def calibrated_magnification(self, key_search):
         return self._lookup(self.magnification, key_search, 'displayed', 'calibrated')
