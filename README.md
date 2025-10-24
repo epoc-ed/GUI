@@ -198,7 +198,7 @@ We thank the **Paul Scherrer Institute (PSI)**, the **University of Vienna**, an
 
 ## References / Cite Us
 
-Please cite the following when using **JF_GUI** and related JUNGFRAU-based measurements in your work.
+Please cite the following when using **JFGui** and related JUNGFRAU-based measurements in your work.
 (Replace with the final bibliographic details as papers are still in review.)
 
 - Ferjaoui, K., *et al.* **A 1 Megapixel charge integrating hybrid pixel detector for electron diffraction**. *JINST*, 2025.
