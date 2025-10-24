@@ -1,6 +1,6 @@
-# JF_GUI — Control Interface for the JUNGFRAU Detector on JEOL TEM
+# JFGui — Control Interface for the JUNGFRAU Detector on JEOL TEM
 
-**JF_GUI** is a graphical user interface for operating the **JUNGFRAU hybrid pixel detector** integrated with **JEOL transmission electron microscopes (TEM)**.
+**JFGui** is a graphical user interface for operating the **JUNGFRAU hybrid pixel detector** integrated with **JEOL transmission electron microscopes (TEM)**.
 It streamlines detector configuration, acquisition, and live visualization for electron diffraction workflows.
 
 Full documentation: https://epoc-ed.github.io/manual/
@@ -10,7 +10,7 @@ Full documentation: https://epoc-ed.github.io/manual/
 ## Table of Contents
 - [Features](#features)
 - [Installation (Conda + local recipe)](#installation-conda--local-recipe)
-- [Startup (TEM-PC & CameraPC)](#startup-tem-pc--camerapc)
+- [Startup](#startup)
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
@@ -34,7 +34,7 @@ For detailed user and operator guides, see the manual: https://epoc-ed.github.io
 
 ## Installation (Conda + local recipe)
 
-Below is a condensed “How-To” for building and installing **JF_GUI** as a Conda package from a local recipe.
+Below is a condensed “How-To” for building and installing **JFGui** as a Conda package from a local recipe.
 For the canonical version, refer to the manual page.
 
 **A) Create the environment**
@@ -90,7 +90,7 @@ conda install --use-local jungfrau_gui \
 # Disable Quick Edit Mode in the console properties if scripts get interrupted.
 
 cd C:\ProgramData\EPOC
-conda activate vjem38  # conda environment with PyJem 3.8 installed
+conda activate vjem38  # conda environment on TEM-PC with PyJem 3.8 installed
 python server_tem.py
 ```
 
@@ -120,7 +120,11 @@ python -i /data/epoc/storage/jem2100plus/metadata_update_server.py
 3. Launch the desktop GUI:
 ```bash
 conda activate jf_gui
-jungfrau_gui
+# Run the JFGui
+# Option 1:
+jungfrau_gui            # command after local build
+# Option 2:
+python launch_gui.py    # without local build from the /GUI folder
 ```
 
 ---
@@ -132,7 +136,7 @@ jungfrau_gui
 - **Data paths**: Output directories for saved data and logs.
 - **JEOL integration**: Ensure microscope-side services/permissions match your site deployment.
 
-For site-specific setup (PSI/UniVie/JEOL), consult the **Deployment** and **Configuration** sections in the manual: https://epoc-ed.github.io/manual/
+For setting up the Jungfraujoch backend, consult the **Jungfraujoch** section in the manual: [https://epoc-ed.github.io/manual/](https://epoc-ed.github.io/manual/Jungfraujoch.html)
 
 ---
 
@@ -142,7 +146,7 @@ For site-specific setup (PSI/UniVie/JEOL), consult the **Deployment** and **Conf
   Use direct installation from the built `.conda`/`.tar.bz2` path (see above).
 
 - **Missing Qt plugins / blank window**  
-  Verify that `PySide6` (or Qt) installed cleanly in the `jf_gui` environment.
+  Verify that `PySide6` (or Qt) is installed cleanly in the `jf_gui` environment.
 
 - **Cannot connect to detector**  
   Check network routes, firewall rules, and that the readout/DAQ service is running and reachable.
@@ -153,7 +157,7 @@ For site-specific setup (PSI/UniVie/JEOL), consult the **Deployment** and **Conf
   pip install -r jungfrau_gui/requirements.txt
   ```
 
-For more, see the manual: https://epoc-ed.github.io/manual/.
+For more, see the manual: [https://epoc-ed.github.io/manual/](https://epoc-ed.github.io/manual/Troubleshooting.html).
 
 ---
 
@@ -195,7 +199,7 @@ We thank the **Paul Scherrer Institute (PSI)**, the **University of Vienna**, an
 ## References / Cite Us
 
 Please cite the following when using **JF_GUI** and related JUNGFRAU-based measurements in your work.
-(Replace with your final bibliographic details as needed.)
+(Replace with the final bibliographic details as papers are still in review.)
 
 - Ferjaoui, K., *et al.* **A 1 Megapixel charge integrating hybrid pixel detector for electron diffraction**. *JINST*, 2025.
 - Takaba, K., *et al.* **An electron diffractometer with the JUNGFRAU detector with large scale capacity**. *IUCrJ*, 2026.
