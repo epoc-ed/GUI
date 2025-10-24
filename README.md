@@ -25,7 +25,6 @@ Full documentation: https://epoc-ed.github.io/manual/
 - Control of **JUNGFRAU** detector parameters, trigger modes, and frame acquisition.
 - Integration with **JEOL TEM** workflows.
 - Live preview and basic visualization of frames.
-- Support for **multi-sensor modules** (e.g., **Si** and **CZT**).
 - Written in **Python** with a **Qt (PySide6)** frontend.
 - Reproducible builds using a **Conda recipe**.
 
