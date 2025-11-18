@@ -212,11 +212,10 @@ Please cite the following when using **JFGui** and related JUNGFRAU-based measur
   journal = {Journal of Instrumentation},
   year    = {to be published},
 }
-
+```
 <!-- @article{Takaba2026,
   author  = {Takaba, K. and others},
   title   = {An electron diffractometer with the JUNGFRAU detector with large scale capacity},
   journal = {To be specified},
   year    = {under preparation}
 } -->
-```
