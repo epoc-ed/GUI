@@ -178,7 +178,7 @@ pip install -e .
 
 ## License
 
-This project is distributed under the **To be completed**.
+This project is distributed under the **MIT License**.
 See the [LICENSE](LICENSE) file for the full text.
 
 ---
@@ -202,7 +202,7 @@ Please cite the following when using **JFGui** and related JUNGFRAU-based measur
 (Replace with the final bibliographic details as papers are still in review.)
 
 - Ferjaoui, K., *et al.* **A 1 Megapixel charge integrating hybrid pixel detector for electron diffraction**. *JINST*, to be published (2025?).
-- Takaba, K., *et al.* **An electron diffractometer with the JUNGFRAU detector with large scale capacity**. *Journal to be specified*, under preparation (2026?).
+<!-- - Takaba, K., *et al.* **An electron diffractometer with the JUNGFRAU detector with large scale capacity**. *Journal to be specified*, under preparation (2026?). -->
 
 **BibTeX (template)**
 ```bibtex
@@ -213,10 +213,10 @@ Please cite the following when using **JFGui** and related JUNGFRAU-based measur
   year    = {to be published},
 }
 
-@article{Takaba2026,
+<!-- @article{Takaba2026,
   author  = {Takaba, K. and others},
   title   = {An electron diffractometer with the JUNGFRAU detector with large scale capacity},
   journal = {To be specified},
   year    = {under preparation}
-}
+} -->
 ```
