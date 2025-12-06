@@ -3,6 +3,8 @@ import time
 import logging
 import zmq
 
+from .... import globals
+
 def create_full_mapping(info_queries, more_queries, init_queries, info_queries_client, more_queries_client, init_queries_client):
     """
     Creates a mapping between two sets of queries and their corresponding client-side equivalents.
@@ -188,6 +190,6 @@ def d2radius_in_px(d=1, camlen=660, ht=200, pixel=0.075):  # d in Angstroms, cam
     eV2angstrom function. It then calculates the diffraction angle and converts this to the radius 
     of the diffraction pattern in pixels using the camera's geometry.
     """
-    wavelength = eV2angstrom(ht * 1e3)
+    wavelength = eV2angstrom(ht * globals.KV_TO_V)
     radius = camlen * np.tan(np.arcsin(wavelength / 2 / d) * 2) / pixel
     return radius

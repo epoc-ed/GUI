@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
 from PySide6.QtCore import QRectF
 
 from epoc import ConfigurationClient, auth_token, redis_host
+from .... import globals
 
 f = files('jungfrau_gui').joinpath('ui_components/tem_controls/toolbox/jfgui2_config.json')
 parser = json.loads(f.read_text())
@@ -41,7 +42,7 @@ class lut:
             return 0
 
     def interpolated_distance(self, nominal, ht_value_kV):
-        beam = np.array([int(nominal[:-2])*10, ht_value_kV*1e3])
+        beam = np.array([int(nominal[:-2])*10, ht_value_kV*globals.KV_TO_V])
         interpolated_distance = griddata(self.data_grid[:, :-1], self.data_grid[:, -1], beam, method='linear')
         if np.isnan(interpolated_distance[0]):
             logging.info('Interpolation failed. Calibrated value returns instead.')
@@ -106,10 +107,3 @@ def pos2textlist():
     for i in lut.positions:
         textlist.append(f"{i['ID']:3d}:{i['xyz'][0]:7.1f}{i['xyz'][1]:7.1f}{i['xyz'][2]:7.1f}, {i['status']}")
     return textlist
-  
-class others:
-    ### will be removed when these are registered in the dataserver
-    # rotation_axis_theta = 21.8 # parser['rotation_axis_theta']
-    # rotation_axis_theta_lm1200x = 52.86 # hopefully be replaced with values for each mag
-    pixelsize = 0.075 # parser['pixelsize']
-    backlash = [100, 80, 0, 0] #x, y, z, tx [nm, deg.] undefined for z and tx

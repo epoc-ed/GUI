@@ -1,7 +1,7 @@
 import ctypes
 import numpy as np
 import multiprocessing as mp
-from epoc import ConfigurationClient
+from epoc import ConfigurationClient, auth_token, redis_host
 import subprocess
 
 def get_git_info():
@@ -49,7 +49,7 @@ def get_git_info():
         # Git not installed or command failed
         return defaults
 
-cfg = ConfigurationClient()
+cfg = ConfigurationClient(redis_host(), token=auth_token())
 stream = "tcp://localhost:4545"
 tem_mode = True
 # jfj = False
@@ -83,3 +83,12 @@ mag_value_img = [1, 'X', 'X1']
 mag_value_diff = [1, 'mm', '1cm']
 
 tag, branch, commit  = get_git_info()
+
+# constants, presets
+UM_TO_NM = 1e3
+MM_TO_UM = 1e3
+KV_TO_V = 1e3 
+PIXEL = 0.075 # mm
+
+default_HT = 200000.00 # V
+backlash = [100, 80, 0, 0]
