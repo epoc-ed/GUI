@@ -206,15 +206,15 @@ class VisualizationPanel(QGroupBox):
         ))
         self.thresholdBox.editingFinished.connect(self.update_threshold_for_jfjoch)
 
-        self.wait_option = QCheckBox("wait on stream", self)
-        self.wait_option.setChecked(False)
-        self.wait_option.setDisabled(True)
+        # self.wait_option = QCheckBox("wait on stream", self)
+        # self.wait_option.setChecked(False)
+        # self.wait_option.setDisabled(True)
 
-        self.wait_option.setToolTip("Check this option to block the GUI when collecting data.")
+        # self.wait_option.setToolTip("Check this option to block the GUI when collecting data.")
 
         threshold_box.addWidget(threshold_label, 0, 0, 1, 3)
-        threshold_box.addWidget(self.thresholdBox, 0, 3, 1, 3)
-        threshold_box.addWidget(self.wait_option, 0, 6, 1, 1)
+        threshold_box.addWidget(self.thresholdBox, 0, 3, 1, 5)
+        # threshold_box.addWidget(self.wait_option, 0, 6, 1, 1)
         
         jfjoch_control_group.addLayout(threshold_box)
 
@@ -343,7 +343,7 @@ class VisualizationPanel(QGroupBox):
             self.startCollection.setEnabled(enables)
         self.stop_jfj_measurement.setEnabled(enables)
         # self.live_stream_button.setEnabled(enables)
-        self.wait_option.setEnabled(enables) 
+        # self.wait_option.setEnabled(enables) 
         self.thresholdBox.setEnabled(enables)
         self.recordPedestalBtn.setEnabled(enables)
 
@@ -482,7 +482,7 @@ class VisualizationPanel(QGroupBox):
                                             beam_y_pxl = self.cfg.beam_center[1],
                                             detector_distance_mm = self.lut.interpolated_distance(globals.mag_value_diff[2], self.parent.tem_controls.voltage_spBx.value()),
                                             incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
-                                            wait = self.wait_option.isChecked())
+                                            wait = False)
                     logging.warning("Live stream started successfully.")
                     
                     return True  # Indicate success
@@ -529,7 +529,7 @@ class VisualizationPanel(QGroupBox):
                                             beam_y_pxl = self.cfg.beam_center[1],
                                             detector_distance_mm = self.lut.interpolated_distance(globals.mag_value_diff[2], self.parent.tem_controls.voltage_spBx.value()),
                                             incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
-                                            wait = self.wait_option.isChecked())
+                                            wait = False)
                     self.jfj_is_collecting = True
                     # Create and start the wait_until_idle thread for asynchronous monitoring
                     self.idle_thread = threading.Thread(target=self.jfjoch_client.wait_until_idle, args=(True,), daemon=True)
