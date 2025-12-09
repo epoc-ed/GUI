@@ -199,23 +199,20 @@ We thank the **Paul Scherrer Institute (PSI)**, the **University of Vienna**, an
 ## References / Cite Us
 
 Please cite the following when using **JFGui** and related JUNGFRAU-based measurements in your work.
-(Replace with the final bibliographic details as papers are still in review.)
 
-- Ferjaoui, K., *et al.* **A 1 Megapixel charge integrating hybrid pixel detector for electron diffraction**. *JINST*, to be published (2025?).
-<!-- - Takaba, K., *et al.* **An electron diffractometer with the JUNGFRAU detector with large scale capacity**. *Journal to be specified*, under preparation (2026?). -->
+- Ferjaoui, K., *et al.* **A 1 Megapixel charge integrating hybrid pixel detector for electron diffraction**. *JINST* (2025).
 
 **BibTeX (template)**
 ```bibtex
 @article{Ferjaoui2025JINST,
   author  = {Ferjaoui, K. and others},
   title   = {A 1 Megapixel charge integrating hybrid pixel detector for electron diffraction},
+  doi = {10.1088/1748-0221/20/12/C12007},
   journal = {Journal of Instrumentation},
-  year    = {to be published},
+  title = {A 1 Megapixel charge integrating hybrid pixel detector for electron diffraction},
+  issue = {12},
+  volume = {20},
+  pages = {C12007},
+  url = {https://iopscience.iop.org/article/10.1088/1748-0221/20/12/C12007},
+  year = {2025}
 }
-```
-<!-- @article{Takaba2026,
-  author  = {Takaba, K. and others},
-  title   = {An electron diffractometer with the JUNGFRAU detector with large scale capacity},
-  journal = {To be specified},
-  year    = {under preparation}
-} -->
