@@ -1,10 +1,7 @@
 import logging
-from PySide6.QtGui import QIcon, QFont, QRegularExpressionValidator, QStandardItem, QStandardItemModel
-from PySide6.QtCore import Signal, Qt, QRegularExpression, QTimer, Slot, QObject
-from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout,
-                                QLabel, QLineEdit, QSpinBox, QButtonGroup,
-                                QPushButton, QFileDialog, QCheckBox,
-                                QMessageBox, QGridLayout, QRadioButton, QComboBox, QCompleter)
+from PySide6.QtGui import QFont, QRegularExpressionValidator, QAction, QIcon, QPixmap, QPainter, QPen, QColor
+from PySide6.QtCore import Signal, Qt, QRegularExpression, QTimer, Slot, QObject, QEvent
+from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpinBox, QCheckBox, QComboBox, QCompleter)
 
 
 from ...ui_components.toggle_button import ToggleButton
@@ -140,25 +137,61 @@ class FileOperations(QGroupBox):
 
         self.affiliation = QLabel("Affiliation", self)
         self.affiliation_input = QComboBox(self)
-        self.affiliation_input.setLineEdit(QLineEdit())
-        self.affiliation_input.setCompleter(QCompleter())
-        self.affiliation_list = QStandardItemModel(self)
-        for item in self.cfg.usedAffiliations:
-            qitem = QStandardItem(item)
-            self.affiliation_list.setItem(self.affiliation_list.rowCount(), 0, qitem)
-        self.affiliation_input.setModel(self.affiliation_list)
-        self.affiliation_input.completer().setModel(self.affiliation_list)
-#        self.affiliation_input.lineEdit().setText('')
-        
-        self.redis_fields.append(self.affiliation_input.lineEdit())
-        self.affiliation_input.lineEdit().setText(f'{self.cfg.affiliation}')
-        
-        self.affiliation_input.lineEdit().returnPressed.connect(self.update_affiliation)
-        
+        self.affiliation_input.setEditable(True)
+        self.affiliation_input.setInsertPolicy(QComboBox.NoInsert)  # we control insertion
+
+        # Fill from config
+        self.affiliation_input.addItems(self.cfg.usedAffiliations)
+
+        # Configure completer
+        completer = self.affiliation_input.completer()
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        completer.setCompletionMode(QCompleter.PopupCompletion)
+
+        # Initial value (if any)
+        if self.cfg.affiliation:
+            self.affiliation_input.setCurrentText(self.cfg.affiliation)
+
+        # Track line edit for your redis_fields
+        line_edit = self.affiliation_input.lineEdit()
+        self.redis_fields.append(line_edit)
+
+        # Add x action on the right side of the line edit for quick deletion
+        size = 14  # tweak if you want it bigger or smaller
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.transparent)
+
+        p = QPainter(pixmap)
+        pen = QPen(QColor("red"))
+        pen.setWidth(2)
+        p.setPen(pen)
+        margin = 3
+        p.drawLine(margin, margin, size - margin - 1, size - margin - 1)
+        p.drawLine(margin, size - margin - 1, size - margin - 1, margin)
+        p.end()
+
+        icon = QIcon(pixmap)
+
+        # --- Create the action with the red icon ---
+        self.delete_affil_action = QAction(icon, "", self)
+        line_edit.addAction(self.delete_affil_action, QLineEdit.TrailingPosition)
+        self.delete_affil_action.triggered.connect(self.remove_current_affiliation)
+
+        # 1) Press [Enter] in the line edit after modification in order to commit
+        line_edit.returnPressed.connect(self.update_affiliation)
+
+        # 2) Mouse click on dropdown item -> commit immediately
+        self.affiliation_input.textActivated.connect(self.update_affiliation)
+
+        # Install event filter on the dropdown view to catch Delete key
+        view = self.affiliation_input.view()
+        view.installEventFilter(self)
+
+        # Layout
         redis_affiliation_layout = QHBoxLayout()
         redis_affiliation_layout.addWidget(self.affiliation)
         redis_affiliation_layout.addWidget(self.affiliation_input)
-        
         section3.addLayout(redis_affiliation_layout)
         
         #################
@@ -518,12 +551,73 @@ class FileOperations(QGroupBox):
     def spin_box_modified(self, spin_box):
         spin_box.setStyleSheet(f"QSpinBox {{ color: orange; background-color: {self.background_color}; }}")
 
-    def update_affiliation(self):
-        self.cfg.affiliation = self.affiliation_input.lineEdit().text() # Update the configuration when button is clicked
-        if not self.cfg.affiliation in self.cfg.usedAffiliations:
-            self.cfg.usedAffiliations = self.cfg.usedAffiliations + [self.cfg.affiliation]
-        self.reset_style(self.affiliation_input.lineEdit()) # Reset style to default
-        logging.info(f"Affiliation: {self.cfg.affiliation}")
+    def _affil_key(self, text: str) -> str:
+        """
+        Canonical comparison key for affiliations: remove ALL whitespace / case-insensitive
+        """
+        return "".join(text.split()).casefold()
+
+    def update_affiliation(self, text: str | None = None):
+        """
+        Commit the current affiliation choice:
+        - Works for Enter in the line edit (no arg)
+        - Works for mouse click on dropdown item (text passed by signal)
+        - Normalizes spaces 
+        - Case-/space-insensitive
+        """
+
+        # 1) Determine raw text source
+        if text is None:
+            raw_text = self.affiliation_input.lineEdit().text()
+        else:
+            raw_text = text
+
+        # 2) Reject pure whitespace
+        if not raw_text.strip():
+            self.reset_style(self.affiliation_input.lineEdit())
+            logging.info("Empty/whitespace affiliation ignored")
+            return
+
+        # 3) Pretty display form: normalize spaces but KEEP them
+        # For e.g: '  Harvard   University  ' -> 'Harvard University'
+        cleaned = " ".join(raw_text.split())
+
+        # 4) Comparison key: strip ALL whitespace + casefold
+        key = self._affil_key(cleaned)
+
+        # 5) Check if an equivalent affiliation already exists in the config list
+        existing_affil = None
+        for a in self.cfg.usedAffiliations:
+            if self._affil_key(a) == key:
+                existing_affil = a
+                break
+
+        if existing_affil is None:
+            # Store the cleaned version as canonical
+            canonical = cleaned
+            self.cfg.usedAffiliations = self.cfg.usedAffiliations + [canonical]
+
+            # Also check combobox items to avoid duplicate visual entries
+            found_in_combo = False
+            for i in range(self.affiliation_input.count()):
+                item_text = self.affiliation_input.itemText(i)
+                if self._affil_key(item_text) == key:
+                    found_in_combo = True
+                    break
+
+            if not found_in_combo:
+                self.affiliation_input.addItem(canonical)
+        else:
+            # Use the existing canonical version (preserve first-typed casing)
+            canonical = existing_affil
+
+        # 6) Update current affiliation everywhere
+        self.cfg.affiliation = canonical
+        self.affiliation_input.setCurrentText(canonical)
+
+        # 7) Reset style and updates data drectory
+        self.reset_style(self.affiliation_input.lineEdit())
+        logging.warning(f"Affiliation: {self.cfg.affiliation}")
         self.update_data_directory()
 
     def update_userName(self):
@@ -606,8 +700,8 @@ class FileOperations(QGroupBox):
 
         self.update_index_box(verbose=False)
         logging.info(f"File index has been reset to {self.cfg.file_id}!")
-        logging.warning(f"self.cfg.file_id = {self.cfg.file_id}")
-        logging.warning(f"self.index_box.value = {self.index_box.value()}")
+        logging.info(f"self.cfg.file_id = {self.cfg.file_id}")
+        logging.info(f"self.index_box.value = {self.index_box.value()}")
         logging.info(f"The full path for the next saved file is:\n{self.cfg.fpath}")
         
 
@@ -617,3 +711,60 @@ class FileOperations(QGroupBox):
             field.setStyleSheet(f"QLineEdit {{ color: {text_color}; background-color: {self.background_color}; }}")
         elif isinstance(field,QSpinBox):
             field.setStyleSheet(f"QSpinBox {{ color: {text_color}; background-color: {self.background_color}; }}")
+
+
+    def eventFilter(self, obj, event):
+        # Delete key pressed while focus is on the dropdown list
+        if obj is self.affiliation_input.view():
+            if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Delete:
+                view = self.affiliation_input.view()
+                index = view.currentIndex()
+                if index.isValid():
+                    raw_text = index.data()  # display text for that row
+                    self._remove_affiliation_by_text(raw_text)
+                return True
+
+        # Fallback
+        return super().eventFilter(obj, event)
+
+    def remove_current_affiliation(self):
+        raw_text = self.affiliation_input.currentText()
+        self._remove_affiliation_by_text(raw_text)
+
+    def _remove_affiliation_by_text(self, raw_text: str):
+        """
+        Remove the affiliation matching raw_text (case/space-insensitive)
+        from:
+        - cfg.usedAffiliations
+        - combobox items
+        Also clears cfg.affiliation if it matches.
+        """
+        if not raw_text or not raw_text.strip():
+            return
+
+        cleaned = " ".join(raw_text.split())
+        key = self._affil_key(cleaned)
+
+        # 1) Remove from cfg.usedAffiliations
+        new_list = []
+        for a in self.cfg.usedAffiliations:
+            if self._affil_key(a) != key:
+                new_list.append(a)
+        self.cfg.usedAffiliations = new_list
+
+        # 2) Remove from combobox
+        for i in range(self.affiliation_input.count() - 1, -1, -1):
+            item_text = self.affiliation_input.itemText(i)
+            if self._affil_key(item_text) == key:
+                self.affiliation_input.removeItem(i)
+
+        # 3) Clear current affiliation if it matches
+        if self._affil_key(self.cfg.affiliation) == key:
+            self.cfg.affiliation = ""
+            self.affiliation_input.setCurrentText("")
+
+        self.reset_style(self.affiliation_input.lineEdit())
+        logging.info(f"Removed affiliation: {cleaned!r}")
+        self.update_data_directory()
+
+
