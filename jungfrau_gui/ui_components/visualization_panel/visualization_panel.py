@@ -512,7 +512,9 @@ class VisualizationPanel(QGroupBox):
                     self.jfjoch_client.wait_until_idle()
                     
                     logging.warning(f"Starting to collect data...")
-                    self.formatted_filename = self.cfg.fpath
+                    # self.formatted_filename = self.cfg.fpath
+                    # self.full_fname = self.formatted_filename
+                    self.full_fname = self.cfg.fpath # update the filename as timestamp has probably changed
 
                     if globals.dev:
                         self.jfjoch_client.image_time_us = self.frame_summed.value() * 500 # i.e. 500 us per image for a 2kHz frame rate
@@ -523,7 +525,8 @@ class VisualizationPanel(QGroupBox):
                         self.parent.histogram.setLevels(prev_contrast[0] * self.frame_summed.value() / 100, prev_contrast[1] * self.frame_summed.value() / 100)
                     
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
-                                            fname = self.formatted_filename.as_posix(),
+                                            # fname = self.formatted_filename.as_posix(),
+                                            fname = self.full_fname.as_posix(),
                                             th = self.thresholdBox.value(),
                                             beam_x_pxl = self.cfg.beam_center[0],
                                             beam_y_pxl = self.cfg.beam_center[1],
@@ -620,7 +623,8 @@ class VisualizationPanel(QGroupBox):
             # Now proceed with the remaining code in "collect"
             logging.info("Measurement ended")
 
-            logging.info(f"Data has been saved in the following file:\n{self.formatted_filename.as_posix()}")
+            # logging.info(f"Data has been saved in the following file:\n{self.formatted_filename.as_posix()}")
+            logging.info(f"Data has been saved in the following file:\n{self.full_fname.as_posix()}")
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
 

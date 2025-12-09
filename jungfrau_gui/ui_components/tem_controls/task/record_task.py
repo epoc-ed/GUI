@@ -204,7 +204,8 @@ class RecordTask(Task):
                         "illumination" : self.control.beam_intensity,
                     }
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                        self.tem_action.visualization_panel.formatted_filename, 
+                                        # self.tem_action.visualization_panel.formatted_filename, 
+                                        self.tem_action.visualization_panel.full_fname, 
                                         self.control.tem_status, 
                                         beam_property,
                                         self.rotations_angles,

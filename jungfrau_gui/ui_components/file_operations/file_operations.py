@@ -364,7 +364,8 @@ class FileOperations(QGroupBox):
     #             }                
     #             try:
     #                 send_with_retries(self.metadata_notifier.notify_metadata_update, 
-    #                                     self.parent.visualization_panel.formatted_filename, 
+    # #                                    self.parent.visualization_panel.formatted_filename, 
+    #                                     self.parent.visualization_panel.full_fname, 
     #                                     self.parent.tem_controls.tem_action.control.tem_status, 
     #                                     beam_property,
     #                                     None, # self.rotations_angles,
@@ -460,7 +461,8 @@ class FileOperations(QGroupBox):
         try:
             send_with_retries(
                 self.metadata_notifier.notify_metadata_update, 
-                self.parent.visualization_panel.formatted_filename, 
+                # self.parent.visualization_panel.formatted_filename,
+                self.parent.visualization_panel.full_fname,
                 self.parent.tem_controls.tem_action.control.tem_status, 
                 beam_property,
                 None,  # self.rotations_angles,
