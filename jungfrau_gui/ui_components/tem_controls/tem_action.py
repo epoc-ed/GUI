@@ -1089,7 +1089,7 @@ class TEMAction(QObject):
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
         snapshot_image.setTransform(tr)
         self.tem_stagectrl.gridarea.addItem(snapshot_image)
-        snapshot_image.setPos(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM3)
+        snapshot_image.setPos(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM)
         snapshot_image.setZValue(-2)
         view = self.tem_stagectrl.gridarea.getViewBox()
         aspect_ratio = view.size().width()/view.size().height()
