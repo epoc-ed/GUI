@@ -271,13 +271,13 @@ class ControlWorker(QObject):
                 # self.stop_task()
                 return           
                 
+        self._interupt_TEM_polling_and_pause_GF()
+
         if self.tem_status['eos.GetFunctionMode'][0] != 4:
             logging.warning('Switches ' + str(self.tem_status['eos.GetFunctionMode'][1]) + ' to DIFF mode')
             
             # Switching to Diffraction Mode
             self.client.SelectFunctionMode(4)
-
-        self._interupt_TEM_polling_and_pause_GF()
 
         self.beam_fitter = GaussianFitterMP()
 
