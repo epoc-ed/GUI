@@ -347,6 +347,20 @@ class ApplicationWindow(QMainWindow):
         self.close()
 
     def closeEvent(self, event):
+        # Prevent closing the GUI while JFJ is not Idle
+        # TODO Add flexibily as a function of the nature of the ongoing JFJ operation
+        if self.visualization_panel.jfjoch_client:
+            if self.visualization_panel.jfjoch_client.status().state == 'Measuring':
+                reply = QMessageBox.question(
+                    self,
+                    "Jungfraujoch is not Idle",
+                    "The Jungfraujoch is currently measuring...Do you want to proceed anyway?",
+                    QMessageBox.Yes | QMessageBox.No
+                )
+                if reply == QMessageBox.No:
+                    event.ignore()  # Prevents the window from closing
+                    return
+        
         # Dealing with ongoing operation of the GUI after premature 'Exit' request
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread and thread.isRunning()]
         if running_threadWorkerPairs:
