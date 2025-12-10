@@ -12,7 +12,6 @@ from .record_task import RecordTask
 
 from .beam_focus_task import AutoFocusTask
 
-from .adjustZ_task import AdjustZ
 from .get_teminfo_task import GetInfoTask
 from .stage_centering_task import CenteringTask
 

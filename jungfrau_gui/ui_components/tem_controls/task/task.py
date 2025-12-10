@@ -40,12 +40,6 @@ class Task(QObject):
         self.running = False
         self.finished.emit()
 
-    def get_progress(self):
-        if not self.running:
-            return 0
-        percentage = abs(self.start_time - time.monotonic()) / self.estimated_duration_s
-        return max(0.0, min(percentage, 1.0))
-        
     def tem_info(self):
         logging.debug(f"{self.task_name} has asked for #info")
         self.send_tem_command.emit("#info")

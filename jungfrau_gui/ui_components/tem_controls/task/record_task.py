@@ -4,7 +4,6 @@ import h5py
 import logging
 import numpy as np
 from .task import Task
-from .dectris2xds import XDSparams
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Signal, Qt, QMetaObject
 from simple_tem import TEMClient
@@ -18,7 +17,6 @@ from .... import globals
 class RecordTask(Task):
     reset_rotation_signal = Signal()
 
-    # def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None, standard_h5_recording=False):
     def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None):
         super().__init__(control_worker, "Record")
         self.phi_dot = 0 # 10 deg/s
@@ -33,7 +31,6 @@ class RecordTask(Task):
         self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.metadata_notifier = MetadataNotifier(host = "noether", port = 3463, verbose = False)
-        # self.standard_h5_recording = standard_h5_recording
 
         self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)
 
