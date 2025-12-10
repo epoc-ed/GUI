@@ -93,10 +93,10 @@ class TEMAction(QObject):
         
         self.control.updated.connect(self.on_tem_update)
 
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, cfg_jf.others.backlash[0], True))
-        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, cfg_jf.others.backlash[0], True))
-        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, cfg_jf.others.backlash[3], False))
-        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, cfg_jf.others.backlash[3], False))
+        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, globals.backlash[0], True))
+        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, globals.backlash[0], True))
+        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, globals.backlash[3], False))
+        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.backlash[3], False))
 
         # Move X positive 10 micrometers
         #self.tem_stagectrl.movex10ump.clicked.connect(
@@ -209,8 +209,8 @@ class TEMAction(QObject):
             
             # Try to set voltage value safely without multiple lookups
             try:
-                ht_value = self.control.tem_status.get("ht.GetHtValue", 200000.0)
-                self.tem_controls.voltage_spBx.setValue(ht_value/1e3)
+                ht_value = self.control.tem_status.get("ht.GetHtValue", globals.default_HT)
+                self.tem_controls.voltage_spBx.setValue(ht_value/globals.KV_TO_V)
             except TypeError:
                 pass
             
@@ -273,7 +273,7 @@ class TEMAction(QObject):
                 self.parent.plot.removeItem(overlay)
         
         # Get voltage once
-        voltage = self.parent.tem_controls.voltage_spBx.value() * 1e3
+        voltage = self.parent.tem_controls.voltage_spBx.value() * globals.KV_TO_V
         
         # Get new overlays
         self.main_overlays = self.lut.overlays_for_ht(voltage)
@@ -393,7 +393,7 @@ class TEMAction(QObject):
             # Update voltage display
             ht_V = tem_status.get("ht.GetHtValue", 0)
             if ht_V is not None:
-                self.parent.tem_controls.voltage_spBx.setValue(ht_V/1e3)
+                self.parent.tem_controls.voltage_spBx.setValue(ht_V/globals.KV_TO_V)
             
             # Update angle display
             pos_list = tem_status.get("stage.GetPos") or [None, None, None, None, None]
@@ -644,7 +644,6 @@ class TEMAction(QObject):
             return
             
         # Cache frequently accessed values
-        pixel = cfg_jf.others.pixelsize
         ht = self.parent.tem_controls.voltage_spBx.value()
         
         # Remove previous scale item
@@ -665,7 +664,7 @@ class TEMAction(QObject):
         else:
             # Use cached or memoized calibration when possible
             magnification = self.lut.calibrated_magnification(mag_value)
-            scale_in_px = l_draw * 1e-3 * magnification / pixel
+            scale_in_px = l_draw * magnification / globals.PIXEL / globals.MM_TO_UM 
             self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
         
         # Set pen only once and add to plot
@@ -853,7 +852,7 @@ class TEMAction(QObject):
         position = self.control.tem_status["stage.GetPos"] # in nm
         selected_item = self.tem_stagectrl.position_list.currentIndex()
         if selected_item <= self.gui_id_offset:
-            position_aim = np.array((cfg_jf.lut.positions[selected_item]['xyz']), dtype=float) *1e3
+            position_aim = np.array((cfg_jf.lut.positions[selected_item]['xyz']), dtype=float)*globals.UM_TO_NM
         else:
             xtalinfo_selected = next((d for d in self.xtallist if d.get("gui_id") == selected_item - self.gui_id_offset), None)        
             if xtalinfo_selected is None:
@@ -864,14 +863,14 @@ class TEMAction(QObject):
         dif_pos = [position_aim[0] - position[0], position_aim[1] - position[1]]
         distance = np.linalg.norm(np.array(dif_pos))
         if distance > 1e6:
-            logging.warning(f"Vector too large! {distance/1e3:.1f} um")
+            logging.warning(f"Vector too large! {distance/globals.UM_TO_NM:.1f} um")
             return
         try:
             self.control.client._send_message("SetStagePosition", dif_pos[0], dif_pos[1])
             # time.sleep(distance/1e5) # assumes speed of movement as > 100 um/s, should be updated with referring stage status!!
-            logging.info(f"Moved from x:{position[0]*1e-3:6.2f} um, y:{position[1]*1e-3:6.2f} um") # debug
-            logging.info(f"Moved by x:{dif_pos[0]*1e-3:6.2f} um, y:{dif_pos[1]*1e-3:6.2f} um")
-            logging.info(f"Aimed position was x:{position_aim[0]*1e-3:3.2f} um, y:{position_aim[1]*1e-3:3.2f} um") # debug
+            logging.info(f"Moved from x:{position[0]/globals.UM_TO_NM:6.2f} um, y:{position[1]/globals.UM_TO_NM:6.2f} um") # debug
+            logging.info(f"Moved by x:{dif_pos[0]/globals.UM_TO_NM:6.2f} um, y:{dif_pos[1]/globals.UM_TO_NM:6.2f} um")
+            logging.info(f"Aimed position was x:{position_aim[0]/globals.UM_TO_NM:3.2f} um, y:{position_aim[1]/globals.UM_TO_NM:3.2f} um") # debug
         except RuntimeError:
             logging.warning('To set position, use specific version of tem_server.py!')
             self.tem_stagectrl.go_button.setEnabled(False)
@@ -886,11 +885,11 @@ class TEMAction(QObject):
                 logging.error(f"Error: {e}")
                 return
         new_id = self.tem_stagectrl.position_list.count() - self.gui_id_offset
-        text = f"{new_id:3d}:{position[0]*1e-3:7.1f}{position[1]*1e-3:7.1f}{position[2]*1e-3:7.1f}, {status}"
-        marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
+        text = f"{new_id:3d}:{position[0]/globals.UM_TO_NM:7.1f}{position[1]/globals.UM_TO_NM:7.1f}{position[2]/globals.UM_TO_NM:7.1f}, {status}"
+        marker = pg.ScatterPlotItem(x=[position[0]/globals.UM_TO_NM], y=[position[1]/globals.UM_TO_NM], brush=color)
         label = pg.TextItem(str(new_id), anchor=(0, 1))
         label.setFont(QFont('Arial', 8))
-        label.setPos(position[0]*1e-3, position[1]*1e-3)
+        label.setPos(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM)
         self.tem_stagectrl.position_list.addItem(text)
         self.tem_stagectrl.gridarea.addItem(marker)
         self.tem_stagectrl.gridarea.addItem(label)
@@ -923,7 +922,7 @@ class TEMAction(QObject):
         # read unmeasured data
         if 'spots' not in info_d:
             logging.info(f"Item {info_d['gui_id']} is loaded")
-            marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush='red')
+            marker = pg.ScatterPlotItem(x=[position[0]/globals.UM_TO_NM], y=[position[1]/globals.UM_TO_NM], brush='red')
             self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + self.gui_id_offset, info_d["gui_text"])
             label = pg.TextItem(str(info_d["gui_id"]), anchor=(0, 1))
         else:
@@ -934,22 +933,22 @@ class TEMAction(QObject):
             color_map = pg.colormap.get('plasma') # ('jet'); requires matplotlib
             color = color_map.map(spots[0]/spots[1], mode='qcolor')
             text = f"{info_d['dataid']}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
-            marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color, symbol='d')
+            marker = pg.ScatterPlotItem(x=[position[0]/globals.UM_TO_NM], y=[position[1]/globals.UM_TO_NM], brush=color, symbol='d')
             label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
             # represent orientation with cell-a axis, usually shortest
             angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
             length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])
-            arrow_a = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+            arrow_a = CenterArrowItem(pos=(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM), angle=angle,
                                  headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
             # represent orientation with cell-b axis
             angle = np.degrees(np.arctan2(axes[4], axes[3])) + 180
             length = np.linalg.norm(axes[3:5]) / np.linalg.norm(axes[3:6])
-            arrow_b = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+            arrow_b = CenterArrowItem(pos=(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM), angle=angle,
                                  headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
             # represent orientation with cell-c axis
             angle = np.degrees(np.arctan2(axes[7], axes[6])) + 180
             length = np.linalg.norm(axes[6:8]) / np.linalg.norm(axes[6:9])
-            arrow_c = CenterArrowItem(pos=(position[0]*1e-3, position[1]*1e-3), angle=angle,
+            arrow_c = CenterArrowItem(pos=(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM), angle=angle,
                                  headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
             # add updated items
             if spots[0]/spots[1] > 0.05: # assumes the lower spot-indexing rate as unsuccessful
@@ -962,7 +961,7 @@ class TEMAction(QObject):
 
         self.tem_stagectrl.gridarea.addItem(marker)
         label.setFont(QFont('Arial', 8))
-        label.setPos(position[0]*1e-3, position[1]*1e-3)
+        label.setPos(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM)
         self.tem_stagectrl.gridarea.addItem(label)
         info_d["gui_marker"] = marker
         info_d["gui_label"] = label
@@ -980,7 +979,7 @@ class TEMAction(QObject):
             self.tem_stagectrl.gridarea.removeItem(self.marker)
         position = self.control.tem_status.get("stage.GetPos", [0, 0, 0, 0, 0])
         if position is not None:
-            self.marker = pg.ScatterPlotItem(x=[position[0]*1e-3], y=[position[1]*1e-3], brush=color)
+            self.marker = pg.ScatterPlotItem(x=[position[0]/globals.UM_TO_NM], y=[position[1]/globals.UM_TO_NM], brush=color)
             self.tem_stagectrl.gridarea.addItem(self.marker)
 
     @Slot()
@@ -1007,8 +1006,7 @@ class TEMAction(QObject):
     def update_ecount(self, cutoff=400, bins_set=20):
         # estimate the number of incoming electrons with the most frequent bin of the count-histogram.
         ht = self.parent.tem_controls.voltage_spBx.value()
-        cutoff = cutoff / 200 * ht
-        pixel = cfg_jf.others.pixelsize
+        cutoff = cutoff / globals.default_HT * globals.KV_TO_V * ht
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
             logging.warning("Brightness should be calculated in imaging mode")
@@ -1030,7 +1028,7 @@ class TEMAction(QObject):
             xr = np.linspace(np.min(bins[1:])+delta,np.max(bins[1:])-delta,len(bins[1:])-1)
             approximate_average_count = xr[np.argmax(hist[1:])]
             logging.info(f'Approximate average: {approximate_average_count:.1f} count per pixel')
-            e_per_A2 = approximate_average_count / ht * frame / ((pixel*1e7)**2) # per sec
+            e_per_A2 = approximate_average_count / ht * frame / ((globals.PIXEL*1e7)**2) # per sec
             self.control.beam_intensity["pa_per_cm2"] = 1/6.241*e_per_A2*1e10 # per sec
             magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
             magnification = self.lut.calibrated_magnification(magnification)
@@ -1080,7 +1078,7 @@ class TEMAction(QObject):
         snapshot_image = pg.ImageItem(np.clip((np.nan_to_num(image) - low_thresh) / (high_thresh - low_thresh) * 255, 0, 255).astype(np.uint8))
         
         tr = QTransform()
-        scale = cfg_jf.others.pixelsize*1e3/calibrated_mag
+        scale = globals.PIXEL*globals.MM_TO_UM/calibrated_mag
         tr.scale(scale, scale)
         tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
         if int(magnification[0]) >= 1500 : # Mag
@@ -1091,12 +1089,12 @@ class TEMAction(QObject):
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
         snapshot_image.setTransform(tr)
         self.tem_stagectrl.gridarea.addItem(snapshot_image)
-        snapshot_image.setPos(position[0]*1e-3, position[1]*1e-3)
+        snapshot_image.setPos(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM)
         snapshot_image.setZValue(-2)
         view = self.tem_stagectrl.gridarea.getViewBox()
         aspect_ratio = view.size().width()/view.size().height()
-        y_range = position[1]*1e-3 - scale*image.shape[1]/2, position[1]*1e-3 + scale*image.shape[1]/2
-        x_range = position[0]*1e-3 - scale*image.shape[1]/2*aspect_ratio, position[0]*1e-3 + scale*image.shape[1]/2*aspect_ratio
+        y_range = position[1]/globals.UM_TO_NM - scale*image.shape[1]/2, position[1]/globals.UM_TO_NM + scale*image.shape[1]/2
+        x_range = position[0]/globals.UM_TO_NM - scale*image.shape[1]/2*aspect_ratio, position[0]/globals.UM_TO_NM + scale*image.shape[1]/2*aspect_ratio
         view.setRange(xRange=x_range, yRange=y_range)
         self.snapshot_images.append(snapshot_image)
         # if globals.dev:
@@ -1124,22 +1122,22 @@ class TEMAction(QObject):
         ppos = self.snapshot_images[-1].mapToParent(pos)
         x, y = ppos.x(), ppos.y()
         logging.debug(f"{x:0.1f}, {y:0.1f}") # identical to the TEM-stage-position in um
-        dx, dy = x*1e3 - position[0], y*1e3 - position[1]
+        dx, dy = x*globals.UM_TO_NM - position[0], y*globals.UM_TO_NM - position[1]
         if np.abs(dx) > 3e5 or np.abs(dy) > 3e5:
             logging.info("Large movement (> 300 um) is not yet permitted for safety.")
             return
 
         if dx >= 0:
-            self.control.trigger_movewithbacklash.emit(0, dx, cfg_jf.others.backlash[0], False)
+            self.control.trigger_movewithbacklash.emit(0, dx, globals.backlash[0], False)
         else:
-            self.control.trigger_movewithbacklash.emit(1, dx, cfg_jf.others.backlash[0], False)
+            self.control.trigger_movewithbacklash.emit(1, dx, globals.backlash[0], False)
         time.sleep(np.abs(dx)/5e4) # assumes speed of movement as > 50 um/s
         if dy >= 0:
-            self.control.trigger_movewithbacklash.emit(2, dy, cfg_jf.others.backlash[1], False)
+            self.control.trigger_movewithbacklash.emit(2, dy, globals.backlash[1], False)
         else:
-            self.control.trigger_movewithbacklash.emit(3, dy, cfg_jf.others.backlash[1], False)
+            self.control.trigger_movewithbacklash.emit(3, dy, globals.backlash[1], False)
 
-        logging.info(f'Move X: {dx/1e3:.1f} um,  Y: {dy/1e3:.1f} um')
+        logging.info(f'Move X: {dx/globals.UM_TO_NM:.1f} um,  Y: {dy/globals.UM_TO_NM:.1f} um')
 
     def synchronize_xtallist(self):
         if not self.dataReceiverReady:

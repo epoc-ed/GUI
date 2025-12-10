@@ -100,7 +100,7 @@ class ControlWorker(QObject):
                            "eos.GetFunctionMode": [-1, -1], "eos.GetMagValue": globals.mag_value_img,
                            "eos.GetMagValue_MAG": globals.mag_value_img, "eos.GetMagValue_DIFF": globals.mag_value_diff, "defl.GetBeamBlank": 0,
                            "apt.GetKind": 0, "apt.GetPosition_CL": [0, 0], "apt.GetPosition_OL": [0, 0], "apt.GetPosition_SA": [0, 0],
-                           "ht.GetHtValue": 200000.00, "ht.GetHtValue_readout": 0}
+                           "ht.GetHtValue": globals.default_HT, "ht.GetHtValue_readout": 0}
         
         self.tem_update_times = {}
         self.triggerdelay_ms = 500
@@ -372,7 +372,7 @@ class ControlWorker(QObject):
             if ht_value is not None:
                 tem_status['ht.GetHtValue_readout'] = 1
             else:
-                tem_status['ht.GetHtValue'] = 200000.00
+                tem_status['ht.GetHtValue'] = globals.default_HT
             
             # Signal update
             self.updated.emit()
@@ -787,7 +787,7 @@ class ControlWorker(QObject):
         elif direction == 1 and np.sign(self.tem_status["stage.GetPos_diff"][axis]) < 0:
             backlash = 0
             
-        logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, "
+        logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/globals.UM_TO_NM:8.3f}{y/globals.UM_TO_NM:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, "
                       f"{self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}"
         )
         
@@ -820,11 +820,10 @@ class ControlWorker(QObject):
                 return
 
         if moverid < 2 and button: # display the previous move to user
-            # logging.info(f"Moved stage {value*scale/1e3:.1f} um in X-direction")
             if moverid == 0:
                 self.tem_action.tem_stagectrl.movex10ump.setStyleSheet('background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);')
                 self.tem_action.tem_stagectrl.movex10umn.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
             else:
                 self.tem_action.tem_stagectrl.movex10ump.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
                 self.tem_action.tem_stagectrl.movex10umn.setStyleSheet('background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);')
-        logging.debug(f"xyz1, dxyz1 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")
+        logging.debug(f"xyz1, dxyz1 : {list(map(lambda x, y: f'{x/globals.UM_TO_NM:8.3f}{y/globals.UM_TO_NM:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")

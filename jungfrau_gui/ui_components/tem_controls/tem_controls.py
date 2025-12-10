@@ -66,10 +66,10 @@ class TemControls(QGroupBox):
         self.label_voltage.setText("Accelerating potential (HT)")
         self.voltage_spBx = QSpinBox()
         self.voltage_spBx.setMaximum(1000)
-        self.voltage_spBx.setValue(200)
+        self.voltage_spBx.setValue(globals.default_HT/globals.KV_TO_V)
         self.voltage_spBx.setSuffix(" kV")
         self.voltage_spBx.setReadOnly(True)
-        self.parent.resetContrastBtn.clicked.connect(lambda checked: self.parent.set_contrast(self.cfg.viewer_cmin*self.voltage_spBx.value()/200, self.cfg.viewer_cmax*self.voltage_spBx.value()/200))
+        self.parent.resetContrastBtn.clicked.connect(lambda checked: self.parent.set_contrast(self.cfg.viewer_cmin*self.voltage_spBx.value()/globals.default_HT*globals.KV_TO_V, self.cfg.viewer_cmax*self.voltage_spBx.value()/globals.default_HT*globals.KV_TO_V))
 
         self.label_Xo = QLabel()
         self.label_Xo.setText("X_center (px)")
