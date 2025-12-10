@@ -81,7 +81,7 @@ class ProcessedDataReceiver(QObject):
                 #     # ensure the socket is closed no matter what
         elif self.mode == 1: # load position list
             try:
-                search_path = self.parent.visualization_panel.full_fname.text()
+                search_path = self.parent.visualization_panel.get_full_fname_str()
                 socket.send_string(f"Session-metadata being inquired...: {search_path}")
                 result_json = socket.recv_string()
                 if 'not found' in result_json:
@@ -99,7 +99,7 @@ class ProcessedDataReceiver(QObject):
         elif self.mode == 2: # send position list
             try:
                 list_to_send = self.parent.tem_controls.tem_action.xtallist[1:]
-                list_to_send.append({'filename': self.parent.visualization_panel.full_fname.text()})
+                list_to_send.append({'filename': self.parent.visualization_panel.get_full_fname_str()})
                 filtered_list = [{k: v for k, v in d.items() if k not in {'gui_marker', 'gui_label'}} for d in list_to_send]
                 filtered_list = [item for item in filtered_list if not item.get('status') in ['recorded', 'processed']]
                 logging.debug(filtered_list)

@@ -204,13 +204,13 @@ class RecordTask(Task):
                         "illumination" : self.control.beam_intensity,
                     }
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                        self.tem_action.visualization_panel.formatted_filename, 
-                                        self.control.tem_status, 
-                                        beam_property,
-                                        self.rotations_angles,
-                                        self.cfg.threshold,
-                                        retries=3, 
-                                        delay=0.1) 
+                                      self.tem_action.visualization_panel.get_full_fname_path(), 
+                                      self.control.tem_status, 
+                                      beam_property,
+                                      self.rotations_angles,
+                                      self.cfg.threshold,
+                                      retries=3, 
+                                      delay=0.1) 
                     
                     self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
                     # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')

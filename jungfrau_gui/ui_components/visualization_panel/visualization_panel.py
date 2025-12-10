@@ -2,6 +2,7 @@ import time
 import logging
 import numpy as np
 import threading
+from pathlib import Path
 from PySide6.QtGui import QFont, QPalette
 from PySide6.QtCore import Qt, QThread, QMetaObject, Signal, QTimer, QThreadPool, QRunnable
 from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit, 
@@ -231,7 +232,8 @@ class VisualizationPanel(QGroupBox):
         self.fname_label = QLabel("Path to recorded file", self)
         self.full_fname = QLineEdit(self)
         self.full_fname.setReadOnly(True)
-        self.full_fname.setText(self.cfg.fpath.as_posix())
+        self._full_fpath = self.cfg.fpath   # single source of truth for the path
+        self.full_fname.setText(self._full_fpath.as_posix())
 
         hbox_layout = QHBoxLayout()
         hbox_layout.addWidget(self.fname_label)
@@ -287,6 +289,18 @@ class VisualizationPanel(QGroupBox):
         section_visual.addStretch()
         self.setLayout(section_visual)
 
+    def update_full_fname_from_cfg(self):
+        self._full_fpath = self.cfg.fpath
+        self.full_fname.setText(self._full_fpath.as_posix())
+
+    def get_full_fname_str(self) -> str:
+        if not self._full_fpath:
+            return "<no filename set>"
+        return self._full_fpath.as_posix()
+
+    def get_full_fname_path(self) -> Path | None:
+        return self._full_fpath
+    
     """ ***************************************************** """
     """ Methods for the Jungfraujoch receiver (FPGA Solution) """
     """ ***************************************************** """
@@ -512,7 +526,9 @@ class VisualizationPanel(QGroupBox):
                     self.jfjoch_client.wait_until_idle()
                     
                     logging.warning(f"Starting to collect data...")
-                    self.formatted_filename = self.cfg.fpath
+                    self.update_full_fname_from_cfg()
+                    # self._full_fpath = self.cfg.fpath # update the filename as timestamp has probably changed
+                    # self.full_fname.setText(self._full_fpath.as_posix()) # update the GUI widget
 
                     if globals.dev:
                         self.jfjoch_client.image_time_us = self.frame_summed.value() * 500 # i.e. 500 us per image for a 2kHz frame rate
@@ -523,7 +539,7 @@ class VisualizationPanel(QGroupBox):
                         self.parent.histogram.setLevels(prev_contrast[0] * self.frame_summed.value() / 100, prev_contrast[1] * self.frame_summed.value() / 100)
                     
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
-                                            fname = self.formatted_filename.as_posix(),
+                                            fname = self.get_full_fname_str(),
                                             th = self.thresholdBox.value(),
                                             beam_x_pxl = self.cfg.beam_center[0],
                                             beam_y_pxl = self.cfg.beam_center[1],
@@ -620,7 +636,7 @@ class VisualizationPanel(QGroupBox):
             # Now proceed with the remaining code in "collect"
             logging.info("Measurement ended")
 
-            logging.info(f"Data has been saved in the following file:\n{self.formatted_filename.as_posix()}")
+            logging.info(f"Data has been saved in the following file:\n{self.get_full_fname_str()}")
             s = self.jfjoch_client.api_instance.statistics_data_collection_get()
             print(s)
 
