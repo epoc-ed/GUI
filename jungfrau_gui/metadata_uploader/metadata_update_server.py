@@ -161,7 +161,7 @@ class XDSparams:
         detector_distance = master_file['entry/instrument/detector/detector_distance'][()]
         
         for dset in master_file["entry/data"]:
-            nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages"][()]
+            nimages_dset = master_file["entry/instrument/detector/detectorSpecific/nimages_written"][()] # for JFJ 1.0.0-rc.96 or later
             # logging.info(f" DATA_RANGE= 1 {nimages_dset}")
             # logging.info(f" BACKGROUND_RANGE= 1 {nimages_dset}")
             # logging.info(f" SPOT_RANGE= 1 {nimages_dset}")
