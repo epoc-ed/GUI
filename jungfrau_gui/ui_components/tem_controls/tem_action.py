@@ -644,7 +644,6 @@ class TEMAction(QObject):
             return
             
         # Cache frequently accessed values
-        pixel = globals.pixelsize
         ht = self.parent.tem_controls.voltage_spBx.value()
         
         # Remove previous scale item
@@ -665,7 +664,7 @@ class TEMAction(QObject):
         else:
             # Use cached or memoized calibration when possible
             magnification = self.lut.calibrated_magnification(mag_value)
-            scale_in_px = l_draw * magnification / pixel / globals.MM_TO_UM 
+            scale_in_px = l_draw * magnification / globals.PIXEL / globals.MM_TO_UM 
             self.scale = QGraphicsLineItem(xo-scale_in_px/2, yo, xo+scale_in_px/2, yo)
         
         # Set pen only once and add to plot
@@ -1008,7 +1007,6 @@ class TEMAction(QObject):
         # estimate the number of incoming electrons with the most frequent bin of the count-histogram.
         ht = self.parent.tem_controls.voltage_spBx.value()
         cutoff = cutoff / globals.default_HT * globals.KV_TO_V * ht
-        pixel = globals.pixelsize
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
             logging.warning("Brightness should be calculated in imaging mode")
@@ -1030,7 +1028,7 @@ class TEMAction(QObject):
             xr = np.linspace(np.min(bins[1:])+delta,np.max(bins[1:])-delta,len(bins[1:])-1)
             approximate_average_count = xr[np.argmax(hist[1:])]
             logging.info(f'Approximate average: {approximate_average_count:.1f} count per pixel')
-            e_per_A2 = approximate_average_count / ht * frame / ((pixel*1e7)**2) # per sec
+            e_per_A2 = approximate_average_count / ht * frame / ((globals.PIXEL*1e7)**2) # per sec
             self.control.beam_intensity["pa_per_cm2"] = 1/6.241*e_per_A2*1e10 # per sec
             magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
             magnification = self.lut.calibrated_magnification(magnification)
@@ -1080,7 +1078,7 @@ class TEMAction(QObject):
         snapshot_image = pg.ImageItem(np.clip((np.nan_to_num(image) - low_thresh) / (high_thresh - low_thresh) * 255, 0, 255).astype(np.uint8))
         
         tr = QTransform()
-        scale = globals.pixelsize*globals.MM_TO_UM/calibrated_mag
+        scale = globals.PIXEL*globals.MM_TO_UM/calibrated_mag
         tr.scale(scale, scale)
         tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
         if int(magnification[0]) >= 1500 : # Mag

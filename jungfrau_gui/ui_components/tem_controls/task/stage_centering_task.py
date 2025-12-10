@@ -43,10 +43,10 @@ class CenteringTask(Task):
         rotation_axis = cfg_jf.lut().rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0])
         if int(magnification[0]) >= 1500 : # Mag
             logging.debug(f'Estimate with rotation')
-            tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * globals.pixelsize * globals.MM_TO_UM / calibrated_mag # in um
+            tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * globals.PIXEL * globals.MM_TO_UM / calibrated_mag # in um
         else: # Lowmag, targeting to the rectangular overlay
             logging.debug(f'Estimate with rotation at LM')
-            tr_vector = (pixels - [self.lowmag_jump[0], self.lowmag_jump[1]]) * globals.pixelsize * globals.MM_TO_UM / calibrated_mag # in um
+            tr_vector = (pixels - [self.lowmag_jump[0], self.lowmag_jump[1]]) * globals.PIXEL * globals.MM_TO_UM / calibrated_mag # in um
         tr_vector = self.rot2d(tr_vector, rotation_axis)            
         return np.round(tr_vector, 3)
 
