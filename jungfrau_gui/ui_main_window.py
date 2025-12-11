@@ -357,8 +357,7 @@ class ApplicationWindow(QMainWindow):
                 (
                     "The Jungfraujoch is currently measuring. "
                     "Do you want to close the user interface anyway?<br><br>"
-                    "<span style='color:red;'>⚠ Note: this is only safe if no data collection "
-                    "is currently being written to disk.</span>"
+                    "⚠ Note: Jungfraujoch will continue streaming frames."
                 ),
                     QMessageBox.Yes | QMessageBox.No
                 )
