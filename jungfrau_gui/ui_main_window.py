@@ -354,15 +354,33 @@ class ApplicationWindow(QMainWindow):
                 reply = QMessageBox.question(
                     self,
                     "Jungfraujoch is not idle",
-                    (
-                        "The Jungfraujoch is currently measuring. Do you want to close the user interface anyway?\n\n"
-                        "Note: this will not stop Jungfraujoch from streaming frames."
-                    ),
+                (
+                    "The Jungfraujoch is currently measuring. "
+                    "Do you want to close the user interface anyway?<br><br>"
+                    "<span style='color:red;'>⚠ Note: this is only safe if no data collection "
+                    "is currently being written to disk.</span>"
+                ),
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if reply == QMessageBox.No:
                     event.ignore()  # Prevents the window from closing
                     return
+                
+                # User clicked Yes
+                # If the Cancel button is *disabled*, we know data collection is ongoing
+                if not self.visualization_panel.stop_jfj_measurement.isEnabled():
+                    QMessageBox.warning(
+                        self,
+                        "Data collection is running",
+                        (
+                            "<p>Data collection is currently running and HDF5 files are being written.</p>"
+                            "<p>Please stop the data collection using the 'Cancel' button in the "
+                            "<b>Jungfraujoch Control Panel</b> before closing the user interface.</p>"
+                        ),
+                    )
+                    event.ignore()
+                    return
+                
         
         # Dealing with ongoing operation of the GUI after premature 'Exit' request
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread and thread.isRunning()]
