@@ -353,8 +353,11 @@ class ApplicationWindow(QMainWindow):
             if self.visualization_panel.jfjoch_client.status().state == 'Measuring':
                 reply = QMessageBox.question(
                     self,
-                    "Jungfraujoch is not Idle",
-                    "The Jungfraujoch is currently measuring...Do you want to proceed anyway?",
+                    "Jungfraujoch is not idle",
+                    (
+                        "The Jungfraujoch is currently measuring. Do you want to close the user interface anyway?\n\n"
+                        "Note: this will not stop Jungfraujoch from streaming frames."
+                    ),
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if reply == QMessageBox.No:
