@@ -1,6 +1,5 @@
 import pyqtgraph as pg
 import numpy as np
-#import random
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
@@ -32,7 +31,6 @@ class TEMAction(QObject):
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
     trigger_additem = Signal(str, str, list)
-    trigger_getbeamintensity = Signal()
     trigger_updateitem = Signal(dict)
     trigger_processed_receiver = Signal()
     def __init__(self, parent, grandparent):
@@ -46,7 +44,6 @@ class TEMAction(QObject):
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
         self.xtallist = self.file_operations.tem_xtalinfo.xtallist
-        # self.temtools = TEMTools(self)
         self.control = ControlWorker(self)
         self.version =  self.parent.version
         self.last_mag_mode = None
@@ -73,8 +70,6 @@ class TEMAction(QObject):
         
         # connect buttons with tem-functions
         self.tem_tasks.connecttem_button.clicked.connect(self.toggle_connectTEM)
-        # self.tem_tasks.gettem_button.clicked.connect(self.callGetInfoTask)
-        # self.tem_tasks.centering_button.clicked.connect(self.toggle_centering)
         self.tem_tasks.rotation_button.clicked.connect(self.toggle_rotation)
         if globals.dev:  
             self.tem_tasks.beamAutofocus.clicked.connect(self.toggle_beamAutofocus)
@@ -93,27 +88,14 @@ class TEMAction(QObject):
         
         self.control.updated.connect(self.on_tem_update)
 
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, globals.backlash[0], True))
-        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, globals.backlash[0], True))
-        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, globals.backlash[3], False))
-        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.backlash[3], False))
-
         # Move X positive 10 micrometers
-        #self.tem_stagectrl.movex10ump.clicked.connect(
-        #    lambda: threading.Thread(target=self.control.client.SetXRel, args=(10000,)).start())
-        
+        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, globals.backlash[0], True))
         # Move X negative 10 micrometers
-        #self.tem_stagectrl.movex10umn.clicked.connect(
-        #    lambda: threading.Thread(target=self.control.client.SetXRel, args=(-10000,)).start())
-
+        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, globals.backlash[0], True))
         # Move TX positive 10 degrees
-        #self.tem_stagectrl.move10degp.clicked.connect(
-        #    lambda: threading.Thread(target=self.control.client.SetTXRel, args=(10,)).start())
-
+        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, globals.backlash[3], False))
         # Move TX negative 10 degrees    
-        #self.tem_stagectrl.move10degn.clicked.connect(
-        #    lambda: threading.Thread(target=self.control.client.SetTXRel, args=(-10,)).start())
-
+        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.backlash[3], False))
         # Set Tilt X Angle to 0 degrees
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
@@ -122,9 +104,25 @@ class TEMAction(QObject):
         self.trigger_additem.connect(self.add_listedposition)
         self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
-        # self.trigger_getbeamintensity.connect(self.update_ecount)
         self.trigger_updateitem.connect(self.update_plotitem)
         self.main_overlays = [None, None, None] 
+
+    def _make_axis_arrow(self, position, axes, base_idx, brush):
+        # axis vector: (x, y, z)
+        axis_vec = axes[base_idx : base_idx + 3]
+        in_plane = axis_vec[:2]
+
+        angle  = np.degrees(np.arctan2(in_plane[1], in_plane[0])) + 180
+        length = np.linalg.norm(in_plane) / np.linalg.norm(axis_vec)
+
+        return CenterArrowItem(
+            pos=(position[0] / globals.UM_TO_NM, position[1] / globals.UM_TO_NM),
+            angle=angle,
+            headLen=10 * length,
+            tailLen=10 * length,
+            tailWidth=4 * length,
+            brush=brush,
+        )
 
     @Slot()
     def reconnectGaussianFit(self):
@@ -161,9 +159,6 @@ class TEMAction(QObject):
         
         # Combined setting for task controls
         task_controls = [
-            # self.tem_tasks.gettem_button,
-            # self.tem_tasks.gettem_checkbox, # Not works correctly
-            # self.tem_tasks.centering_button,
             self.tem_tasks.centering_checkbox,
             self.tem_tasks.btnGaussianFit,
             # self.tem_tasks.beamAutofocus,
@@ -361,17 +356,6 @@ class TEMAction(QObject):
     def on_update_finished(self):
         """Function that does nothing, just catches the finished signal."""
         pass
-
-    def callGetInfoTask(self):
-        """Call get info task with optimizations."""
-        # Initialize control
-        self.control.init.emit()
-        
-        # Get checkbox state once
-        get_tem_info = 'Y' if self.tem_tasks.gettem_checkbox.isChecked() else 'N'
-        
-        # Trigger info gathering
-        self.control.trigger_getteminfo.emit(get_tem_info)
 
     """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     """ @@@@@@@@@@@ UI Update with TEM latest status @@@@@@@@@@ """
@@ -807,16 +791,7 @@ class TEMAction(QObject):
             # Interrupt rotation but end task gracefully
             self.control.interruptRotation = True
             
-    # def toggle_centering(self):
-    #     if not self.tem_tasks.centering_button.started:
-    #         self.tem_tasks.centering_button.setText("Deactivate centering")
-    #         self.tem_tasks.centering_button.started = True
-    #     else:
-    #         self.tem_tasks.centering_button.setText("Click-on-Centering")
-    #         self.tem_tasks.centering_button.started = False
-            
     def imageMouseClickEvent(self, event):
-        # if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_button.started:
         if event.buttons() != Qt.LeftButton or not self.tem_tasks.centering_checkbox.isChecked():       
             logging.debug('Centering is not ready.')
             return
@@ -935,26 +910,14 @@ class TEMAction(QObject):
             text = f"{info_d['dataid']}: " + " ".join(map(lambda x: f"{float(x):.1f}", info_d["lattice"])) + f", {spots[0]/spots[1]*100:.1f}%, processed"
             marker = pg.ScatterPlotItem(x=[position[0]/globals.UM_TO_NM], y=[position[1]/globals.UM_TO_NM], brush=color, symbol='d')
             label = pg.TextItem(str(info_d["dataid"]), anchor=(0, 1))
-            # represent orientation with cell-a axis, usually shortest
-            angle = np.degrees(np.arctan2(axes[1], axes[0])) + 180
-            length = np.linalg.norm(axes[:2]) / np.linalg.norm(axes[:3])
-            arrow_a = CenterArrowItem(pos=(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM), angle=angle,
-                                 headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
-            # represent orientation with cell-b axis
-            angle = np.degrees(np.arctan2(axes[4], axes[3])) + 180
-            length = np.linalg.norm(axes[3:5]) / np.linalg.norm(axes[3:6])
-            arrow_b = CenterArrowItem(pos=(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM), angle=angle,
-                                 headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
-            # represent orientation with cell-c axis
-            angle = np.degrees(np.arctan2(axes[7], axes[6])) + 180
-            length = np.linalg.norm(axes[6:8]) / np.linalg.norm(axes[6:9])
-            arrow_c = CenterArrowItem(pos=(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM), angle=angle,
-                                 headLen=10*length, tailLen=10*length, tailWidth=4*length, brush=color)
             # add updated items
             if spots[0]/spots[1] > 0.05: # assumes the lower spot-indexing rate as unsuccessful
-                self.tem_stagectrl.gridarea.addItem(arrow_a)
-                self.tem_stagectrl.gridarea.addItem(arrow_b)
-                self.tem_stagectrl.gridarea.addItem(arrow_c)
+                arrows = [
+                    self._make_axis_arrow(position, axes, 0, color),
+                    self._make_axis_arrow(position, axes, 3, color),
+                    self._make_axis_arrow(position, axes, 6, color)
+                ]
+                [self.tem_stagectrl.gridarea.addItem(arrow) for arrow in arrows]
             self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + self.gui_id_offset, text)
             logging.info(f"Item {info_d['gui_id']}:{info_d['dataid']} is updated")
             info_d["status"] = 'processed'
@@ -1053,15 +1016,6 @@ class TEMAction(QObject):
         position = self.control.client.GetStagePosition()
         beam_blank_state = self.control.client.GetBeamBlank()
 
-        # if beam_blank_state == 1: # limited illumination mode; not ready
-        #     image = np.copy(self.parent.imageItem.image)
-        #     self.control.client.SetBeamBlank(0)
-        #     self.control.tem_status["defl.GetBeamBlank"] = 0
-        #     QTimer.singleShot(500, self.toggle_blank)
-        #     while self.control.tem_status["defl.GetBeamBlank"] == 0:
-        #         image += np.copy(self.parent.imageItem.image)
-        # else:
-        #     image = np.copy(self.parent.imageItem.image)
         image = np.copy(self.parent.imageItem.image)
 
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
@@ -1082,10 +1036,8 @@ class TEMAction(QObject):
         tr.scale(scale, scale)
         tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
         if int(magnification[0]) >= 1500 : # Mag
-            # tr.rotate(180+cfg_jf.others.rotation_axis_theta)
             tr.translate(-image.shape[0]/2, -image.shape[1]/2)
         else:
-            # tr.rotate(180+cfg_jf.others.rotation_axis_theta_lm1200x)
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
         snapshot_image.setTransform(tr)
         self.tem_stagectrl.gridarea.addItem(snapshot_image)
