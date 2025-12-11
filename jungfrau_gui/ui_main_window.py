@@ -368,7 +368,7 @@ class ApplicationWindow(QMainWindow):
                 
                 # User clicked Yes
                 # If the Cancel button is *disabled*, we know data collection is ongoing
-                if not self.visualization_panel.stop_jfj_measurement.isEnabled():
+                if not self.visualization_panel.startCollection.isEnabled():
                     QMessageBox.warning(
                         self,
                         "Data collection is running",
@@ -380,7 +380,6 @@ class ApplicationWindow(QMainWindow):
                     )
                     event.ignore()
                     return
-                
         
         # Dealing with ongoing operation of the GUI after premature 'Exit' request
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread and thread.isRunning()]
