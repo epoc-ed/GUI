@@ -107,7 +107,7 @@ class TEMAction(QObject):
         self.trigger_updateitem.connect(self.update_plotitem)
         self.main_overlays = [None, None, None] 
 
-    def _make_axis_arrow(pos_nm, axes, base_idx, brush):
+    def _make_axis_arrow(self, position, axes, base_idx, brush):
         # axis vector: (x, y, z)
         axis_vec = axes[base_idx : base_idx + 3]
         in_plane = axis_vec[:2]
@@ -116,7 +116,7 @@ class TEMAction(QObject):
         length = np.linalg.norm(in_plane) / np.linalg.norm(axis_vec)
     
         return CenterArrowItem(
-            pos=(pos_nm[0] / globals.UM_TO_NM, pos_nm[1] / globals.UM_TO_NM),
+            pos=(position[0] / globals.UM_TO_NM, position[1] / globals.UM_TO_NM),
             angle=angle,
             headLen=10 * length,
             tailLen=10 * length,
@@ -913,9 +913,9 @@ class TEMAction(QObject):
             # add updated items
             if spots[0]/spots[1] > 0.05: # assumes the lower spot-indexing rate as unsuccessful
                 arrows = [
-                    _make_axis_arrow(pos_nm, axes, 0,  brush),
-                    _make_axis_arrow(pos_nm, axes, 0,  brush),
-                    _make_axis_arrow(pos_nm, axes, 0,  brush)
+                    self._make_axis_arrow(position, axes, 0, color),
+                    self._make_axis_arrow(position, axes, 3, color),
+                    self._make_axis_arrow(position, axes, 6, color)
                 ]
                 [self.tem_stagectrl.gridarea.addItem(arrow) for arrow in arrows]
             self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + self.gui_id_offset, text)
