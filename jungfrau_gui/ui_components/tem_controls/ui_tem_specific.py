@@ -230,15 +230,8 @@ class TEMTasks(QGroupBox):
         self.polling_frequency.setPrefix("Polling Freq: ")
         self.polling_frequency.setSuffix("ms")
         self.connecttem_button.setEnabled(True)
-        # self.gettem_button = QPushButton("Get TEM status", self)
-        # self.gettem_checkbox = QCheckBox("recording", self)
-        # self.gettem_button.setEnabled(False)
-        # self.gettem_checkbox.setChecked(False) #False
         self.centering_checkbox = QCheckBox("Click-on-Centering", self)
         self.centering_checkbox.setChecked(False)
-        # self.centering_button = ToggleButton("Click-on-Centering", self)
-        # self.centering_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
-        # self.centering_button.setEnabled(False) # not secured function
         
         BEAM_group = QVBoxLayout()
         BEAM_label = QLabel("Beam Sweep & Focus", self)
@@ -301,11 +294,8 @@ class TEMTasks(QGroupBox):
         CTN_group.addWidget(CTN_label)
         CTN_section.addWidget(self.connecttem_button)
         CTN_section.addWidget(self.polling_frequency)
-        # CTN_section.addWidget(self.gettem_button)
-        # CTN_section.addWidget(self.gettem_checkbox)
         CTN_section.addWidget(self.centering_checkbox)
         CTN_group.addLayout(CTN_section)
-        # CTN_group.addWidget(self.centering_button)
         tasks_section.addLayout(CTN_group)
 
         tasks_section.addWidget(create_horizontal_line_with_margin(20))
