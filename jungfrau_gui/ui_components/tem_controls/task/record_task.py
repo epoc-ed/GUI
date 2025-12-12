@@ -28,9 +28,9 @@ class RecordTask(Task):
         self.rotations_angles = []
         self.log_suffix = log_suffix
         logging.info("RecordTask initialized")
-        self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, globals.tem_port,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.metadata_notifier = MetadataNotifier(host = "noether", port = 3463, verbose = False)
+        self.metadata_notifier = MetadataNotifier(host = globals.dataserver_host, port = globals.dataserver_port, verbose = False)
 
         self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)
 
@@ -206,8 +206,8 @@ class RecordTask(Task):
                                       beam_property,
                                       self.rotations_angles,
                                       self.cfg.threshold,
-                                      retries=3, 
-                                      delay=0.1) 
+                                      retries=globals.max_retries_tagging, 
+                                      delay=globals.inquiry_delay) 
                     
                     self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
                     # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')

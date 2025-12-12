@@ -948,7 +948,7 @@ class TEMAction(QObject):
     @Slot()
     def inquire_processed_data(self):
         if self.dataReceiverReady:
-            self.process_receiver = ProcessedDataReceiver(self, host = "noether")            
+            self.process_receiver = ProcessedDataReceiver(self, host = globals.dataserver_host)
             self.datareceiver_thread = QThread()
             self.datareceiver_thread.setObjectName("Data_Receiver Thread")
             self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
@@ -974,7 +974,7 @@ class TEMAction(QObject):
         if Mag_idx == 4:
             logging.warning("Brightness should be calculated in imaging mode")
             return
-        frame = self.visualization_panel.jfjoch_client._lots_of_images / 3600 # usually 20, with 100 frame-sum
+        frame = self.visualization_panel.jfjoch_client._lots_of_images / globals.max_duration # usually 20, with 100 frame-sum
         image = self.parent.imageItem.image
         data_flat = image.flatten()
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
@@ -1026,7 +1026,7 @@ class TEMAction(QObject):
         data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > low_thresh))]
         uniqs, counts = np.unique(data_sampled//10, return_counts=True)
         approximate_average_count = uniqs[np.argmax(counts)].max() * 10
-        low_thresh, high_thresh = approximate_average_count*(1-margin), approximate_average_count*(1+margin)
+        low_thresh, high_thresh = approximate_average_count*(1-subiman), approximate_average_count*(1+margin)
         logging.info(f"Snapshot displayed in enhanced contrast ({low_thresh}-{high_thresh})")
         # downsizing
         snapshot_image = pg.ImageItem(np.clip((np.nan_to_num(image) - low_thresh) / (high_thresh - low_thresh) * 255, 0, 255).astype(np.uint8))
@@ -1035,7 +1035,7 @@ class TEMAction(QObject):
         scale = globals.PIXEL*globals.MM_TO_UM/calibrated_mag
         tr.scale(scale, scale)
         tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
-        if int(magnification[0]) >= 1500 : # Mag
+        if int(magnification[0]) >= globals.min_mag_for_mag: # Mag
             tr.translate(-image.shape[0]/2, -image.shape[1]/2)
         else:
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
@@ -1097,12 +1097,12 @@ class TEMAction(QObject):
             return
         # load mode
         if self.tem_stagectrl.position_list.count() == self.gui_id_offset + 1:
-            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=1)
+            self.process_receiver = ProcessedDataReceiver(self, host = globals.dataserver_host, mode=1)
             logging.info("Start session-metadata loading")
             self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - self.gui_id_offset
         # save mode
         elif len(self.xtallist) != 1:
-            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=2)
+            self.process_receiver = ProcessedDataReceiver(self, host = globals.dataserver_host, mode=2)
             logging.info("Start session-metadata saving")
         else:
             logging.warning("No data available")
