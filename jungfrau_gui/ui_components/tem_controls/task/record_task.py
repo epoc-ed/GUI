@@ -4,7 +4,6 @@ import h5py
 import logging
 import numpy as np
 from .task import Task
-from .dectris2xds import XDSparams
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Signal, Qt, QMetaObject
 from simple_tem import TEMClient
