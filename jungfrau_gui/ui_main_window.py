@@ -353,34 +353,29 @@ class ApplicationWindow(QMainWindow):
             if self.visualization_panel.jfjoch_client.status().state == 'Measuring':
                 reply = QMessageBox.question(
                     self,
-                    "Jungfraujoch is not Idle",
-                    "The Jungfraujoch is currently measuring...Do you want to proceed anyway?",
+                    "Jungfraujoch is not idle",
+                    (
+                        "The Jungfraujoch is currently measuring. Do you want to close the user interface anyway?\n\n"
+                        "Note: this will not stop Jungfraujoch from streaming frames."
+                    ),
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if reply == QMessageBox.No:
                     event.ignore()  # Prevents the window from closing
                     return
-
+        
         # Dealing with ongoing operation of the GUI after premature 'Exit' request
         running_threadWorkerPairs = [(thread, worker) for thread, worker in self.threadWorkerPairs if thread and thread.isRunning()]
         if running_threadWorkerPairs:
-            # Show warning dialog
-            reply = QMessageBox.question(self, 'Thread still running',
-                                        "A process is still running. Are you sure you want to exit?",
-                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.Yes:
-                globals.exit_flag.value = True
-                if globals.tem_mode:
-                    control = self.tem_controls.tem_action.control
-                    if control.beam_fitter is not None:
-                        if control.beam_fitter:
-                            control.beam_fitter.stop()
-                for thread, worker in running_threadWorkerPairs:
-                    logging.warning(f'Stopping Thread-Worker pair = ({thread.objectName()} - {worker}).')
-                    self.stopWorker(thread, worker) 
-            else:
-                event.ignore()  # Prevents the window from closing
-                return
+            globals.exit_flag.value = True
+            if globals.tem_mode:
+                control = self.tem_controls.tem_action.control
+                if control.beam_fitter is not None:
+                    if control.beam_fitter:
+                        control.beam_fitter.stop()
+            for thread, worker in running_threadWorkerPairs:
+                logging.warning(f'Stopping Thread-Worker pair = ({thread.objectName()} - {worker}).')
+                self.stopWorker(thread, worker) 
 
         if globals.tem_mode:
             if self.tem_controls.tem_tasks.connecttem_button.started:
