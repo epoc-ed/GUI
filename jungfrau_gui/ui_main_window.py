@@ -354,14 +354,30 @@ class ApplicationWindow(QMainWindow):
                 reply = QMessageBox.question(
                     self,
                     "Jungfraujoch is not idle",
-                    (
-                        "The Jungfraujoch is currently measuring. Do you want to close the user interface anyway?\n\n"
-                        "Note: this will not stop Jungfraujoch from streaming frames."
-                    ),
+                (
+                    "The Jungfraujoch is currently measuring. "
+                    "Do you want to close the user interface anyway?<br><br>"
+                    "⚠ Note: Jungfraujoch will continue streaming frames."
+                ),
                     QMessageBox.Yes | QMessageBox.No
                 )
                 if reply == QMessageBox.No:
                     event.ignore()  # Prevents the window from closing
+                    return
+                
+                # User clicked Yes
+                # If the Cancel button is *disabled*, we know data collection is ongoing
+                if not self.visualization_panel.startCollection.isEnabled():
+                    QMessageBox.warning(
+                        self,
+                        "Data collection is running",
+                        (
+                            "<p>Data collection is currently running and HDF5 files are being written.</p>"
+                            "<p>Please stop the data collection using the 'Cancel' button in the "
+                            "<b>Jungfraujoch Control Panel</b> before closing the user interface.</p>"
+                        ),
+                    )
+                    event.ignore()
                     return
         
         # Dealing with ongoing operation of the GUI after premature 'Exit' request
