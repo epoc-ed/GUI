@@ -69,17 +69,6 @@ class XtalInfo(QGroupBox):
         # hbox_process.addWidget(self.dials_results)
         xtal_section.addLayout(hbox_process)
 
-        # self.hbox_command = QHBoxLayout()
-        # command_label = QLabel("TEMcmd:", self)
-        # self.command_input = QComboBox(self)
-        # # self.command_input.addItems(['#more', 'lens.SetNtrl(0)', 'stage.SetMovementValueMeasurementMethod(0)', 'stage.SetOrg()'])
-        # self.command_input.setEditable(True)
-        # self.send_button = QPushButton("Send", self)
-        # self.hbox_command.addWidget(command_label, 1)
-        # self.hbox_command.addWidget(self.command_input, 7)
-        # self.hbox_command.addWidget(self.send_button, 1)
-        # xtal_section.addLayout(self.hbox_command)
-
         self.setLayout(xtal_section)
 
 class FileOperations(QGroupBox):
