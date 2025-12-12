@@ -33,7 +33,7 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 class MetadataNotifier:
-    def __init__(self, host, port=3463, verbose = True):
+    def __init__(self, host, port=globals.dataserver_port, verbose = True):
         self.host = host
         self.port = port
         self.verbose = verbose

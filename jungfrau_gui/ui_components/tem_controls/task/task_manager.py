@@ -63,7 +63,7 @@ class ControlWorker(QObject):
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.client = TEMClient(globals.tem_host, 3535,  verbose=False)
+        self.client = TEMClient(globals.tem_host, globals.tem_port,  verbose=False)
 
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
@@ -421,7 +421,7 @@ class ControlWorker(QObject):
             position = np.array(pos_list)
             position_prev = np.array(pos_prev_list)
             diff_pos = position - position_prev
-            threshold = np.array([30, 30, 30, 0.2, 100])  # nm, nm, nm, deg., deg.
+            threshold = np.array(globals.stage_relaxation_thresholds)
             update_mask = np.abs(diff_pos) > threshold
 
             # Update diff using vectorized operations

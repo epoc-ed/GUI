@@ -81,7 +81,7 @@ class FileOperations(QGroupBox):
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.trigger_update_h5_index_box.connect(self.update_index_box)
         self.initUI()
-        self.metadata_notifier = MetadataNotifier(host = "noether", port = 3463, verbose = False)
+        self.metadata_notifier = MetadataNotifier(host = globals.dataserver_host, port = globals.dataserver_port, verbose = False)
         
 
     def initUI(self):
@@ -421,11 +421,11 @@ class FileOperations(QGroupBox):
             if globals.dev:
                 prev_image_time_us = self.parent.visualization_panel.jfjoch_client.image_time_us # 50000
                 self.frame_summed_for_rotation = self.parent.visualization_panel.frame_summed.value()
-                frame_summed_for_snapshot = prev_image_time_us // 500 # 100
+                frame_summed_for_snapshot = prev_image_time_us // globals.default_image_time_us # 100
                 self.parent.visualization_panel.frame_summed.setValue(frame_summed_for_snapshot)
 
             self.parent.visualization_panel.send_command_to_jfjoch('collect')
-            logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
+            logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())/globals.S_TO_MS} sec')
             QTimer.singleShot(self.snapshot_spin.value(), self.toggle_snapshot_btn)
         else:
             # Cancel collection
@@ -487,8 +487,8 @@ class FileOperations(QGroupBox):
                 beam_property,
                 None,  # self.rotations_angles,
                 self.cfg.threshold,
-                retries=3, 
-                delay=0.1
+                retries=globals.max_retries_tagging, 
+                delay=globals.inquiry_delay
             )
             logging.info("Metadata update completed successfully")
             # Signal success back to the main thread
@@ -523,7 +523,7 @@ class FileOperations(QGroupBox):
 
     def _finalize_snapshot(self):
         """Reset UI state after snapshot completion"""
-        logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
+        logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())/globals.S_TO_MS} sec')
         self.tag_input.setText(self.pre_text)  # reset the tag to value before snapshot
         self.update_measurement_tag()
         self.snapshot_button.setText("Write Stream as a snapshot-H5")
