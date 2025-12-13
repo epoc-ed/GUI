@@ -6,7 +6,7 @@ from line_profiler import LineProfiler
 import zmq
 import cbor2
 from jungfrau_gui.decoder import tag_hook
-from jungfrau_gui. import globals
+from jungfrau_gui import globals
 
 from jungfrau_gui.ui_components.tem_controls.toolbox.fit_beam_intensity import gaussian2d_rotated, super_gaussian2d_rotated, fit_2d_gaussian_roi_NaN_fast
 from datetime import datetime

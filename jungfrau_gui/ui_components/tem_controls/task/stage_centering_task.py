@@ -3,7 +3,7 @@ import logging
 import numpy as np
 
 from jungfrau_gui import globals
-from jungfrau_gui.ui_components.tem_controls.task import Task
+from jungfrau_gui.ui_components.tem_controls.task.task import Task
 
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host

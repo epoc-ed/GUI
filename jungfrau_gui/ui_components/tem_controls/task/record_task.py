@@ -10,7 +10,7 @@ from epoc import ConfigurationClient, auth_token, redis_host
 
 from jungfrau_gui import globals
 from jungfrau_gui.ui_components.tem_controls.toolbox.tool import send_with_retries
-from jungfrau_gui.ui_components.tem_controls.task import Task
+from jungfrau_gui.ui_components.tem_controls.task.task import Task
 from jungfrau_gui.metadata_uploader.metadata_update_client import MetadataNotifier
 
 class RecordTask(Task):

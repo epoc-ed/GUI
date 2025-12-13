@@ -9,7 +9,7 @@ from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt, QTim
 
 from jungfrau_gui import globals
 import jungfrau_gui.ui_threading_helpers as thread_manager
-from jungfrau_gui.ui_components.tem_controls.task import Task
+from jungfrau_gui.ui_components.tem_controls.task.task import Task
 from jungfrau_gui.ui_components.tem_controls.task.record_task import RecordTask
 from jungfrau_gui.ui_components.tem_controls.task.beam_focus_task import AutoFocusTask
 from jungfrau_gui.ui_components.tem_controls.task.get_teminfo_task import GetInfoTask

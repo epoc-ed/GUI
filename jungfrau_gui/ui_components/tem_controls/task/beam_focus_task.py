@@ -2,7 +2,7 @@ import os
 import time
 import logging
 import numpy as np
-from jungfrau_gui.ui_components.tem_controls.task import Task
+from jungfrau_gui.ui_components.tem_controls.task.task import Task
 
 from jungfrau_gui import globals
 from PySide6.QtCore import Qt, QMetaObject, Signal
