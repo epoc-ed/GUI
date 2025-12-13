@@ -1,7 +1,8 @@
 import math
 import logging
+import threading
 import numpy as np
-from ... import globals
+from jungfrau_gui import globals
 import pyqtgraph as pg
 from datetime import datetime
 from PySide6.QtCore import QThread, Qt, QRectF, QMetaObject, Slot, Signal, QTimer
@@ -9,18 +10,17 @@ from PySide6.QtGui import QTransform, QFont
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox,
                                QDoubleSpinBox, QCheckBox, QGraphicsEllipseItem, QGraphicsRectItem)
 
-from .toolbox.plot_dialog import PlotDialog
-from .gaussian_fitter import GaussianFitter
+from jungfrau_gui.ui_components.tem_controls.toolbox.plot_dialog import PlotDialog
+from jungfrau_gui.ui_components.tem_controls.gaussian_fitter import GaussianFitter
 
-from ...ui_components.toggle_button import ToggleButton
-from .ui_tem_specific import TEMStageCtrl, TEMTasks #, XtalInfo
-from .tem_action import TEMAction
+from jungfrau_gui.ui_components.toggle_button import ToggleButton
+from jungfrau_gui.ui_components.tem_controls.ui_tem_specific import TEMStageCtrl, TEMTasks #, XtalInfo
+from jungfrau_gui.ui_components.tem_controls.tem_action import TEMAction
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
 from epoc import ConfigurationClient, auth_token, redis_host
-from ...ui_components.palette import *
-import threading
+from jungfrau_gui.ui_components.palette import *
 from PySide6.QtWidgets import QApplication
 
 class TemControls(QGroupBox):

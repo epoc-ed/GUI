@@ -7,24 +7,18 @@ import threading
 
 from PySide6.QtCore import Signal, Slot, QObject, QThread, QMetaObject, Qt, QTimer
 
-from .task import Task
-from .record_task import RecordTask
-
-from .beam_focus_task import AutoFocusTask
-
-from .get_teminfo_task import GetInfoTask
-from .stage_centering_task import CenteringTask
+from jungfrau_gui import globals
+import jungfrau_gui.ui_threading_helpers as thread_manager
+from jungfrau_gui.ui_components.tem_controls.task import Task
+from jungfrau_gui.ui_components.tem_controls.task.record_task import RecordTask
+from jungfrau_gui.ui_components.tem_controls.task.beam_focus_task import AutoFocusTask
+from jungfrau_gui.ui_components.tem_controls.task.get_teminfo_task import GetInfoTask
+from jungfrau_gui.ui_components.tem_controls.task.stage_centering_task import CenteringTask
+from jungfrau_gui.ui_components.tem_controls.toolbox import tool as tools
+from jungfrau_gui.ui_components.tem_controls.gaussian_fitter_mp import GaussianFitterMP
 
 from simple_tem import TEMClient
-from ..toolbox import tool as tools
-
 from epoc import ConfigurationClient, auth_token, redis_host
-
-import jungfrau_gui.ui_threading_helpers as thread_manager
-
-from .... import globals
-
-from ..gaussian_fitter_mp import GaussianFitterMP
 
 def on_new_best_result_in_main_thread(result_dict):
     # This runs in the main thread. We can safely update GUI elements, logs, etc.

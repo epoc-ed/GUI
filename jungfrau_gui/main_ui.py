@@ -9,10 +9,10 @@ import time
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QCoreApplication
 
-from . import globals
-from .ui_components import palette
-from .zmq_receiver import ZmqReceiver
-from .ui_main_window import ApplicationWindow, get_gui_info
+from jungfrau_gui import globals
+from jungfrau_gui.ui_components import palette
+from jungfrau_gui.zmq_receiver import ZmqReceiver
+from jungfrau_gui.ui_main_window import ApplicationWindow, get_gui_info
 
 from pathlib import Path
 from epoc import ConfigurationClient, auth_token, redis_host

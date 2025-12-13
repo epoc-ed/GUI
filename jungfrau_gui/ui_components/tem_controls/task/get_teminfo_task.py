@@ -2,7 +2,7 @@ import time
 import logging
 import numpy as np
 
-from .task import Task
+from jungfrau_gui.ui_components.tem_controls.task import Task
 from epoc import ConfigurationClient, auth_token, redis_host
 
 class GetInfoTask(Task):

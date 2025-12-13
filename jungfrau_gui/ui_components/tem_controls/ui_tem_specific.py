@@ -2,12 +2,12 @@ from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLin
                                QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy, QComboBox,
                                QSpinBox, QWidget, QGridLayout)
 from PySide6.QtGui import QFont
-from ..toggle_button import ToggleButton
-from ..utils import create_horizontal_line_with_margin
+from jungfrau_gui.ui_components.toggle_button import ToggleButton
+from jungfrau_gui.ui_components.utils import create_horizontal_line_with_margin
+from jungfrau_gui import globals
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
-from ... import globals
 import pyqtgraph as pg
 import numpy as np
 

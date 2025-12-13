@@ -2,9 +2,9 @@ import os
 import time
 import logging
 import numpy as np
-from .task import Task
+from jungfrau_gui.ui_components.tem_controls.task import Task
 
-from .... import globals
+from jungfrau_gui import globals
 from PySide6.QtCore import Qt, QMetaObject, Signal
 from datetime import datetime
 

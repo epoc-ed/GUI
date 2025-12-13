@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
 from PySide6.QtCore import QRectF
 
 from epoc import ConfigurationClient, auth_token, redis_host
-from .... import globals
+from jungfrau_gui import globals
 
 f = files('jungfrau_gui').joinpath('ui_components/tem_controls/toolbox/jfgui2_config.json')
 parser = json.loads(f.read_text())

@@ -2,9 +2,9 @@ import zmq
 import time
 import logging
 import numpy as np
-from . import globals
+from jungfrau_gui import globals
 import cbor2
-from .decoder import tag_hook
+from jungfrau_gui.decoder import tag_hook
 
 
 # Receiver of the ZMQ stream

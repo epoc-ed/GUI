@@ -3,7 +3,7 @@ import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot
 # from line_profiler import LineProfiler
 
-from .toolbox.fit_beam_intensity import gaussian2d_rotated, super_gaussian2d_rotated, fit_2d_gaussian_roi_NaN
+from jungfrau_gui.ui_components.tem_controls.toolbox.fit_beam_intensity import gaussian2d_rotated, super_gaussian2d_rotated, fit_2d_gaussian_roi_NaN
 
 class GaussianFitter(QObject):
     finished = Signal(object)
