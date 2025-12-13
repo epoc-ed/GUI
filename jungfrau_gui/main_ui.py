@@ -20,6 +20,26 @@ from epoc import ConfigurationClient, auth_token, redis_host
 import os
 import datetime
 
+def _cfg_get(cfg, name: str, default=None):
+    """
+    Safely read a config attribute from ConfigurationClient.
+
+    Some properties (e.g. cfg.temserver) raise ValueError if missing.
+    """
+    try:
+        return getattr(cfg, name)
+    except (ValueError, AttributeError):
+        return default
+
+
+def _parse_dtype(dtype_str: str) -> np.dtype:
+    s = (dtype_str or "").strip().lower()
+    if s in ("float32", "f4", "np.float32"):
+        return np.dtype(np.float32)
+    if s in ("float64", "double", "f8", "np.float64", "np.double"):
+        return np.dtype(np.float64)
+    raise ValueError(f"Unknown dtype '{dtype_str}'. Use float32 or float64.")
+
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels and additional styles
     # Foreground (text) colors
@@ -85,73 +105,94 @@ class CustomFormatter(logging.Formatter):
 
 def main():
     os.environ["QT_LOGGING_RULES"] = "qt.core.qobject.connect=false"
-
+    
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     
-    cfg = ConfigurationClient(redis_host(), token=auth_token())
-
+    # ---- Command-Line Interface FIRST (no Redis-backed defaults!) ----
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--stream', type=str, default="tcp://noether:5501", help="zmq stream") # default="tcp://localhost:4545"
-    parser.add_argument("-d", "--dtype", help="Data type", type = np.dtype, default=np.float32)
-    parser.add_argument("-p", "--playmode", action="store_true", help="Activates simplified GUI")
-    parser.add_argument("-th", "--temhost", default=cfg.temserver, help="Choose host for tem-gui communication")
-    parser.add_argument('-l', '--log', default='INFO', help='Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
-    parser.add_argument("-f", "--logfile", action="store_true", help="File-output of logging")
-    parser.add_argument("-e", "--dev", action="store_true", help="Activate developing function")
-    parser.add_argument("-v", "--version", action="store_true", help="Detailed version description")
+    parser.add_argument("-s", "--stream", type=str, default="tcp://noether:5501", help="ZMQ stream endpoint",)
+    parser.add_argument("-d", "--dtype",  type=str, default="float32", help="Data type (float32 or float64)",)
+    parser.add_argument("-p", "--playmode", action="store_true", help="Activates simplified GUI",)
+    parser.add_argument("-th", "--temhost", default=None, help="Host for tem-gui communication (defaults to cfg.temserver if set)",)
+    parser.add_argument("--nrow", type=int, default=None, help="Override detector rows (defaults to cfg.nrows)",)
+    parser.add_argument("--ncol", type=int, default=None, help="Override detector cols (defaults to cfg.ncols)",)
+    parser.add_argument("-l", "--log", default="INFO", help="Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",)
+    parser.add_argument("-f", "--logfile",  action="store_true", help="File-output of logging",)
+    parser.add_argument("-e", "--dev", action="store_true", help="Activate developing function",)
+    parser.add_argument("-v", "--version", action="store_true", help="Detailed version description",)
 
     args = parser.parse_args()
 
-    # Initialize logger
+    # ---- Logger setup ----
     logger = logging.getLogger()
-
-    # Dynamically set the log level based on args.log
-    log_level = getattr(logging, args.log.upper(), None) 
+    log_level = getattr(logging, args.log.upper(), None)
     if log_level is None:
-        raise ValueError(f"Invalid log level: {args.log}. Choose from DEBUG, INFO, WARNING, ERROR, CRITICAL.")
-
+        raise ValueError(
+            f"Invalid log level: {args.log}. Choose from DEBUG, INFO, WARNING, ERROR, CRITICAL."
+        )
     logger.setLevel(log_level)
 
-    # Create the handler for console output
     console_handler = logging.StreamHandler()
-
-    # Apply the custom formatter to the handler
-    formatter = CustomFormatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = CustomFormatter("%(asctime)s - %(levelname)s - %(message)s")
     console_handler.setFormatter(formatter)
-
-    # Add the handler to the logger
     logger.addHandler(console_handler)
 
     if args.logfile:
-
-        # Determine the directory of the script being run
         launch_script_path = Path(sys.argv[0]).resolve().parent
         log_file_path = launch_script_path / f'JFGUI{time.strftime("_%Y%m%d-%H%M%S.log", time.localtime())}'
+        logging.info(f"Writing console loggings to: {log_file_path}")
 
-        logging.info(f"Writing console loggings to: {log_file_path}")  # Debugging line to verify file creation
-        
         file_handler = logging.FileHandler(log_file_path.as_posix())
         file_handler.setLevel(log_level)
-        file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
+        file_formatter = logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(message)s",
+            datefmt="%H:%M:%S",
+        )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
-    if args.dtype == np.float32:
-        globals.cdtype = ctypes.c_float
-    elif args.dtype == np.double:
-        cdtype = ctypes.c_double
+    # ---- Resolve dtype ----
+    dtype = _parse_dtype(args.dtype)
+    if dtype == np.dtype(np.float32):
+        cdtype = ctypes.c_float
     else:
-        raise ValueError("unknown data type")
+        cdtype = ctypes.c_double
 
-    # Update the type of global variables
-    globals.stream = args.stream 
-    globals.dtype = args.dtype
-    globals.acc_image = np.zeros((globals.nrow,globals.ncol), dtype = args.dtype)
-    globals.tem_mode = not args.playmode
-    globals.tem_host = args.temhost
-    globals.dev = args.dev
-    
+    # ---- Connect to config (Redis) AFTER parsing ----
+    cfg = ConfigurationClient(redis_host(), token=auth_token())
+
+    # Resolve TEM host safely (missing key should NOT crash)
+    tem_host = args.temhost or _cfg_get(cfg, "temserver", default=None)
+    if tem_host is None:
+        # pick a sensible fallback; you can change this
+        tem_host = "localhost"
+        logging.warning("cfg.temserver not set; defaulting tem_host to 'localhost'.")
+
+    # Resolve detector geometry safely
+    nrow = args.nrow if args.nrow is not None else _cfg_get(cfg, "nrows", default=None)
+    ncol = args.ncol if args.ncol is not None else _cfg_get(cfg, "ncols", default=None)
+
+    if nrow is None or ncol is None:
+        raise RuntimeError(
+            "Detector geometry missing (nrows/ncols). "
+            "Set cfg.nrows/cfg.ncols in Redis or pass --nrow/--ncol."
+        )
+
+    # ---- Initialize globals explicitly (NO import-time Redis reads) ----
+    from jungfrau_gui import globals
+
+    globals.init(
+        stream_=args.stream,
+        dtype_=dtype,
+        cdtype_=cdtype,
+        tem_mode_=not args.playmode,
+        tem_host_=tem_host,
+        dev_=args.dev,
+        nrow_=nrow,
+        ncol_=ncol,
+    )
+
     logging.info(f"{get_gui_info()}")
 
     if args.version:
