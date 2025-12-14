@@ -26,6 +26,8 @@ from .... import globals
 
 from ..gaussian_fitter_mp import GaussianFitterMP
 
+from jungfrau_gui.ui_components.tem_controls.task.tem_dispatcher import TEMDispatcher
+
 def on_new_best_result_in_main_thread(result_dict):
     # This runs in the main thread. We can safely update GUI elements, logs, etc.
     print("New best result =>", result_dict)
@@ -64,6 +66,7 @@ class ControlWorker(QObject):
         super().__init__()
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.client = TEMClient(globals.tem_host, 3535,  verbose=False)
+        self.tem = TEMDispatcher(self.client)
 
         self.task = Task(self, "Dummy")
         self.task_thread = QThread()
@@ -749,6 +752,10 @@ class ControlWorker(QObject):
     def shutdown(self):
         logging.info("Shutting down control")
         try:
+            try:
+                self.tem.shutdown()
+            except Exception:
+                pass
             # self.client.exit_server()
             # logging.warning("TEM server is OFF")
             # time.sleep(0.12)
@@ -758,71 +765,89 @@ class ControlWorker(QObject):
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
 
+    def _two_step_sequence(self, axis_fn, value, preload, settle_s=0.05):
+        """
+        Build an atomic sequence for preload-compensated moves:
+        value > 0: (value+preload), wait, (-preload)
+        value < 0: (value-preload), wait, (+preload)
+        """
+        if value == 0:
+            return []
+        if preload == 0:
+            return [(axis_fn, (value,), {})]
+
+        if value > 0:
+            return [
+                (axis_fn, (value + preload,), {}),
+                (time.sleep, (settle_s,), {}),
+                (axis_fn, (-preload,), {}),
+            ]
+        else:
+            return [
+                (axis_fn, (value - preload,), {}),
+                (time.sleep, (settle_s,), {}),
+                (axis_fn, (preload,), {}),
+            ]
+
+
     @Slot(int, float, float, bool)
-    def move_with_backlash(self, moverid=0, value=10, backlash=0, button=False, scale=1):
+    def move_with_backlash(self, moverid=0, value=10.0, preload=0.0, button=False, scale=1.0):
         """
-        Move the stage with backlash correction.
-        
-        Args:
-            moverid: Direction identifier (0-7)
-                0,1: +X, -X
-                2,3: +Y, -Y
-                4,5: +Z, -Z
-                6,7: +TX, -TX (tilt)
-            value: Movement amount
-            backlash: Backlash correction amount
-            scale: Scaling factor for movement value
+        Robust backlash/preload move:
+        - Computes whether preload should be applied (only on direction change)
+        - Executes the move as an atomic sequence in the TEMDispatcher thread
+        - Keeps GUI responsive (no blocking in main thread)
         """
-        # Request current status information
+        # Ask for fresh status (coalesced, won't spam)
         QTimer.singleShot(0, lambda: self.send_to_tem("#info", asynchronous=True))
-        
-        # Backlash correction logic - only apply when changing direction
-        axis = moverid // 2  # Determine which axis (X=0, Y=1, Z=2, TX=3)
-        direction = moverid % 2  # Determine direction (even=positive, odd=negative)
-        
-        # Check if we're continuing in the same direction (no backlash needed)
-        if direction == 0 and np.sign(self.tem_status["stage.GetPos_diff"][axis]) >= 0:
-            backlash = 0
-        elif direction == 1 and np.sign(self.tem_status["stage.GetPos_diff"][axis]) < 0:
-            backlash = 0
-            
-        logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/globals.UM_TO_NM:8.3f}{y/globals.UM_TO_NM:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, "
-                      f"{self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}"
-        )
-        
-        # Get client reference
+
+        axis = moverid // 2  # X=0, Y=1, Z=2, TX=3
+        direction = moverid % 2  # 0=positive, 1=negative
+
+        movement_value = value * scale
+        last_diff_sign = np.sign(self.tem_status["stage.GetPos_diff"][axis])
+
+        apply_preload = True
+        if direction == 0 and last_diff_sign >= 0:
+            apply_preload = False
+        elif direction == 1 and last_diff_sign < 0:
+            apply_preload = False
+
+        effective_preload = float(preload) if (apply_preload and preload != 0) else 0.0
+
         client = self.client
 
-        # Calculate final movement value with backlash compensation
-        movement_value = value * scale
-        
-        # Execute movement in a separate thread based on direction
-        match moverid:
-            case 0:  # +X
-                threading.Thread(target=client.SetXRel, args=(movement_value - backlash,)).start()
-            case 1:  # -X
-                threading.Thread(target=client.SetXRel, args=(movement_value + backlash,)).start()
-            case 2:  # +Y
-                threading.Thread(target=client.SetYRel, args=(movement_value - backlash,)).start()
-            case 3:  # -Y
-                threading.Thread(target=client.SetYRel, args=(movement_value + backlash,)).start()
-            case 4:  # +Z
-                threading.Thread(target=client.SetZRel, args=(movement_value + backlash,)).start()
-            case 5:  # -Z
-                threading.Thread(target=client.SetZRel, args=(movement_value - backlash,)).start()
-            case 6:  # +TX (tilt)
-                threading.Thread(target=client.SetTXRel, args=(movement_value + backlash,)).start()
-            case 7:  # -TX (tilt)
-                threading.Thread(target=client.SetTXRel, args=(movement_value - backlash,)).start()
-            case _:
-                logging.warning(f"Undefined moverid {moverid}")
-                return
+        # pick axis function (same as before)
+        if moverid in (0, 1):
+            axis_fn = client.SetXRel
+        elif moverid in (2, 3):
+            axis_fn = client.SetYRel
+        elif moverid in (4, 5):
+            axis_fn = client.SetZRel
+        elif moverid in (6, 7):
+            axis_fn = client.SetTXRel
+        else:
+            logging.warning(f"Undefined moverid {moverid}")
+            return
 
-        if moverid < 2 and button: # display the previous move to user
+        # Build atomic job sequence and enqueue on single TEM lane
+        jobs = self._two_step_sequence(axis_fn, movement_value, effective_preload, settle_s=0.05)
+        if jobs:
+            self.tem.post_sequence(jobs)
+
+        # UI styling for X buttons
+        if moverid < 2 and button:
             if moverid == 0:
-                self.tem_action.tem_stagectrl.movex10ump.setStyleSheet('background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);')
-                self.tem_action.tem_stagectrl.movex10umn.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+                self.tem_action.tem_stagectrl.movex10ump.setStyleSheet(
+                    "background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);"
+                )
+                self.tem_action.tem_stagectrl.movex10umn.setStyleSheet(
+                    "background-color: rgb(53, 53, 53); color: white;"
+                )
             else:
-                self.tem_action.tem_stagectrl.movex10ump.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
-                self.tem_action.tem_stagectrl.movex10umn.setStyleSheet('background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);')
-        logging.debug(f"xyz1, dxyz1 : {list(map(lambda x, y: f'{x/globals.UM_TO_NM:8.3f}{y/globals.UM_TO_NM:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")
+                self.tem_action.tem_stagectrl.movex10ump.setStyleSheet(
+                    "background-color: rgb(53, 53, 53); color: white;"
+                )
+                self.tem_action.tem_stagectrl.movex10umn.setStyleSheet(
+                    "background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);"
+                )
