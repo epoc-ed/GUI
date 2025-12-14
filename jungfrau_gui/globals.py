@@ -92,3 +92,6 @@ PIXEL = 0.075 # mm
 
 default_HT = 200000.00 # V
 backlash = [100, 80, 0, 0]
+
+# overshoot/preload used for two-step jog moves
+preload  = [1000, 1000, 0, 1]  # X,Y,Z in nm (1 µm), TX in deg (1°)

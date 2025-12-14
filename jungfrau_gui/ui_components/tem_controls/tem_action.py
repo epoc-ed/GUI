@@ -89,16 +89,22 @@ class TEMAction(QObject):
         self.control.updated.connect(self.on_tem_update)
 
         # Move X positive 10 micrometers
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, globals.backlash[0], True))
+        # self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, globals.backlash[0], True))
+        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, globals.preload[0], True))
         # Move X negative 10 micrometers
-        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, globals.backlash[0], True))
+        # self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, globals.backlash[0], True))
+        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, globals.preload[0], True))
         # Move TX positive 10 degrees
-        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, globals.backlash[3], False))
+        # self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, globals.backlash[3], False))
+        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, globals.preload[3], False))
         # Move TX negative 10 degrees    
-        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.backlash[3], False))
+        # self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.backlash[3], False))
+        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.preload[3], False))
+
         # Set Tilt X Angle to 0 degrees
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
+        
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
@@ -1079,15 +1085,25 @@ class TEMAction(QObject):
             logging.info("Large movement (> 300 um) is not yet permitted for safety.")
             return
 
+        # if dx >= 0:
+        #     self.control.trigger_movewithbacklash.emit(0, dx, globals.backlash[0], False)
+        # else:
+        #     self.control.trigger_movewithbacklash.emit(1, dx, globals.backlash[0], False)
+        # time.sleep(np.abs(dx)/5e4) # assumes speed of movement as > 50 um/s
+        # if dy >= 0:
+        #     self.control.trigger_movewithbacklash.emit(2, dy, globals.backlash[1], False)
+        # else:
+        #     self.control.trigger_movewithbacklash.emit(3, dy, globals.backlash[1], False)
+
         if dx >= 0:
-            self.control.trigger_movewithbacklash.emit(0, dx, globals.backlash[0], False)
+            self.control.trigger_movewithbacklash.emit(0, dx, globals.preload[0], False)
         else:
-            self.control.trigger_movewithbacklash.emit(1, dx, globals.backlash[0], False)
+            self.control.trigger_movewithbacklash.emit(1, dx, globals.preload[0], False)
         time.sleep(np.abs(dx)/5e4) # assumes speed of movement as > 50 um/s
         if dy >= 0:
-            self.control.trigger_movewithbacklash.emit(2, dy, globals.backlash[1], False)
+            self.control.trigger_movewithbacklash.emit(2, dy, globals.preload[1], False)
         else:
-            self.control.trigger_movewithbacklash.emit(3, dy, globals.backlash[1], False)
+            self.control.trigger_movewithbacklash.emit(3, dy, globals.preload[1], False)
 
         logging.info(f'Move X: {dx/globals.UM_TO_NM:.1f} um,  Y: {dy/globals.UM_TO_NM:.1f} um')
 
