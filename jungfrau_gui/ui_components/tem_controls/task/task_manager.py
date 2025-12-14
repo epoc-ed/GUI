@@ -793,10 +793,19 @@ class ControlWorker(QObject):
     @Slot(int, float, float, bool)
     def move_with_backlash(self, moverid=0, value=10.0, preload=0.0, button=False, scale=1.0):
         """
-        Robust backlash/preload move:
-        - Computes whether preload should be applied (only on direction change)
-        - Executes the move as an atomic sequence in the TEMDispatcher thread
-        - Keeps GUI responsive (no blocking in main thread)
+        Relative stage jog with optional backlash (preload) compensation.
+
+        If a direction change is detected, applies a two-step move to take up slack:
+        +dir: (value + preload) then (-preload)
+        -dir: (value - preload) then (+preload)
+        Otherwise, sends a single relative move.
+
+        Args:
+            moverid (int): 0/1:+X/-X, 2/3:+Y/-Y, 4/5:+Z/-Z, 6/7:+TX/-TX.
+            value (float): Relative move (nm for X/Y/Z, deg for TX); sign matches moverid.
+            preload (float): Overshoot amount (same units as value); 0 disables.
+            button (bool): If True, updates X jog button highlight.
+            scale (float): Multiplier applied to `value` before sending.
         """
         # Ask for fresh status (coalesced, won't spam)
         QTimer.singleShot(0, lambda: self.send_to_tem("#info", asynchronous=True))
