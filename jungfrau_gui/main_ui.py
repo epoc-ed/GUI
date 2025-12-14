@@ -7,9 +7,7 @@ import argparse
 import numpy as np
 import time
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QCoreApplication
 
-from jungfrau_gui import globals
 from jungfrau_gui.ui_components import palette
 from jungfrau_gui.zmq_receiver import ZmqReceiver
 from jungfrau_gui.ui_main_window import ApplicationWindow, get_gui_info
