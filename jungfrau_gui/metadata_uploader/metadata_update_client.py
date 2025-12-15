@@ -9,6 +9,14 @@ from datetime import datetime
 import argparse
 from pathlib import Path
 from .. import globals
+import pickle
+import zlib
+import base64
+
+def compress_image(img: np.ndarray) -> bytes:
+    pickled = pickle.dumps(img.astype('uint8'), protocol=pickle.HIGHEST_PROTOCOL)
+    compressed = zlib.compress(pickled)
+    return compressed
 
 # Handle imports correctly when running as a standalone script
 if __name__ == "__main__" and __package__ is None:
@@ -42,9 +50,9 @@ class MetadataNotifier:
 
     def _now(self):
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    def notify_metadata_update(self, filename, tem_status, beam_property, rotations_angles, jf_threshold, jf_gui_tag = globals.tag, commit_hash = globals.commit, timeout_ms = 5000):
-        
+
+    def notify_metadata_update(self, filename, tem_status, beam_property, rotations_angles, jf_threshold, images_supporting=None, textnote="", jf_gui_tag = globals.tag, commit_hash = globals.commit, timeout_ms = 5000):
+
         context = zmq.Context()
         socket = context.socket(zmq.REQ)
         socket.setsockopt(zmq.SNDTIMEO, timeout_ms)
@@ -52,24 +60,33 @@ class MetadataNotifier:
         socket.setsockopt(zmq.LINGER, 0)
         socket.connect(f"tcp://{self.host}:{self.port}")
 
-        detector_distance = cfg_jf.lut().interpolated_distance(tem_status['eos.GetMagValue_DIFF'][2], tem_status["ht.GetHtValue"]/1e3)
+        detector_distance = cfg_jf.lut().interpolated_distance(tem_status['eos.GetMagValue_DIFF'][2], tem_status["ht.GetHtValue"]/globals.KV_TO_V, int(globals.mag_value_img[0]))
         aperture_size_cl = cfg_jf.lut().cl_size(tem_status['apt.GetSize(1)'])
         aperture_size_sa = cfg_jf.lut().sa_size(tem_status['apt.GetSize(4)'])
         tem_status['rotation_axis'] = cfg_jf.lut().rotaxis_for_ht(tem_status["ht.GetHtValue"])
         tem_status['optical_axis_center'] = cfg_jf.lut.optical_axis_center
+        if images_supporting is not None:
+            compressed_images = [compress_image(img) for img in images_supporting]
+            pickled = pickle.dumps(compressed_images, protocol=pickle.HIGHEST_PROTOCOL)
+            packed_data = base64.b64encode(zlib.compress(pickled)).decode('utf-8')
+
+        else:
+            packed_data = None
 
         try:
             message = {
-                "filename": filename.as_posix(),
+                "filename": filename,
                 "tem_status": tem_status,
                 "beam_property": beam_property,
                 "rotations_angles": rotations_angles,
                 "jf_threshold": jf_threshold,
+                "image_supporting": packed_data,
                 "detector_distance": detector_distance,
                 "aperture_size_cl": aperture_size_cl,
                 "aperture_size_sa": aperture_size_sa,
                 "jf_gui_tag": jf_gui_tag,
-                "commit_hash": commit_hash
+                "commit_hash": commit_hash,
+                "textnote": textnote
             }
             message_json = json.dumps(message, cls=CustomJSONEncoder)
             if self.verbose:

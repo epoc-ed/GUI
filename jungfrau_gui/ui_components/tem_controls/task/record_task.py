@@ -17,7 +17,7 @@ from .... import globals
 class RecordTask(Task):
     reset_rotation_signal = Signal()
 
-    def __init__(self, control_worker, end_angle = 60, log_suffix = 'RotEDlog_test', writer_event=None):
+    def __init__(self, control_worker, end_angle = 60, writer_event=None):
         super().__init__(control_worker, "Record")
         self.phi_dot = 0 # 10 deg/s
         self.control = control_worker
@@ -26,9 +26,8 @@ class RecordTask(Task):
         self.writer = writer_event
         self.end_angle = end_angle
         self.rotations_angles = []
-        self.log_suffix = log_suffix
         logging.info("RecordTask initialized")
-        self.client = TEMClient(globals.tem_host, globals.tem_port,  verbose=True)
+        self.client = TEMClient(globals.tem_host, globals.tem_port, verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         self.metadata_notifier = MetadataNotifier(host = globals.dataserver_host, port = globals.dataserver_port, verbose = False)
 
@@ -37,17 +36,7 @@ class RecordTask(Task):
     def run(self):
         logging.debug("RecordTask::run()")
 
-        if self.writer is not None:
-            try:
-                self.cfg.data_dir.mkdir(parents=True, exist_ok=True) #TODO! when do we create the data_dir?
-            except Exception as e:
-                # Handle any unexpected errors
-                error_message = f"An unexpected error occurred: {e}"
-                QMessageBox.critical(self, "Error", error_message)
-
         try:
-            logfile = None  # Initialize logfile to None
-            
             phi0 = self.client.GetTiltXAngle()
             phi1 = self.end_angle
 
@@ -56,56 +45,6 @@ class RecordTask(Task):
 
             self.phi_dot = stage_rates[phi_dot_idx]
             
-            # Attempt to open the logfile and catch potential issues
-            try:
-                logfile = open(self.log_suffix + '.log', 'w')
-                logging.info("\n\n\n---------OPEN LOG-----------------\n\n\n")
-            
-                logfile.write("# TEM Record\n")
-                logfile.write("# TIMESTAMP: " + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()) + "\n")
-                logfile.write(f"# Initial Angle:           {phi0:6.3f} deg\n")
-                logfile.write(f"# Final Angle (scheduled): {phi1:6.3f} deg\n")
-                logfile.write(f"# angular Speed:           {self.phi_dot:6.2f} deg/s\n")
-                logfile.write(f"# magnification:           {self.control.tem_status['eos.GetMagValue_MAG'][0]:<6d} x\n")
-                logfile.write(f"# detector distance:       {self.control.tem_status['eos.GetMagValue_DIFF'][0]:<6d} mm\n")
-                # Beam parameters
-                try:
-                    logfile.write(f"# spot_size:               {self.client.GetSpotSize()}\n")
-                    logfile.write(f"# alpha_angle:             {self.client.GetAlpha()}\n")
-                except Exception as e:
-                    logging.error(f"Error retrieving beam parameters: {e}")
-                # Aperture sizes
-                try:
-                    logfile.write(f"# CL#:                     {self.client.GetAperatureSize(1)}\n")
-                    logfile.write(f"# SA#:                     {self.client.GetAperatureSize(4)}\n")
-                except Exception as e:
-                    logging.error(f"Error retrieving aperture sizes: {e}")
-                # Lens parameters
-                try:
-                    logfile.write(f"# brightness:              {self.client.GetCL3()}\n")
-                    logfile.write(f"# diff_focus:              {self.client.GetIL1()}\n")
-                    logfile.write(f"# IL_focus:                {self.client.GetILs()}\n")
-                    logfile.write(f"# PL_align:                {self.client.GetPLA()}\n")
-                except Exception as e:
-                    logging.error(f"Error retrieving lens parameters: {e}")
-                # Stage position
-                try:
-                    logfile.write(f"# stage_position:          {self.client.GetStagePosition()}\n")
-                except Exception as e:
-                    logging.error(f"Error retrieving stage position: {e}")
-            except FileNotFoundError as fnf_error:
-                logging.error(f"FileNotFoundError: Directory does not exist for logfile: {fnf_error}")
-                return
-            except PermissionError as perm_error:
-                logging.error(f"PermissionError: No write access to logfile: {perm_error}")
-                # return
-            except Exception as e:
-                logging.error(f"Unexpected error while opening logfile: {e}")
-                return
-
-            self.file_operations.update_xtalinfo_signal.emit('Measuring', 'XDS')
-            # self.file_operations.update_xtalinfo_signal.emit('Measuring', 'DIALS')
-
             self.client.Setf1OverRateTxNum(phi_dot_idx)
             time.sleep(1) 
             self.client.SetBeamBlank(0)
@@ -151,8 +90,6 @@ class RecordTask(Task):
                         pos = self.client.GetStagePosition()
                         t = time.time()
                         # difference in timers of TEM and GUI might cause small error and should be evaluated.
-                        if os.access(os.path.dirname(self.log_suffix), os.W_OK):
-                            logfile.write(f"{t - t0:10.6f}  {pos[3]:8.3f} deg\n")
                         logging.info(f"{t - t0:10.6f}  {pos[3]:8.3f} deg")
                         self.rotations_angles.append([f'{t-t0:10.6f}', f'{pos[3]:8.3f}'])
                         time.sleep(0.1)
@@ -174,12 +111,9 @@ class RecordTask(Task):
 
             try:
                 phi1 = self.client.GetTiltXAngle()
-                if os.access(os.path.dirname(self.log_suffix), os.W_OK):
-                    logfile.write(f"# Final Angle (measured):   {phi1:.3f} deg\n")
             except Exception as e:
                 logging.error(f"Failed to get final tilt angle: {e}")   
 
-            if os.access(os.path.dirname(self.log_suffix), os.W_OK): logfile.close()
             logging.info(f"Stage rotation end at {phi1:.1f} deg.")
             
             # GUI updates; should be done before Auto-Reset, which modifies the stage status
@@ -201,19 +135,16 @@ class RecordTask(Task):
                         "illumination" : self.control.beam_intensity,
                     }
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
-                                      self.tem_action.visualization_panel.get_full_fname_path(), 
+                                      self.tem_action.visualization_panel.get_full_fname_str(), 
                                       self.control.tem_status, 
                                       beam_property,
                                       self.rotations_angles,
                                       self.cfg.threshold,
                                       retries=globals.max_retries_tagging, 
-                                      delay=globals.inquiry_delay) 
-                    
-                    self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
-                    # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')
+                                      delay=globals.inquiry_delay)
+
                 except Exception as e:
                     logging.error(f"Metadata Update Error: {e}")
-                    self.file_operations.update_xtalinfo_signal.emit('Metadata error', 'XDS')
 
             # Enable auto reset of tilt
             if self.tem_action.tem_tasks.autoreset_checkbox.isChecked(): 
@@ -238,7 +169,6 @@ class RecordTask(Task):
                 self.reset_rotation_signal.emit()
             else:
                 self.tem_action.trigger_additem.emit('green', 'recorded', pos)
-                self.tem_action.trigger_processed_receiver.emit()
             time.sleep(0.5)
             print("------REACHED END OF TASK----------")
 
@@ -259,8 +189,6 @@ class RecordTask(Task):
         except Exception as e:
             logging.error(f"Unexpected error while waiting for rotation to start: {e}")
         finally:
-            if logfile is not None:
-                logfile.close()  # Ensure the logfile is closed in case of any errors
             self.client.SetBeamBlank(1)
             time.sleep(0.01)
             # Give back control to the TEM inspector for automatic updates of the UI
