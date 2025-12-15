@@ -6,7 +6,8 @@
            "ht_voltage": 200000,
            "magnification": 20000,
            "brightness": 46621,
-           "date_update": "03/12/2024"
+           "date_update": "03/12/2024",
+           "selector_id": 10
          },
          { "displayed": "80cm",
            "calibrated": 1195.0,
@@ -14,7 +15,8 @@
            "ht_voltage": 200000,
            "magnification": 20000,
            "brightness": 46621,
-           "date_update": "03/12/2024"
+           "date_update": "03/12/2024",
+           "selector_id": 9
          },
          { "displayed": "60cm",
            "calibrated": 900.0,
@@ -22,7 +24,8 @@
            "ht_voltage": 200000,
            "magnification": 20000,
            "brightness": 46621,
-           "date_update": "03/12/2024"
+           "date_update": "03/12/2024",
+           "selector_id": 8
          },
          { "displayed": "50cm",
            "calibrated": 750.0,
@@ -30,7 +33,8 @@
            "ht_voltage": 200000,
            "magnification": 20000,
            "brightness": 46621,
-           "date_update": "03/12/2024"
+           "date_update": "03/12/2024",
+           "selector_id": 7
          },
          { "displayed": "40cm",
            "calibrated": 570.0,
@@ -38,7 +42,8 @@
            "ht_voltage": 200000,
            "magnification": 20000,
            "brightness": 46621,
-           "date_update": "03/12/2024"
+           "date_update": "03/12/2024",
+           "selector_id": 6
          },
          { "displayed": "30cm",
            "calibrated": 430.0,
@@ -46,7 +51,8 @@
            "ht_voltage": 200000,
            "magnification": 20000,
            "brightness": 46621,
-           "date_update": "03/12/2024"
+           "date_update": "03/12/2024",
+           "selector_id": 5
          },
          { "displayed": "25cm",
            "calibrated": 355.0,
@@ -54,7 +60,8 @@
            "ht_voltage": 200000,
            "magnification": 20000,
            "brightness": 46621,
-           "date_update": "03/12/2024"
+           "date_update": "03/12/2024",
+           "selector_id": 4
          },
          { "displayed": "20cm",
            "calibrated": 285.0,
@@ -62,15 +69,26 @@
            "ht_voltage": 200000,
            "magnification": 20000,
            "brightness": 46621,
-           "date_update": "01/01/1970"
+           "date_update": "01/01/1970",
+           "selector_id": 3
          },
+         { "displayed": "15cm",
+           "calibrated": 200.0,
+           "unit": "mm",
+           "ht_voltage": 200000,
+           "magnification": 20000,
+           "brightness": 48086,
+           "date_update": "01/01/1970",
+           "selector_id": 2
+        },
          { "displayed": "100cm",
            "calibrated": 1690.0,
            "unit": "mm",
            "ht_voltage": 100000,
            "magnification": 20000,
            "brightness": 48086,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 10
         },
          { "displayed": "80cm",
            "calibrated": 1350.0,
@@ -78,7 +96,8 @@
            "ht_voltage": 100000,
            "magnification": 20000,
            "brightness": 48086,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 9
         },
          { "displayed": "60cm",
            "calibrated": 1015.0,
@@ -86,7 +105,8 @@
            "ht_voltage": 100000,
            "magnification": 20000,
            "brightness": 48086,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 8
         },
          { "displayed": "50cm",
            "calibrated": 845.0,
@@ -94,7 +114,8 @@
            "ht_voltage": 100000,
            "magnification": 20000,
            "brightness": 48086,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 7
         },
          { "displayed": "40cm",
            "calibrated": 680.0,
@@ -102,7 +123,8 @@
            "ht_voltage": 100000,
            "magnification": 20000,
            "brightness": 48086,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 6
         },
          { "displayed": "30cm",
            "calibrated": 510.0,
@@ -110,7 +132,8 @@
            "ht_voltage": 100000,
            "magnification": 20000,
            "brightness": 48086,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 5
         },
          { "displayed": "25cm",
            "calibrated": 425.0,
@@ -118,7 +141,8 @@
            "ht_voltage": 100000,
            "magnification": 20000,
            "brightness": 48086,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 4
         },
          { "displayed": "20cm",
            "calibrated": 340.0,
@@ -126,7 +150,17 @@
            "ht_voltage": 100000,
            "magnification": 20000,
            "brightness": 48086,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 3
+        },
+         { "displayed": "15cm",
+           "calibrated": 200.0,
+           "unit": "mm",
+           "ht_voltage": 100000,
+           "magnification": 20000,
+           "brightness": 48086,
+           "date_update": "01/01/1970",
+           "selector_id": 2
         },
          { "displayed": "100cm",
            "calibrated": 1670.0,
@@ -134,7 +168,8 @@
            "ht_voltage": 80000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 10
         },
          { "displayed": "80cm",
            "calibrated": 1325.0,
@@ -142,7 +177,8 @@
            "ht_voltage": 80000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 9
         },
          { "displayed": "60cm",
            "calibrated": 1000.0,
@@ -150,7 +186,8 @@
            "ht_voltage": 80000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 8
         },
          { "displayed": "50cm",
            "calibrated": 830.0,
@@ -158,7 +195,8 @@
            "ht_voltage": 80000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 7
         },
          { "displayed": "40cm",
            "calibrated": 675.0,
@@ -166,7 +204,8 @@
            "ht_voltage": 80000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 6
         },
          { "displayed": "30cm",
            "calibrated": 505.0,
@@ -174,7 +213,8 @@
            "ht_voltage": 80000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 5
         },
          { "displayed": "25cm",
            "calibrated": 355.0,
@@ -182,7 +222,26 @@
            "ht_voltage": 80000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "13/03/2025"
+           "date_update": "13/03/2025",
+           "selector_id": 4
+        },
+         { "displayed": "20cm",
+           "calibrated": 250.0,
+           "unit": "mm",
+           "ht_voltage": 80000,
+           "magnification": 20000,
+           "brightness": 48086,
+           "date_update": "01/01/1970",
+           "selector_id": 3
+        },
+         { "displayed": "15cm",
+           "calibrated": 200.0,
+           "unit": "mm",
+           "ht_voltage": 80000,
+           "magnification": 20000,
+           "brightness": 48086,
+           "date_update": "01/01/1970",
+           "selector_id": 2
         },
          { "displayed": "1cm",
            "calibrated": 1,
@@ -190,7 +249,8 @@
            "ht_voltage": 200000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "06/02/2025"
+           "date_update": "06/02/2025",
+           "selector_id": 0
         },
          { "displayed": "1cm",
            "calibrated": 1,
@@ -198,7 +258,8 @@
            "ht_voltage": 100000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "01/01/1970"
+           "date_update": "01/01/1970",
+           "selector_id": 0
         },
          { "displayed": "1cm",
            "calibrated": 1,
@@ -206,110 +267,146 @@
            "ht_voltage": 80000,
            "magnification": 20000,
            "brightness": 48794,
-           "date_update": "01/01/1970"
-        }            
+           "date_update": "01/01/1970",
+           "selector_id": 0
+        }
 ],
   "magnification":
         [
          { "displayed": "X1",
+           "selector_id": 0,
            "calibrated": 1,
            "date_update": "06/02/2025"
         },
          { "displayed": "X100k",
+           "selector_id": 18,
            "calibrated": 140184,
            "date_update": "04/12/2024"
         },
          { "displayed": "X80k",
+           "selector_id": 17, 
            "calibrated": 113400,
            "date_update": "04/12/2024"
         },
          { "displayed": "X60k",
+           "selector_id": 16, 
            "calibrated": 87696,
            "date_update": "04/12/2024"
         },
          { "displayed": "X50k",
+           "selector_id": 15, 
            "calibrated": 70632,
            "date_update": "04/12/2024"
         },
          { "displayed": "X40k",
+           "selector_id": 14, 
            "calibrated": 57780,
            "date_update": "04/12/2024"
         },
          { "displayed": "X30k",
+           "selector_id": 13, 
            "calibrated": 44496,
            "date_update": "04/12/2024"
         },
          { "displayed": "X25k",
+           "selector_id": 12, 
            "calibrated": 37476,
            "date_update": "04/12/2024"
         },
          { "displayed": "X20k",
+           "selector_id": 11, 
            "calibrated": 29722,
            "date_update": "04/12/2024"
         },
          { "displayed": "X15k",
+           "selector_id": 10, 
            "calibrated": 22495,
            "date_update": "04/12/2024"
         },
          { "displayed": "X12k",
+           "selector_id": 9, 
            "calibrated": 17863,
            "date_update": "04/12/2024"
         },
          { "displayed": "X10k",
+           "selector_id": 8,
            "calibrated": 14796,
            "date_update": "04/12/2024"
         },
          { "displayed": "X8000",
+           "selector_id": 7,
            "calibrated": 11963,
            "date_update": "04/12/2024"
         },
          { "displayed": "X6000",
+           "selector_id": 6,
            "calibrated": 8937,
            "date_update": "04/12/2024"
         },
          { "displayed": "X5000",
+           "selector_id": 5,
            "calibrated": 7375,
            "date_update": "04/12/2024"
         },
          { "displayed": "X4000",
+           "selector_id": 18,
            "calibrated": 5915,
            "date_update": "04/12/2024"
         },
          { "displayed": "X3000",
+           "selector_id": 17,
            "calibrated": 4435,
            "date_update": "04/12/2024"
         },
          { "displayed": "X2500",
+           "selector_id": 16,
            "calibrated": 3697,
            "date_update": "04/12/2024"
         },
          { "displayed": "X2000",
+           "selector_id": 15,
            "calibrated": 2952,
            "date_update": "04/12/2024"
         },
          { "displayed": "X1500",
+           "selector_id": 14,
            "calibrated": 2160,
            "date_update": "04/12/2024"
         },
          { "displayed": "X1200",
+           "selector_id": 13,
            "calibrated": 1742,
            "date_update": "13/12/2024"
         },
          { "displayed": "X1000",
+           "selector_id": 12,
            "calibrated": 1473,
            "date_update": "13/12/2024"
         },
          { "displayed": "X800",
+           "selector_id": 11,
            "calibrated": 1170,
            "date_update": "13/12/2024"
         },
          { "displayed": "X600",
+           "selector_id": 10,
            "calibrated": 888,
            "date_update": "13/12/2024"
         },
          { "displayed": "X500",
+           "selector_id": 9,
            "calibrated": 720,
            "date_update": "13/12/2024"
+        },
+         { "displayed": "X300",
+           "selector_id": 8,
+           "calibrated": 430,
+           "date_update": "01/01/1970"
+        },
+         { "displayed": "X200",
+           "selector_id": 7,
+           "calibrated": 290,
+           "date_update": "01/01/1970"
         }
 ], 
   "CL":
@@ -407,7 +504,7 @@
            "axis_xds": [0.999781, -0.0209424, 0.0],
            "overlay_xy": [533.6, 540.3],
            "overlay_wh": [5, 5],
-           "date_update": "18/3/2025"
+           "date_update": "18/03/2025"
          },
          { "ht_voltage": 100000,
            "magnification": 1200,
@@ -421,7 +518,7 @@
            "axis_xds": [0.997684, 0.0680153, 0.0],
            "overlay_xy": [533.6, 540.3],
            "overlay_wh": [5, 5],
-           "date_update": "18/3/2025"
+           "date_update": "18/03/2025"
          },
          { "ht_voltage": 80000,
            "magnification": 1200,

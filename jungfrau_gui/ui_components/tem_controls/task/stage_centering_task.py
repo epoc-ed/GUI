@@ -21,10 +21,6 @@ class CenteringTask(Task):
         logging.info("CenteringTask initialized")
         self.client = TEMClient(globals.tem_host, globals.tem_port, verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        for shape in self.cfg.overlays:
-            if shape['type'] == 'rectangle':
-                self.lowmag_jump = shape['xy'][0]+shape['width']//2, shape['xy'][1]+shape['height']//2
-                break
         self.thresholds = globals.click_on_move_thresholds
     
     def rot2d(self, vector, theta):# anti-clockwise
@@ -41,7 +37,8 @@ class CenteringTask(Task):
             tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * globals.PIXEL * globals.MM_TO_UM / calibrated_mag # in um
         else: # Lowmag, targeting to the rectangular overlay
             logging.debug(f'Estimate with rotation at LM')
-            tr_vector = (pixels - [self.lowmag_jump[0], self.lowmag_jump[1]]) * globals.PIXEL * globals.MM_TO_UM / calibrated_mag # in um
+            lowmag_jump = cfg_jf.lut().lowmagjump_for_ht(self.control.tem_status["ht.GetHtValue"])
+            tr_vector = (pixels - [lowmag_jump[0], lowmag_jump[1]]) * globals.PIXEL * globals.MM_TO_UM / calibrated_mag # in um
         tr_vector = self.rot2d(tr_vector, rotation_axis)            
         return np.round(tr_vector, 3)
 
@@ -49,7 +46,7 @@ class CenteringTask(Task):
         px_array = np.array(self.pixels)
         tilt_X_abs = np.abs(self.client.GetTiltXAngle())
         if tilt_X_abs > 1 and tilt_X_abs < 5:
-            logging.warning('Stage tilts! Reset tilting or Adjust Z manually. ')
+            logging.warning('Stage tilts! Reset tilting or Adjust Z manually.')
             return
         magnification = self.control.tem_status["eos.GetMagValue"]
         position = self.control.tem_status["stage.GetPos"]
@@ -71,7 +68,7 @@ class CenteringTask(Task):
                 logging.info(f'Vector already small enough (< {self.thresholds['dxy_min']} um): {movexy[0]}, {movexy[1]}')
                 return
             logging.info(f'Move X: {movexy[0]} um,  Y: {movexy[1]} um with MAG: {magnification[2]}')
-            self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, -movexy[0]*globals.UM_TO_NM, globals.backlash[0], False)            
+            self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, -movexy[0]*globals.UM_TO_NM, globals.backlash[0], False)
             time.sleep(0.5)
             self.control.trigger_movewithbacklash.emit((np.sign(movexy[1]) > 0)+2, -movexy[1]*globals.UM_TO_NM, globals.backlash[1], False)
             time.sleep(0.5)
@@ -89,7 +86,7 @@ class CenteringTask(Task):
                         logging.info(f'Too small or too large Z-Vector: {movez} um')
                         return
                 elif int(magnification[0]) == 1200: # LowMag, not 1200x
-                    if np.abs(movez) < self.thresholds['dz_min_lmag'] or position[2]/globals.UM_TO_NM  + movez < self.thresholds['absz_min'] or position[2]/globals.UM_TO_NM + movez > self.thresholds['absz_max']:
+                    if np.abs(movez) < self.thresholds['dz_min_lmag'] or position[2]/globals.UM_TO_NM + movez < self.thresholds['absz_min'] or position[2]/globals.UM_TO_NM + movez > self.thresholds['absz_max']:
                         logging.info(f'Too small or too large Z-Vector: {movez} um')
                         return
                 else:
