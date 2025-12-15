@@ -73,15 +73,19 @@ class TEMDetector(QGroupBox):
 
         self.setLayout(detector_section)
 
+
 class TEMStageCtrl(QGroupBox):
     def __init__(self):
-        super().__init__() #"Stage Status / Quick Moves"
-        if not globals.dev:
-            self.setTitle("X/Y stage plot")  # optional
-            self.setCheckable(True)
-            self.setChecked(True)
-            # Connect QGroupBox toggled signal to a custom slot
-            self.toggled.connect(self.on_collapsed)
+        super().__init__() # "Stage Status / Quick Moves"
+        if globals.dev and vispy:
+            self.setTitle("Spot scatter plot")
+        else:
+            self.setTitle("X/Y stage plot")
+        self.setCheckable(True)
+        self.setChecked(False) #True)
+        # Connect QGroupBox toggled signal to a custom slot
+        self.toggled.connect(self.on_collapsed)
+        self.images_kept = {}
         self.initUI()
 
     def initUI(self):
@@ -121,6 +125,9 @@ class TEMStageCtrl(QGroupBox):
         self.movestages.addButton(self.move10degp, 10)
         self.movestages.addButton(self.move10degn, -10)
         self.movestages.addButton(self.move0deg, 0)
+        if globals.dev:
+            self.move55degn = QPushButton('-55 deg', self)
+            self.movestages.addButton(self.move55degn, -5)
         self.hbox_move.addWidget(move_label, 1)
         stage_ctrl_section.addLayout(self.hbox_move)
 
@@ -129,6 +136,7 @@ class TEMStageCtrl(QGroupBox):
             i.setEnabled(False)
 
         for i in self.movestages.buttons():
+            if globals.dev: i.setMaximumWidth(60)
             self.hbox_move.addWidget(i, 1)
             i.setEnabled(False)
 
@@ -155,15 +163,30 @@ class TEMStageCtrl(QGroupBox):
         self.blanking_button = ToggleButton("Blank beam", self)
         self.blanking_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.blanking_button.setEnabled(False)
-        self.hbox_extras.addWidget(self.blanking_button)
+        self.hbox_extras.addWidget(self.blanking_button, 3)
         if globals.dev:
             self.screen_button = ToggleButton("Move Screen", self)
             self.screen_button.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             self.screen_button.setEnabled(False)
-            self.hbox_extras.addWidget(self.screen_button)
+            self.hbox_extras.addWidget(self.screen_button, 3)
             self.mapsnapshot_button = QPushButton("Snapshot", self)
             self.mapsnapshot_button.setEnabled(False)
-            self.hbox_extras.addWidget(self.mapsnapshot_button)
+            self.hbox_extras.addWidget(self.mapsnapshot_button, 3)
+            self.spotchart_checkbox = QCheckBox("diff", self)
+            self.spotchart_checkbox.setFont(font_small)
+            self.hbox_extras.addWidget(self.spotchart_checkbox, 2)
+            self.spotchart_checkbox.checkStateChanged.connect(self.toggle_spotchart)
+            self.tilted_view_checkbox = QCheckBox("tilt", self)
+            self.tilted_view_checkbox.setFont(font_small)
+            self.tilted_view_checkbox.checkStateChanged.connect(self.toggle_tiltview)
+            self.hbox_extras.addWidget(self.tilted_view_checkbox, 2)
+
+            # self.image_kept_checkbox = QCheckBox("buffered", self)
+            # self.image_kept_checkbox.setFont(font_small)
+            # self.image_kept_checkbox.setEnabled(False)
+            # self.image_kept_checkbox.checkStateChanged.connect(self.toggle_imagekept)
+            # self.hbox_extras.addWidget(self.image_kept_checkbox, 2)
+
         stage_ctrl_section.addLayout(self.hbox_extras)
         
         self.hbox_gotopos = QHBoxLayout()
@@ -202,22 +225,92 @@ class TEMStageCtrl(QGroupBox):
         # 3) Access the plotItem if needed
         self.gridarea = self.grid_plot.plotItem
 
-        radius1 = 1800
+        radius1 = globals.grid_circle_radius['outer']
         x = radius1 * np.cos(np.linspace(0, 2*np.pi, 100))
         y = radius1 * np.sin(np.linspace(0, 2*np.pi, 100))
         self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen('darkGray')))
 
-        radius2 = 1200
-        x = radius2 * np.cos(np.linspace(0, 2*np.pi, 100))
-        y = radius2 * np.sin(np.linspace(0, 2*np.pi, 100))
-        # crystals outside of this ring should be cared for rotation limit
+        self.radius2 = globals.grid_circle_radius['inner']
+        x = self.radius2 * np.cos(np.linspace(0, 2*np.pi, 100))
+        y = self.radius2 * np.sin(np.linspace(0, 2*np.pi, 100))
         self.gridarea.addItem(pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen('yellow')))
+
+        # SetZValue = 
+        # undef: arrows, points, labels
+        # -1: Snapshots
+        # -2: Diff-map with tilt
+        # -3: low-mag map with tilt
+        # -4: Diff-map
+        # -5: low-mag map
+
+        # lowmag-map
+        tr = QTransform()
+        tr.scale(globals.grid_lowmag_scale, globals.grid_lowmag_scale)
+
+        self.mapatlasItem = pg.ImageItem()
+        self.gridarea.addItem(self.mapatlasItem)
+        self.mapatlasItem.setTransform(tr)
+        self.mapatlasItem.setZValue(-5) # bottom layer
+        self.lowmagimage = np.zeros((int(self.radius2*2//globals.grid_lowmag_scale), int(self.radius2*2//globals.grid_lowmag_scale)))
+        self.mapatlasItem.setImage(self.lowmagimage)
+
+        # # lowmag-map with tilt
+        self.mapatlasItem_tilted = pg.ImageItem()
+        self.gridarea.addItem(self.mapatlasItem_tilted)
+        self.mapatlasItem_tilted.setTransform(tr)
+        self.mapatlasItem_tilted.setZValue(-3)
+        self.lowmagimage_tilted = np.zeros_like(self.lowmagimage)
+        self.mapatlasItem_tilted.setImage(self.lowmagimage_tilted)
+
+        # diff-map
+        tr = QTransform()
+        tr.scale(globals.grid_resolution, globals.grid_resolution)
+
+        self.spotchartItem = pg.ImageItem()
+        self.gridarea.addItem(self.spotchartItem)
+        self.spotchartItem.setColorMap('inferno')
+        self.spotchartItem.setTransform(tr)
+        self.spotchartItem.setPos(-self.radius2, -self.radius2)
+        self.spotchartItem.setZValue(-4) # 2nd bottom layer
+        self.grayimage = np.zeros((self.radius2*2//globals.grid_resolution, self.radius2*2//globals.grid_resolution))
+        self.spotchartItem.hide()
+
+        # # diff-map with tilt
+        self.spotchartItem_tilted = pg.ImageItem()
+        self.gridarea.addItem(self.spotchartItem_tilted)
+        self.spotchartItem_tilted.setColorMap('inferno')
+        self.spotchartItem_tilted.setTransform(tr)
+        self.spotchartItem_tilted.setPos(-self.radius2, -self.radius2)
+        self.spotchartItem_tilted.setZValue(-2)
+        self.grayimage_tilted = np.zeros_like(self.grayimage)
+        self.spotchartItem_tilted.setImage(self.grayimage_tilted)
+        self.spotchartItem_tilted.hide()        
 
         self.grid_plot.setAspectLocked()
         self.grid_plot.showGrid(x=True, y=True)
 
         # Add the plot_container (with its layout/plot) to the GroupBox layout
         stage_ctrl_section.addWidget(self.plot_container)
+
+        if vispy: 
+            self.plot3d_container = QWidget()
+            self.plot3d_container.setWindowTitle("3d plotter")
+            self.plot3d_container.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint)
+            self.plot3d_layout = QVBoxLayout(self.plot3d_container)
+            # "export QT_XCB_GL_INTEGRATION=xcb_egl" is necessary to avoid an error!
+            self.canvas = scene.SceneCanvas(size=(500, 500), show=True) # keys='interactive',
+
+            self.view = self.canvas.central_widget.add_view()
+            self.view.camera = 'turntable'
+            self.view.camera.fov = 45
+            self.view.camera.distance = 2 # 500
+
+            self.scatter = scene.visuals.Markers(parent=self.view.scene)
+            self.scatter.set_gl_state('translucent', depth_test=True)
+
+            xyz = np.random.normal(0, 0.005, size=(10, 3)) # origin
+            self.scatter.set_data(xyz, edge_color=None, size=10)
+            self.plot3d_layout.addWidget(self.canvas.native)
 
         self.setLayout(stage_ctrl_section)
 
@@ -227,7 +320,34 @@ class TEMStageCtrl(QGroupBox):
         If 'checked' is False, collapse (hide) the plot container.
         If 'checked' is True, show it again.
         """
-        self.plot_container.setVisible(checked)
+        if vispy and globals.dev:
+            self.plot3d_container.setVisible(checked)
+        else:
+            self.plot_container.setVisible(checked)
+
+    def toggle_spotchart(self):
+        if self.spotchartItem.isVisible():
+            self.spotchartItem.hide()
+        else:
+            self.spotchartItem.show()
+        if self.spotchartItem_tilted.isVisible():
+            self.spotchartItem_tilted.hide()
+        else:
+            self.spotchartItem_tilted.show()
+
+    def toggle_tiltview(self):
+        if self.mapatlasItem_tilted.isVisible():
+            self.mapatlasItem_tilted.hide()
+            self.mapatlasItem.show()
+        else:
+            self.mapatlasItem_tilted.show()
+            self.mapatlasItem.hide()
+        if self.spotchartItem_tilted.isVisible():
+            self.spotchartItem_tilted.hide()
+            self.spotchartItem.show()
+        else:
+            self.spotchartItem_tilted.show()
+            self.spotchartItem.hide()
 
 class TEMTasks(QGroupBox):
     def __init__(self, parent):

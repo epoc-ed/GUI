@@ -1,5 +1,6 @@
 import pyqtgraph as pg
 import numpy as np
+from PIL import Image
 
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
@@ -41,11 +42,12 @@ class TEMAction(QObject):
         self.tem_controls = parent
         self.visualization_panel = self.parent.visualization_panel
         self.file_operations = self.parent.file_operations
-        self.dataReceiverReady = True
+        self.postprocess_controls = self.parent.postprocess_controls
+        self.processManagerReady = True
         self.tem_detector = self.visualization_panel.tem_detector
         self.tem_stagectrl = self.tem_controls.tem_stagectrl
         self.tem_tasks = self.tem_controls.tem_tasks
-        self.xtallist = self.file_operations.tem_xtalinfo.xtallist
+        self.xtallist = self.postprocess_controls.tem_xtalinfo.xtallist
         self.control = ControlWorker(self)
         self.version =  self.parent.version
         self.last_mag_mode = None
@@ -1003,41 +1005,49 @@ class TEMAction(QObject):
         thread_manager.reset_worker_and_thread(self.process_receiver, self.datareceiver_thread)
         self.dataReceiverReady = True
 
-    def update_ecount(self, cutoff=400, bins_set=20):
-        # estimate the number of incoming electrons with the most frequent bin of the count-histogram.
-        ht = self.parent.tem_controls.voltage_spBx.value()
-        cutoff = cutoff / globals.default_HT * globals.KV_TO_V * ht
+    def update_ecount(self):
         Mag_idx = self.control.tem_status["eos.GetFunctionMode"][0] = self.control.client.GetFunctionMode()[0]
         if Mag_idx == 4:
             logging.warning("Brightness should be calculated in imaging mode")
             return
-        frame = self.visualization_panel.jfjoch_client._lots_of_images / globals.max_duration # usually 20, with 100 frame-sum
         image = self.parent.imageItem.image
-        data_flat = image.flatten()
-        image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
-        low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
-        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > cutoff))]
-        logging.info(f"No. of significant pixel for calculation: {len(data_sampled)} in {frame} frames")
-        if len(data_sampled) < 1e4:
+        magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
+        magnification = self.lut.calibrated_magnification(magnification)
+        fps = self.visualization_panel.jfjoch_client._lots_of_images / globals.max_duration # usually 20, with 100 frame-sum
+        ecount = self.visualization_panel.ecount
+        logging.info(f"No. of significant pixel for calculation: {ecount[0]} in {fps} frames")
+        if ecount[0] < 1e4:
             self.tem_detector.e_incoming_display.setText(f'N/A')
             logging.warning('Number of sampling pixels is less than 1% (<1e4 pixels)!')
             return
-        try:
-            hist, bins = np.histogram(data_sampled, density=True, bins=bins_set)
-            delta = (bins[1]-bins[0])/2
-            xr = np.linspace(np.min(bins[1:])+delta,np.max(bins[1:])-delta,len(bins[1:])-1)
-            approximate_average_count = xr[np.argmax(hist[1:])]
-            logging.info(f'Approximate average: {approximate_average_count:.1f} count per pixel')
-            e_per_A2 = approximate_average_count / ht * frame / ((globals.PIXEL*1e7)**2) # per sec
-            self.control.beam_intensity["pa_per_cm2"] = 1/6.241*e_per_A2*1e10 # per sec
-            magnification = self.control.tem_status["eos.GetMagValue"][2] ## with unit
-            magnification = self.lut.calibrated_magnification(magnification)
-            self.control.beam_intensity["e_per_A2_sample"] = e_per_A2 * magnification**2
-            self.tem_detector.e_incoming_display.setText(f'{self.control.beam_intensity["pa_per_cm2"]:.2f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.2f} e/A2/s')
-            logging.info(f'{self.control.beam_intensity["pa_per_cm2"]:.4f} pA/cm2/s, {self.control.beam_intensity["e_per_A2_sample"]:.4f} e/A2/s')
-        except ValueError as e:
+        elif ecount[1] == 0:
             self.tem_detector.e_incoming_display.setText(f'N/A')
-            logging.warning(e)
+            logging.warning(ecount[-1])
+            return
+
+        logging.info(f'Approximate average: {ecount[1]:.1f} count per pixel')
+        self.control.beam_intensity["pa_per_cm2"] = ecount[2]
+        self.control.beam_intensity["e_per_A2_sample"] = ecount[3]
+        self.tem_detector.e_incoming_display.setText(f'{ecount[2]:.3f} pA/cm2, {ecount[3]:.3f} e/A2/s')
+        logging.info(f'{ecount[2]:.4f} pA/cm2/s, {ecount[3]:.4f} e/A2/s')
+
+    def image_highcontrast(self, cutoff=400, verbose=False):
+        ht = self.parent.tem_controls.voltage_spBx.value()
+        cutoff = cutoff / globals.default_HT * globals.KV_TO_V * ht
+
+        image = np.copy(self.parent.imageItem.image)
+        image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
+        low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
+        # enhanced contrast
+        margin = 1
+        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > cutoff))]
+        uniqs, counts = np.unique(data_sampled//10, return_counts=True)
+        approximate_average_count = uniqs[np.argmax(counts)].max() * 10
+        low_thresh, high_thresh = approximate_average_count*(1-margin), approximate_average_count*(1+margin)
+        if verbose:
+            logging.info(f"Snapshot displayed in enhanced contrast ({low_thresh}-{high_thresh})")
+        # downsizing
+        return np.clip((np.nan_to_num(image) - low_thresh) / (high_thresh - low_thresh) * 255, 0, 255).astype(np.uint8)
 
     def take_snapshot(self, max_list=50):
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
@@ -1052,45 +1062,28 @@ class TEMAction(QObject):
         calibrated_mag = self.lut.calibrated_magnification(magnification[2])
         position = self.control.client.GetStagePosition()
         beam_blank_state = self.control.client.GetBeamBlank()
-
-        image = np.copy(self.parent.imageItem.image)
-
-        image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
-        low_thresh, high_thresh = np.percentile(image_deloverflow, (1, 99.999))
-
-        # enhanced contrast
-        margin = 0.4
-        data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > low_thresh))]
-        uniqs, counts = np.unique(data_sampled//10, return_counts=True)
-        approximate_average_count = uniqs[np.argmax(counts)].max() * 10
-        low_thresh, high_thresh = approximate_average_count*(1-subiman), approximate_average_count*(1+margin)
-        logging.info(f"Snapshot displayed in enhanced contrast ({low_thresh}-{high_thresh})")
-        # downsizing
-        snapshot_image = pg.ImageItem(np.clip((np.nan_to_num(image) - low_thresh) / (high_thresh - low_thresh) * 255, 0, 255).astype(np.uint8))
         
+        snapshot_image = pg.ImageItem(self.image_highcontrast(verbose=True))
+
         tr = QTransform()
         scale = globals.PIXEL*globals.MM_TO_UM/calibrated_mag
         tr.scale(scale, scale)
         tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
         if int(magnification[0]) >= globals.min_mag_for_mag: # Mag
-            tr.translate(-image.shape[0]/2, -image.shape[1]/2)
+            tr.translate(-snapshot_image.image.shape[0]/2, -snapshot_image.image.shape[1]/2)
         else:
-            tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
+            lowmag_jump = self.lut.lowmagjump_for_ht(self.control.tem_status["ht.GetHtValue"])
+            tr.translate(-lowmag_jump[0], -lowmag_jump[1])
         snapshot_image.setTransform(tr)
         self.tem_stagectrl.gridarea.addItem(snapshot_image)
         snapshot_image.setPos(position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM)
-        snapshot_image.setZValue(-2)
+        snapshot_image.setZValue(-1)
         view = self.tem_stagectrl.gridarea.getViewBox()
         aspect_ratio = view.size().width()/view.size().height()
-        y_range = position[1]/globals.UM_TO_NM - scale*image.shape[1]/2, position[1]/globals.UM_TO_NM + scale*image.shape[1]/2
-        x_range = position[0]/globals.UM_TO_NM - scale*image.shape[1]/2*aspect_ratio, position[0]/globals.UM_TO_NM + scale*image.shape[1]/2*aspect_ratio
+        y_range = position[1]/globals.UM_TO_NM - snapshot_image.image.shape[1]/2, position[1]/globals.UM_TO_NM + snapshot_image.image.shape[1]/2
+        x_range = position[0]/globals.UM_TO_NM - snapshot_image.image.shape[1]/2*aspect_ratio, position[0]/globals.UM_TO_NM + snapshot_image.image.shape[1]/2*aspect_ratio
         view.setRange(xRange=x_range, yRange=y_range)
         self.snapshot_images.append(snapshot_image)
-        # if globals.dev:
-        #     self.snapshot_images[-1].mouseClickEvent = self.subimageMouseClickEvent
-        # self.add_listedposition(color='red', status='new', position=position)
-        # self.xtallist[-1]["snapshot"] = self.snapshot_image # copy will not work!!
-        # self.xtallist[-1]["magnification"] = calibrated_mag
         logging.info(f'Snapshots were updated.')
 
     def subimageMouseClickEvent(self, event):

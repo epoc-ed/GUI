@@ -1,7 +1,8 @@
 import logging
 from PySide6.QtGui import QFont, QRegularExpressionValidator, QAction, QIcon, QPixmap, QPainter, QPen, QColor
 from PySide6.QtCore import Signal, Qt, QRegularExpression, QTimer, Slot, QObject, QEvent
-from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpinBox, QCheckBox, QComboBox, QCompleter)
+from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, 
+                               QLabel, QLineEdit, QSpinBox, QCheckBox, QComboBox, QCompleter, QDoubleSpinBox, QButtonGroup, QTextEdit)
 
 
 from ...ui_components.toggle_button import ToggleButton
@@ -16,9 +17,12 @@ from ... import globals
 import os
 import re
 import threading
+import subprocess
+import numpy as np
 
 font_big = QFont("Arial", 11)
 font_big.setBold(True)
+font_small = QFont("Arial", 8)
 
 class MetadataSignalHandler(QObject):
     # Define signals
@@ -28,52 +32,8 @@ class MetadataSignalHandler(QObject):
 # Global instance to be accessible
 metadata_signal_handler = MetadataSignalHandler()
 
-class XtalInfo(QGroupBox):
-    def __init__(self):
-        super().__init__() # "DataProcessing"
-        self.xtallist = [
-            {
-                "gui_id": 999,
-                "gui_text": None,
-                "gui_marker": None,
-                "gui_label": None,
-                "dataid": "999_9999", # 000_HHMM
-                "filepath": None,
-                "processor": None,
-                "position": [0, 0, 0, 0, 0], #x,y,z,tx,ty
-                "status": "dummy",
-                "lattice": [10, 10, 10, 90, 90, 90],
-                "spots": [5, 10],
-                "cell axes": [1,0,0, 0,1,0, 0,0,1],
-            }
-        ]
-        self.initUI()
-
-    def initUI(self):
-        xtal_section = QVBoxLayout()
-        xtal_label = QLabel("Result of Processing", self)
-        xtal_label.setFont(font_big)
-
-        xtal_section.addWidget(xtal_label)
-
-        hbox_process = QHBoxLayout()
-        xds_label = QLabel("XDS:", self)
-        # dials_label = QLabel("DIALS:", self)
-        self.xds_results = QLineEdit(self)
-        self.xds_results.setReadOnly(True)
-        # self.dials_results = QLineEdit(self)
-        # self.dials_results.setReadOnly(True)
-        hbox_process.addWidget(xds_label)
-        hbox_process.addWidget(self.xds_results)
-        # hbox_process.addWidget(dials_label)
-        # hbox_process.addWidget(self.dials_results)
-        xtal_section.addLayout(hbox_process)
-
-        self.setLayout(xtal_section)
-
 class FileOperations(QGroupBox):
     trigger_update_h5_index_box = Signal()
-    update_xtalinfo_signal = Signal(str, str)
 
     def __init__(self, parent):
         super().__init__()
@@ -329,77 +289,85 @@ class FileOperations(QGroupBox):
         self.snapshot_button = ToggleButton("Write Stream as a snapshot-H5", self)
         self.snapshot_button.clicked.connect(self.toggle_snapshot_btn)
         self.snapshot_spin = QSpinBox(self)
-        self.snapshot_spin.setMaximum(60000) # 1min
-        self.snapshot_spin.setValue(1000)
+        self.snapshot_spin.setMaximum(globals.max_snapshot_duration)
+        self.snapshot_spin.setValue(globals.default_snapshot_duration)
         self.snapshot_spin.setSuffix(' msec')
 
         snapshot_btn_layout = QHBoxLayout()
         snapshot_btn_layout.addWidget(self.snapshot_button)
         snapshot_btn_layout.addWidget(self.snapshot_spin)
 
+        snapshot_layout.addWidget(self.snapshot_index_input, 1)
         section3.addLayout(snapshot_btn_layout)
-        section3.addWidget(create_horizontal_line_with_margin(15))
         
-        #####################
-        # XDS Processing
-        #####################
+        record_control = QLabel("Items to be recorded", self)
+        section3.addWidget(record_control)
+        layer_checks_layout = QHBoxLayout()
+        layer_labels = ['Map', 'Diff-map', 'Map with tilt', 'Diff-map with tilt', 'Buffered images']
+        self.submap_layer_checks = [QCheckBox(label, self) for label in layer_labels]
+        self.submap_layer_checks[0].setChecked(True)
+        [layer_checks_layout.addWidget(check) for check in self.submap_layer_checks]
+        [check.checkStateChanged.connect(self.update_subimage_list) for check in self.submap_layer_checks]
 
-        self.tem_xtalinfo = XtalInfo()
-        self.update_xtalinfo_signal.connect(self.update_xtalinfo)
-        section3.addWidget(self.tem_xtalinfo)
+        section3.addLayout(layer_checks_layout)
+
+        self.freetext_edit = QTextEdit()
+        self.freetext_edit.setPlaceholderText('Input notes here...')
+        section3.addWidget(self.freetext_edit)
+
+        if globals.dev:
+            self.capture_process = None
+            capture_ctrl_layout = QHBoxLayout()
+            self.capture_button = ToggleButton("Save capture movie", self)
+            self.capture_button.clicked.connect(self.save_capture_screen)
+            self.capture_button.setEnabled(False)
+            self.capture_checkbox = QCheckBox("continuous capturing", self)
+            self.capture_checkbox.checkStateChanged.connect(self.capture_screen)
+            self.capture_checkbox.setChecked(True)
+            capture_ctrl_layout.addWidget(self.capture_button)
+            capture_ctrl_layout.addWidget(self.capture_checkbox)
+            section3.addLayout(capture_ctrl_layout)
+
+            section3.addWidget(create_horizontal_line_with_margin(15))
 
         section3.addStretch()
         self.setLayout(section3)
 
-    @Slot(str, str)
-    def update_xtalinfo(self, progress, software='XDS'):
-        try:
-            if software == 'XDS':
-                self.tem_xtalinfo.xds_results.setText(progress)
-            # elif software == 'DIALS':
-            #     self.tem_xtalinfo.dials_results.setText(progress)
-        except AttributeError:
-            pass 
+    def capture_screen(self):
+        if self.capture_process is None or self.capture_process.poll() is not None:
+            self.capture_process = subprocess.Popen(
+                globals.displaycapture_command,
+                stdin=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
+            self.capture_button.setText('Save capture movie')
+            self.capture_button.setEnabled(True)
 
-    # def toggle_snapshot_btn(self):
-    #     if not self.parent.visualization_panel.jfj_broker_is_ready:
-    #         logging.warning('JFJ is not ready!!')
-    #         return
-    #     if not self.snapshot_button.started:
-    #         self.pre_text = self.tag_input.text()
-    #         self.tag_input.setText(self.prefix_input.text())
-    #         self.update_measurement_tag()
-    #         self.snapshot_button.setText("Stop")
-    #         self.snapshot_button.started = True
-    #         self.parent.visualization_panel.send_command_to_jfjoch('collect')
-    #         logging.info(f'Snapshot duration: {int(self.snapshot_spin.value())*1e-3} sec')
-    #         QTimer.singleShot(self.snapshot_spin.value(), self.toggle_snapshot_btn)
-    #     else:
-    #         self.parent.visualization_panel.send_command_to_jfjoch('cancel')
-    #         if self.parent.tem_controls.tem_action.temConnector is not None: ## to be checked again
-    #             self.parent.tem_controls.tem_action.control.send_to_tem("#more", asynchronous = False)
-    #             logging.info(" ******************** Adding Info to H5 over Server...")
-    #             beam_property = {
-    #                 "beamcenter" : self.cfg.beam_center, 
-    #                 "sigma_width" : self.parent.tem_controls.tem_action.control.beam_sigmaxy,
-    #                 "illumination" : self.parent.tem_controls.tem_action.control.beam_intensity,
-    #             }                
-    #             try:
-    #                 send_with_retries(self.metadata_notifier.notify_metadata_update, 
-    #                                     self.parent.visualization_panel.get_full_fname_path(), 
-    #                                     self.parent.tem_controls.tem_action.control.tem_status, 
-    #                                     beam_property,
-    #                                     None, # self.rotations_angles,
-    #                                     self.cfg.threshold,
-    #                                     retries=3, 
-    #                                     delay=0.1) 
-    #             except Exception as e:
-    #                 logging.error(f"Metadata Update Error: {e}")
-    #         logging.info(f'Snapshot duration end: {int(self.snapshot_spin.value())*1e-3} sec')
-    #         self.tag_input.setText(self.pre_text) # reset the tag to value before snapshot
-    #         self.update_measurement_tag()
-    #         self.snapshot_button.setText("Write Stream as a snapshot-H5")
-    #         self.snapshot_button.started = False
+    def save_capture_screen(self):
+        if self.capture_process:
+            self.capture_checkbox.setChecked(False)
+            self.capture_button.setEnabled(False)
+            self.capture_button.setText('Saving...')
+            self.capture_process.stdin.write('\n')
+            self.capture_process.stdin.flush()
+            logging.info('Saved capture movie.')
+            self.capture_checkbox.setEnabled(False)
+            QTimer.singleShot(15000, self.capture_checkbox.setEnabled(True))
+
+    def update_subimage_list(self):
+        self.subimage_list = []
+        checked_list = [check.isChecked() for check in self.submap_layer_checks]
+        list_subimage = [self.parent.tem_controls.tem_stagectrl.lowmagimage,
+                         self.parent.tem_controls.tem_stagectrl.grayimage,
+                         self.parent.tem_controls.tem_stagectrl.lowmagimage_tilted,
+                         self.parent.tem_controls.tem_stagectrl.grayimage_tilted,
+                         np.array([imgs.image for imgs in self.parent.tem_controls.tem_action.snapshot_images]),
+                        ]
+        for id, img in enumerate(list_subimage):
+            if checked_list[id] and img is not None:
+                self.subimage_list.append(img)
+        logging.info(f'{len(self.subimage_list)} subimages are selected to be saved.')
 
     """ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ """
     """ @@@@@@@ Optimized Snapshot Logic @@@@@@@ """
@@ -482,11 +450,13 @@ class FileOperations(QGroupBox):
         try:
             send_with_retries(
                 self.metadata_notifier.notify_metadata_update, 
-                self.parent.visualization_panel.get_full_fname_path(),
+                self.parent.visualization_panel.get_full_fname_str(), 
                 self.parent.tem_controls.tem_action.control.tem_status, 
                 beam_property,
                 None,  # self.rotations_angles,
                 self.cfg.threshold,
+                self.subimage_list,
+                self.freetext_edit.toPlainText(),
                 retries=globals.max_retries_tagging, 
                 delay=globals.inquiry_delay
             )

@@ -6,12 +6,14 @@ from .ui_components.overlay import draw_overlay
 from pyqtgraph.dockarea import Dock
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget,
                                 QHBoxLayout, QPushButton, QGridLayout,
-                                QMessageBox, QTabWidget, QLabel)
+                                QMessageBox, QTabWidget, QLabel, QCheckBox)
 from PySide6.QtCore import Qt, QObject, QEvent, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence
 from .ui_components.visualization_panel.visualization_panel import VisualizationPanel
 from .ui_components.tem_controls.tem_controls import TemControls
 from .ui_components.file_operations.file_operations import FileOperations
+from .ui_components.postprocess.process_control import PostprocessControls
+from .ui_components.extensions.support_calibration import SupportCalibration
 from .ui_components.utils import create_gaussian
 from .ui_components.toggle_button import ToggleButton
 
@@ -182,6 +184,7 @@ class ApplicationWindow(QMainWindow):
 
         self.visualization_panel = VisualizationPanel(self)
         self.file_operations = FileOperations(self)
+        self.postprocess_controls = PostprocessControls(self)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.visualization_panel.captureImage)

@@ -103,6 +103,9 @@ min_mag_for_mag = 1500 # border between LowMag/Mag
 click_on_move_thresholds = {'dxy_min': 0.3, 'dxy_max': 100, 
                             'dz_min_mag': 1, 'dz_max_mag': 20,
                             'dz_min_lmag': 3, 'absz_min': -100, 'absz_max': 20}
+grid_circle_radius = {'inner': 1200, 'outer': 1800} # um, targets outside of this ring should be cared for stage limit
+grid_resolution = 1 # dot-plotter resolution (um)
+grid_lowmag_scale = 0.25
 
 ## stage shift larger than these values will be hold in history
 stage_relaxation_thresholds = [30, 30, 30, 0.2, 100] # nm, nm, nm, deg., deg. 
@@ -143,6 +146,11 @@ min_frame_summed = 10 # safety not to save unexpectedly large datasets
 max_frame_summed = 1000
 detector_freq = 2000
 max_duration = 3600 # sec
+
+default_snapshot_duration = 1000 # 1 sec
+max_snapshot_duration = 180000 # 3 min
+
+displaycapture_command = ['/home/ktakaba/PyJEM_lab/EPOC_git_GUI/launcher_capture.sh']
 
 
 # Communication variables
