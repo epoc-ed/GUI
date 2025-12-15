@@ -25,6 +25,18 @@ from ...ui_components.palette import *
 from rich import print
 from ..tem_controls.toolbox.progress_pop_up import ProgressPopup
 from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
+from jungfrau_gui.ui_components.tem_controls.toolbox import tool
+import pandas as pd
+import pyqtgraph as pg
+
+try:
+    from vispy.color import get_colormap
+    import os
+    os.environ['QT_XCB_GL_INTEGRATION'] = 'xcb_egl'
+    vispy = True
+except ModuleNotFoundError:
+    pass
+    vispy = False
 
 font_big = QFont("Arial", 11)
 font_big.setBold(True)
@@ -51,7 +63,14 @@ class VisualizationPanel(QGroupBox):
         # super().__init__("Visualization Panel")
         super().__init__()
         self.parent = parent
+        self.ecount = 0, 0, 0, 0
         self.assess_gui_jfj_communication_and_display_state.connect(self.update_gui_with_jfj_state)
+        self.spots_update = 0
+        self.spots_hold = False
+        self.integratedimage = np.zeros((globals.nrow, globals.ncol))
+        if vispy: 
+            self.cmap = get_colormap('coolwarm')
+            self.spots_holder = []
         self.initUI()
 
     def initUI(self):
@@ -60,6 +79,7 @@ class VisualizationPanel(QGroupBox):
         self.receiver_client =  None
         self.jfjoch_client = None
         self.lut = cfg_jf.lut()
+        self.rotation_axis = self.lut.rotaxis_for_ht(globals.default_HT)
 
         # Thread pool for running check tasks in separate threads
         self.thread_pool = QThreadPool()
@@ -196,6 +216,7 @@ class VisualizationPanel(QGroupBox):
         self.thresholdBox = QSpinBox(self)
         self.thresholdBox.setMinimum(0)
         self.thresholdBox.setMaximum(200)
+        self.wavelength = tool.eV2angstrom(globals.default_HT)
         self.thresholdBox.setValue(self.cfg.threshold)
         self.thresholdBox.setDisabled(True)
         self.thresholdBox.setSingleStep(10)
@@ -280,7 +301,7 @@ class VisualizationPanel(QGroupBox):
             tem_detector_label = QLabel("Detector")
             tem_detector_label.setFont(font_big)
 
-            self.tem_detector = TEMDetector()
+            self.tem_detector = TEMDetector(self)
             tem_detector_layout.addWidget(tem_detector_label)
             tem_detector_layout.addWidget(self.tem_detector)
 
@@ -494,9 +515,11 @@ class VisualizationPanel(QGroupBox):
                                             th = self.thresholdBox.value(),
                                             beam_x_pxl = self.cfg.beam_center[0],
                                             beam_y_pxl = self.cfg.beam_center[1],
-                                            detector_distance_mm = self.lut.interpolated_distance(globals.mag_value_diff[2], self.parent.tem_controls.voltage_spBx.value()),
+                                            detector_distance_mm = self.tem_detector.calib_det_distance.value(),
                                             incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
                                             wait = False)
+                    self.jfjoch_client.set_spotfind(enable=True)
+                    self.rotation_axis = self.lut.rotaxis_for_ht(self.parent.tem_controls.voltage_spBx.value()*globals.KV_TO_V)
                     logging.warning("Live stream started successfully.")
                     
                     return True  # Indicate success
@@ -543,7 +566,7 @@ class VisualizationPanel(QGroupBox):
                                             th = self.thresholdBox.value(),
                                             beam_x_pxl = self.cfg.beam_center[0],
                                             beam_y_pxl = self.cfg.beam_center[1],
-                                            detector_distance_mm = self.lut.interpolated_distance(globals.mag_value_diff[2], self.parent.tem_controls.voltage_spBx.value()),
+                                            detector_distance_mm = self.tem_detector.calib_det_distance.value(), 
                                             incident_energy_ke_v = self.parent.tem_controls.voltage_spBx.value(), # 200,
                                             wait = False)
                     self.jfj_is_collecting = True
@@ -737,6 +760,7 @@ class VisualizationPanel(QGroupBox):
                 self.parent.toggle_autoContrast()
 
     def initializeWorker(self, thread, worker):
+        self.wavelength = tool.eV2angstrom(self.parent.tem_controls.voltage_spBx.value()*globals.KV_TO_V)
         thread_manager.move_worker_to_thread(thread, worker)
         worker.finished.connect(self.updateUI)
         worker.finished.connect(self.getReaderReady)
@@ -749,7 +773,74 @@ class VisualizationPanel(QGroupBox):
             self.readerWorkerReady = False
             QMetaObject.invokeMethod(self.streamReader, "run", Qt.QueuedConnection)
 
-    def updateUI(self, image, frame_nr):
+    def activate_updating3dplot(self, checked: bool):
+        self.spots_update = int(checked)
+        if not checked:
+            self.spots_hold = False
+            self.parent.postprocess_controls.plot_saved_spots(removeall=True)
+
+    def updateUI(self, image, frame_nr, properties):
         self.parent.imageItem.setImage(image, autoRange = False, autoLevels = False, autoHistogramRange = False)
         if frame_nr is not None:
-            self.parent.statusBar().showMessage(f'Frame: {frame_nr}')
+            self.integratedimage += np.clip(image, 0, 1e6)
+            self.spots = properties['spots']
+            if vispy and self.spots_update != 0: self.update_3dplot()
+            magnification = self.tem_detector.input_magnification.text()
+            ht = self.parent.tem_controls.voltage_spBx.value()
+            self.rotation_axis = self.lut.rotaxis_for_ht(ht*globals.KV_TO_V)
+            if frame_nr % 20 == 0 and magnification != '':
+                magnification = self.lut.calibrated_magnification(magnification)
+                self.ecount = tool.count_electrons(
+                    image, magnification, 
+                    ht = ht,
+                    fps = self.jfjoch_client._lots_of_images / globals.max_duration,
+                    pixel = globals.PIXEL
+                )
+                logging.debug(self.ecount, magnification)
+            if frame_nr % 20 == 0:
+                if globals.dev: # and self.parent.tab_widget.currentWidget() == self.parent.extensions:
+                    # self.radial_thread = threading.Thread(target=self.update_radialplot, daemon=True)
+                    # self.radial_thread.start()
+                    self.integratedimage = np.clip(image, 0, 1e6)
+            self.estimated_resolution = 99 # properties['resolution_estimate']
+            if len(self.spots) != 0:
+                self.estimated_resolution = tool.estimate_resolution_from_spots(
+                    self.spots, self.cfg.beam_center,
+                    camlen = self.tem_detector.calib_det_distance.value(),
+                    wavelength = self.wavelength)
+            self.parent.statusBar().showMessage(f'Frame: {frame_nr:6d}, Spots: {properties['spot_count']:4d}, d_min: {self.estimated_resolution:6.2f}, value: {properties["min_viable_pixel_value"]:8.2e} - {properties["max_viable_pixel_value"]:8.2e}, {self.ecount[2]:8.3f} pA/cm2, {self.ecount[3]:8.3f} e/A2/s')
+
+    def update_3dplot(self):
+        dspots_jfj = pd.DataFrame(self.spots)
+        dspots_jfj['tx'] = self.parent.tem_controls.tem_tasks.input_start_angle.value()
+        if len(self.spots_holder) > 1e5 or len(self.spots_holder) == 0 or not self.spots_hold:
+            self.spots_holder = dspots_jfj # resets if it reaches upper limit (1e4)
+        else:
+            self.spots_holder = pd.concat([self.spots_holder, dspots_jfj])
+        spots_visual = self.spots_holder.iloc[::self.spots_update]
+        if len(spots_visual) > 4e3:
+            self.spots_update += 1
+            self.spots_holder = self.spots_holder.sort_values(by='I', ascending=False)
+        if len(dspots_jfj.index) > 0:
+            x = 1 / tool.radius_in_px2d(spots_visual['x'] - self.cfg.beam_center[0], 
+                                   self.tem_detector.calib_det_distance.value(), self.wavelength)
+            y = 1 / tool.radius_in_px2d(spots_visual['y'] - self.cfg.beam_center[1], 
+                                   self.tem_detector.calib_det_distance.value(), self.wavelength)            
+            xyz = tool.rotate_coords(np.stack([x, y, 
+                                               spots_visual['tx']], axis=-1),
+                                     np.array(self.rotation_axis)*-1)
+            color = self.cmap.map(spots_visual['I'].to_numpy()/spots_visual['I'].max())
+            self.parent.tem_controls.tem_stagectrl.scatter.set_data(xyz, edge_color=None, face_color=color, size=5)
+
+    def update_radialplot(self):
+        image = self.integratedimage
+        radius, intensity, peakids = tool.radial_integration(image, ([self.cfg.beam_center[0], self.cfg.beam_center[1]],[1,1],0), roundness=1)
+        prev_datax, prev_datay = self.parent.extensions.curve.getData()
+        self.parent.extensions.curve_prev.setData(prev_datax, prev_datay)
+        self.parent.extensions.curve.setData(radius, intensity)
+        if self.parent.extensions.ellipse is None:
+            self.parent.extensions.peaks.setData(radius[peakids], intensity[peakids])
+        else:
+            radius, intensity, peakids = tool.radial_integration(image, self.parent.extensions.ellipse)
+            self.parent.extensions.curve_ellp.setData(radius, intensity)
+            self.parent.extensions.peaks.setData(radius[peakids], intensity[peakids])

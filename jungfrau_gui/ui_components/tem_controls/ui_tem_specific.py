@@ -1,7 +1,8 @@
 from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QButtonGroup, 
                                QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy, QComboBox,
                                QSpinBox, QWidget, QGridLayout)
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QTransform
+from PySide6.QtCore import QTimer, Qt
 from ..toggle_button import ToggleButton
 from ..utils import create_horizontal_line_with_margin
 
@@ -10,14 +11,27 @@ from epoc import ConfigurationClient, auth_token, redis_host
 from ... import globals
 import pyqtgraph as pg
 import numpy as np
+from jungfrau_gui.ui_components.tem_controls.toolbox import tool
+from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
+import logging
+
+try:
+    from vispy import scene, app
+    from vispy.color import get_colormap
+    vispy = True
+except ModuleNotFoundError:
+    vispy = False
+    pass
 
 font_big = QFont("Arial", 11)
 font_big.setBold(True)
+font_small = QFont("Arial", 8)
 
 class TEMDetector(QGroupBox):
-    def __init__(self):
+    def __init__(self, parent):
         super().__init__() # "Detector"
         self.initUI()
+        self.parent = parent
 
     def initUI(self):
         detector_section = QVBoxLayout()
@@ -35,6 +49,14 @@ class TEMDetector(QGroupBox):
         self.hbox_mag.addWidget(self.input_magnification, 1)
         self.hbox_mag.addWidget(dist_label, 1)
         self.hbox_mag.addWidget(self.input_det_distance, 1)
+        if globals.dev:
+            self.calib_det_distance = QDoubleSpinBox(self)
+            self.calib_det_distance.setReadOnly(True)
+            self.calib_det_distance.setSuffix(' mm')
+            self.calib_det_distance.setMaximum(2500)
+            self.calib_det_distance.setDecimals(1)
+            self.calib_det_distance.setValue(999)
+            self.hbox_mag.addWidget(self.calib_det_distance, 1)
         self.hbox_mag.addWidget(self.scale_checkbox, 1)
 
         detector_section.addLayout(self.hbox_mag)
@@ -48,7 +70,7 @@ class TEMDetector(QGroupBox):
             self.hbox_e_incoming.addWidget(self.calc_e_incoming_button, 1)
             self.hbox_e_incoming.addWidget(self.e_incoming_display, 2)
             detector_section.addLayout(self.hbox_e_incoming)
-        
+
         self.setLayout(detector_section)
 
 class TEMStageCtrl(QGroupBox):

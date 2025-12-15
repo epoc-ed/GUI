@@ -436,6 +436,9 @@ class TEMAction(QObject):
                     else:
                         detector_distance = self.lut.interpolated_distance(mag_value, ht)
 
+                    if globals.dev:
+                        self.tem_detector.calib_det_distance.setValue(detector_distance)
+
         except Exception as e:
             logging.error(f"Error in GUI update step 2: {e}")
         
