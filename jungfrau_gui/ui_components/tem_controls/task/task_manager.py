@@ -14,6 +14,7 @@ from .beam_focus_task import AutoFocusTask
 
 from .get_teminfo_task import GetInfoTask
 from .stage_centering_task import CenteringTask
+from .centerbeam_task import CenterBeamTask
 
 from simple_tem import TEMClient
 from ..toolbox import tool as tools
@@ -56,9 +57,10 @@ class ControlWorker(QObject):
     trigger_getteminfo = Signal(str)
     trigger_centering = Signal(bool, str)
     trigger_movewithbacklash = Signal(int, float, float, bool)
+    trigger_restoring = Signal(dict)
+    trigger_centerbeam = Signal()
 
     actionFit_Beam = Signal() # originally defined with QuGui
-    # actionAdjustZ = Signal()
 
     def __init__(self, tem_action): #, timeout:int=10, buffer=1024):
         super().__init__()
@@ -85,7 +87,6 @@ class ControlWorker(QObject):
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
         self.trigger_movewithbacklash.connect(self.move_with_backlash)
-        # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.beam_fitter = None
         self.actionFit_Beam.connect(self.start_beam_fit)
@@ -106,6 +107,7 @@ class ControlWorker(QObject):
         self.previous_tx_abs = 0
         self.beam_intensity = {"pa_per_cm2": 0, "e_per_A2_sample": 0}
         self.beam_property_fitting = [-1, -1, 0] # sigmax, sigmay, angle
+        self.prev_beamwidth = self.beam_property_fitting[:2]
 
     @Slot()
     def _init(self):
@@ -197,6 +199,34 @@ class ControlWorker(QObject):
         pixels = np.array(vector.split(sep=','), dtype=float)
         task = CenteringTask(self, pixels)
         self.start_task(task)
+
+    @Slot(dict)
+    def restoring(self, status_values):
+        logging.info("Start Restoreing")
+        if self.task is not None:
+            if self.task.running:
+                logging.warning("\033[38;5;214mRestoreingTask\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                return
+
+        logging.info(f"spot: {status_values['spot_id']}, mag: {status_values['mag_id']}, dist:{status_values['dist_id']}, brightness: {status_values['brightness']}")
+
+        current_mode_id = self.tem_status['eos.GetFunctionMode'][0]
+        self.client.SelectFunctionMode(0) # MAG
+        time.sleep(1)
+        try:
+            self.client._send_message("SelectSpotSize", status_values['spot_id'])
+        except RuntimeError:
+            logging.warning('To change spot size, use specific version of tem_server.py!')
+            logging.warning('Restoration interrupted!')
+            return
+        self.client._send_message("SetSelector", status_values['mag_id'])
+        self.client._send_message("SetCL3", status_values['brightness'])
+        self.client.SelectFunctionMode(4) # Diff
+        time.sleep(1)
+        self.client._send_message("SetSelector", status_values['dist_id'])
+        self.client.SelectFunctionMode(current_mode_id) # restore MAG mode
+        logging.info("TEM status restored.")
 
     def _interupt_TEM_polling_and_pause_GF(self):
         # Interrupting TEM Polling
@@ -290,6 +320,42 @@ class ControlWorker(QObject):
     def set_sweeper_to_off_state(self):
         logging.info("####### ######## Sweeping worker ready? --> FALSE")
         self.sweepingWorkerReady = False
+
+    @Slot()
+    def beamcentering(self):
+        logging.info("Start BeamCentering")
+        if self.task is not None:
+            if self.task.running:
+                logging.warning("\033[38;5;214mCenteringTask\033[33m - task is currently running...\n"
+                                "You need to stop the current task before starting a new one.")
+                return
+
+        if self.tem_status["eos.GetFunctionMode"][0] != 4:
+            logging.warning('Beam-centering works only in Diff mode!')
+            return
+
+        self.prev_beamwidth = self.beam_property_fitting[:2]
+        if any([self.prev_beamwidth[0] > globals.min_defocused, self.prev_beamwidth[1] > globals.min_defocused, self.prev_beamwidth[1]/self.prev_beamwidth[0] > globals.min_distorted, self.prev_beamwidth[1]/self.prev_beamwidth[0] < 1/globals.min_distorted]):
+            logging.warning('Beam seems to be defocused. Try after being focused.')
+            return
+
+        try:
+            plax, play = self.client.GetPLA()
+            self.client._send_message("SetPLA", plax, play)
+            logging.debug('SetPLA can work.')
+        except RuntimeError:
+            logging.warning('To modify PLA, use specific version of tem_server.py!')
+            return
+
+        if self.tem_action.tem_tasks.connecttem_button.started:
+            self.tem_action.tem_tasks.connecttem_button.click()
+        while self.tem_action.tem_tasks.connecttem_button.started:
+            time.sleep(0.1)
+        logging.warning("TEM Connect button is OFF now.\nPolling is interrupted during data collection and autofocus tasks!")
+        # self._interupt_TEM_polling_and_pause_GF()
+
+        task = CenterBeamTask(self)
+        self.start_task(task)
 
     @Slot(dict)
     def update_tem_status_detailed(self, response):

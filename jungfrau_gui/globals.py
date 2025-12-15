@@ -123,6 +123,15 @@ al_std = [2.338, 2.024, 1.431, 1.221, 1.1690, 1.0124, 0.9289, 0.9055, 0.8266]
 sampleinfo = {"formula": "C6H9N3O2", "elements": "CHNO"}
 skipframes_spotplotter = 20
 
+## variables for beam-centering
+threshold_bc = 5 # px
+wait_time_s_bc = 1.5
+max_retries_bc = 3
+dPLAxy0_bc = [100, 100]
+max_dPLA_bc = 2500
+min_defocused = 5 # pix
+min_distorted = 1.5
+
 # Frame control variables
 default_polling_frequency = 1000
 min_polling_frequency = 100 # safety not to inquire TEM-values too frequently
