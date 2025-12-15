@@ -561,6 +561,7 @@ class VisualizationPanel(QGroupBox):
                         prev_contrast = self.parent.histogram.getLevels()
                         self.parent.histogram.setLevels(prev_contrast[0] * self.frame_summed.value() / 100, prev_contrast[1] * self.frame_summed.value() / 100)
                     
+                    self.prev_fpath = self.get_full_fname_str()
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
                                             fname = self.get_full_fname_str(),
                                             th = self.thresholdBox.value(),

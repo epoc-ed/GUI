@@ -200,12 +200,12 @@ class TEMStageCtrl(QGroupBox):
         # self.goxyz_button = QPushButton("Go XYZ", self)
         self.hbox_gotopos.addWidget(gotopos_label, 1)
         if globals.dev:
-            self.loadsave_button = QPushButton("Load/Save", self)
+            # self.loadsave_button = QPushButton("Load/Save", self)
             # self.loadsave_button.setEnabled(False)
             self.hbox_gotopos.addWidget(self.position_list, 6)
             self.hbox_gotopos.addWidget(self.addpos_button, 1)
             self.hbox_gotopos.addWidget(self.go_button, 1)
-            self.hbox_gotopos.addWidget(self.loadsave_button, 1)
+            # self.hbox_gotopos.addWidget(self.loadsave_button, 1)
         else:
             self.hbox_gotopos.addWidget(self.position_list, 7)
             self.hbox_gotopos.addWidget(self.addpos_button, 1)

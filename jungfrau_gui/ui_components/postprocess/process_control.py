@@ -168,13 +168,15 @@ class PostprocessControls(QGroupBox):
             self.reorient_checkbox = QCheckBox('reorient', self)
             self.reorient_checkbox.setChecked(False)
             self.reorient_checkbox.stateChanged.connect(lambda: self.plot_saved_spots())
-            restore_tem = QPushButton("Restore TEM values", self)
-            restore_tem.clicked.connect(self.launch_restoration)
+            self.restore_tem = QPushButton("Restore TEM values", self)
+            self.restore_tem.clicked.connect(self.launch_restoration)
             hbox_restoration.addWidget(self.sync_button, 3)
-            if vispy:
-                hbox_restoration.addWidget(reload_spots, 2)
-                hbox_restoration.addWidget(self.reorient_checkbox, 1)
-            hbox_restoration.addWidget(restore_tem, 3)
+            hbox_restoration.addWidget(reload_spots, 2)
+            hbox_restoration.addWidget(self.reorient_checkbox, 1)
+            if not vispy:
+                reload_spots.setEnabled(False)
+                self.reorient_checkbox.setEnabled(False)
+            hbox_restoration.addWidget(self.restore_tem, 3)
             section4.addLayout(hbox_restoration, 3)
             
             section4.addWidget(create_horizontal_line_with_margin(15))

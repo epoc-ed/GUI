@@ -92,20 +92,24 @@ class DataProcessingManager(QObject):
                     self.parent.postprocess_controls.ccdclist = [item for item in json.loads(result_json) if 'ccdc_id' in item]
                     for d in json.loads(result_json):
                         if 'image_supporting' in d:
-                            decompressed = zlib.decompress(base64.b64decode(d['image_supporting']))
-                            images_received = pickle.loads(decompressed)
-                            images_supporting = [decompress_image(img) for img in images_received]
-                            for i in images_supporting:
-                                if i.shape[0] == 9600:
-                                    self.parent.tem_stagectrl.lowmagimage = i
-                                    logging.info('Reloaded atlas image')
-                                elif i.shape[0] == 1064:
-                                    self.parent.parent.imageItem.setImage(i)
-                                    logging.info('Reloaded the image previously taken')
-                                else:
-                                    self.parent.tem_stagectrl.grayimage = i
-                                    logging.info('Reloaded resolution-atlas image')
-                            continue
+                            try:
+                                decompressed = zlib.decompress(base64.b64decode(d['image_supporting']))
+                                images_received = pickle.loads(decompressed)
+                                images_supporting = [decompress_image(img) for img in images_received]
+                                for i in images_supporting:
+                                    if i.shape[0] == 9600:
+                                        self.parent.tem_stagectrl.lowmagimage = i
+                                        logging.info('Reloaded atlas image')
+                                    elif i.shape[0] == 1064:
+                                        self.parent.parent.imageItem.setImage(i)
+                                        logging.info('Reloaded the image previously taken')
+                                    else:
+                                        self.parent.tem_stagectrl.grayimage = i
+                                        logging.info('Reloaded resolution-atlas image')
+                                continue
+                            except TypeError:
+                                logging.warning('Failed to reload previous map-atlas(es)...')
+                                break
                         if 'filename' in d: continue
                         if not 'ccdc_id' in d:
                             self.parent.trigger_updateitem.emit(d)

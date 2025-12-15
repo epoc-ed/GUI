@@ -53,6 +53,7 @@ class RecordTask(Task):
             # Send SetTiltXAngle with retry mechanism
             try:
                 self.client.SetTiltXAngle(phi1)
+                self.tem_action.visualization_panel.spots_hold = True
             except Exception as e:
                 logging.error(f"Unexpected error while sending SetTiltXAngle: {e}")
                 self.client.SetBeamBlank(1)
@@ -92,6 +93,7 @@ class RecordTask(Task):
                         # difference in timers of TEM and GUI might cause small error and should be evaluated.
                         logging.info(f"{t - t0:10.6f}  {pos[3]:8.3f} deg")
                         self.rotations_angles.append([f'{t-t0:10.6f}', f'{pos[3]:8.3f}'])
+                        self.tem_action.trigger_update_angle.emit(pos[3])
                         time.sleep(0.1)
                     except Exception as e:
                         logging.error(f"Error getting stage position, skipping iteration: {e}")
@@ -108,6 +110,7 @@ class RecordTask(Task):
             
             time.sleep(0.01)
             self.client.SetBeamBlank(1)
+            self.tem_action.visualization_panel.spots_update = 0
 
             try:
                 phi1 = self.client.GetTiltXAngle()
@@ -134,6 +137,7 @@ class RecordTask(Task):
                         "angle" : self.control.beam_property_fitting[2],
                         "illumination" : self.control.beam_intensity,
                     }
+                    delay = 0.1 if self.tem_action.tem_stagectrl.lowmagimage is not None else 0.5
                     send_with_retries(self.metadata_notifier.notify_metadata_update, 
                                       self.tem_action.visualization_panel.get_full_fname_str(), 
                                       self.control.tem_status, 
@@ -143,6 +147,7 @@ class RecordTask(Task):
                                       retries=globals.max_retries_tagging, 
                                       delay=globals.inquiry_delay)
 
+                    self.tem_action.trigger_process_launcher.emit()
                 except Exception as e:
                     logging.error(f"Metadata Update Error: {e}")
 
@@ -169,6 +174,7 @@ class RecordTask(Task):
                 self.reset_rotation_signal.emit()
             else:
                 self.tem_action.trigger_additem.emit('green', 'recorded', pos)
+                self.tem_action.trigger_processed_receiver.emit()
             time.sleep(0.5)
             print("------REACHED END OF TASK----------")
 

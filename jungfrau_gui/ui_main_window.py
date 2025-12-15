@@ -108,8 +108,8 @@ class ApplicationWindow(QMainWindow):
 
         # ROI setup
         # self.roi = pg.RectROI([450, 200], [150, 100], pen=(9,6))
-        # self.roi = pg.RectROI([globals.ncol//2+1-75, globals.nrow//2+1-50], [150, 100], pen=(9,6))
-        self.roi = pg.RectROI([globals.ncol//2+1-40, globals.nrow//4+1-50], [150, 100], pen=(9,6))
+        self.roi = pg.RectROI([globals.ncol//2+1-75, globals.nrow//2], [150, 100], pen=(9,6))
+        # self.roi = pg.RectROI([globals.ncol//2+1-40, globals.nrow//4+1-50], [150, 100], pen=(9,6)) # for testing autofocus        
         self.plot.addItem(self.roi)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
@@ -180,7 +180,7 @@ class ApplicationWindow(QMainWindow):
 
         tools_layout.addLayout(dock_layout,3)
 
-        tab_widget = QTabWidget()
+        self.tab_widget = QTabWidget()
 
         self.visualization_panel = VisualizationPanel(self)
         self.file_operations = FileOperations(self)
@@ -193,22 +193,34 @@ class ApplicationWindow(QMainWindow):
         self.timer_contrast.timeout.connect(self.applyAutoContrast)
 
         self.tem_controls = TemControls(self)
+        self.tem_controls.tem_stagectrl.toggled.connect(self.visualization_panel.activate_updating3dplot)
         
         self.timer_fit = QTimer()
         self.timer_fit.timeout.connect(self.tem_controls.getFitParams)
         
         # self.imageItem.mouseClickEvent = self.tem_controls.tem_action.imageMouseClickEvent
         
-        tab_widget.addTab(self.visualization_panel, "Visualization Panel")
-        tab_widget.addTab(self.tem_controls, "TEM Controls")
-        tab_widget.addTab(self.file_operations, "File operations")
-
-        tools_layout.addWidget(tab_widget, 1)
+        self.tab_widget.addTab(self.visualization_panel, "Visualization Panel")
+        self.tab_widget.addTab(self.tem_controls, "TEM Controls")
+        self.tab_widget.addTab(self.file_operations, "File operations")
+        self.tab_widget.addTab(self.postprocess_controls, "Postprocess Ctrls")
+        # if globals.dev:
+        #     self.extensions = SupportCalibration(self)
+        #     self.tab_widget.addTab(self.extensions, "Extensions")
+        tools_layout.addWidget(self.tab_widget, 1)
 
         main_layout.addLayout(tools_layout)
 
         self.exit_button = QPushButton("Exit", self)
-        main_layout.addWidget(self.exit_button)
+        if globals.dev:
+            exit_layout = QHBoxLayout()
+            exit_layout.addWidget(self.exit_button, 8)
+            self.temexit_check = QCheckBox("exit relay-server", self)
+            self.temexit_check.setChecked(False)
+            exit_layout.addWidget(self.temexit_check, 1)
+            main_layout.addLayout(exit_layout)
+        else:
+            main_layout.addWidget(self.exit_button)
         self.exit_button.clicked.connect(self.do_exit)
 
         central_widget = QWidget()
@@ -399,6 +411,13 @@ class ApplicationWindow(QMainWindow):
         if globals.tem_mode:
             if self.tem_controls.tem_tasks.connecttem_button.started:
                 self.tem_controls.tem_action.control.trigger_shutdown.emit()
+
+        if globals.dev:
+            if self.temexit_check.isChecked():
+                self.tem_controls.tem_action.control.client.exit_server()
+            if self.file_operations.capture_process and self.file_operations.capture_process.poll():
+                self.file_operations.capture_process.terminate()
+                logging.info("Capture-subprocess terminated.")
 
         logging.info("Exiting app!") 
         self.app.quit()

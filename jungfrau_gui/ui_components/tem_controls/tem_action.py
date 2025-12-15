@@ -32,10 +32,12 @@ class TEMAction(QObject):
     The 'TEMAction' object integrates the information from the detector/viewer and the TEM to be communicated each other.
     """    
     trigger_additem = Signal(str, str, list)
+    trigger_getbeamintensity = Signal()
     trigger_updateitem = Signal(dict)
     trigger_processed_receiver = Signal()
     trigger_process_launcher = Signal()
     trigger_update_angle = Signal(float)
+    trigger_start_restoration = Signal(dict)
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
@@ -88,7 +90,7 @@ class TEMAction(QObject):
         if globals.dev:
             self.tem_detector.calc_e_incoming_button.clicked.connect(lambda: self.update_ecount())
             self.tem_stagectrl.mapsnapshot_button.clicked.connect(lambda: self.take_snapshot())
-            self.tem_stagectrl.loadsave_button.clicked.connect(self.synchronize_xtallist)
+            self.postprocess_controls.sync_button.clicked.connect(self.synchronize_xtallist)
         
         self.control.updated.connect(self.on_tem_update)
 
@@ -100,6 +102,9 @@ class TEMAction(QObject):
         self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, globals.backlash[3], False))
         # Move TX negative 10 degrees    
         self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.backlash[3], False))
+        if globals.dev:
+            # Move TX negative 55 degrees with backlash-collection
+            self.tem_stagectrl.move55degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -55, cfg_jf.others.backlash[3], False))
         # Set Tilt X Angle to 0 degrees
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
@@ -112,6 +117,7 @@ class TEMAction(QObject):
         self.trigger_updateitem.connect(self.update_plotitem)
         self.main_overlays = [None, None, None]
         self.trigger_update_angle.connect(self.update_angle_in_measurement)
+        self.trigger_start_restoration.connect(self.restore_temstatus)
 
     def _make_axis_arrow(self, position, axes, base_idx, brush):
         # axis vector: (x, y, z)
@@ -174,7 +180,8 @@ class TEMAction(QObject):
             self.tem_stagectrl.blanking_button,
             self.tem_stagectrl.position_list,
             self.tem_stagectrl.go_button,
-            self.tem_stagectrl.addpos_button
+            self.tem_stagectrl.addpos_button,
+            self.postprocess_controls.restore_tem
         ]
 
         if globals.dev:
@@ -660,7 +667,10 @@ class TEMAction(QObject):
         # Create scale based on function mode
         if function_mode == 4:
             # Use cached or memoized interpolation when possible
-            detector_distance = self.lut.interpolated_distance(mag_value, ht)
+            if globals.dev:
+                detector_distance = self.tem_detector.calib_det_distance.value()
+            else:
+                detector_distance = self.lut.interpolated_distance(mag_value, ht)
             radius_in_px = d2radius_in_px(d=l_draw, camlen=detector_distance, ht=ht)
             self.scale = QGraphicsEllipseItem(QRectF(xo-radius_in_px, yo-radius_in_px, radius_in_px*2, radius_in_px*2))
         else:
@@ -912,8 +922,13 @@ class TEMAction(QObject):
                 info_d[gui_key] = info_d.get(gui_key, self.xtallist[-1][gui_key])
         
         position = info_d["position"]
+        # read merged data
+        if info_d["gui_id"] == 888 or info_d["gui_id"] == 889:
+            logging.info(f"Merged data is loaded")
+            self.postprocess_controls.update_mergedinfo_signal.emit(info_d)
+            return
         # read unmeasured data
-        if 'spots' not in info_d:
+        elif 'spots' not in info_d:
             logging.info(f"Item {info_d['gui_id']} is loaded")
             marker = pg.ScatterPlotItem(x=[position[0]/globals.UM_TO_NM], y=[position[1]/globals.UM_TO_NM], brush='red')
             self.tem_stagectrl.position_list.insertItem(info_d["gui_id"] + self.gui_id_offset, info_d["gui_text"])
@@ -948,6 +963,7 @@ class TEMAction(QObject):
         info_d["gui_label"] = label
         self.xtallist.append(info_d)
         logging.debug(self.xtallist)
+        self.postprocess_controls.update_xtalinfo_signal.emit()
         self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - self.gui_id_offset
     
     def plot_listedposition(self, color='gray'):
@@ -1138,3 +1154,21 @@ class TEMAction(QObject):
     @Slot(float)
     def update_angle_in_measurement(self, angle):
         self.tem_tasks.input_start_angle.setValue(angle)
+
+    @Slot(dict)
+    def restore_temstatus(self, info_d):
+        if info_d.get("ht")*globals.KV_TO_V != self.control.tem_status["ht.GetHtValue"]:
+            logging.warning(f"Current and referred HT values are not identical!")
+            return
+
+        status_values = {
+            "spot_id": info_d.get("spot_size") - 1,
+            "mag_id": int(self.lut.mag_to_selectorid(info_d.get("magnification"))),
+            "dist_id": int(self.lut.distance_to_selectorid(info_d.get("distance_nominal"))),
+            "brightness": info_d.get("brightness"),
+        }
+        if status_values["spot_id"] is None or status_values["mag_id"] == 0 or status_values["dist_id"] == 0 or status_values["brightness"] is None:
+            logging.warning(f"TEM values are invalid! :{status_values}")
+            return
+
+        self.control.trigger_restoring.emit(status_values)

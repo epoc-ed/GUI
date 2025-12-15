@@ -87,6 +87,8 @@ class ControlWorker(QObject):
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
         self.trigger_movewithbacklash.connect(self.move_with_backlash)
+        self.trigger_restoring.connect(self.restoring)
+        self.trigger_centerbeam.connect(self.beamcentering)
 
         self.beam_fitter = None
         self.actionFit_Beam.connect(self.start_beam_fit)
