@@ -230,7 +230,8 @@ class Hdf5MetadataUpdater:
                         create_or_update_dataset('entry/instrument/stage/stage_tx_record', data = rotations_angles)
                     if images_supporting is not None:
                         for id, img in enumerate(images_supporting):
-                            create_or_update_dataset(f'entry/instrument/stage/supporting_image_{id:02d}', img, dtype='uint8')                    # for cif
+                            create_or_update_dataset(f'entry/instrument/stage/supporting_image_{id:02d}', img, dtype='uint8')
+                    # for cif
                     create_or_update_dataset('entry/cif/_diffrn_ambient_temperature', data = '293(2)')
                     create_or_update_dataset('entry/cif/_diffrn_radiation_wavelength', data = f'{wavelength:8.5f}')
                     create_or_update_dataset('entry/cif/_diffrn_radiation_probe', data = 'electron')

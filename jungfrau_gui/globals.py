@@ -111,13 +111,17 @@ stage_relaxation_thresholds = [30, 30, 30, 0.2, 100] # nm, nm, nm, deg., deg.
 max_stage_tilt = 72
 default_roation_end = 60
 
-## variabls for autofocusing
+## variables for autofocusing
 IL1_0 = 21780 # 21819 
 ILS_0 = [32920, 32776] # [32820, 32976]
 WAIT_TIME_S = 0.25 # TODO: optimize value
 
-## variabls for radial integration
+## variables for radial integration
 al_std = [2.338, 2.024, 1.431, 1.221, 1.1690, 1.0124, 0.9289, 0.9055, 0.8266]
+
+## variabls for postprocess control
+sampleinfo = {"formula": "C6H9N3O2", "elements": "CHNO"}
+skipframes_spotplotter = 20
 
 # Frame control variables
 default_polling_frequency = 1000
@@ -135,6 +139,9 @@ max_duration = 3600 # sec
 # Communication variables
 dataserver_host = "noether"
 dataserver_port = 3463
+
+processserver_host = "gauss" # noether
+processserver_port = 3467
 
 max_retries_tagging = 3
 inquiry_delay = 0.1 # sec

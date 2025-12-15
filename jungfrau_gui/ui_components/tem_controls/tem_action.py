@@ -13,7 +13,7 @@ from .task.task_manager import *
 from epoc import ConfigurationClient, auth_token, redis_host
 
 from .connectivity_inspector import TEM_Connector
-from ..file_operations.processresult_updater import ProcessedDataReceiver
+from ..postprocess.processresult_updater import DataProcessingManager
 from .tem_status_updater import TemUpdateWorker
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
@@ -33,6 +33,8 @@ class TEMAction(QObject):
     trigger_additem = Signal(str, str, list)
     trigger_updateitem = Signal(dict)
     trigger_processed_receiver = Signal()
+    trigger_process_launcher = Signal()
+    trigger_update_angle = Signal(float)
     def __init__(self, parent, grandparent):
         super().__init__()
         self.parent = grandparent # ApplicationWindow in ui_main_window
@@ -102,10 +104,12 @@ class TEMAction(QObject):
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
+        self.trigger_process_launcher.connect(self.launch_data_processing)
         self.trigger_processed_receiver.connect(self.inquire_processed_data)
         self.plot_listedposition()
         self.trigger_updateitem.connect(self.update_plotitem)
-        self.main_overlays = [None, None, None] 
+        self.main_overlays = [None, None, None]
+        self.trigger_update_angle.connect(self.update_angle_in_measurement)
 
     def _make_axis_arrow(self, position, axes, base_idx, brush):
         # axis vector: (x, y, z)
@@ -423,6 +427,15 @@ class TEMAction(QObject):
                 elif Mag_idx == 4:
                     # DIFF mode
                     self.tem_detector.input_det_distance.setText(str(mag_value))
+                    
+                    ht = self.parent.tem_controls.voltage_spBx.value()
+                    mag_value_mag = tem_status["eos.GetMagValue_MAG"][0]
+                    # Use cached or memoized interpolation when possible
+                    if int(mag_value_mag) > 4000:
+                        detector_distance = self.lut.interpolated_distance(mag_value, ht, int(mag_value_mag))
+                    else:
+                        detector_distance = self.lut.interpolated_distance(mag_value, ht)
+
         except Exception as e:
             logging.error(f"Error in GUI update step 2: {e}")
         
@@ -947,18 +960,39 @@ class TEMAction(QObject):
 
     @Slot()
     def inquire_processed_data(self):
-        if self.dataReceiverReady:
-            self.process_receiver = ProcessedDataReceiver(self, host = globals.dataserver_host)
-            self.datareceiver_thread = QThread()
-            self.datareceiver_thread.setObjectName("Data_Receiver Thread")
-            self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
-            thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
-            self.datareceiver_thread.start()
-            self.dataReceiverReady = False
-            self.process_receiver.finished.connect(self.getdataReceiverReady)
-            logging.info("Starting processed-data inquiring")
-        else:
-            logging.warning("Previous inquiry continues runnng")
+        if not self.processManagerReady:
+            logging.warning(f"Previous inquiry continues runnng: {self.processmanager_thread.objectName()}")
+            return
+        self.process_manager = DataProcessingManager(self, mode=1)
+        self.processmanager_thread = QThread()
+        self.processmanager_thread.setObjectName("Data_Process_Receiver Thread")
+        self.parent.threadWorkerPairs.append((self.processmanager_thread, self.process_manager))
+        thread_manager.move_worker_to_thread(self.processmanager_thread, self.process_manager)
+        self.processmanager_thread.start()
+        self.processManagerReady = False
+        self.process_manager.finished.connect(self.getprocessManagerReady)
+        logging.info("Starting processed-data inquiring")
+
+    def getprocessManagerReady(self):
+        thread_manager.terminate_thread(self.processmanager_thread)
+        thread_manager.remove_worker_thread_pair(self.parent.threadWorkerPairs, self.processmanager_thread)
+        thread_manager.reset_worker_and_thread(self.process_manager, self.processmanager_thread)
+        self.processManagerReady = True
+
+    @Slot()
+    def launch_data_processing(self):
+        if not self.processManagerReady:
+            self.getprocessManagerReady()
+
+        self.process_manager = DataProcessingManager(self, mode=0)
+        logging.info("Launching the postprocessing")
+        self.processmanager_thread = QThread()
+        self.processmanager_thread.setObjectName("Data_Process_Launcher Thread")
+        self.parent.threadWorkerPairs.append((self.processmanager_thread, self.process_manager))
+        thread_manager.move_worker_to_thread(self.processmanager_thread, self.process_manager)
+        self.processmanager_thread.start()
+        self.processManagerReady = False
+        self.process_manager.finished.connect(self.getprocessManagerReady)
 
     def getdataReceiverReady(self):
         thread_manager.terminate_thread(self.datareceiver_thread)
@@ -1092,26 +1126,19 @@ class TEMAction(QObject):
         logging.info(f'Move X: {dx/globals.UM_TO_NM:.1f} um,  Y: {dy/globals.UM_TO_NM:.1f} um')
 
     def synchronize_xtallist(self):
-        if not self.dataReceiverReady:
-            logging.warning("Other inquiry runnng")
+        if not self.processManagerReady:
+            logging.warning(f"Other inquiry runnng: {self.processmanager_thread.objectName()}")
             return
         # load mode
-        if self.tem_stagectrl.position_list.count() == self.gui_id_offset + 1:
-            self.process_receiver = ProcessedDataReceiver(self, host = globals.dataserver_host, mode=1)
-            logging.info("Start session-metadata loading")
-            self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - self.gui_id_offset
-        # save mode
-        elif len(self.xtallist) != 1:
-            self.process_receiver = ProcessedDataReceiver(self, host = globals.dataserver_host, mode=2)
-            logging.info("Start session-metadata saving")
-        else:
-            logging.warning("No data available")
-            return
+        self.process_manager = DataProcessingManager(self, mode=2, gui_running=bool(self.control.tem_status["gui_id"]))
+        logging.info("Start session-metadata loading")
+        self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - self.gui_id_offset + 1
+        self.process_manager.run()
+        # then, save mode
+        self.process_manager = DataProcessingManager(self, mode=3)
+        logging.info("Start session-metadata saving")
+        self.process_manager.run()
 
-        self.datareceiver_thread = QThread()
-        self.datareceiver_thread.setObjectName("Data_Receiver Thread")
-        self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
-        thread_manager.move_worker_to_thread(self.datareceiver_thread, self.process_receiver)
-        self.datareceiver_thread.start()
-        self.dataReceiverReady = False
-        self.process_receiver.finished.connect(self.getdataReceiverReady)
+    @Slot(float)
+    def update_angle_in_measurement(self, angle):
+        self.tem_tasks.input_start_angle.setValue(angle)
