@@ -101,8 +101,8 @@ min_mag_for_mag = 1500 # border between LowMag/Mag
 
 ## safety not to hit hardware-limit
 click_on_move_thresholds = {'dxy_min': 0.3, 'dxy_max': 100, 
-                            'dz_min_mag': 1, 'dz_max_mag': 10,
-                            'dz_min_lmag': 3, 'absz_min': -70, 'absz_max': 20}
+                            'dz_min_mag': 1, 'dz_max_mag': 20,
+                            'dz_min_lmag': 3, 'absz_min': -100, 'absz_max': 20}
 
 ## stage shift larger than these values will be hold in history
 stage_relaxation_thresholds = [30, 30, 30, 0.2, 100] # nm, nm, nm, deg., deg. 
@@ -116,6 +116,8 @@ IL1_0 = 21780 # 21819
 ILS_0 = [32920, 32776] # [32820, 32976]
 WAIT_TIME_S = 0.25 # TODO: optimize value
 
+## variabls for radial integration
+al_std = [2.338, 2.024, 1.431, 1.221, 1.1690, 1.0124, 0.9289, 0.9055, 0.8266]
 
 # Frame control variables
 default_polling_frequency = 1000

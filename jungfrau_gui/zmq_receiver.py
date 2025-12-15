@@ -54,13 +54,18 @@ class ZmqReceiver:
                 if msg['type'] == "start":
                     # Process and log the header message
                     logging.debug(f"Received header: {msg}")
-                    return None, None
+                    return None, None, None
                 elif msg['type'] == "image": 
                     # Process data messages   
                     logging.debug(f"Got: {msg['series_id']}:{[msg['image_id']]}")
                     raw_data = msg['data']['default']
                     frame_nr = msg['image_id']
-                    
+                    properties = {
+                        "spots": msg['spots'],
+                        "spot_count": msg['spot_count'],
+                        "min_viable_pixel_value": msg['min_viable_pixel_value'],
+                        "max_viable_pixel_value": msg['max_viable_pixel_value']
+                    }                    
                     # Identify invalid values (min_int32)
                     min_int32 = np.iinfo(np.int32).min
                     mask = (raw_data == min_int32)
@@ -70,19 +75,19 @@ class ZmqReceiver:
                     #Replace invalid values with np.nan
                     image[mask] = np.nan
                     
-                    return image, frame_nr
+                    return image, frame_nr, properties
                 elif msg['type'] == "end":
                     logging.debug(f"Received End message: {msg}")
-                    return None, None
+                    return None, None, None
                 else:
                     logging.warning(f"Unindentified message type: {msg['type']}")
-                    return None, None
+                    return None, None, None
             except zmq.error.Again:
                 # self.reconnect()
-                return None, None
+                return None, None, None
             except Exception as e:
                 logging.error(f"An unexpected error occurred: {e}")
-                return None, None
+                return None, None, None
 
     def reconnect(self):
         """Attempt to reconnect to the server."""
@@ -102,6 +107,6 @@ class ZmqReceiver:
 
 if __name__ == "__main__":
     receiver = ZmqReceiver("tcp://noether:5501")
-    frame, frame_nr = receiver.get_frame_jfj()
+    frame, frame_nr, properties = receiver.get_frame_jfj()
     if frame is not None:
         print("Frame received:", frame_nr)

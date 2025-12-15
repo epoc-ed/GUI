@@ -20,6 +20,7 @@ def get_palette(name):
         palette.setColor(QPalette.Link, QColor(42, 130, 218))
         palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
         palette.setColor(QPalette.HighlightedText, Qt.GlobalColor.black)
+        palette.setColor(QPalette.PlaceholderText, Qt.GlobalColor.white)
         return palette
     else:
         raise NotImplementedError("only dark theme is implemented")
