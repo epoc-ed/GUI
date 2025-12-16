@@ -150,6 +150,10 @@ max_duration = 3600 # sec
 default_snapshot_duration = 1000 # 1 sec
 max_snapshot_duration = 180000 # 3 min
 
+max_tx_planemap = 5
+min_tx_tiltmap = 40
+tilt_threshold = 9
+
 displaycapture_command = ['/home/ktakaba/PyJEM_lab/EPOC_git_GUI/launcher_capture.sh']
 
 

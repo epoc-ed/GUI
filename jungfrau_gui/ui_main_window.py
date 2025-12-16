@@ -201,12 +201,12 @@ class ApplicationWindow(QMainWindow):
         # self.imageItem.mouseClickEvent = self.tem_controls.tem_action.imageMouseClickEvent
         
         self.tab_widget.addTab(self.visualization_panel, "Visualization Panel")
-        self.tab_widget.addTab(self.tem_controls, "TEM Controls")
+        self.tab_widget.addTab(self.tem_controls, "TEM Ctrls")
         self.tab_widget.addTab(self.file_operations, "File operations")
         self.tab_widget.addTab(self.postprocess_controls, "Postprocess Ctrls")
-        # if globals.dev:
-        #     self.extensions = SupportCalibration(self)
-        #     self.tab_widget.addTab(self.extensions, "Extensions")
+        if globals.dev:
+            self.extensions = SupportCalibration(self)
+            self.tab_widget.addTab(self.extensions, "Extensions")
         tools_layout.addWidget(self.tab_widget, 1)
 
         main_layout.addLayout(tools_layout)

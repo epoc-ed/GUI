@@ -104,7 +104,7 @@ class TEMAction(QObject):
         self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.backlash[3], False))
         if globals.dev:
             # Move TX negative 55 degrees with backlash-collection
-            self.tem_stagectrl.move55degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -55, cfg_jf.others.backlash[3], False))
+            self.tem_stagectrl.move55degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -55, globals.backlash[3], False))
         # Set Tilt X Angle to 0 degrees
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
@@ -629,6 +629,8 @@ class TEMAction(QObject):
         try:
             # Update position plot
             self.plot_currentposition()
+            if globals.dev and self.visualization_panel.stream_view_button.started:
+                self.update_maps()
 
             # Update rotation button text if needed
             rotation_button = self.tem_tasks.rotation_button
@@ -978,6 +980,85 @@ class TEMAction(QObject):
         if position is not None:
             self.marker = pg.ScatterPlotItem(x=[position[0]/globals.UM_TO_NM], y=[position[1]/globals.UM_TO_NM], brush=color)
             self.tem_stagectrl.gridarea.addItem(self.marker)
+            view = self.tem_stagectrl.gridarea.getViewBox()
+            width = view.viewRange()[0][1] - view.viewRange()[0][0]
+            height = view.viewRange()[1][1] - view.viewRange()[1][0]
+            x_range = position[0]/globals.UM_TO_NM - width/2, position[0]/globals.UM_TO_NM + width/2
+            y_range = position[1]/globals.UM_TO_NM - height/2, position[1]/globals.UM_TO_NM + height/2
+            view.setRange(xRange=x_range, yRange=y_range, padding=0)
+
+    def update_maps(self, edge_px=50):
+        tem_status = self.control.tem_status
+        position = tem_status.get("stage.GetPos", [0, 0, 0, 0, 0])
+        stage_moving = all([np.abs(i) < 1 for i in tem_status["stage.GetPos_diff"]]) # d(XYZTX) < 1 nm, 1 deg. 
+        if position is None or tem_status["defl.GetBeamBlank"] != 0 or stage_moving: return
+
+        # do not keep images for intermediate tilts
+        if np.abs(position[3]) > globals.max_tx_planemap and np.abs(position[3]) < globals.min_tx_tiltmap:
+            return
+
+        tilted = True if np.abs(position[3]) > globals.tilt_threshold else False
+
+        posx_um, posy_um = position[0]/globals.UM_TO_NM, position[1]/globals.UM_TO_NM
+        if tem_status["eos.GetFunctionMode"][0] == 4 and self.tem_stagectrl.mag_modes.checkedId() == 4 and self.last_mag_mode == 4:
+            if not tilted:
+                spotchart_gray = self.tem_stagectrl.grayimage
+                item_to_display = self.tem_stagectrl.spotchartItem
+            else:
+                spotchart_gray = self.tem_stagectrl.grayimage_tilted
+                item_to_display = self.tem_stagectrl.spotchartItem_tilted
+            pos_on_chart = np.array([(self.tem_stagectrl.radius2 + posx_um) // globals.grid_resolution, 
+                                     (self.tem_stagectrl.radius2 + posy_um) // globals.grid_resolution], 
+                                    dtype=int)
+            spotchart_gray[pos_on_chart[1], pos_on_chart[0]] = self.visualization_panel.estimated_resolution**-1 * 100
+            spotchart_rgba = pg.makeARGB(spotchart_gray, useRGBA=True,
+                                         levels=[np.min(spotchart_gray), np.max(spotchart_gray)*0.8], 
+                                         lut=item_to_display.getColorMap().getLookupTable())
+            mask = (spotchart_gray > 0)
+            spotchart_rgba[0][:,:,-1] *= mask #* 255//2 # 50% transparent
+            item_to_display.setImage(spotchart_rgba[0])
+        elif tem_status["eos.GetFunctionMode"][0] == 2 and self.tem_stagectrl.mag_modes.checkedId() == 2 and self.last_mag_mode == 2: # only when low-mag keeps for more than a moment
+            if not tilted:
+                mapatlas_gray = self.tem_stagectrl.lowmagimage
+                item_to_display = self.tem_stagectrl.mapatlasItem
+            else:
+                mapatlas_gray = self.tem_stagectrl.lowmagimage_tilted
+                item_to_display = self.tem_stagectrl.mapatlasItem_tilted
+            magnification = tem_status["eos.GetMagValue"] ## with unit
+            calibrated_mag = self.lut.calibrated_magnification(magnification[2])
+            scale = globals.PIXEL*globals.MM_TO_UM / calibrated_mag
+            snapshot_image = self.image_highcontrast()
+            rotation = 180 + self.lut.rotaxis_for_ht_degree(tem_status["ht.GetHtValue"], magnification=magnification[0])
+            lowmag_jump = self.lut.lowmagjump_for_ht(tem_status["ht.GetHtValue"])
+            # to be cleaned up several lines below
+            rot_realtolowmag = np.cos(np.deg2rad(rotation)), np.sin(np.deg2rad(rotation))
+            pos_on_chart = np.array([(self.tem_stagectrl.radius2 + posy_um*rot_realtolowmag[0] - posx_um*rot_realtolowmag[1]
+                                   + (snapshot_image.shape[0]//2-lowmag_jump[1])*scale) / globals.grid_lowmag_scale,
+                                     (self.tem_stagectrl.radius2 + posy_um*rot_realtolowmag[1] + posx_um*rot_realtolowmag[0]
+                                   + (snapshot_image.shape[1]//2-lowmag_jump[0])*scale) / globals.grid_lowmag_scale],
+                                    dtype=int)
+            pil_image = Image.fromarray(snapshot_image[edge_px:-edge_px, edge_px:-edge_px])
+            pil_image_scaled = pil_image.resize((int(pil_image.width*scale/2/globals.grid_lowmag_scale)*2, int(pil_image.height*scale/2/globals.grid_lowmag_scale)*2)) # to be rewritten
+            img_transformed = np.array(pil_image_scaled)
+            gap = int(40 * scale / globals.grid_lowmag_scale) # 10 [um]
+            mapatlas_gray[pos_on_chart[0]-img_transformed.shape[0]//2:pos_on_chart[0]-gap,
+                          pos_on_chart[1]-img_transformed.shape[1]//2:pos_on_chart[1]+img_transformed.shape[1]//2]\
+                        = img_transformed[:img_transformed.shape[0]//2-gap,:]
+            mapatlas_gray[pos_on_chart[0]+gap:pos_on_chart[0]+img_transformed.shape[0]//2,
+                          pos_on_chart[1]-img_transformed.shape[1]//2:pos_on_chart[1]+img_transformed.shape[1]//2]\
+                        = img_transformed[img_transformed.shape[0]//2+gap:,:]
+            # if not self.mapatlas_rotated: # only apply once
+            if item_to_display.viewTransform().m11() == 0.25:
+                # self.mapatlas_rotated = True
+                tr = QTransform()
+                tr.rotate(rotation)
+                tr.scale(globals.grid_lowmag_scale, globals.grid_lowmag_scale)
+                tr.translate(-item_to_display.image.shape[0]/2, - item_to_display.image.shape[1]/2)
+                item_to_display.setTransform(tr)
+                item_to_display.setPos(0, 0)
+                item_to_display.mouseClickEvent = self.subimageMouseClickEvent
+            item_to_display.setImage(mapatlas_gray)
+            item_to_display.setOpacity(0.8)
 
     @Slot()
     def inquire_processed_data(self):

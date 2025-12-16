@@ -799,9 +799,9 @@ class VisualizationPanel(QGroupBox):
                 )
                 logging.debug(self.ecount, magnification)
             if frame_nr % 20 == 0:
-                if globals.dev: # and self.parent.tab_widget.currentWidget() == self.parent.extensions:
-                    # self.radial_thread = threading.Thread(target=self.update_radialplot, daemon=True)
-                    # self.radial_thread.start()
+                if globals.dev and self.parent.tab_widget.currentWidget() == self.parent.extensions:
+                    self.radial_thread = threading.Thread(target=self.update_radialplot, daemon=True)
+                    self.radial_thread.start()
                     self.integratedimage = np.clip(image, 0, 1e6)
             self.estimated_resolution = 99 # properties['resolution_estimate']
             if len(self.spots) != 0:

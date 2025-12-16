@@ -32,7 +32,7 @@ class CenterBeamTask(Task):
         self.wait_s = globals.wait_time_s_bc
         self.threshold = globals.threshold_bc
         self.retry_n = globals.max_retries_bc
-        self.init_dplaxy = np.array(globals.dPLAxy0).astype(int)
+        self.init_dplaxy = np.array(globals.dPLAxy0_bc).astype(int)
         self.max_dpla = globals.max_dPLA_bc
 
     def center_beam_by_pla(self, dplaxy):
