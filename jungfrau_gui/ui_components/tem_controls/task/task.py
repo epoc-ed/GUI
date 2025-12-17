@@ -39,12 +39,3 @@ class Task(QObject):
             pass
         self.running = False
         self.finished.emit()
-
-    def tem_info(self):
-        logging.debug(f"{self.task_name} has asked for #info")
-        self.send_tem_command.emit("#info")
-
-    def tem_moreinfo(self):
-        logging.debug(f"{self.task_name} has asked for #more")
-        self.send_tem_command.emit("#more")
-        

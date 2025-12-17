@@ -100,12 +100,14 @@ backlash = [100, 80, 0, 0]
 min_mag_for_mag = 1500 # border between LowMag/Mag
 
 ## safety not to hit hardware-limit
-click_on_move_thresholds = {'dxy_min': 0.3, 'dxy_max': 100, 
+click_on_move_thresholds = {'dxy_min': 0.3, 'dxy_max': 100, 'dxy_max_sideview': 300,
                             'dz_min_mag': 1, 'dz_max_mag': 20,
                             'dz_min_lmag': 3, 'absz_min': -100, 'absz_max': 20}
+margin_on_mirror_rotating = 2 # for safe, could be updated depending on the absolute value
 grid_circle_radius = {'inner': 1200, 'outer': 1800} # um, targets outside of this ring should be cared for stage limit
 grid_resolution = 1 # dot-plotter resolution (um)
 grid_lowmag_scale = 0.25
+estimated_stage_xy_speed = 100 # um/s. ~200 seems to be feasible, but not fully tested
 
 ## stage shift larger than these values will be hold in history
 stage_relaxation_thresholds = [30, 30, 30, 0.2, 100] # nm, nm, nm, deg., deg. 
@@ -150,11 +152,17 @@ max_duration = 3600 # sec
 default_snapshot_duration = 1000 # 1 sec
 max_snapshot_duration = 180000 # 3 min
 
+# displaycapture_command = ['/home/ktakaba/PyJEM_lab/EPOC_git_GUI/launcher_capture.sh']
+env_capturer = 'dev_screencapture'
+python_capturer = 'capturer/Playback_capturer.py'
+displaycapture_command = ['conda', 'run', '--no-capture-output', '-n', env_capturer, 'python', python_capturer]
+
+# Grid-atlas control variables
 max_tx_planemap = 5
 min_tx_tiltmap = 40
 tilt_threshold = 9
 
-displaycapture_command = ['/home/ktakaba/PyJEM_lab/EPOC_git_GUI/launcher_capture.sh']
+max_snapshot_hold = 50 # larger value consumes more memory resource
 
 
 # Communication variables

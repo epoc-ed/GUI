@@ -12,7 +12,6 @@ from .record_task import RecordTask
 
 from .beam_focus_task import AutoFocusTask
 
-from .get_teminfo_task import GetInfoTask
 from .stage_centering_task import CenteringTask
 from .centerbeam_task import CenterBeamTask
 
@@ -54,7 +53,6 @@ class ControlWorker(QObject):
 
     trigger_record = Signal()
     trigger_shutdown = Signal()
-    trigger_getteminfo = Signal(str)
     trigger_centering = Signal(bool, str)
     trigger_movewithbacklash = Signal(int, float, float, bool)
     trigger_restoring = Signal(dict)
@@ -84,7 +82,6 @@ class ControlWorker(QObject):
         self.send.connect(self.send_to_tem)
         self.trigger_record.connect(self.start_record)
         self.trigger_shutdown.connect(self.shutdown)
-        self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
         self.trigger_movewithbacklash.connect(self.move_with_backlash)
         self.trigger_restoring.connect(self.restoring)
@@ -144,8 +141,6 @@ class ControlWorker(QObject):
             # to prevent entering again after call from ui_main_window [handle_tem_task_cleanup]
             if isinstance(self.task, RecordTask):
                 logging.info("The \033[1mRecordTask\033[0m\033[34m has ended, performing cleanup...")
-            elif isinstance(self.task, GetInfoTask):
-                logging.info("The \033[1mGetInfo\033[0m\033[34m has ended, performing cleanup...")
             elif isinstance(self.task, AutoFocusTask):
                 logging.info("The \033[1mAutoFocusTask\033[0m\033[34m has ended, performing cleanup...")
             
@@ -169,26 +164,6 @@ class ControlWorker(QObject):
         self.task.moveToThread(self.task_thread)
         self.task_thread.started.connect(self.task.start.emit)
         self.task_thread.start()
-
-    @Slot(str)
-    def getteminfo(self, gui=''):
-        logging.info("Start GetInfo")
-        if self.task is not None:
-            if self.task.running:
-                logging.warning("\033[38;5;214mGetInfoTask\033[33m - task is currently running...\n"
-                                "You need to stop the current task before starting a new one.")
-                # self.stop_task()
-                return
-
-        command='TEMstatus'
-
-        if gui=='':
-            x = input(f'Write TEM status on a file? If YES, give a filename or "Y" ({command}_[timecode].log). [N]\n')
-            task = GetInfoTask(self, x)
-        else:
-            task = GetInfoTask(self, gui)
-
-        self.start_task(task)
 
     @Slot(bool, str)
     def centering(self, gui=False, vector='10, 1'):
@@ -267,7 +242,7 @@ class ControlWorker(QObject):
         end_angle = self.tem_action.tem_tasks.update_end_angle.value() # 60
         if globals.dev:
             if self.tem_action.tem_tasks.mirror_angles_checkbox.isChecked():
-                end_angle = (np.abs(self.tem_status["stage.GetPos"][3]) - 2) * np.sign(self.tem_status["stage.GetPos"][3])*-1 # '-2' for safe, could be updated depending on the absolute value
+                end_angle = (np.abs(self.tem_status["stage.GetPos"][3]) - globals.margin_on_mirror_rotating) * np.sign(self.tem_status["stage.GetPos"][3])*-1
                 self.tem_action.tem_tasks.update_end_angle.setValue(end_angle)
                 time.sleep(0.5) # For user's recognition on the update
         logging.info(f"End angle = {end_angle}")
@@ -807,9 +782,6 @@ class ControlWorker(QObject):
                 except Exception as e:
                     logging.error(f"Unexpected error @ client.StopStage(): {e}")
                     pass
-
-            elif isinstance(self.task, GetInfoTask):
-                logging.info("Stopping the - \033[1mGetInfo\033[0m\033[34m - task!")
 
     @Slot()
     def shutdown(self):

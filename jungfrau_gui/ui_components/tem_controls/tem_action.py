@@ -1049,7 +1049,6 @@ class TEMAction(QObject):
                         = img_transformed[img_transformed.shape[0]//2+gap:,:]
             # if not self.mapatlas_rotated: # only apply once
             if item_to_display.viewTransform().m11() == 0.25:
-                # self.mapatlas_rotated = True
                 tr = QTransform()
                 tr.rotate(rotation)
                 tr.scale(globals.grid_lowmag_scale, globals.grid_lowmag_scale)
@@ -1146,11 +1145,11 @@ class TEMAction(QObject):
         # downsizing
         return np.clip((np.nan_to_num(image) - low_thresh) / (high_thresh - low_thresh) * 255, 0, 255).astype(np.uint8)
 
-    def take_snapshot(self, max_list=50):
+    def take_snapshot(self):
         if self.control.tem_status["eos.GetFunctionMode"][0] == 4:
             logging.warning(f'Snaphot does not support Diff-mode at the moment!')
             return
-        if len(self.snapshot_images) > max_list:
+        if len(self.snapshot_images) > globals.max_snapshot_hold:
             self.tem_stagectrl.gridarea.removeItem(self.snapshot_images[0])
             self.snapshot_images.pop(0)
             logging.info(f'Oldest snapshot item was removed.')
@@ -1202,15 +1201,15 @@ class TEMAction(QObject):
         x, y = ppos.x(), ppos.y()
         logging.debug(f"{x:0.1f}, {y:0.1f}") # identical to the TEM-stage-position in um
         dx, dy = x*globals.UM_TO_NM - position[0], y*globals.UM_TO_NM - position[1]
-        if np.abs(dx) > 3e5 or np.abs(dy) > 3e5:
-            logging.info("Large movement (> 300 um) is not yet permitted for safety.")
+        if np.abs(dx) > globals.click_on_move_thresholds['dxy_max_sideview']*globals.UM_TO_NM or np.abs(dy) > globals.click_on_move_thresholds['dxy_max_sideview']*globals.UM_TO_NM:
+            logging.info(f"Large movement (> {globals.click_on_move_thresholds['dxy_max_sideview']} um) is not permitted for safety.")
             return
 
         if dx >= 0:
             self.control.trigger_movewithbacklash.emit(0, dx, globals.backlash[0], False)
         else:
             self.control.trigger_movewithbacklash.emit(1, dx, globals.backlash[0], False)
-        time.sleep(np.abs(dx)/5e4) # assumes speed of movement as > 50 um/s
+        time.sleep(np.abs(dx)/globals.estimated_stage_xy_speed/globals.UM_TO_NM)
         if dy >= 0:
             self.control.trigger_movewithbacklash.emit(2, dy, globals.backlash[1], False)
         else:

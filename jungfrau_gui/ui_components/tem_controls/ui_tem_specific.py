@@ -85,7 +85,6 @@ class TEMStageCtrl(QGroupBox):
         self.setChecked(False) #True)
         # Connect QGroupBox toggled signal to a custom slot
         self.toggled.connect(self.on_collapsed)
-        self.images_kept = {}
         self.initUI()
 
     def initUI(self):
@@ -180,12 +179,6 @@ class TEMStageCtrl(QGroupBox):
             self.tilted_view_checkbox.setFont(font_small)
             self.tilted_view_checkbox.checkStateChanged.connect(self.toggle_tiltview)
             self.hbox_extras.addWidget(self.tilted_view_checkbox, 2)
-
-            # self.image_kept_checkbox = QCheckBox("buffered", self)
-            # self.image_kept_checkbox.setFont(font_small)
-            # self.image_kept_checkbox.setEnabled(False)
-            # self.image_kept_checkbox.checkStateChanged.connect(self.toggle_imagekept)
-            # self.hbox_extras.addWidget(self.image_kept_checkbox, 2)
 
         stage_ctrl_section.addLayout(self.hbox_extras)
         
@@ -284,7 +277,7 @@ class TEMStageCtrl(QGroupBox):
         self.spotchartItem_tilted.setZValue(-2)
         self.grayimage_tilted = np.zeros_like(self.grayimage)
         self.spotchartItem_tilted.setImage(self.grayimage_tilted)
-        self.spotchartItem_tilted.hide()        
+        self.spotchartItem_tilted.hide()
 
         self.grid_plot.setAspectLocked()
         self.grid_plot.showGrid(x=True, y=True)
@@ -374,7 +367,9 @@ class TEMTasks(QGroupBox):
         self.connecttem_button.setEnabled(True)
         self.centering_checkbox = QCheckBox("Click-on-Centering", self)
         self.centering_checkbox.setChecked(False)
-        
+        if globals.dev:
+            self.centering_checkbox.setChecked(True)
+
         BEAM_group = QVBoxLayout()
         BEAM_label = QLabel("Beam Sweep & Focus", self)
         BEAM_label.setFont(font_big)
@@ -428,7 +423,7 @@ class TEMTasks(QGroupBox):
         self.update_end_angle.setValue(globals.default_roation_end)
         if globals.dev:
             self.mirror_angles_checkbox = QCheckBox("mirror", self)
-            self.mirror_angles_checkbox.setChecked(False)
+            self.mirror_angles_checkbox.setChecked(True)
 
         END_layout.addWidget(end_angle)
         END_layout.addWidget(self.update_end_angle)

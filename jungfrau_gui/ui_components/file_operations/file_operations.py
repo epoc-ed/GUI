@@ -353,7 +353,7 @@ class FileOperations(QGroupBox):
             self.capture_process.stdin.flush()
             logging.info('Saved capture movie.')
             self.capture_checkbox.setEnabled(False)
-            QTimer.singleShot(15000, self.capture_checkbox.setEnabled(True))
+            QTimer.singleShot(15000, lambda: self.capture_checkbox.setEnabled(True))
 
     def update_subimage_list(self):
         self.subimage_list = []
@@ -447,6 +447,8 @@ class FileOperations(QGroupBox):
 
     def _send_metadata_with_retries(self, beam_property):
         """Send metadata in a background thread and signal results back to main thread"""
+        self.update_subimage_list()
+        delay = 0.1 # if self.parent.tem_controls.tem_stagectrl.lowmagimage is not None else 0.5
         try:
             send_with_retries(
                 self.metadata_notifier.notify_metadata_update, 
