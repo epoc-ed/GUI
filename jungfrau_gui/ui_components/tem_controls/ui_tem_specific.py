@@ -106,8 +106,8 @@ class TEMStageCtrl(QGroupBox):
 
         # Fast movement back buttons (typically going back to crystal before data collection)
         self.hbox_back = QHBoxLayout()
-        self.back_x  = QPushButton('Back X', self)
-        self.back_tx = QPushButton('Back TX', self)
+        self.back_x  = QPushButton('Back (X)', self)
+        self.back_tx = QPushButton('Back (TiltX)', self)
         self.hbox_back.addWidget(self.back_x)
         self.hbox_back.addWidget(self.back_tx)
         stage_ctrl_section.addLayout(self.hbox_back)
