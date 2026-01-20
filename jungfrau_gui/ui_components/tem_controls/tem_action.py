@@ -88,17 +88,36 @@ class TEMAction(QObject):
         
         self.control.updated.connect(self.on_tem_update)
 
-        # Move X positive 10 micrometers
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, globals.backlash[0], True))
-        # Move X negative 10 micrometers
-        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, globals.backlash[0], True))
-        # Move TX positive 10 degrees
-        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, globals.backlash[3], False))
-        # Move TX negative 10 degrees    
-        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.backlash[3], False))
+        # Away X: +10 um, always preload (e.g. +12 then -2)
+        self.tem_stagectrl.movex10ump.clicked.connect(
+            lambda: self.control.trigger_move_parking.emit(0, 10000, globals.preload[0], True)
+        )
+        self.tem_stagectrl.movex10umn.clicked.connect(
+            lambda: self.control.trigger_move_parking.emit(1, -10000, globals.preload[0], True)
+        )
+
+        # Away TX: +10 deg, preload (e.g. +11 then -1)
+        self.tem_stagectrl.move10degp.clicked.connect(
+            lambda: self.control.trigger_move_parking.emit(6, 10, globals.preload[3], False)
+        )
+        self.tem_stagectrl.move10degn.clicked.connect(
+            lambda: self.control.trigger_move_parking.emit(7, -10, globals.preload[3], False)
+        )
+
+        # Stage translation move back (X=0) with no preload 
+        self.tem_stagectrl.back_x.clicked.connect(
+            lambda: self.control.move_back_no_preload(0)
+        )
+
+        # Stage rotation move back (TX=3) with no preload 
+        self.tem_stagectrl.back_tx.clicked.connect(
+            lambda: self.control.move_back_no_preload(3)
+        )
+
         # Set Tilt X Angle to 0 degrees
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
+        
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)

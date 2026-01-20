@@ -70,6 +70,7 @@ class TEMStageCtrl(QGroupBox):
         stage_ctrl_label.setFont(font_big)
         stage_ctrl_section.addWidget(stage_ctrl_label)
 
+        # Speed radio buttons
         self.hbox_rot = QHBoxLayout()
         rot_label = QLabel("Rotation Speed:", self)
         self.rb_speeds = QButtonGroup()
@@ -86,6 +87,7 @@ class TEMStageCtrl(QGroupBox):
         stage_ctrl_section.addSpacing(10)
         stage_ctrl_section.addLayout(self.hbox_rot)
         
+        # Fast movement buttons
         self.hbox_move = QHBoxLayout()
         move_label = QLabel("Fast movement:", self)
         self.movestages = QButtonGroup()
@@ -102,6 +104,15 @@ class TEMStageCtrl(QGroupBox):
         self.hbox_move.addWidget(move_label, 1)
         stage_ctrl_section.addLayout(self.hbox_move)
 
+        # Fast movement back buttons (typically going back to crystal before data collection)
+        self.hbox_back = QHBoxLayout()
+        self.back_x  = QPushButton('Back (X)', self)
+        self.back_tx = QPushButton('Back (TiltX)', self)
+        self.hbox_back.addWidget(self.back_x)
+        self.hbox_back.addWidget(self.back_tx)
+        stage_ctrl_section.addLayout(self.hbox_back)
+
+
         for i in self.rb_speeds.buttons():
             self.hbox_rot.addWidget(i, 1)
             i.setEnabled(False)
@@ -109,6 +120,9 @@ class TEMStageCtrl(QGroupBox):
         for i in self.movestages.buttons():
             self.hbox_move.addWidget(i, 1)
             i.setEnabled(False)
+
+        self.back_x.setEnabled(False)
+        self.back_tx.setEnabled(False)
 
         self.hbox_magmode = QHBoxLayout()
         mode_label = QLabel("Magnification Mode:", self)
