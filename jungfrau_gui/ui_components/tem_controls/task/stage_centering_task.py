@@ -74,11 +74,9 @@ class CenteringTask(Task):
                 logging.info(f"Vector already small enough (< {self.thresholds['dxy_min']} um): {movexy[0]}, {movexy[1]}")
                 return
             logging.info(f'Move X: {movexy[0]} um,  Y: {movexy[1]} um with MAG: {magnification[2]}')
-            # self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, -movexy[0]*globals.UM_TO_NM, globals.backlash[0], False)            
-            self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, -movexy[0]*globals.UM_TO_NM, globals.preload[0], False)            
+            self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, -movexy[0]*globals.UM_TO_NM, globals.backlash[0], False)            
             time.sleep(0.5)
-            # self.control.trigger_movewithbacklash.emit((np.sign(movexy[1]) > 0)+2, -movexy[1]*globals.UM_TO_NM, globals.backlash[1], False)
-            self.control.trigger_movewithbacklash.emit((np.sign(movexy[1]) > 0)+2, -movexy[1]*globals.UM_TO_NM, globals.preload[1], False)
+            self.control.trigger_movewithbacklash.emit((np.sign(movexy[1]) > 0)+2, -movexy[1]*globals.UM_TO_NM, globals.backlash[1], False)
             time.sleep(0.5)
         else:
             if tilt_X_abs < 11:

@@ -58,6 +58,7 @@ class ControlWorker(QObject):
     trigger_getteminfo = Signal(str)
     trigger_centering = Signal(bool, str)
     trigger_movewithbacklash = Signal(int, float, float, bool)
+    trigger_move_parking = Signal(int, float, float, bool) # always preload
 
     actionFit_Beam = Signal() # originally defined with QuGui
     # actionAdjustZ = Signal()
@@ -88,6 +89,10 @@ class ControlWorker(QObject):
         self.trigger_getteminfo.connect(self.getteminfo)
         self.trigger_centering.connect(self.centering)
         self.trigger_movewithbacklash.connect(self.move_with_backlash)
+        self.trigger_move_parking.connect(self.move_parking_with_preload)
+
+        self._net_away = {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0}  # X,Y,Z,TX signed net move
+
         # self.actionAdjustZ.connect(self.start_adjustZ)
 
         self.beam_fitter = None
@@ -765,7 +770,98 @@ class ControlWorker(QObject):
             logging.error(f'Shutdown of Task Manager triggered error: {e}')
             pass
 
-    def _two_step_sequence(self, axis_fn, value, preload, settle_s=0.05):
+    # KT's implementation of backlash corrected fast movements
+    # The routine moves the stage in one direction, but with a reduced/corrected value
+    @Slot(int, float, float, bool)
+    def move_with_backlash(self, moverid=0, value=10, backlash=0, button=False, scale=1):
+        """
+        Move the stage with backlash correction.
+        
+        Args:
+            moverid: Direction identifier (0-7)
+                0,1: +X, -X
+                2,3: +Y, -Y
+                4,5: +Z, -Z
+                6,7: +TX, -TX (tilt)
+            value: Movement amount
+            backlash: Backlash correction amount
+            scale: Scaling factor for movement value
+        """
+        # Request current status information
+        QTimer.singleShot(0, lambda: self.send_to_tem("#info", asynchronous=True))
+        
+        # Backlash correction logic - only apply when changing direction
+        axis = moverid // 2  # Determine which axis (X=0, Y=1, Z=2, TX=3)
+        direction = moverid % 2  # Determine direction (even=positive, odd=negative)
+        
+        # Check if we're continuing in the same direction (no backlash needed)
+        if direction == 0 and np.sign(self.tem_status["stage.GetPos_diff"][axis]) >= 0:
+            backlash = 0
+        elif direction == 1 and np.sign(self.tem_status["stage.GetPos_diff"][axis]) < 0:
+            backlash = 0
+            
+        logging.debug(f"xyz0, dxyz0 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, "
+                      f"{self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}"
+        )
+        
+        # Get client reference
+        client = self.client
+
+        # Calculate final movement value with backlash compensation
+        movement_value = value * scale
+        
+        # Execute movement in a separate thread based on direction
+        match moverid:
+            case 0:  # +X
+                threading.Thread(target=client.SetXRel, args=(movement_value - backlash,)).start()
+            case 1:  # -X
+                threading.Thread(target=client.SetXRel, args=(movement_value + backlash,)).start()
+            case 2:  # +Y
+                threading.Thread(target=client.SetYRel, args=(movement_value - backlash,)).start()
+            case 3:  # -Y
+                threading.Thread(target=client.SetYRel, args=(movement_value + backlash,)).start()
+            case 4:  # +Z
+                threading.Thread(target=client.SetZRel, args=(movement_value + backlash,)).start()
+            case 5:  # -Z
+                threading.Thread(target=client.SetZRel, args=(movement_value - backlash,)).start()
+            case 6:  # +TX (tilt)
+                threading.Thread(target=client.SetTXRel, args=(movement_value + backlash,)).start()
+            case 7:  # -TX (tilt)
+                threading.Thread(target=client.SetTXRel, args=(movement_value - backlash,)).start()
+            case _:
+                logging.warning(f"Undefined moverid {moverid}")
+                return
+
+        if moverid < 2 and button: # display the previous move to user
+            # logging.info(f"Moved stage {value*scale/1e3:.1f} um in X-direction")
+            if moverid == 0:
+                self.tem_action.tem_stagectrl.movex10ump.setStyleSheet('background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);')
+                self.tem_action.tem_stagectrl.movex10umn.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+            else:
+                self.tem_action.tem_stagectrl.movex10ump.setStyleSheet('background-color: rgb(53, 53, 53); color: white;')
+                self.tem_action.tem_stagectrl.movex10umn.setStyleSheet('background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);')
+        logging.debug(f"xyz1, dxyz1 : {list(map(lambda x, y: f'{x/1e3:8.3f}{y/1e3:8.3f}', self.tem_status['stage.GetPos'][:3], self.tem_status['stage.GetPos_diff'][:3]))}, {self.tem_status['stage.GetPos'][3]:6.2f} {self.tem_status['stage.GetPos_diff'][3]:6.2f}, {backlash}")
+
+    
+    # ************************************************
+    # Routines for lag-corrected fast movement actions
+    # ************************************************
+
+    def _SetTXRel_timeout(self, val: float, timeout_ms: int):
+        # Calls underlying TEMClient with custom timeout, without modifying TEMClient.
+        return self.client._send_message("SetTXRel", val, timeout_ms=timeout_ms)
+
+    def _SetXRel_timeout(self, val: float, timeout_ms: int):
+        return self.client._send_message("SetXRel", val, timeout_ms=timeout_ms)
+
+    def _SetYRel_timeout(self, val: float, timeout_ms: int):
+        return self.client._send_message("SetYRel", val, timeout_ms=timeout_ms)
+
+    def _SetZRel_timeout(self, val: float, timeout_ms: int):
+        return self.client._send_message("SetZRel", val, timeout_ms=timeout_ms)
+    
+    
+    def _two_step_sequence(self, axis_fn, value, preload, settle_s=0.1):
         """
         Build an atomic sequence for preload-compensated moves:
         value > 0: (value+preload), wait, (-preload)
@@ -791,7 +887,7 @@ class ControlWorker(QObject):
 
 
     @Slot(int, float, float, bool)
-    def move_with_backlash(self, moverid=0, value=10.0, preload=0.0, button=False, scale=1.0):
+    def move_parking_with_preload(self, moverid=0, value=10.0, preload=0.0, button=False, scale=1.0):
         """
         Relative stage jog with optional backlash (preload) compensation.
 
@@ -809,40 +905,23 @@ class ControlWorker(QObject):
         """
         # Ask for fresh status (coalesced, won't spam)
         QTimer.singleShot(0, lambda: self.send_to_tem("#info", asynchronous=True))
-
-        axis = moverid // 2  # X=0, Y=1, Z=2, TX=3
-        direction = moverid % 2  # 0=positive, 1=negative
-
+        
+        axis = moverid // 2
         movement_value = value * scale
-        last_diff_sign = np.sign(self.tem_status["stage.GetPos_diff"][axis])
+        effective_preload = float(preload) #if (apply_preload and preload != 0) else 0.0
 
-        apply_preload = True
-        if direction == 0 and last_diff_sign >= 0:
-            apply_preload = False
-        elif direction == 1 and last_diff_sign < 0:
-            apply_preload = False
+        # set longer timeout for slow rotation speeds
+        MOVE_TIMEOUT_MS = 30000 if axis == 3 else 5000
 
-        effective_preload = float(preload) if (apply_preload and preload != 0) else 0.0
-
-        client = self.client
-
-        # pick axis function (same as before)
-        if moverid in (0, 1):
-            axis_fn = client.SetXRel
-        elif moverid in (2, 3):
-            axis_fn = client.SetYRel
-        elif moverid in (4, 5):
-            axis_fn = client.SetZRel
-        elif moverid in (6, 7):
-            axis_fn = client.SetTXRel
-        else:
-            logging.warning(f"Undefined moverid {moverid}")
-            return
+        # pick axis function
+        axis_fn = self._axis_fn_for_axis(axis, MOVE_TIMEOUT_MS)
 
         # Build atomic job sequence and enqueue on single TEM lane
         jobs = self._two_step_sequence(axis_fn, movement_value, effective_preload, settle_s=0.05)
         if jobs:
             self.tem.post_sequence(jobs)
+        
+        self._record_away_and_enable_back(axis, movement_value)
 
         # UI styling for X buttons
         if moverid < 2 and button:
@@ -860,3 +939,67 @@ class ControlWorker(QObject):
                 self.tem_action.tem_stagectrl.movex10umn.setStyleSheet(
                     "background-color: rgb(53, 53, 53); color: rgb(128, 128, 255);"
                 )
+
+
+    @Slot(int)
+    def move_back_no_preload(self, axis=0):
+        """
+        Move back by the last recorded away move on this axis.
+        axis: 0=X,1=Y,2=Z,3=TX
+        """
+        away_accumulated = float(self._net_away.get(axis, 0.0))
+        if away_accumulated == 0.0:
+            logging.warning(f"No recorded away move for axis {axis}")
+            self._clear_away_and_disable(axis)
+            return
+
+        back_value = -away_accumulated
+        MOVE_TIMEOUT_MS = 30000 if axis == 3 else 5000
+        axis_fn = self._axis_fn_for_axis(axis, MOVE_TIMEOUT_MS)
+
+        self.tem.post_sequence([(axis_fn, (back_value,), {})]) 
+
+        self._clear_away_and_disable(axis)
+
+    def _axis_fn_for_axis(self, axis: int, timeout_ms: int):
+        # Helper to choose corresponding TEMClient routine as fct of the set axis
+        if axis == 0:
+            return lambda v: self._SetXRel_timeout(v, timeout_ms)
+        if axis == 1:
+            return lambda v: self._SetYRel_timeout(v, timeout_ms)
+        if axis == 2:
+            return lambda v: self._SetZRel_timeout(v, timeout_ms)
+        if axis == 3:
+            return lambda v: self._SetTXRel_timeout(v, timeout_ms)
+        raise ValueError(f"Invalid axis {axis}")
+    
+
+    def _record_away_and_enable_back(self, axis, movement_value):
+        # record the net “away” move so 'Back' buttons know what to do
+        self._net_away[axis] += movement_value
+
+        # enable back button corresponding to the latest preloaded fast movement 
+        if axis == 0:   # translation (X)
+            QTimer.singleShot(0, lambda: self.tem_action.tem_stagectrl.back_x.setEnabled(True))
+        if axis == 3: # rotation (TX)
+            QTimer.singleShot(0, lambda: self.tem_action.tem_stagectrl.back_tx.setEnabled(True))
+
+
+    def _clear_away_and_disable(self, axis):        
+        # Clear 'away' as compensation has been completed
+        self._net_away[axis] = 0.0
+
+        # Disable back buttons 
+        if axis == 0:   # translation (X)
+            QTimer.singleShot(0, lambda: self.tem_action.tem_stagectrl.back_x.setEnabled(False))
+        if axis == 3: # rotation (TX)
+            QTimer.singleShot(0, lambda: self.tem_action.tem_stagectrl.back_tx.setEnabled(False))
+
+        # Uncolor translation buttons
+        if axis == 0:
+            self.tem_action.tem_stagectrl.movex10ump.setStyleSheet(
+                "background-color: rgb(53, 53, 53); color: white;"
+            )
+            self.tem_action.tem_stagectrl.movex10umn.setStyleSheet(
+                "background-color: rgb(53, 53, 53); color: white;"
+            )

@@ -94,4 +94,4 @@ default_HT = 200000.00 # V
 backlash = [100, 80, 0, 0]
 
 # overshoot/preload used for two-step jog moves
-preload  = [1000, 1000, 0, 1]  # X,Y,Z in nm (1 µm), TX in deg (1°)
+preload  = [2000, 2000, 0, 1]  # X,Y,Z in nm (2 µm), TX in deg (1°)
