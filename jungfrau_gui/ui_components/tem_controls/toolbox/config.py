@@ -16,7 +16,6 @@ from jungfrau_gui import globals
 
 f = files('jungfrau_gui').joinpath('ui_components/tem_controls/toolbox/jfgui2_config.json')
 parser = json.loads(f.read_text())
-cfg = ConfigurationClient(redis_host(), token=auth_token())
 
 class lut:
     distance = parser['distances']
@@ -31,6 +30,7 @@ class lut:
         self.array_data = np.array([list(d.values()) for d in self.distance])
         self.raw_grid = np.delete(self.array_data, [2, 4, 5, 6], -1)[:-3,:] # remove date, unit, mag, and brightness at the moment
         self.data_grid = np.array([[int(nominal[:-2])*10, int(ht_value), float(calibrated)] for nominal, calibrated, ht_value in self.raw_grid])
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
     def _lookup(self, dic, key, label_search, label_get, index=0):
         df_lut = pd.json_normalize(dic)
@@ -89,7 +89,7 @@ class lut:
         item_circle = QGraphicsEllipseItem(QRectF(x-r, y-r, 2*r, 2*r))
         item_circle.setPen(pg.mkPen('r', width=2))
 
-        r = cfg.overlays[0]['radius']
+        r = self.cfg.overlays[0]['radius']
         item_common = QGraphicsEllipseItem(QRectF(x-r, y-r, 2*r, 2*r))
         item_common.setPen(pg.mkPen('r', width=2))
         
