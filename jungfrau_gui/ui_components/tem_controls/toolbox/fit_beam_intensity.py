@@ -7,7 +7,7 @@ from lmfit import Model, Parameters
 from scipy.interpolate import griddata
 from line_profiler import LineProfiler
 
-from .... import globals
+from jungfrau_gui import globals
 
 def filter_outliers(im_roi, lower_percentile=1, upper_percentile=99.99):
     """

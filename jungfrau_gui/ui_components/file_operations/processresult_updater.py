@@ -5,7 +5,6 @@ import logging
 from datetime import datetime
 import argparse
 from pathlib import Path
-# from .. import globals
 from PySide6.QtCore import Signal, Slot, QObject
 import time
 

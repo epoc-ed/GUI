@@ -1,19 +1,19 @@
 import logging
-from . import globals
+from jungfrau_gui import globals
 import numpy as np
 import pyqtgraph as pg
-from .ui_components.overlay import draw_overlay 
+from jungfrau_gui.ui_components.overlay import draw_overlay 
 from pyqtgraph.dockarea import Dock
 from PySide6.QtWidgets import (QMainWindow, QVBoxLayout, QWidget,
                                 QHBoxLayout, QPushButton, QGridLayout,
                                 QMessageBox, QTabWidget, QLabel)
 from PySide6.QtCore import Qt, QObject, QEvent, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence
-from .ui_components.visualization_panel.visualization_panel import VisualizationPanel
-from .ui_components.tem_controls.tem_controls import TemControls
-from .ui_components.file_operations.file_operations import FileOperations
-from .ui_components.utils import create_gaussian
-from .ui_components.toggle_button import ToggleButton
+from jungfrau_gui.ui_components.visualization_panel.visualization_panel import VisualizationPanel
+from jungfrau_gui.ui_components.tem_controls.tem_controls import TemControls
+from jungfrau_gui.ui_components.file_operations.file_operations import FileOperations
+from jungfrau_gui.ui_components.utils import create_gaussian
+from jungfrau_gui.ui_components.toggle_button import ToggleButton
 
 import jungfrau_gui.ui_threading_helpers as thread_manager
 
