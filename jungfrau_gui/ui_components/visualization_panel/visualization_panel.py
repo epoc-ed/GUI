@@ -138,9 +138,9 @@ class VisualizationPanel(QGroupBox):
         if globals.dev:
             frame_sum = QLabel("Frames summed:", self)
             self.frame_summed = QSpinBox(self)
-            self.frame_summed.setRange(10, 1000)
+            self.frame_summed.setRange(globals.min_frame_summed, globals.max_frame_summed)
             self.frame_summed.setSingleStep(10)
-            self.frame_summed.setValue(100)
+            self.frame_summed.setValue(globals.default_frame_summed)
             frame_sum_layout = QHBoxLayout()
             frame_sum_layout.addWidget(frame_sum)
             frame_sum_layout.addWidget(self.frame_summed)
@@ -484,10 +484,10 @@ class VisualizationPanel(QGroupBox):
                     # Cancel current task
                     self.send_command_to_jfjoch("cancel") 
                     self.jfjoch_client.wait_until_idle()
-                    self.jfjoch_client._lots_of_images = 72000 # 2000 hz x 3600 sec / 100 frame-summation
-                    self.jfjoch_client.image_time_us = 50000 # 500 us/frame * 100 frame-summation
-                    logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per image acquisition")
-                    logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}") # 72000
+                    self.jfjoch_client._lots_of_images = globals.detector_freq * globals.max_duration // globals.default_frame_summed
+                    self.jfjoch_client.image_time_us = globals.default_image_time_us * globals.default_frame_summed
+                    logging.info(f"{self.jfjoch_client.image_time_us/globals.MS_TO_US:.2f} ms per image acquisition")
+                    logging.info(f"Nb of frames per trigger: {self.jfjoch_client._lots_of_images}")
                     logging.info(f"Threshold (in keV) set to: {self.thresholdBox.value()}")
                     self.jfjoch_client.start(n_images = self.jfjoch_client._lots_of_images,
                                             fname = "",
@@ -531,10 +531,10 @@ class VisualizationPanel(QGroupBox):
                     # self.full_fname.setText(self._full_fpath.as_posix()) # update the GUI widget
 
                     if globals.dev:
-                        self.jfjoch_client.image_time_us = self.frame_summed.value() * 500 # i.e. 500 us per image for a 2kHz frame rate
-                        self.jfjoch_client._lots_of_images = 2000 * 3600 // self.frame_summed.value() # -> 72000 summed images per hour for a summing factor of 100 at 2kHz frame rate
-                        logging.info(f"Nb of frames per trigger for measurement: {self.jfjoch_client._lots_of_images}") # 72000
-                        logging.info(f"{self.jfjoch_client.image_time_us*1e-3:.2f} ms per (summed) image acquisition")
+                        self.jfjoch_client.image_time_us = self.frame_summed.value() * globals.default_image_time_us
+                        self.jfjoch_client._lots_of_images = globals.detector_freq * globals.max_duration // self.frame_summed.value()
+                        logging.info(f"Nb of frames per trigger for measurement: {self.jfjoch_client._lots_of_images}")
+                        logging.info(f"{self.jfjoch_client.image_time_us/globals.MS_TO_US:.2f} ms per (summed) image acquisition")
                         prev_contrast = self.parent.histogram.getLevels()
                         self.parent.histogram.setLevels(prev_contrast[0] * self.frame_summed.value() / 100, prev_contrast[1] * self.frame_summed.value() / 100)
                     

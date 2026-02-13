@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 import argparse
 from pathlib import Path
-# from .. import globals
+from ... import globals
 from PySide6.QtCore import Signal, Slot, QObject
 import time
 
@@ -26,7 +26,7 @@ import time
 class ProcessedDataReceiver(QObject):
     finished = Signal()
 
-    def __init__(self, parent, host, port=3463, verbose = True, mode=0):
+    def __init__(self, parent, host, port=globals.dataserver_port, verbose = True, mode=0):
         super().__init__()
         self.task_name = "Processed Data Receiver"
         self.parent = parent
@@ -61,7 +61,7 @@ class ProcessedDataReceiver(QObject):
                     socket.send_string("Results being inquired...")
                     result_json = socket.recv_string()
                     if 'In processing...' in result_json:
-                        time.sleep(update_interval_ms/1000)
+                        time.sleep(update_interval_ms/globals.S_TO_MS)
                         self.trial -= 1
                     elif 'Feedback is not activated.' in result_json:
                         logging.info("Server does not run in the feedback mode. Inquiry cloded.")
@@ -75,7 +75,7 @@ class ProcessedDataReceiver(QObject):
                         break
                 except zmq.ZMQError as e:
                     logging.error(f"Failed to receive processed data request: {e}")
-                    time.sleep(update_interval_ms/1000)
+                    time.sleep(update_interval_ms/globals.S_TO_MS)
                     self.trial -= 1
                 # finally:
                 #     # ensure the socket is closed no matter what

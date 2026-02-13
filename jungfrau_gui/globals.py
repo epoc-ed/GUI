@@ -55,6 +55,7 @@ tem_mode = True
 # jfj = False
 
 tem_host = cfg.temserver
+tem_port = 3535
 dev = False
 #Configuration
 nrow = cfg.nrows 
@@ -87,11 +88,54 @@ tag, branch, commit  = get_git_info()
 # constants, presets
 UM_TO_NM = 1e3
 MM_TO_UM = 1e3
+MS_TO_US = 1e3
+S_TO_MS = 1e3
 KV_TO_V = 1e3 
 PIXEL = 0.075 # mm
 
+# TEM control variables
 default_HT = 200000.00 # V
 backlash = [100, 80, 0, 0]
+
+min_mag_for_mag = 1500 # border between LowMag/Mag
+
+## safety not to hit hardware-limit
+click_on_move_thresholds = {'dxy_min': 0.3, 'dxy_max': 100, 
+                            'dz_min_mag': 1, 'dz_max_mag': 10,
+                            'dz_min_lmag': 3, 'absz_min': -70, 'absz_max': 20}
+
+## stage shift larger than these values will be hold in history
+stage_relaxation_thresholds = [30, 30, 30, 0.2, 100] # nm, nm, nm, deg., deg. 
+
+## software limit for GATAN holder. Smaller value (~65) may be necessary for complete safety (e.g. remote-operation).
+max_stage_tilt = 72
+default_roation_end = 60
+
+## variabls for autofocusing
+IL1_0 = 21780 # 21819 
+ILS_0 = [32920, 32776] # [32820, 32976]
+WAIT_TIME_S = 0.25 # TODO: optimize value
+
+
+# Frame control variables
+default_polling_frequency = 1000
+min_polling_frequency = 100 # safety not to inquire TEM-values too frequently
+max_polling_frequency = 10000
+
+default_frame_summed = 100
+default_image_time_us = 500
+min_frame_summed = 10 # safety not to save unexpectedly large datasets
+max_frame_summed = 1000
+detector_freq = 2000
+max_duration = 3600 # sec
+
+
+# Communication variables
+dataserver_host = "noether"
+dataserver_port = 3463
+
+max_retries_tagging = 3
+inquiry_delay = 0.1 # sec
 
 # overshoot/preload used for two-step jog moves
 preload  = [2000, 2000, 0, 1]  # X,Y,Z in nm (2 µm), TX in deg (1°)

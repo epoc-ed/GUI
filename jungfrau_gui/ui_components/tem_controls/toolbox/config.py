@@ -68,13 +68,13 @@ class lut:
         return self._lookup(self.sa, key_search, 'ID', 'size')
 
     def shiftoverlay_for_ht(self, ht_in_V, magnification=1200):
-        if magnification > 1500: # mag
+        if magnification >= globals.min_mag_for_mag: # mag
             return self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'overlay_xy', index=0)
         else:
             return self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'overlay_xy', index=-1)
 
     def rotaxis_for_ht(self, ht_in_V, magnification=20000):
-        if magnification > 1500: # mag
+        if magnification >= globals.min_mag_for_mag: # mag
             return self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'axis_xds', index=0)
         else:
             return self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'axis_xds', index=-1)
