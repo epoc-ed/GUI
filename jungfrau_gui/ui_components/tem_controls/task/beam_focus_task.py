@@ -2,17 +2,13 @@ import os
 import time
 import logging
 import numpy as np
-from .task import Task
+from jungfrau_gui.ui_components.tem_controls.task.task import Task
 
-from .... import globals
+from jungfrau_gui import globals
 from PySide6.QtCore import Qt, QMetaObject, Signal
 from datetime import datetime
 
 from simple_tem import TEMClient
-
-IL1_0 = 21780 # 21819 
-ILS_0 = [32920, 32776] # [32820, 32976]
-WAIT_TIME_S = 0.25 # TODO: optimize value
 
 class AutoFocusTask(Task):
     # Signal to notify the main thread that a new best result arrived
@@ -24,14 +20,14 @@ class AutoFocusTask(Task):
         self.estimateds_duration = self.duration_s + 0.1
         self.control = control_worker
         self.tem_action = self.control.tem_action
-        self.client = TEMClient(globals.tem_host, 3535)
+        self.client = TEMClient(globals.tem_host, globals.tem_port)
         # Start from a known set of lens values (but creates a freeze of ~0.1s) 
-        self.client.SetILFocus(IL1_0)
-        self.client.SetILs(*ILS_0)
-        time.sleep(WAIT_TIME_S)
+        self.client.SetILFocus(globals.IL1_0)
+        self.client.SetILs(*globals.ILS_0)
+        time.sleep(globals.WAIT_TIME_S)
         self.lens_parameters = {
-                                "il1": IL1_0, # an integer
-                                "ils": ILS_0, # two integers for stigmation
+                                "il1": globals.IL1_0, # an integer
+                                "ils": globals.ILS_0, # two integers for stigmation
         }
         self.beam_fitter = self.control.beam_fitter
         self.results = []
@@ -48,7 +44,7 @@ class AutoFocusTask(Task):
         self._best_stigmation = None
         self._best_combined = None
 
-    def run(self, init_IL1=IL1_0, init_stigm=ILS_0, time_budget=15):
+    def run(self, init_IL1=globals.IL1_0, init_stigm=globals.ILS_0, time_budget=15):
         try:
             # ----------------------
             # Start parallel process
@@ -84,7 +80,7 @@ class AutoFocusTask(Task):
     ##########
     # METHOD A
     ##########
-    def rapid_parabolic_focus(self, init_IL1, range_width=100, num_points=5, wait_time_s=WAIT_TIME_S):
+    def rapid_parabolic_focus(self, init_IL1, range_width=100, num_points=5, wait_time_s=globals.WAIT_TIME_S):
         """
         Rapidly optimize beam focus by sampling points and fitting a parabola.
         
@@ -248,7 +244,7 @@ class AutoFocusTask(Task):
             else:
                 return None
 
-    def rapid_stigmation_optimization(self, init_stigm, deviation=100, num_points=10, wait_time_s=WAIT_TIME_S):
+    def rapid_stigmation_optimization(self, init_stigm, deviation=100, num_points=10, wait_time_s=globals.WAIT_TIME_S):
         """
         Rapidly optimize beam stigmation using a simplified grid search.
         
@@ -343,10 +339,10 @@ class AutoFocusTask(Task):
         try:
             # Get current lens values if not provided
             if init_IL1 is None:
-                init_IL1 = self.lens_parameters.get("il1", IL1_0)
+                init_IL1 = self.lens_parameters.get("il1", globals.IL1_0)
             
             if init_stigm is None:
-                init_stigm = self.lens_parameters.get("ils", ILS_0)
+                init_stigm = self.lens_parameters.get("ils", globals.ILS_0)
             
             # Reset results and best tracking
             self.results = []
@@ -359,7 +355,7 @@ class AutoFocusTask(Task):
                 init_IL1=init_IL1,
                 range_width=100,  # Adjust based on expected focus range
                 num_points=7,     # 7 points is a good balance between speed and accuracy ?
-                wait_time_s=WAIT_TIME_S   # Reduced wait time for speed
+                wait_time_s=globals.WAIT_TIME_S   # Reduced wait time for speed
             )
             
             if focus_result:
@@ -388,7 +384,7 @@ class AutoFocusTask(Task):
                 init_stigm=init_stigm,
                 deviation=100,    # Adjust based on expected stigmation range
                 num_points=5,     # number of points in each dimension
-                wait_time_s=WAIT_TIME_S   # Reduced wait time for speed
+                wait_time_s=globals.WAIT_TIME_S   # Reduced wait time for speed
             )
             
             if stigmation_result:
@@ -409,7 +405,7 @@ class AutoFocusTask(Task):
                     init_IL1=optimal_il1,
                     range_width=60,   # Narrower range for refinement
                     num_points=4,     # Fewer points needed for refinement
-                    wait_time_s=WAIT_TIME_S
+                    wait_time_s=globals.WAIT_TIME_S
                 )
                 
                 if final_focus_result:
@@ -437,7 +433,7 @@ class AutoFocusTask(Task):
     ##########
     # METHOD B
     ##########
-    def standard_focus(self, init_IL1=IL1_0, init_stigm=ILS_0):      
+    def standard_focus(self, init_IL1=globals.IL1_0, init_stigm=globals.ILS_0):      
             # Start counter
             autofocus_start = time.perf_counter()
 
@@ -552,7 +548,7 @@ class AutoFocusTask(Task):
             # Emit final result signal (for UI update)
             self.newBestResult.emit(final_results)
 
-    def sweep_il1_linear(self, lower, upper, step, wait_time_s=WAIT_TIME_S):
+    def sweep_il1_linear(self, lower, upper, step, wait_time_s=globals.WAIT_TIME_S):
         """
         Perform a linear sweep of IL1 TEM lens positions with Gaussian fitting at each step.
         
@@ -595,7 +591,7 @@ class AutoFocusTask(Task):
 
         return True
     
-    def sweep_stig_linear(self, init_stigm, deviation, step, wait_time_s=WAIT_TIME_S):
+    def sweep_stig_linear(self, init_stigm, deviation, step, wait_time_s=globals.WAIT_TIME_S):
         """
         Perform a linear sweep of stigmation parameters in X and Y directions.
         
@@ -702,15 +698,15 @@ class AutoFocusTask(Task):
         
         # Go to a value well below the target
         self.client.SetILFocus(target_il1 - 50)
-        time.sleep(WAIT_TIME_S)
+        time.sleep(globals.WAIT_TIME_S)
         
         # Overshoot by a fixed amount
         self.client.SetILFocus(target_il1 + margin)
-        time.sleep(WAIT_TIME_S)
+        time.sleep(globals.WAIT_TIME_S)
         
         # Approach the final value
         self.client.SetILFocus(target_il1)
-        time.sleep(WAIT_TIME_S)
+        time.sleep(globals.WAIT_TIME_S)
         
         # Update stored value
         self.lens_parameters["il1"] = target_il1
@@ -729,19 +725,19 @@ class AutoFocusTask(Task):
         # X axis approach
         current_ils_y = self.lens_parameters.get("ils", [0, 0])[1]
         self.client.SetILs(ils_x - 100, current_ils_y)
-        time.sleep(WAIT_TIME_S)
+        time.sleep(globals.WAIT_TIME_S)
         self.client.SetILs(ils_x + margin, current_ils_y)
-        time.sleep(WAIT_TIME_S)
+        time.sleep(globals.WAIT_TIME_S)
         self.client.SetILs(ils_x, current_ils_y)
-        time.sleep(WAIT_TIME_S)
+        time.sleep(globals.WAIT_TIME_S)
         
         # Y axis approach
         self.client.SetILs(ils_x, ils_y - 100)
-        time.sleep(WAIT_TIME_S)
+        time.sleep(globals.WAIT_TIME_S)
         self.client.SetILs(ils_x, ils_y + margin)
-        time.sleep(WAIT_TIME_S)
+        time.sleep(globals.WAIT_TIME_S)
         self.client.SetILs(ils_x, ils_y)
-        time.sleep(WAIT_TIME_S)
+        time.sleep(globals.WAIT_TIME_S)
         
         # Update stored value
         self.lens_parameters["ils"] = [ils_x, ils_y]

@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime
 import argparse
 from pathlib import Path
-from .. import globals
+from jungfrau_gui import globals
 
 # Handle imports correctly when running as a standalone script
 if __name__ == "__main__" and __package__ is None:
@@ -33,7 +33,7 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 class MetadataNotifier:
-    def __init__(self, host, port=3463, verbose = True):
+    def __init__(self, host, port=globals.dataserver_port, verbose = True):
         self.host = host
         self.port = port
         self.verbose = verbose

@@ -2,12 +2,12 @@ from PySide6.QtWidgets import (QGroupBox, QHBoxLayout, QVBoxLayout, QLabel, QLin
                                QRadioButton, QPushButton, QCheckBox, QDoubleSpinBox, QSizePolicy, QComboBox,
                                QSpinBox, QWidget, QGridLayout)
 from PySide6.QtGui import QFont
-from ..toggle_button import ToggleButton
-from ..utils import create_horizontal_line_with_margin
+from jungfrau_gui.ui_components.toggle_button import ToggleButton
+from jungfrau_gui.ui_components.utils import create_horizontal_line_with_margin
+from jungfrau_gui import globals
 
 from epoc import ConfigurationClient, auth_token, redis_host
 
-from ... import globals
 import pyqtgraph as pg
 import numpy as np
 
@@ -70,6 +70,7 @@ class TEMStageCtrl(QGroupBox):
         stage_ctrl_label.setFont(font_big)
         stage_ctrl_section.addWidget(stage_ctrl_label)
 
+        # Speed radio buttons
         self.hbox_rot = QHBoxLayout()
         rot_label = QLabel("Rotation Speed:", self)
         self.rb_speeds = QButtonGroup()
@@ -86,6 +87,7 @@ class TEMStageCtrl(QGroupBox):
         stage_ctrl_section.addSpacing(10)
         stage_ctrl_section.addLayout(self.hbox_rot)
         
+        # Fast movement buttons
         self.hbox_move = QHBoxLayout()
         move_label = QLabel("Fast movement:", self)
         self.movestages = QButtonGroup()
@@ -102,6 +104,15 @@ class TEMStageCtrl(QGroupBox):
         self.hbox_move.addWidget(move_label, 1)
         stage_ctrl_section.addLayout(self.hbox_move)
 
+        # Fast movement back buttons (typically going back to crystal before data collection)
+        self.hbox_back = QHBoxLayout()
+        self.back_x  = QPushButton('Back (X)', self)
+        self.back_tx = QPushButton('Back (TiltX)', self)
+        self.hbox_back.addWidget(self.back_x)
+        self.hbox_back.addWidget(self.back_tx)
+        stage_ctrl_section.addLayout(self.hbox_back)
+
+
         for i in self.rb_speeds.buttons():
             self.hbox_rot.addWidget(i, 1)
             i.setEnabled(False)
@@ -109,6 +120,9 @@ class TEMStageCtrl(QGroupBox):
         for i in self.movestages.buttons():
             self.hbox_move.addWidget(i, 1)
             i.setEnabled(False)
+
+        self.back_x.setEnabled(False)
+        self.back_tx.setEnabled(False)
 
         self.hbox_magmode = QHBoxLayout()
         mode_label = QLabel("Magnification Mode:", self)
@@ -223,9 +237,9 @@ class TEMTasks(QGroupBox):
         self.connecttem_button = ToggleButton('Check TEM Connection', self)
         self.connecttem_button.setEnabled(True)
         self.polling_frequency = QSpinBox(self)
-        self.polling_frequency.setMinimum(100)
-        self.polling_frequency.setMaximum(10000)
-        self.polling_frequency.setValue(1000)
+        self.polling_frequency.setMinimum(globals.min_polling_frequency)
+        self.polling_frequency.setMaximum(globals.max_polling_frequency)
+        self.polling_frequency.setValue(globals.default_polling_frequency)
         self.polling_frequency.setSingleStep(100)
         self.polling_frequency.setPrefix("Polling Freq: ")
         self.polling_frequency.setSuffix("ms")
@@ -265,8 +279,8 @@ class TEMTasks(QGroupBox):
         INPUT_layout = QHBoxLayout()
         input_start_angle_lb = QLabel("Start angle:", self) # current value
         self.input_start_angle = QDoubleSpinBox(self)
-        self.input_start_angle.setMaximum(72)
-        self.input_start_angle.setMinimum(-72)
+        self.input_start_angle.setMaximum(globals.max_stage_tilt)
+        self.input_start_angle.setMinimum(-globals.max_stage_tilt)
         self.input_start_angle.setSuffix('°')
         self.input_start_angle.setDecimals(1)
         # self.input_start_angle.setValue("")
@@ -279,11 +293,11 @@ class TEMTasks(QGroupBox):
         END_layout = QHBoxLayout()
         end_angle = QLabel("Target angle:", self)
         self.update_end_angle = QDoubleSpinBox(self)
-        self.update_end_angle.setMaximum(72) # should be checked with the holder's threshold
-        self.update_end_angle.setMinimum(-72)
+        self.update_end_angle.setMaximum(globals.max_stage_tilt)
+        self.update_end_angle.setMinimum(-globals.max_stage_tilt)
         self.update_end_angle.setSuffix('°')
         self.update_end_angle.setDecimals(1)
-        self.update_end_angle.setValue(60) # will be replaced with configuration file
+        self.update_end_angle.setValue(globals.default_roation_end)
         if globals.dev:
             self.mirror_angles_checkbox = QCheckBox("mirror", self)
             self.mirror_angles_checkbox.setChecked(False)

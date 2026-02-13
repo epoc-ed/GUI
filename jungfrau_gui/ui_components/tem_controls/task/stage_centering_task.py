@@ -1,10 +1,11 @@
 import time
 import logging
 import numpy as np
-from .task import Task
+
+from jungfrau_gui import globals
+from jungfrau_gui.ui_components.tem_controls.task.task import Task
 
 from simple_tem import TEMClient
-from .... import globals
 from epoc import ConfigurationClient, auth_token, redis_host
 from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
 
@@ -19,16 +20,13 @@ class CenteringTask(Task):
         self.control = control_worker
         self.pixels = pixels
         logging.info("CenteringTask initialized")
-        self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, globals.tem_port, verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
         for shape in self.cfg.overlays:
             if shape['type'] == 'rectangle':
                 self.lowmag_jump = shape['xy'][0]+shape['width']//2, shape['xy'][1]+shape['height']//2
                 break
-        self.thresholds = {
-            'dxy_min': 0.3, 'dxy_max': 100, 
-            'dz_min_mag': 1, 'dz_max_mag': 10, 'dz_min_lmag': 3, 'absz_min': -70, 'absz_max': 20, 
-        }
+        self.thresholds = globals.click_on_move_thresholds
     
     def rot2d(self, vector, theta):# anti-clockwise
         theta_r = np.radians(theta)
@@ -39,7 +37,7 @@ class CenteringTask(Task):
     def translationvector(self, pixels, magnification):
         calibrated_mag = cfg_jf.lut().calibrated_magnification(magnification[2])
         rotation_axis = cfg_jf.lut().rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0])
-        if int(magnification[0]) >= 1500 : # Mag
+        if int(magnification[0]) >= globals.min_mag_for_mag: # Mag
             logging.debug(f'Estimate with rotation')
             tr_vector = (pixels - [self.cfg.ncols/2, self.cfg.nrows/2]) * globals.PIXEL * globals.MM_TO_UM / calibrated_mag # in um
         else: # Lowmag, targeting to the rectangular overlay
@@ -71,7 +69,7 @@ class CenteringTask(Task):
         
         if tilt_X_abs < 5:
             if np.abs(movexy[0]) < self.thresholds['dxy_min'] and np.abs(movexy[1]) < self.thresholds['dxy_min']:
-                logging.info(f'Vector already small enough (< {self.thresholds['dxy_min']} um): {movexy[0]}, {movexy[1]}')
+                logging.info(f"Vector already small enough (< {self.thresholds['dxy_min']} um): {movexy[0]}, {movexy[1]}")
                 return
             logging.info(f'Move X: {movexy[0]} um,  Y: {movexy[1]} um with MAG: {magnification[2]}')
             self.control.trigger_movewithbacklash.emit(np.sign(movexy[0]) > 0, -movexy[0]*globals.UM_TO_NM, globals.backlash[0], False)            

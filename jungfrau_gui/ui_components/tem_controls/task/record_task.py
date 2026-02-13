@@ -3,16 +3,15 @@ import time
 import h5py
 import logging
 import numpy as np
-from .task import Task
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Signal, Qt, QMetaObject
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
-from ..toolbox.tool import send_with_retries
 
-from ....metadata_uploader.metadata_update_client import MetadataNotifier
-
-from .... import globals
+from jungfrau_gui import globals
+from jungfrau_gui.ui_components.tem_controls.toolbox.tool import send_with_retries
+from jungfrau_gui.ui_components.tem_controls.task.task import Task
+from jungfrau_gui.metadata_uploader.metadata_update_client import MetadataNotifier
 
 class RecordTask(Task):
     reset_rotation_signal = Signal()
@@ -28,9 +27,9 @@ class RecordTask(Task):
         self.rotations_angles = []
         self.log_suffix = log_suffix
         logging.info("RecordTask initialized")
-        self.client = TEMClient(globals.tem_host, 3535,  verbose=True)
+        self.client = TEMClient(globals.tem_host, globals.tem_port,  verbose=True)
         self.cfg = ConfigurationClient(redis_host(), token=auth_token())
-        self.metadata_notifier = MetadataNotifier(host = "noether", port = 3463, verbose = False)
+        self.metadata_notifier = MetadataNotifier(host = globals.dataserver_host, port = globals.dataserver_port, verbose = False)
 
         self.reset_rotation_signal.connect(self.tem_action.reset_rotation_button)
 
@@ -206,8 +205,8 @@ class RecordTask(Task):
                                       beam_property,
                                       self.rotations_angles,
                                       self.cfg.threshold,
-                                      retries=3, 
-                                      delay=0.1) 
+                                      retries=globals.max_retries_tagging, 
+                                      delay=globals.inquiry_delay) 
                     
                     self.file_operations.update_xtalinfo_signal.emit('Processing', 'XDS')
                     # self.file_operations.update_xtalinfo_signal.emit('Processing', 'DIALS')

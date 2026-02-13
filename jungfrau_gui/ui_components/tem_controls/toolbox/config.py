@@ -12,11 +12,10 @@ from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem
 from PySide6.QtCore import QRectF
 
 from epoc import ConfigurationClient, auth_token, redis_host
-from .... import globals
+from jungfrau_gui import globals
 
 f = files('jungfrau_gui').joinpath('ui_components/tem_controls/toolbox/jfgui2_config.json')
 parser = json.loads(f.read_text())
-cfg = ConfigurationClient(redis_host(), token=auth_token())
 
 class lut:
     distance = parser['distances']
@@ -31,6 +30,7 @@ class lut:
         self.array_data = np.array([list(d.values()) for d in self.distance])
         self.raw_grid = np.delete(self.array_data, [2, 4, 5, 6], -1)[:-3,:] # remove date, unit, mag, and brightness at the moment
         self.data_grid = np.array([[int(nominal[:-2])*10, int(ht_value), float(calibrated)] for nominal, calibrated, ht_value in self.raw_grid])
+        self.cfg = ConfigurationClient(redis_host(), token=auth_token())
 
     def _lookup(self, dic, key, label_search, label_get, index=0):
         df_lut = pd.json_normalize(dic)
@@ -68,13 +68,13 @@ class lut:
         return self._lookup(self.sa, key_search, 'ID', 'size')
 
     def shiftoverlay_for_ht(self, ht_in_V, magnification=1200):
-        if magnification > 1500: # mag
+        if magnification >= globals.min_mag_for_mag: # mag
             return self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'overlay_xy', index=0)
         else:
             return self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'overlay_xy', index=-1)
 
     def rotaxis_for_ht(self, ht_in_V, magnification=20000):
-        if magnification > 1500: # mag
+        if magnification >= globals.min_mag_for_mag: # mag
             return self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'axis_xds', index=0)
         else:
             return self._lookup(self.ht_mag_specific, ht_in_V, 'ht_voltage', 'axis_xds', index=-1)
@@ -89,7 +89,7 @@ class lut:
         item_circle = QGraphicsEllipseItem(QRectF(x-r, y-r, 2*r, 2*r))
         item_circle.setPen(pg.mkPen('r', width=2))
 
-        r = cfg.overlays[0]['radius']
+        r = self.cfg.overlays[0]['radius']
         item_common = QGraphicsEllipseItem(QRectF(x-r, y-r, 2*r, 2*r))
         item_common.setPen(pg.mkPen('r', width=2))
         

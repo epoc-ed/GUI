@@ -3,7 +3,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from simple_tem import TEMClient
 
-from ... import globals
+from jungfrau_gui import globals
 
 class TEM_Connector(QObject):
     finished = Signal(bool)
@@ -11,7 +11,7 @@ class TEM_Connector(QObject):
     def __init__(self):
         super(TEM_Connector, self).__init__()
         self.task_name = "TEM Connector"
-        self.client = TEMClient(globals.tem_host, 3535, verbose=False) 
+        self.client = TEMClient(globals.tem_host, globals.tem_port, verbose=False) 
     
     @Slot()
     def run(self):

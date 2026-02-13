@@ -5,18 +5,15 @@ from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
 from PySide6.QtGui import QFont, QTransform
 
-from .toolbox.tool import *
-from .toolbox import config as cfg_jf
-
-from .task.task_manager import *
+import jungfrau_gui.ui_threading_helpers as thread_manager
+from jungfrau_gui.ui_components.tem_controls.toolbox.tool import *
+from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
+from jungfrau_gui.ui_components.tem_controls.task.task_manager import *
+from jungfrau_gui.ui_components.tem_controls.connectivity_inspector import TEM_Connector
+from jungfrau_gui.ui_components.file_operations.processresult_updater import ProcessedDataReceiver
+from jungfrau_gui.ui_components.tem_controls.tem_status_updater import TemUpdateWorker
 
 from epoc import ConfigurationClient, auth_token, redis_host
-
-from .connectivity_inspector import TEM_Connector
-from ..file_operations.processresult_updater import ProcessedDataReceiver
-from .tem_status_updater import TemUpdateWorker
-
-import jungfrau_gui.ui_threading_helpers as thread_manager
 import time
 
 from jungfrau_gui import globals
@@ -88,17 +85,36 @@ class TEMAction(QObject):
         
         self.control.updated.connect(self.on_tem_update)
 
-        # Move X positive 10 micrometers
-        self.tem_stagectrl.movex10ump.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(0,  10000, globals.backlash[0], True))
-        # Move X negative 10 micrometers
-        self.tem_stagectrl.movex10umn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(1, -10000, globals.backlash[0], True))
-        # Move TX positive 10 degrees
-        self.tem_stagectrl.move10degp.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(6,  10, globals.backlash[3], False))
-        # Move TX negative 10 degrees    
-        self.tem_stagectrl.move10degn.clicked.connect(lambda: self.control.trigger_movewithbacklash.emit(7, -10, globals.backlash[3], False))
+        # Away X: +10 um, always preload (e.g. +12 then -2)
+        self.tem_stagectrl.movex10ump.clicked.connect(
+            lambda: self.control.trigger_move_parking.emit(0, 10000, globals.preload[0], True)
+        )
+        self.tem_stagectrl.movex10umn.clicked.connect(
+            lambda: self.control.trigger_move_parking.emit(1, -10000, globals.preload[0], True)
+        )
+
+        # Away TX: +10 deg, preload (e.g. +11 then -1)
+        self.tem_stagectrl.move10degp.clicked.connect(
+            lambda: self.control.trigger_move_parking.emit(6, 10, globals.preload[3], False)
+        )
+        self.tem_stagectrl.move10degn.clicked.connect(
+            lambda: self.control.trigger_move_parking.emit(7, -10, globals.preload[3], False)
+        )
+
+        # Stage translation move back (X=0) with no preload 
+        self.tem_stagectrl.back_x.clicked.connect(
+            lambda: self.control.move_back_no_preload(0)
+        )
+
+        # Stage rotation move back (TX=3) with no preload 
+        self.tem_stagectrl.back_tx.clicked.connect(
+            lambda: self.control.move_back_no_preload(3)
+        )
+
         # Set Tilt X Angle to 0 degrees
         self.tem_stagectrl.move0deg.clicked.connect(
             lambda: threading.Thread(target=self.control.client.SetTiltXAngle, args=(0,)).start())
+        
         self.tem_stagectrl.go_button.clicked.connect(self.go_listedposition)
         self.tem_stagectrl.addpos_button.clicked.connect(lambda: self.add_listedposition())
         self.trigger_additem.connect(self.add_listedposition)
@@ -948,7 +964,7 @@ class TEMAction(QObject):
     @Slot()
     def inquire_processed_data(self):
         if self.dataReceiverReady:
-            self.process_receiver = ProcessedDataReceiver(self, host = "noether")            
+            self.process_receiver = ProcessedDataReceiver(self, host = globals.dataserver_host)
             self.datareceiver_thread = QThread()
             self.datareceiver_thread.setObjectName("Data_Receiver Thread")
             self.parent.threadWorkerPairs.append((self.datareceiver_thread, self.process_receiver))
@@ -974,7 +990,7 @@ class TEMAction(QObject):
         if Mag_idx == 4:
             logging.warning("Brightness should be calculated in imaging mode")
             return
-        frame = self.visualization_panel.jfjoch_client._lots_of_images / 3600 # usually 20, with 100 frame-sum
+        frame = self.visualization_panel.jfjoch_client._lots_of_images / globals.max_duration # usually 20, with 100 frame-sum
         image = self.parent.imageItem.image
         data_flat = image.flatten()
         image_deloverflow = image[np.where(image < np.iinfo('int32').max-1)]
@@ -1026,7 +1042,7 @@ class TEMAction(QObject):
         data_sampled = image_deloverflow[np.where((image_deloverflow < high_thresh)&(image_deloverflow > low_thresh))]
         uniqs, counts = np.unique(data_sampled//10, return_counts=True)
         approximate_average_count = uniqs[np.argmax(counts)].max() * 10
-        low_thresh, high_thresh = approximate_average_count*(1-margin), approximate_average_count*(1+margin)
+        low_thresh, high_thresh = approximate_average_count*(1-subiman), approximate_average_count*(1+margin)
         logging.info(f"Snapshot displayed in enhanced contrast ({low_thresh}-{high_thresh})")
         # downsizing
         snapshot_image = pg.ImageItem(np.clip((np.nan_to_num(image) - low_thresh) / (high_thresh - low_thresh) * 255, 0, 255).astype(np.uint8))
@@ -1035,7 +1051,7 @@ class TEMAction(QObject):
         scale = globals.PIXEL*globals.MM_TO_UM/calibrated_mag
         tr.scale(scale, scale)
         tr.rotate(180 + self.lut.rotaxis_for_ht_degree(self.control.tem_status["ht.GetHtValue"], magnification=magnification[0]))
-        if int(magnification[0]) >= 1500 : # Mag
+        if int(magnification[0]) >= globals.min_mag_for_mag: # Mag
             tr.translate(-image.shape[0]/2, -image.shape[1]/2)
         else:
             tr.translate(-self.lowmag_jump[0], -self.lowmag_jump[1])
@@ -1097,12 +1113,12 @@ class TEMAction(QObject):
             return
         # load mode
         if self.tem_stagectrl.position_list.count() == self.gui_id_offset + 1:
-            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=1)
+            self.process_receiver = ProcessedDataReceiver(self, host = globals.dataserver_host, mode=1)
             logging.info("Start session-metadata loading")
             self.control.tem_status["gui_id"] = self.tem_stagectrl.position_list.count() - self.gui_id_offset
         # save mode
         elif len(self.xtallist) != 1:
-            self.process_receiver = ProcessedDataReceiver(self, host = "noether", mode=2)
+            self.process_receiver = ProcessedDataReceiver(self, host = globals.dataserver_host, mode=2)
             logging.info("Start session-metadata saving")
         else:
             logging.warning("No data available")
