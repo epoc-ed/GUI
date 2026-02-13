@@ -1,0 +1,42 @@
+# EPOC Redis Configuration
+
+# Experiment metadata
+affiliation: "YourInstitution"
+PI_name: "DefaultPI"
+project_id: "ProjectID"
+experiment_class: "External"
+measurement_tag: "sample1"
+
+# Data directories
+base_data_dir: "/data/jungfrau"
+XDS_template: "/path/to/XDS.INP"
+cal_dir: "/path/to/calibration"
+
+# Detector settings (e.g. of 1 Megapixel JUNGFRAU)
+nrows: 1064
+ncols: 1030
+threshold: 5
+
+# Viewer settings
+viewer_interval: 20.0
+viewer_cmin: 0.0
+viewer_cmax: 12000.0
+
+# Network endpoints
+jfjoch_host: "http://jungfrau-server:5232"      # Replace by the HTTP address of the Jungfraujoch web GUI
+receiver_endpoint: "tcp://jungfrau-server:5000" # look at the ZMQ stream endpoint in the Jungfraujoch Web GUI
+temserver: "temserver"                          # IP address of the TEM control machine (define in /etc/hosts)
+
+# Acquisition settings
+rotation_speed_idx: 0
+file_id: 0
+
+# Display overlays (optional)
+overlays:
+ - {'type': 'circle', 'xy': [526, 253], 'radius': 188, 'ec': 'r', 'fill': False, 'lw': 2}
+ - {'type': 'circle', 'xy': [526, 253], 'radius': 5, 'ec': 'g', 'fill': False, 'lw': 2}
+ - {'type': 'rectangle', 'xy': [574, 52], 'width': 60, 'height': 31, 'angle': 27.5, 'ec': 'y', 'fill': False}
+ - {'type': 'rectangle', 'xy': [0, 0], 'width': 1000, 'height': 1, 'angle': 19.8, 'ec': 'r', 'fill': False}
+
+# Used affiliations list
+usedAffiliations: ["YourInstitution", "External"]

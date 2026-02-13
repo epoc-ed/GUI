@@ -3,7 +3,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from simple_tem import TEMClient
 
-from ... import globals
+from jungfrau_gui import globals
 
 class TEM_Connector(QObject):
     finished = Signal(bool)

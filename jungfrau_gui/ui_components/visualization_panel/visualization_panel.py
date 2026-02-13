@@ -9,22 +9,18 @@ from PySide6.QtWidgets import ( QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit,
                                 QLabel, QPushButton, QSpinBox, QCheckBox,
                                 QGridLayout, QSizePolicy, QSpacerItem, QMessageBox)
 
-from epoc import ConfigurationClient, auth_token, redis_host
-
-from .reader import Reader
-
-from ... import globals
-from ...ui_components.toggle_button import ToggleButton
-from ..tem_controls.ui_tem_specific import TEMDetector
-from ...ui_components.utils import create_horizontal_line_with_margin
-
+from jungfrau_gui import globals
 import jungfrau_gui.ui_threading_helpers as thread_manager
+from jungfrau_gui.ui_components.palette import *
+from jungfrau_gui.ui_components.toggle_button import ToggleButton
+from jungfrau_gui.ui_components.utils import create_horizontal_line_with_margin
+from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
+from jungfrau_gui.ui_components.tem_controls.ui_tem_specific import TEMDetector
+from jungfrau_gui.ui_components.tem_controls.toolbox.progress_pop_up import ProgressPopup
+from jungfrau_gui.ui_components.visualization_panel.reader import Reader
 
 from epoc import JungfraujochWrapper, ConfigurationClient, auth_token, redis_host
-from ...ui_components.palette import *
 from rich import print
-from ..tem_controls.toolbox.progress_pop_up import ProgressPopup
-from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
 
 font_big = QFont("Arial", 11)
 font_big.setBold(True)

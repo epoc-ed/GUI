@@ -3,16 +3,15 @@ import time
 import h5py
 import logging
 import numpy as np
-from .task import Task
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Signal, Qt, QMetaObject
 from simple_tem import TEMClient
 from epoc import ConfigurationClient, auth_token, redis_host
-from ..toolbox.tool import send_with_retries
 
-from ....metadata_uploader.metadata_update_client import MetadataNotifier
-
-from .... import globals
+from jungfrau_gui import globals
+from jungfrau_gui.ui_components.tem_controls.toolbox.tool import send_with_retries
+from jungfrau_gui.ui_components.tem_controls.task.task import Task
+from jungfrau_gui.metadata_uploader.metadata_update_client import MetadataNotifier
 
 class RecordTask(Task):
     reset_rotation_signal = Signal()

@@ -1,10 +1,11 @@
 import time
 import logging
 import numpy as np
-from .task import Task
+
+from jungfrau_gui import globals
+from jungfrau_gui.ui_components.tem_controls.task.task import Task
 
 from simple_tem import TEMClient
-from .... import globals
 from epoc import ConfigurationClient, auth_token, redis_host
 from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
 

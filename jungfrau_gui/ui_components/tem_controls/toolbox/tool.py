@@ -3,7 +3,7 @@ import time
 import logging
 import zmq
 
-from .... import globals
+from jungfrau_gui import globals
 
 def create_full_mapping(info_queries, more_queries, init_queries, info_queries_client, more_queries_client, init_queries_client):
     """

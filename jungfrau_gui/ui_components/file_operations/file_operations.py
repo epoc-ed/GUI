@@ -4,14 +4,14 @@ from PySide6.QtCore import Signal, Qt, QRegularExpression, QTimer, Slot, QObject
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpinBox, QCheckBox, QComboBox, QCompleter)
 
 
-from ...ui_components.toggle_button import ToggleButton
-from ...ui_components.utils import create_horizontal_line_with_margin
-from ...ui_components.palette import *
-from ...ui_components.tem_controls.toolbox.tool import send_with_retries
-from ...metadata_uploader.metadata_update_client import MetadataNotifier
+from jungfrau_gui.ui_components.toggle_button import ToggleButton
+from jungfrau_gui.ui_components.utils import create_horizontal_line_with_margin
+from jungfrau_gui.ui_components.palette import *
+from jungfrau_gui.ui_components.tem_controls.toolbox.tool import send_with_retries
+from jungfrau_gui.metadata_uploader.metadata_update_client import MetadataNotifier
 
 from epoc import ConfigurationClient, auth_token, redis_host
-from ... import globals
+from jungfrau_gui import globals
 
 import os
 import re

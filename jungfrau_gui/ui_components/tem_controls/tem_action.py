@@ -5,18 +5,15 @@ from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, QObject, QTimer, Qt, QMetaObject, Signal, Slot
 from PySide6.QtGui import QFont, QTransform
 
-from .toolbox.tool import *
-from .toolbox import config as cfg_jf
-
-from .task.task_manager import *
+import jungfrau_gui.ui_threading_helpers as thread_manager
+from jungfrau_gui.ui_components.tem_controls.toolbox.tool import *
+from jungfrau_gui.ui_components.tem_controls.toolbox import config as cfg_jf
+from jungfrau_gui.ui_components.tem_controls.task.task_manager import *
+from jungfrau_gui.ui_components.tem_controls.connectivity_inspector import TEM_Connector
+from jungfrau_gui.ui_components.file_operations.processresult_updater import ProcessedDataReceiver
+from jungfrau_gui.ui_components.tem_controls.tem_status_updater import TemUpdateWorker
 
 from epoc import ConfigurationClient, auth_token, redis_host
-
-from .connectivity_inspector import TEM_Connector
-from ..file_operations.processresult_updater import ProcessedDataReceiver
-from .tem_status_updater import TemUpdateWorker
-
-import jungfrau_gui.ui_threading_helpers as thread_manager
 import time
 
 from jungfrau_gui import globals

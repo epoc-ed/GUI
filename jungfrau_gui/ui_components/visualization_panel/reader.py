@@ -1,6 +1,6 @@
 import logging
 import numpy as np 
-from ... import globals
+from jungfrau_gui import globals
 
 from PySide6.QtCore import QObject, Signal, Slot
 

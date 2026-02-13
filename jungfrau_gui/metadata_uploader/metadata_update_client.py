@@ -8,7 +8,7 @@ import numpy as np
 from datetime import datetime
 import argparse
 from pathlib import Path
-from .. import globals
+from jungfrau_gui import globals
 
 # Handle imports correctly when running as a standalone script
 if __name__ == "__main__" and __package__ is None:
